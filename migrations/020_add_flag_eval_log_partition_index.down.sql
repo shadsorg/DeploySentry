@@ -1,0 +1,2 @@
+DROP INDEX CONCURRENTLY IF EXISTS idx_flag_eval_log_partition_key_env;
+DROP INDEX CONCURRENTLY IF EXISTS idx_flag_eval_log_partition_evaluated_at_flag;

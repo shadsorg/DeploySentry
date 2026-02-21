@@ -719,6 +719,7 @@ func runDeployLogs(cmd *cobra.Command, args []string) error {
 }
 
 // clientFromConfig creates an API client from the current configuration.
+// It automatically refreshes expired OAuth tokens before returning the client.
 func clientFromConfig() (*apiClient, error) {
 	apiURL := viper.GetString("api_url")
 	if apiURL == "" {
@@ -726,8 +727,8 @@ func clientFromConfig() (*apiClient, error) {
 	}
 	client := newAPIClient(apiURL)
 
-	// Try loading credentials for auth.
-	creds, err := loadCredentials()
+	// Try loading credentials with automatic token refresh on expiry.
+	creds, err := ensureValidToken()
 	if err == nil {
 		client.setToken(creds.AccessToken)
 	} else {

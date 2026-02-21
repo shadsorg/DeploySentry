@@ -137,3 +137,105 @@ func (s *SentryCheck) getRecentErrorCount(ctx context.Context) (int, error) {
 
 	return len(issues), nil
 }
+
+// SentryWebhookEvent represents a Sentry webhook event payload.
+type SentryWebhookEvent struct {
+	Action string `json:"action"`
+	Data   struct {
+		Issue struct {
+			ID       string `json:"id"`
+			Title    string `json:"title"`
+			Level    string `json:"level"`
+			Platform string `json:"platform"`
+			Project  struct {
+				Slug string `json:"slug"`
+				Name string `json:"name"`
+			} `json:"project"`
+			Count      string `json:"count"`
+			IsNew      bool   `json:"isNew"`
+			IsRegression bool `json:"isRegression"`
+		} `json:"issue"`
+	} `json:"data"`
+}
+
+// SentryWebhookResult holds the processed result of a Sentry webhook event.
+type SentryWebhookResult struct {
+	Action       string  `json:"action"`
+	IssueID      string  `json:"issue_id"`
+	Title        string  `json:"title"`
+	Level        string  `json:"level"`
+	Project      string  `json:"project"`
+	IsNew        bool    `json:"is_new"`
+	IsRegression bool    `json:"is_regression"`
+	HealthScore  float64 `json:"health_score"`
+}
+
+// SentryWebhookReceiver processes incoming Sentry webhook events and converts
+// them to health check signals.
+type SentryWebhookReceiver struct {
+	config   SentryConfig
+	listener WebhookListener
+}
+
+// WebhookListener receives processed webhook events. Implementations can
+// update health status, trigger alerts, or record audit data.
+type WebhookListener interface {
+	// OnWebhookEvent is called when a valid webhook event has been processed.
+	OnWebhookEvent(ctx context.Context, result *SentryWebhookResult)
+}
+
+// NewSentryWebhookReceiver creates a new SentryWebhookReceiver with the given
+// configuration and optional listener.
+func NewSentryWebhookReceiver(config SentryConfig, listener WebhookListener) *SentryWebhookReceiver {
+	return &SentryWebhookReceiver{
+		config:   config,
+		listener: listener,
+	}
+}
+
+// HandleWebhook processes an incoming Sentry webhook HTTP request. It parses
+// the webhook payload, computes a health signal score based on the event, and
+// notifies the registered listener.
+func (r *SentryWebhookReceiver) HandleWebhook(ctx context.Context, req *http.Request) (*SentryWebhookResult, error) {
+	if req.Method != http.MethodPost {
+		return nil, fmt.Errorf("unsupported method %s, expected POST", req.Method)
+	}
+
+	var event SentryWebhookEvent
+	if err := json.NewDecoder(req.Body).Decode(&event); err != nil {
+		return nil, fmt.Errorf("decoding sentry webhook payload: %w", err)
+	}
+
+	// Compute a health score based on the event type.
+	// New issues and regressions have a bigger impact on health.
+	score := 1.0
+	switch {
+	case event.Data.Issue.IsRegression:
+		score = 0.2
+	case event.Data.Issue.IsNew && event.Data.Issue.Level == "error":
+		score = 0.3
+	case event.Data.Issue.IsNew:
+		score = 0.5
+	case event.Action == "resolved":
+		score = 1.0
+	default:
+		score = 0.6
+	}
+
+	result := &SentryWebhookResult{
+		Action:       event.Action,
+		IssueID:      event.Data.Issue.ID,
+		Title:        event.Data.Issue.Title,
+		Level:        event.Data.Issue.Level,
+		Project:      event.Data.Issue.Project.Slug,
+		IsNew:        event.Data.Issue.IsNew,
+		IsRegression: event.Data.Issue.IsRegression,
+		HealthScore:  score,
+	}
+
+	if r.listener != nil {
+		r.listener.OnWebhookEvent(ctx, result)
+	}
+
+	return result, nil
+}

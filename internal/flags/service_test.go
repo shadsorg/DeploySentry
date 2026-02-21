@@ -144,6 +144,10 @@ func (m *mockFlagRepo) DeleteRule(ctx context.Context, id uuid.UUID) error {
 	return errors.New("rule not found")
 }
 
+func (m *mockFlagRepo) WriteEvaluationLog(ctx context.Context, logs []EvaluationLog) error {
+	return nil
+}
+
 // mockCache is a test double for Cache.
 type mockCache struct {
 	flags map[string]*models.FeatureFlag   // key: "projectID:envID:key"
@@ -237,7 +241,7 @@ func validFlag() *models.FeatureFlag {
 
 func TestCreateFlag_AssignsID(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	flag := validFlag()
 	flag.ID = uuid.Nil
@@ -251,7 +255,7 @@ func TestCreateFlag_AssignsID(t *testing.T) {
 
 func TestCreateFlag_PreservesExistingID(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	existingID := uuid.New()
 	flag := validFlag()
@@ -264,7 +268,7 @@ func TestCreateFlag_PreservesExistingID(t *testing.T) {
 
 func TestCreateFlag_ValidationError(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	flag := &models.FeatureFlag{
 		// Missing required fields: ProjectID, EnvironmentID, Key, Name
@@ -281,7 +285,7 @@ func TestCreateFlag_RepoError(t *testing.T) {
 	repo.createFlagFn = func(ctx context.Context, flag *models.FeatureFlag) error {
 		return errors.New("database unavailable")
 	}
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	flag := validFlag()
 	err := svc.CreateFlag(context.Background(), flag)
@@ -295,7 +299,7 @@ func TestCreateFlag_RepoError(t *testing.T) {
 
 func TestGetFlag_Exists(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	flag := validFlag()
 	err := svc.CreateFlag(context.Background(), flag)
@@ -309,7 +313,7 @@ func TestGetFlag_Exists(t *testing.T) {
 
 func TestService_GetFlag_NotFound(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	_, err := svc.GetFlag(context.Background(), uuid.New())
 	require.Error(t, err)
@@ -322,7 +326,7 @@ func TestService_GetFlag_NotFound(t *testing.T) {
 
 func TestListFlags_DefaultLimit(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	projectID := uuid.New()
 	for i := 0; i < 3; i++ {
@@ -347,7 +351,7 @@ func TestListFlags_CappedLimit(t *testing.T) {
 	_ = origListFlags
 	repo2 := &capturingMockFlagRepo{mockFlagRepo: repo, capturedOpts: &capturedOpts}
 
-	svc := NewFlagService(repo2, newMockCache())
+	svc := NewFlagService(repo2, newMockCache(), nil)
 
 	_, err := svc.ListFlags(context.Background(), uuid.New(), ListOptions{Limit: 500})
 	require.NoError(t, err)
@@ -359,7 +363,7 @@ func TestListFlags_ZeroLimitDefaultsTo20(t *testing.T) {
 	var capturedOpts ListOptions
 	repo2 := &capturingMockFlagRepo{mockFlagRepo: repo, capturedOpts: &capturedOpts}
 
-	svc := NewFlagService(repo2, newMockCache())
+	svc := NewFlagService(repo2, newMockCache(), nil)
 
 	_, err := svc.ListFlags(context.Background(), uuid.New(), ListOptions{Limit: 0})
 	require.NoError(t, err)
@@ -383,7 +387,7 @@ func (c *capturingMockFlagRepo) ListFlags(ctx context.Context, projectID uuid.UU
 
 func TestUpdateFlag_Success(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	flag := validFlag()
 	err := svc.CreateFlag(context.Background(), flag)
@@ -400,7 +404,7 @@ func TestUpdateFlag_Success(t *testing.T) {
 
 func TestUpdateFlag_ValidationError(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	flag := validFlag()
 	err := svc.CreateFlag(context.Background(), flag)
@@ -418,7 +422,7 @@ func TestUpdateFlag_ValidationError(t *testing.T) {
 
 func TestArchiveFlag_Success(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	flag := validFlag()
 	flag.Enabled = true
@@ -436,7 +440,7 @@ func TestArchiveFlag_Success(t *testing.T) {
 
 func TestArchiveFlag_GetError(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	err := svc.ArchiveFlag(context.Background(), uuid.New())
 	require.Error(t, err)
@@ -449,7 +453,7 @@ func TestArchiveFlag_GetError(t *testing.T) {
 
 func TestToggleFlag_On(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	flag := validFlag()
 	flag.Enabled = false
@@ -466,7 +470,7 @@ func TestToggleFlag_On(t *testing.T) {
 
 func TestToggleFlag_Off(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	flag := validFlag()
 	flag.Enabled = true
@@ -483,7 +487,7 @@ func TestToggleFlag_Off(t *testing.T) {
 
 func TestToggleFlag_CannotToggleArchived(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	flag := validFlag()
 	err := svc.CreateFlag(context.Background(), flag)
@@ -503,7 +507,7 @@ func TestToggleFlag_CannotToggleArchived(t *testing.T) {
 
 func TestAddRule_AssignsID(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	pct := 50
 	rule := &models.TargetingRule{
@@ -522,7 +526,7 @@ func TestAddRule_AssignsID(t *testing.T) {
 
 func TestAddRule_ValidationError(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	rule := &models.TargetingRule{
 		// Missing FlagID.
@@ -540,7 +544,7 @@ func TestAddRule_ValidationError(t *testing.T) {
 
 func TestUpdateRule_Success(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	flagID := uuid.New()
 	pct := 50
@@ -561,7 +565,7 @@ func TestUpdateRule_Success(t *testing.T) {
 
 func TestUpdateRule_ValidationError(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	rule := &models.TargetingRule{
 		ID:       uuid.New(),
@@ -580,7 +584,7 @@ func TestUpdateRule_ValidationError(t *testing.T) {
 
 func TestDeleteRule_Success(t *testing.T) {
 	repo := newMockFlagRepo()
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	flagID := uuid.New()
 	pct := 50
@@ -602,7 +606,7 @@ func TestDeleteRule_ErrorPropagation(t *testing.T) {
 	repo.deleteRuleFn = func(ctx context.Context, id uuid.UUID) error {
 		return errors.New("database connection lost")
 	}
-	svc := NewFlagService(repo, newMockCache())
+	svc := NewFlagService(repo, newMockCache(), nil)
 
 	err := svc.DeleteRule(context.Background(), uuid.New())
 	require.Error(t, err)
@@ -877,7 +881,7 @@ func TestEvaluator_NoRulesMatch_ReturnsDefault(t *testing.T) {
 func TestFlagService_Evaluate_DelegatesToEvaluator(t *testing.T) {
 	repo := newMockFlagRepo()
 	cache := newMockCache()
-	svc := NewFlagService(repo, cache)
+	svc := NewFlagService(repo, cache, nil)
 
 	projectID := uuid.New()
 	envID := uuid.New()

@@ -175,3 +175,78 @@ func (d *DatadogCheck) queryMetric(ctx context.Context, metric string) (float64,
 
 	return lastPoint[1], nil
 }
+
+// DatadogMonitorStatus represents the status of a Datadog monitor.
+type DatadogMonitorStatus struct {
+	MonitorID int    `json:"monitor_id"`
+	Name      string `json:"name"`
+	Status    string `json:"status"`
+	Type      string `json:"type"`
+	Message   string `json:"message"`
+}
+
+// datadogMonitorResponse models the JSON response from the Datadog monitor endpoint.
+type datadogMonitorResponse struct {
+	ID      int    `json:"id"`
+	Name    string `json:"name"`
+	Status  string `json:"overall_state"`
+	Type    string `json:"type"`
+	Message string `json:"message"`
+}
+
+// GetMonitorStatus queries the Datadog API for the status of a specific monitor.
+// Monitor statuses include: "OK", "Alert", "Warn", "No Data".
+func (d *DatadogCheck) GetMonitorStatus(ctx context.Context, monitorID int) (*DatadogMonitorStatus, error) {
+	endpoint := fmt.Sprintf(
+		"https://api.%s/api/v1/monitor/%d",
+		d.config.Site, monitorID,
+	)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating datadog monitor request: %w", err)
+	}
+
+	req.Header.Set("DD-API-KEY", d.config.APIKey)
+	req.Header.Set("DD-APPLICATION-KEY", d.config.AppKey)
+
+	resp, err := d.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("querying datadog monitor: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("datadog returned status %d for monitor %d", resp.StatusCode, monitorID)
+	}
+
+	var monitorResp datadogMonitorResponse
+	if err := json.NewDecoder(resp.Body).Decode(&monitorResp); err != nil {
+		return nil, fmt.Errorf("decoding datadog monitor response: %w", err)
+	}
+
+	return &DatadogMonitorStatus{
+		MonitorID: monitorResp.ID,
+		Name:      monitorResp.Name,
+		Status:    monitorResp.Status,
+		Type:      monitorResp.Type,
+		Message:   monitorResp.Message,
+	}, nil
+}
+
+// MonitorStatusToScore converts a Datadog monitor status string to a health score
+// in the range [0.0, 1.0].
+func MonitorStatusToScore(status string) float64 {
+	switch status {
+	case "OK":
+		return 1.0
+	case "Warn":
+		return 0.5
+	case "Alert":
+		return 0.0
+	case "No Data":
+		return 0.5
+	default:
+		return 0.0
+	}
+}

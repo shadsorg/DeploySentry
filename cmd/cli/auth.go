@@ -159,6 +159,128 @@ func loadCredentials() (*credentialsFile, error) {
 	return &creds, nil
 }
 
+// tokenExpiryGracePeriod is the amount of time before actual expiry at which
+// we proactively refresh the token. This avoids requests failing due to
+// clock skew or network latency.
+const tokenExpiryGracePeriod = 30 * time.Second
+
+// refreshToken attempts to obtain a new access token using the stored refresh
+// token. On success the updated credentials are persisted to disk and the
+// refreshed credentialsFile is returned.
+func refreshToken(creds *credentialsFile) (*credentialsFile, error) {
+	if creds.RefreshToken == "" {
+		return nil, fmt.Errorf("no refresh token available; run 'deploysentry auth login' to re-authenticate")
+	}
+
+	apiURL := viper.GetString("api_url")
+	if apiURL == "" {
+		apiURL = "https://api.deploysentry.io"
+	}
+
+	client := newAPIClient(apiURL)
+
+	body := map[string]string{
+		"grant_type":    "refresh_token",
+		"refresh_token": creds.RefreshToken,
+		"client_id":     "cli",
+	}
+
+	req, err := client.newRequest(http.MethodPost, "/oauth/token", body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create refresh request: %w", err)
+	}
+
+	resp, err := client.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("token refresh request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("token refresh failed (status %d); run 'deploysentry auth login' to re-authenticate", resp.StatusCode)
+	}
+
+	var tokenResp struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		TokenType    string `json:"token_type"`
+		ExpiresIn    int    `json:"expires_in"`
+		User         string `json:"user"`
+		Email        string `json:"email"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return nil, fmt.Errorf("failed to decode refresh token response: %w", err)
+	}
+
+	if tokenResp.AccessToken == "" {
+		return nil, fmt.Errorf("no access token in refresh response; run 'deploysentry auth login' to re-authenticate")
+	}
+
+	// Preserve user/email from the previous credentials if the refresh
+	// response does not include them.
+	user := tokenResp.User
+	if user == "" {
+		user = creds.User
+	}
+	email := tokenResp.Email
+	if email == "" {
+		email = creds.Email
+	}
+
+	// If the server did not rotate the refresh token, keep the old one.
+	refreshTok := tokenResp.RefreshToken
+	if refreshTok == "" {
+		refreshTok = creds.RefreshToken
+	}
+
+	newCreds := &credentialsFile{
+		AccessToken:  tokenResp.AccessToken,
+		RefreshToken: refreshTok,
+		TokenType:    tokenResp.TokenType,
+		ExpiresAt:    time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second),
+		User:         user,
+		Email:        email,
+	}
+
+	if err := saveCredentials(newCreds); err != nil {
+		return nil, fmt.Errorf("refreshed token but failed to save credentials: %w", err)
+	}
+
+	return newCreds, nil
+}
+
+// ensureValidToken loads credentials and, if the access token is expired (or
+// about to expire), automatically refreshes it. It returns the
+// credentialsFile with a valid access token or an error.
+func ensureValidToken() (*credentialsFile, error) {
+	creds, err := loadCredentials()
+	if err != nil {
+		return nil, err
+	}
+
+	// If the token is still valid (with a grace period), return as-is.
+	if time.Now().Before(creds.ExpiresAt.Add(-tokenExpiryGracePeriod)) {
+		return creds, nil
+	}
+
+	// Token is expired or about to expire; attempt refresh.
+	if isVerbose() {
+		fmt.Fprintln(os.Stderr, "Access token expired or expiring soon; refreshing...")
+	}
+
+	refreshed, err := refreshToken(creds)
+	if err != nil {
+		return nil, err
+	}
+
+	if isVerbose() {
+		fmt.Fprintln(os.Stderr, "Token refreshed successfully.")
+	}
+
+	return refreshed, nil
+}
+
 // runAuthLogin performs the browser-based OAuth login flow.
 func runAuthLogin(cmd *cobra.Command, args []string) error {
 	apiURL, _ := cmd.Flags().GetString("api-url")

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -16,7 +18,135 @@ var (
 	buildDate = "unknown"
 
 	cfgFile string
+	noColor bool
 )
+
+// ---------------------------------------------------------------------------
+// ANSI color helpers
+// ---------------------------------------------------------------------------
+
+const (
+	ansiReset  = "\033[0m"
+	ansiBold   = "\033[1m"
+	ansiRed    = "\033[31m"
+	ansiGreen  = "\033[32m"
+	ansiYellow = "\033[33m"
+	ansiCyan   = "\033[36m"
+)
+
+// colorEnabled reports whether colored output should be used. Color is
+// disabled when the --no-color flag is set or the NO_COLOR environment
+// variable is present (see https://no-color.org).
+func colorEnabled() bool {
+	if noColor {
+		return false
+	}
+	if _, ok := os.LookupEnv("NO_COLOR"); ok {
+		return false
+	}
+	return true
+}
+
+// colorGreen wraps s in green ANSI escape codes.
+func colorGreen(s string) string {
+	if !colorEnabled() {
+		return s
+	}
+	return ansiGreen + s + ansiReset
+}
+
+// colorRed wraps s in red ANSI escape codes.
+func colorRed(s string) string {
+	if !colorEnabled() {
+		return s
+	}
+	return ansiRed + s + ansiReset
+}
+
+// colorYellow wraps s in yellow ANSI escape codes.
+func colorYellow(s string) string {
+	if !colorEnabled() {
+		return s
+	}
+	return ansiYellow + s + ansiReset
+}
+
+// colorCyan wraps s in cyan ANSI escape codes.
+func colorCyan(s string) string {
+	if !colorEnabled() {
+		return s
+	}
+	return ansiCyan + s + ansiReset
+}
+
+// colorBold wraps s in bold ANSI escape codes.
+func colorBold(s string) string {
+	if !colorEnabled() {
+		return s
+	}
+	return ansiBold + s + ansiReset
+}
+
+// ---------------------------------------------------------------------------
+// Spinner / progress indicator
+// ---------------------------------------------------------------------------
+
+// spinner displays an animated progress indicator for long-running operations.
+type spinner struct {
+	message string
+	done    chan struct{}
+	once    sync.Once
+}
+
+// newSpinner creates and starts a spinner that writes to stderr.
+func newSpinner(message string) *spinner {
+	s := &spinner{
+		message: message,
+		done:    make(chan struct{}),
+	}
+	go s.run()
+	return s
+}
+
+// run drives the spinner animation until Stop is called.
+func (s *spinner) run() {
+	frames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	ticker := time.NewTicker(80 * time.Millisecond)
+	defer ticker.Stop()
+
+	i := 0
+	for {
+		select {
+		case <-s.done:
+			// Clear the spinner line.
+			fmt.Fprintf(os.Stderr, "\r\033[K")
+			return
+		case <-ticker.C:
+			frame := frames[i%len(frames)]
+			if colorEnabled() {
+				fmt.Fprintf(os.Stderr, "\r%s %s", colorCyan(frame), s.message)
+			} else {
+				fmt.Fprintf(os.Stderr, "\r%s %s", frame, s.message)
+			}
+			i++
+		}
+	}
+}
+
+// Stop terminates the spinner. It is safe to call multiple times.
+func (s *spinner) Stop() {
+	s.once.Do(func() {
+		close(s.done)
+		// Small sleep to let the goroutine clean up the line.
+		time.Sleep(100 * time.Millisecond)
+	})
+}
+
+// StopWithMessage terminates the spinner and prints a final status message.
+func (s *spinner) StopWithMessage(msg string) {
+	s.Stop()
+	fmt.Fprintln(os.Stderr, msg)
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "deploysentry",
@@ -61,6 +191,56 @@ var versionCmd = &cobra.Command{
 	},
 }
 
+// completionCmd generates shell completion scripts for bash, zsh, and fish.
+var completionCmd = &cobra.Command{
+	Use:   "completion [bash|zsh|fish]",
+	Short: "Generate shell completion scripts",
+	Long: `Generate shell completion scripts for DeploySentry CLI.
+
+To load completions:
+
+Bash:
+  $ source <(deploysentry completion bash)
+
+  # To load completions for each session, execute once:
+  # Linux:
+  $ deploysentry completion bash > /etc/bash_completion.d/deploysentry
+  # macOS:
+  $ deploysentry completion bash > $(brew --prefix)/etc/bash_completion.d/deploysentry
+
+Zsh:
+  # If shell completion is not already enabled in your environment,
+  # you will need to enable it. You can execute the following once:
+  $ echo "autoload -U compinit; compinit" >> ~/.zshrc
+
+  # To load completions for each session, execute once:
+  $ deploysentry completion zsh > "${fpath[1]}/_deploysentry"
+
+  # You will need to start a new shell for this setup to take effect.
+
+Fish:
+  $ deploysentry completion fish | source
+
+  # To load completions for each session, execute once:
+  $ deploysentry completion fish > ~/.config/fish/completions/deploysentry.fish
+`,
+	DisableFlagsInUseLine: true,
+	ValidArgs:             []string{"bash", "zsh", "fish"},
+	Args:                  cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		switch args[0] {
+		case "bash":
+			return rootCmd.GenBashCompletionV2(cmd.OutOrStdout(), true)
+		case "zsh":
+			return rootCmd.GenZshCompletion(cmd.OutOrStdout())
+		case "fish":
+			return rootCmd.GenFishCompletion(cmd.OutOrStdout(), true)
+		default:
+			return fmt.Errorf("unsupported shell %q; must be bash, zsh, or fish", args[0])
+		}
+	},
+}
+
 func init() {
 	cobra.OnInitialize(initConfig)
 
@@ -71,6 +251,7 @@ func init() {
 	rootCmd.PersistentFlags().String("env", "", "target environment (e.g., dev, staging, production)")
 	rootCmd.PersistentFlags().StringP("output", "o", "table", "output format: table or json")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "enable verbose output for debugging")
+	rootCmd.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable colored output")
 
 	// Bind persistent flags to viper for config-file and env-var support.
 	_ = viper.BindPFlag("org", rootCmd.PersistentFlags().Lookup("org"))
@@ -80,6 +261,7 @@ func init() {
 	_ = viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(completionCmd)
 }
 
 // initConfig reads the config file and environment variables.

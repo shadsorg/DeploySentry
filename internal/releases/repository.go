@@ -31,6 +31,14 @@ type ReleaseRepository interface {
 
 	// UpdateReleaseEnvironment persists changes to a release-environment association.
 	UpdateReleaseEnvironment(ctx context.Context, re *models.ReleaseEnvironment) error
+
+	// GetLatestRelease returns the most recent release for a project and
+	// environment combination, ordered by creation time descending.
+	GetLatestRelease(ctx context.Context, projectID, environmentID uuid.UUID) (*models.Release, error)
+
+	// GetReleaseTimeline returns a chronological timeline of release deployments
+	// across all environments for a project.
+	GetReleaseTimeline(ctx context.Context, projectID uuid.UUID) ([]*models.ReleaseTimeline, error)
 }
 
 // ListOptions controls pagination and filtering for release list queries.

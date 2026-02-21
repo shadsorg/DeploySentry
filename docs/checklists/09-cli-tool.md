@@ -5,7 +5,7 @@
 - [x] Single binary distribution (cross-platform)
 - [x] Configuration file support (`.deploysentry.yml`)
 - [x] Global flags: `--org`, `--project`, `--env`, `--output` (json/table/yaml)
-- [ ] Colored output and progress indicators
+- [x] Colored output and progress indicators
 - [x] Version command with build info
 
 ## Auth Commands (`auth`)
@@ -13,7 +13,7 @@
 - [x] `deploysentry auth logout` — Clear local credentials
 - [x] `deploysentry auth status` — Show current auth status
 - [x] Token storage (OS keychain or config file)
-- [ ] Token refresh on expiry
+- [x] Token refresh on expiry
 
 ## Deploy Commands (`deploy`)
 - [x] `deploysentry deploy create` — Create a new deployment
@@ -64,4 +64,4 @@
 - [x] Error handling with user-friendly messages
 - [x] API base URL configuration
 - [x] Request/response debug mode (`--verbose`)
-- [ ] Shell completion (bash, zsh, fish)
+- [x] Shell completion (bash, zsh, fish)

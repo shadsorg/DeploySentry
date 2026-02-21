@@ -3,6 +3,7 @@ package releases
 import (
 	"net/http"
 
+	"github.com/deploysentry/deploysentry/internal/auth"
 	"github.com/deploysentry/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -11,21 +12,26 @@ import (
 // Handler provides HTTP endpoints for managing releases.
 type Handler struct {
 	service ReleaseService
+	rbac    *auth.RBACChecker
 }
 
 // NewHandler creates a new release HTTP handler.
 func NewHandler(service ReleaseService) *Handler {
-	return &Handler{service: service}
+	return &Handler{
+		service: service,
+		rbac:    auth.NewRBACChecker(),
+	}
 }
 
 // RegisterRoutes mounts all release API routes on the given router group.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	releases := rg.Group("/releases")
 	{
-		releases.POST("", h.createRelease)
-		releases.GET("", h.listReleases)
-		releases.GET("/:id", h.getRelease)
-		releases.POST("/:id/promote", h.promoteRelease)
+		releases.POST("", auth.RequirePermission(h.rbac, auth.PermReleaseCreate), h.createRelease)
+		releases.GET("", auth.RequirePermission(h.rbac, auth.PermReleaseRead), h.listReleases)
+		releases.GET("/:id", auth.RequirePermission(h.rbac, auth.PermReleaseRead), h.getRelease)
+		releases.GET("/:id/status", auth.RequirePermission(h.rbac, auth.PermReleaseRead), h.getReleaseStatus)
+		releases.POST("/:id/promote", auth.RequirePermission(h.rbac, auth.PermReleasePromote), h.promoteRelease)
 	}
 }
 
@@ -140,4 +146,21 @@ func (h *Handler) promoteRelease(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "promoted"})
+}
+
+// getReleaseStatus returns the release status across all environments.
+func (h *Handler) getReleaseStatus(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid release id"})
+		return
+	}
+
+	status, err := h.service.GetReleaseStatus(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "release not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, status)
 }

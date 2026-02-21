@@ -39,6 +39,9 @@ type DeployService interface {
 
 	// ResumeDeployment resumes a paused deployment.
 	ResumeDeployment(ctx context.Context, id uuid.UUID) error
+
+	// GetActiveDeployments returns all non-terminal deployments for a project.
+	GetActiveDeployments(ctx context.Context, projectID uuid.UUID) ([]*models.Deployment, error)
 }
 
 // deployService is the concrete implementation of DeployService.
@@ -190,6 +193,25 @@ func (s *deployService) ResumeDeployment(ctx context.Context, id uuid.UUID) erro
 
 	s.publishEvent(ctx, "deployment.resumed", d.ID)
 	return nil
+}
+
+// GetActiveDeployments returns all non-terminal deployments (pending, running,
+// paused, promoting) for the given project.
+func (s *deployService) GetActiveDeployments(ctx context.Context, projectID uuid.UUID) ([]*models.Deployment, error) {
+	// Retrieve all deployments for the project with a generous limit
+	// and filter to non-terminal statuses.
+	all, err := s.repo.ListDeployments(ctx, projectID, ListOptions{Limit: 100})
+	if err != nil {
+		return nil, fmt.Errorf("listing deployments for active lookup: %w", err)
+	}
+
+	var active []*models.Deployment
+	for _, d := range all {
+		if !d.IsTerminal() {
+			active = append(active, d)
+		}
+	}
+	return active, nil
 }
 
 // publishEvent is a fire-and-forget helper that publishes a domain event.

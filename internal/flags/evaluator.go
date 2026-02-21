@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
+	"math/rand"
+	"sync/atomic"
 	"time"
 
 	"github.com/deploysentry/deploysentry/internal/models"
@@ -29,22 +31,66 @@ type Cache interface {
 	Invalidate(ctx context.Context, flagID uuid.UUID) error
 }
 
+// TelemetryLogger defines the interface for logging flag evaluation telemetry.
+// Implementations may write to a database, message queue, or observability system.
+type TelemetryLogger interface {
+	// LogEvaluation records the result of a flag evaluation.
+	LogEvaluation(ctx context.Context, result *models.FlagEvaluationResult, evalCtx models.EvaluationContext)
+}
+
+// CacheMetrics provides atomic counters for tracking cache hit and miss rates
+// during flag evaluation. These counters can be read by monitoring systems.
+type CacheMetrics struct {
+	Hits   atomic.Int64
+	Misses atomic.Int64
+}
+
 // Evaluator is the flag evaluation engine. It resolves feature flag values
 // for a given evaluation context by checking the cache, falling back to the
 // database, and applying targeting rules in priority order.
 type Evaluator struct {
-	repo     FlagRepository
-	cache    Cache
-	cacheTTL time.Duration
+	repo            FlagRepository
+	cache           Cache
+	cacheTTL        time.Duration
+	telemetry       TelemetryLogger
+	sampleRate      float64
+	Metrics         CacheMetrics
 }
 
 // NewEvaluator creates a new flag evaluation engine.
 func NewEvaluator(repo FlagRepository, cache Cache) *Evaluator {
 	return &Evaluator{
-		repo:     repo,
-		cache:    cache,
-		cacheTTL: 30 * time.Second,
+		repo:       repo,
+		cache:      cache,
+		cacheTTL:   30 * time.Second,
+		sampleRate: 0.0,
 	}
+}
+
+// SetTelemetry configures the telemetry logger and sample rate for evaluation
+// logging. The sample rate must be between 0.0 (disabled) and 1.0 (log every
+// evaluation). When set to 0.1, approximately 10% of evaluations are logged.
+func (e *Evaluator) SetTelemetry(logger TelemetryLogger, sampleRate float64) {
+	e.telemetry = logger
+	if sampleRate < 0 {
+		sampleRate = 0
+	}
+	if sampleRate > 1 {
+		sampleRate = 1
+	}
+	e.sampleRate = sampleRate
+}
+
+// shouldSample returns true if this evaluation should be logged, based on the
+// configured sample rate.
+func (e *Evaluator) shouldSample() bool {
+	if e.telemetry == nil || e.sampleRate <= 0 {
+		return false
+	}
+	if e.sampleRate >= 1.0 {
+		return true
+	}
+	return rand.Float64() < e.sampleRate
 }
 
 // Evaluate resolves the value of a feature flag for the given evaluation context.
@@ -54,33 +100,41 @@ func (e *Evaluator) Evaluate(ctx context.Context, projectID, environmentID uuid.
 	// Try cache first.
 	flag, err := e.cache.GetFlag(ctx, projectID, environmentID, key)
 	if err != nil || flag == nil {
-		// Cache miss or error: fall back to database.
+		// Cache miss: fall back to database.
+		e.Metrics.Misses.Add(1)
 		flag, err = e.repo.GetFlagByKey(ctx, projectID, environmentID, key)
 		if err != nil {
 			return nil, fmt.Errorf("flag %q not found: %w", key, err)
 		}
 		// Populate cache asynchronously (best-effort).
 		_ = e.cache.SetFlag(ctx, flag, e.cacheTTL)
+	} else {
+		e.Metrics.Hits.Add(1)
 	}
 
 	// If the flag is disabled or archived, return the default value.
 	if !flag.Enabled || flag.Archived {
-		return &models.FlagEvaluationResult{
+		result := &models.FlagEvaluationResult{
 			FlagKey: flag.Key,
 			Enabled: false,
 			Value:   flag.DefaultValue,
 			Reason:  "flag_disabled",
-		}, nil
+		}
+		e.logTelemetry(ctx, result, evalCtx)
+		return result, nil
 	}
 
 	// Load targeting rules.
 	rules, err := e.cache.GetRules(ctx, flag.ID)
 	if err != nil || rules == nil {
+		e.Metrics.Misses.Add(1)
 		rules, err = e.repo.ListRules(ctx, flag.ID)
 		if err != nil {
 			return nil, fmt.Errorf("loading rules for flag %q: %w", key, err)
 		}
 		_ = e.cache.SetRules(ctx, flag.ID, rules, e.cacheTTL)
+	} else {
+		e.Metrics.Hits.Add(1)
 	}
 
 	// Apply rules in priority order (lower priority number = higher precedence).
@@ -95,23 +149,35 @@ func (e *Evaluator) Evaluate(ctx context.Context, projectID, environmentID uuid.
 			continue
 		}
 		if match {
-			return &models.FlagEvaluationResult{
+			result := &models.FlagEvaluationResult{
 				FlagKey: flag.Key,
 				Enabled: true,
 				Value:   rule.Value,
 				Reason:  "rule_match",
 				RuleID:  rule.ID.String(),
-			}, nil
+			}
+			e.logTelemetry(ctx, result, evalCtx)
+			return result, nil
 		}
 	}
 
 	// No rules matched: return the default value with the flag enabled.
-	return &models.FlagEvaluationResult{
+	result := &models.FlagEvaluationResult{
 		FlagKey: flag.Key,
 		Enabled: true,
 		Value:   flag.DefaultValue,
 		Reason:  "default",
-	}, nil
+	}
+	e.logTelemetry(ctx, result, evalCtx)
+	return result, nil
+}
+
+// logTelemetry logs an evaluation result if telemetry is configured and the
+// current evaluation passes the sampling check.
+func (e *Evaluator) logTelemetry(ctx context.Context, result *models.FlagEvaluationResult, evalCtx models.EvaluationContext) {
+	if e.shouldSample() {
+		e.telemetry.LogEvaluation(ctx, result, evalCtx)
+	}
 }
 
 // evaluateRule dispatches to the appropriate rule evaluator based on rule type.

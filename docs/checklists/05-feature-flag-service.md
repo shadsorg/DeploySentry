@@ -5,44 +5,44 @@
 - [x] Flag toggle (enable/disable)
 - [x] Flag archival
 - [x] Targeting rule management (add, update, delete, reorder)
-- [ ] Flag change event emission (NATS JetStream)
-- [ ] Bulk flag operations
+- [x] Flag change event emission (NATS JetStream)
+- [x] Bulk flag operations
 
 ## Evaluation Engine (`internal/flags/evaluator.go`)
 - [x] Flag evaluation for given context (user ID, attributes)
-- [ ] Evaluation flow:
+- [x] Evaluation flow:
   - [x] Check local cache first (Redis-backed, sub-millisecond)
   - [x] Cache miss → fetch from PostgreSQL, populate cache
   - [x] Evaluate targeting rules in priority order
   - [x] Return resolved value + metadata (reason, rule matched)
 - [x] Deterministic hashing for percentage rollouts
 - [x] Default value fallback when flag disabled or no rules match
-- [ ] Evaluation telemetry logging (opt-in, sampled)
-- [ ] Batch evaluation (multiple flags in single request)
+- [x] Evaluation telemetry logging (opt-in, sampled)
+- [x] Batch evaluation (multiple flags in single request)
 
 ## Targeting Rules Engine (`internal/flags/targeting.go`)
 - [x] **Percentage rollout**: Hash user ID for deterministic bucketing
 - [x] **User targeting**: Explicit include/exclude lists
 - [x] **Attribute matching**: Rules based on user/context attributes (country, plan, version)
-  - [ ] Operators: equals, not_equals, contains, starts_with, ends_with, in, not_in, gt, lt, gte, lte
+  - [x] Operators: equals, not_equals, contains, starts_with, ends_with, in, not_in, gt, lt, gte, lte
 - [x] **Segment targeting**: Reusable audience segments
 - [x] **Schedule**: Time-based activation/deactivation
 - [x] Rule priority ordering
-- [ ] Rule combination logic (AND/OR conditions)
+- [x] Rule combination logic (AND/OR conditions)
 
 ## Cache Layer
 - [x] Redis-based flag cache
-- [ ] Cache invalidation on flag update (pub/sub)
+- [x] Cache invalidation on flag update (pub/sub)
 - [x] Configurable TTL per flag
-- [ ] Cache warm-up on service start
-- [ ] Cache hit/miss metrics
+- [x] Cache warm-up on service start
+- [x] Cache hit/miss metrics
 
 ## Repository Layer (`internal/flags/repository.go`)
 - [x] Feature flag CRUD (PostgreSQL)
 - [x] Targeting rule CRUD
-- [ ] Flag evaluation log writing (batched, sampled)
+- [x] Flag evaluation log writing (batched, sampled)
 - [x] Query flags by project, tags, status
-- [ ] Stale flag detection (flags not evaluated recently)
+- [x] Stale flag detection (flags not evaluated recently)
 
 ## HTTP Handler (`internal/flags/handler.go`)
 - [x] `POST /api/v1/flags` — Create a new flag
@@ -55,9 +55,9 @@
 - [x] `POST /api/v1/flags/:key/rules` — Add targeting rule
 - [x] `PUT /api/v1/flags/:key/rules/:ruleId` — Update targeting rule
 - [x] `DELETE /api/v1/flags/:key/rules/:ruleId` — Delete targeting rule
-- [ ] SSE endpoint for streaming flag updates to SDKs
+- [x] SSE endpoint for streaming flag updates to SDKs
 - [x] Request validation
-- [ ] RBAC enforcement per endpoint
+- [x] RBAC enforcement per endpoint
 
 ## Domain Models (`internal/models/flag.go`)
 - [x] `FeatureFlag` struct with type enum (boolean, string, number, json)

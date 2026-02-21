@@ -3,10 +3,23 @@ package flags
 
 import (
 	"context"
+	"time"
 
 	"github.com/deploysentry/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
+
+// EvaluationLog represents a single recorded flag evaluation event, written
+// in batches to the persistence layer for analytics and debugging.
+type EvaluationLog struct {
+	ID        uuid.UUID                `json:"id"`
+	FlagKey   string                   `json:"flag_key"`
+	Value     string                   `json:"value"`
+	Reason    string                   `json:"reason"`
+	RuleID    string                   `json:"rule_id,omitempty"`
+	EvalCtx   models.EvaluationContext `json:"eval_context"`
+	Timestamp time.Time                `json:"timestamp"`
+}
 
 // FlagRepository defines the persistence interface for feature flag entities.
 type FlagRepository interface {
@@ -42,6 +55,11 @@ type FlagRepository interface {
 
 	// DeleteRule removes a targeting rule.
 	DeleteRule(ctx context.Context, id uuid.UUID) error
+
+	// WriteEvaluationLog persists a batch of flag evaluation log entries. This
+	// method is designed for batched, sampled writes to avoid overwhelming the
+	// database with high-volume evaluation data.
+	WriteEvaluationLog(ctx context.Context, logs []EvaluationLog) error
 }
 
 // ListOptions controls pagination and filtering for flag list queries.

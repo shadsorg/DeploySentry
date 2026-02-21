@@ -1,11 +1,11 @@
 # 10 — Web UI (React Dashboard)
 
 ## Project Setup
-- [ ] React + TypeScript project initialization
-- [ ] `package.json` with dependencies
-- [ ] `tsconfig.json` configuration
-- [ ] Build configuration (Vite or webpack)
-- [ ] ESLint + Prettier configuration
+- [x] React + TypeScript project initialization
+- [x] `package.json` with dependencies
+- [x] `tsconfig.json` configuration
+- [x] Build configuration (Vite or webpack)
+- [x] ESLint + Prettier configuration
 - [ ] Tailwind CSS or styled-components setup
 
 ## Application Shell

@@ -1,0 +1,647 @@
+package flags
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
+)
+
+// ---------------------------------------------------------------------------
+// Mock
+// ---------------------------------------------------------------------------
+
+type mockFlagService struct {
+	createFlagFn  func(ctx context.Context, flag *models.FeatureFlag) error
+	getFlagFn     func(ctx context.Context, id uuid.UUID) (*models.FeatureFlag, error)
+	listFlagsFn   func(ctx context.Context, projectID uuid.UUID, opts ListOptions) ([]*models.FeatureFlag, error)
+	updateFlagFn  func(ctx context.Context, flag *models.FeatureFlag) error
+	archiveFlagFn func(ctx context.Context, id uuid.UUID) error
+	toggleFlagFn  func(ctx context.Context, id uuid.UUID, enabled bool) error
+	evaluateFn    func(ctx context.Context, projectID, environmentID uuid.UUID, key string, evalCtx models.EvaluationContext) (*models.FlagEvaluationResult, error)
+	addRuleFn     func(ctx context.Context, rule *models.TargetingRule) error
+	updateRuleFn  func(ctx context.Context, rule *models.TargetingRule) error
+	deleteRuleFn  func(ctx context.Context, ruleID uuid.UUID) error
+}
+
+func (m *mockFlagService) CreateFlag(ctx context.Context, flag *models.FeatureFlag) error {
+	if m.createFlagFn != nil {
+		return m.createFlagFn(ctx, flag)
+	}
+	return nil
+}
+
+func (m *mockFlagService) GetFlag(ctx context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
+	if m.getFlagFn != nil {
+		return m.getFlagFn(ctx, id)
+	}
+	return &models.FeatureFlag{ID: id}, nil
+}
+
+func (m *mockFlagService) ListFlags(ctx context.Context, projectID uuid.UUID, opts ListOptions) ([]*models.FeatureFlag, error) {
+	if m.listFlagsFn != nil {
+		return m.listFlagsFn(ctx, projectID, opts)
+	}
+	return []*models.FeatureFlag{}, nil
+}
+
+func (m *mockFlagService) UpdateFlag(ctx context.Context, flag *models.FeatureFlag) error {
+	if m.updateFlagFn != nil {
+		return m.updateFlagFn(ctx, flag)
+	}
+	return nil
+}
+
+func (m *mockFlagService) ArchiveFlag(ctx context.Context, id uuid.UUID) error {
+	if m.archiveFlagFn != nil {
+		return m.archiveFlagFn(ctx, id)
+	}
+	return nil
+}
+
+func (m *mockFlagService) ToggleFlag(ctx context.Context, id uuid.UUID, enabled bool) error {
+	if m.toggleFlagFn != nil {
+		return m.toggleFlagFn(ctx, id, enabled)
+	}
+	return nil
+}
+
+func (m *mockFlagService) Evaluate(ctx context.Context, projectID, environmentID uuid.UUID, key string, evalCtx models.EvaluationContext) (*models.FlagEvaluationResult, error) {
+	if m.evaluateFn != nil {
+		return m.evaluateFn(ctx, projectID, environmentID, key, evalCtx)
+	}
+	return &models.FlagEvaluationResult{}, nil
+}
+
+func (m *mockFlagService) AddRule(ctx context.Context, rule *models.TargetingRule) error {
+	if m.addRuleFn != nil {
+		return m.addRuleFn(ctx, rule)
+	}
+	return nil
+}
+
+func (m *mockFlagService) UpdateRule(ctx context.Context, rule *models.TargetingRule) error {
+	if m.updateRuleFn != nil {
+		return m.updateRuleFn(ctx, rule)
+	}
+	return nil
+}
+
+func (m *mockFlagService) DeleteRule(ctx context.Context, ruleID uuid.UUID) error {
+	if m.deleteRuleFn != nil {
+		return m.deleteRuleFn(ctx, ruleID)
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+func setupFlagRouter(svc FlagService) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := NewHandler(svc)
+	handler.RegisterRoutes(router.Group("/api"))
+	return router
+}
+
+func toJSON(t *testing.T, v interface{}) *bytes.Buffer {
+	t.Helper()
+	b, err := json.Marshal(v)
+	assert.NoError(t, err)
+	return bytes.NewBuffer(b)
+}
+
+// ---------------------------------------------------------------------------
+// POST /flags  (createFlag)
+// ---------------------------------------------------------------------------
+
+func TestCreateFlag_Valid(t *testing.T) {
+	svc := &mockFlagService{
+		createFlagFn: func(_ context.Context, f *models.FeatureFlag) error {
+			f.ID = uuid.New()
+			return nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	body := map[string]interface{}{
+		"project_id":     uuid.New().String(),
+		"environment_id": uuid.New().String(),
+		"key":            "new-feature",
+		"name":           "New Feature",
+		"flag_type":      "boolean",
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/flags", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	var resp models.FeatureFlag
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, "new-feature", resp.Key)
+}
+
+func TestCreateFlag_InvalidJSON(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/flags", bytes.NewBufferString("{bad json"))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestCreateFlag_ServiceError(t *testing.T) {
+	svc := &mockFlagService{
+		createFlagFn: func(_ context.Context, _ *models.FeatureFlag) error {
+			return errors.New("duplicate key")
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	body := map[string]interface{}{
+		"project_id":     uuid.New().String(),
+		"environment_id": uuid.New().String(),
+		"key":            "dup-feature",
+		"name":           "Dup Feature",
+		"flag_type":      "boolean",
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/flags", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// GET /flags/:id  (getFlag)
+// ---------------------------------------------------------------------------
+
+func TestGetFlag_Valid(t *testing.T) {
+	flagID := uuid.New()
+	svc := &mockFlagService{
+		getFlagFn: func(_ context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
+			return &models.FeatureFlag{ID: id, Key: "my-flag", Name: "My Flag"}, nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/flags/"+flagID.String(), nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp models.FeatureFlag
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, flagID, resp.ID)
+}
+
+func TestGetFlag_InvalidUUID(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/flags/not-a-uuid", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestHandler_GetFlag_NotFound(t *testing.T) {
+	svc := &mockFlagService{
+		getFlagFn: func(_ context.Context, _ uuid.UUID) (*models.FeatureFlag, error) {
+			return nil, errors.New("not found")
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/flags/"+uuid.New().String(), nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// GET /flags?project_id=  (listFlags)
+// ---------------------------------------------------------------------------
+
+func TestListFlags_Valid(t *testing.T) {
+	projectID := uuid.New()
+	svc := &mockFlagService{
+		listFlagsFn: func(_ context.Context, pid uuid.UUID, _ ListOptions) ([]*models.FeatureFlag, error) {
+			return []*models.FeatureFlag{
+				{ID: uuid.New(), ProjectID: pid, Key: "flag-1"},
+				{ID: uuid.New(), ProjectID: pid, Key: "flag-2"},
+			}, nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/flags?project_id="+projectID.String(), nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]json.RawMessage
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Contains(t, resp, "flags")
+}
+
+func TestListFlags_MissingProjectID(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/flags", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestListFlags_InvalidProjectID(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/flags?project_id=bad", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// PUT /flags/:id  (updateFlag)
+// ---------------------------------------------------------------------------
+
+func TestUpdateFlag_Valid(t *testing.T) {
+	flagID := uuid.New()
+	svc := &mockFlagService{
+		getFlagFn: func(_ context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
+			return &models.FeatureFlag{ID: id, Key: "old-key", Name: "Old Name"}, nil
+		},
+		updateFlagFn: func(_ context.Context, _ *models.FeatureFlag) error {
+			return nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	body := map[string]interface{}{
+		"name": "Updated Name",
+	}
+	req := httptest.NewRequest(http.MethodPut, "/api/flags/"+flagID.String(), toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp models.FeatureFlag
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, "Updated Name", resp.Name)
+}
+
+func TestUpdateFlag_InvalidID(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+
+	body := map[string]interface{}{"name": "x"}
+	req := httptest.NewRequest(http.MethodPut, "/api/flags/not-valid", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestUpdateFlag_NotFound(t *testing.T) {
+	svc := &mockFlagService{
+		getFlagFn: func(_ context.Context, _ uuid.UUID) (*models.FeatureFlag, error) {
+			return nil, errors.New("not found")
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	body := map[string]interface{}{"name": "x"}
+	req := httptest.NewRequest(http.MethodPut, "/api/flags/"+uuid.New().String(), toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// POST /flags/:id/archive  (archiveFlag)
+// ---------------------------------------------------------------------------
+
+func TestArchiveFlag_Valid(t *testing.T) {
+	svc := &mockFlagService{
+		archiveFlagFn: func(_ context.Context, _ uuid.UUID) error {
+			return nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/flags/"+uuid.New().String()+"/archive", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestArchiveFlag_InvalidID(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/flags/bad-id/archive", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestArchiveFlag_ServiceError(t *testing.T) {
+	svc := &mockFlagService{
+		archiveFlagFn: func(_ context.Context, _ uuid.UUID) error {
+			return errors.New("archive failed")
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/flags/"+uuid.New().String()+"/archive", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// POST /flags/:id/toggle  (toggleFlag)
+// ---------------------------------------------------------------------------
+
+func TestToggleFlag_Valid(t *testing.T) {
+	svc := &mockFlagService{
+		toggleFlagFn: func(_ context.Context, _ uuid.UUID, _ bool) error {
+			return nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	body := map[string]interface{}{"enabled": true}
+	req := httptest.NewRequest(http.MethodPost, "/api/flags/"+uuid.New().String()+"/toggle", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]interface{}
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, true, resp["enabled"])
+}
+
+func TestToggleFlag_InvalidID(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+
+	body := map[string]interface{}{"enabled": true}
+	req := httptest.NewRequest(http.MethodPost, "/api/flags/bad-id/toggle", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// POST /flags/evaluate  (evaluate)
+// ---------------------------------------------------------------------------
+
+func TestEvaluate_Valid(t *testing.T) {
+	svc := &mockFlagService{
+		evaluateFn: func(_ context.Context, _, _ uuid.UUID, key string, _ models.EvaluationContext) (*models.FlagEvaluationResult, error) {
+			return &models.FlagEvaluationResult{
+				FlagKey: key,
+				Enabled: true,
+				Value:   "on",
+				Reason:  "default",
+			}, nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	body := map[string]interface{}{
+		"project_id":     uuid.New().String(),
+		"environment_id": uuid.New().String(),
+		"flag_key":       "my-flag",
+		"context":        map[string]interface{}{"user_id": "u1"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/flags/evaluate", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp models.FlagEvaluationResult
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, "my-flag", resp.FlagKey)
+	assert.True(t, resp.Enabled)
+}
+
+func TestEvaluate_InvalidJSON(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/flags/evaluate", bytes.NewBufferString("not json"))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestEvaluate_NotFound(t *testing.T) {
+	svc := &mockFlagService{
+		evaluateFn: func(_ context.Context, _, _ uuid.UUID, _ string, _ models.EvaluationContext) (*models.FlagEvaluationResult, error) {
+			return nil, errors.New("flag not found")
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	body := map[string]interface{}{
+		"project_id":     uuid.New().String(),
+		"environment_id": uuid.New().String(),
+		"flag_key":       "missing",
+		"context":        map[string]interface{}{},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/flags/evaluate", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// POST /flags/:id/rules  (addRule)
+// ---------------------------------------------------------------------------
+
+func TestAddRule_Valid(t *testing.T) {
+	flagID := uuid.New()
+	pct := 50
+	svc := &mockFlagService{
+		addRuleFn: func(_ context.Context, r *models.TargetingRule) error {
+			r.ID = uuid.New()
+			return nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	body := map[string]interface{}{
+		"rule_type":  "percentage",
+		"priority":   1,
+		"value":      "on",
+		"percentage": pct,
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/flags/"+flagID.String()+"/rules", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+}
+
+func TestAddRule_InvalidFlagID(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+
+	body := map[string]interface{}{
+		"rule_type": "percentage",
+		"priority":  1,
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/flags/bad-uuid/rules", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// PUT /flags/:id/rules/:ruleId  (updateRule)
+// ---------------------------------------------------------------------------
+
+func TestUpdateRule_Valid(t *testing.T) {
+	flagID := uuid.New()
+	ruleID := uuid.New()
+	pct := 75
+	svc := &mockFlagService{
+		updateRuleFn: func(_ context.Context, _ *models.TargetingRule) error {
+			return nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	body := map[string]interface{}{
+		"rule_type":  "percentage",
+		"priority":   2,
+		"value":      "on",
+		"percentage": pct,
+	}
+	req := httptest.NewRequest(http.MethodPut, "/api/flags/"+flagID.String()+"/rules/"+ruleID.String(), toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestUpdateRule_InvalidRuleID(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+
+	body := map[string]interface{}{
+		"rule_type": "percentage",
+	}
+	req := httptest.NewRequest(http.MethodPut, "/api/flags/"+uuid.New().String()+"/rules/bad-uuid", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestUpdateRule_InvalidFlagID(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+
+	body := map[string]interface{}{
+		"rule_type": "percentage",
+	}
+	req := httptest.NewRequest(http.MethodPut, "/api/flags/bad-uuid/rules/"+uuid.New().String(), toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	// The handler parses ruleId first; with a valid ruleId but invalid flagId
+	// the handler should return 400 for the invalid flag id.
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// DELETE /flags/:id/rules/:ruleId  (deleteRule)
+// ---------------------------------------------------------------------------
+
+func TestDeleteRule_Valid(t *testing.T) {
+	svc := &mockFlagService{
+		deleteRuleFn: func(_ context.Context, _ uuid.UUID) error {
+			return nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/flags/"+uuid.New().String()+"/rules/"+uuid.New().String(), nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+}
+
+func TestDeleteRule_InvalidRuleID(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/flags/"+uuid.New().String()+"/rules/bad-uuid", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}

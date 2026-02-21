@@ -1,0 +1,67 @@
+# DeploySentry Project Configuration
+# This file defines project-level settings for the DeploySentry platform.
+# Place it in the project root or ~/.deploysentry.yml
+
+# Organization and project identifiers.
+org: "my-organization"
+project: "my-project"
+
+# Default environment for CLI commands when --env is not specified.
+env: "staging"
+
+# API connection settings.
+api:
+  # URL of the DeploySentry API server.
+  url: "https://api.deploysentry.example.com"
+  # Authentication token. Prefer DEPLOYSENTRY_TOKEN env var for security.
+  # token: "ds_tok_xxxxxxxxxxxxxxxx"
+
+# Default output format: "table" or "json".
+output: "table"
+
+# Deployment configuration defaults.
+deploy:
+  # Default deployment strategy: "rolling", "canary", "blue-green".
+  strategy: "canary"
+
+  # Canary deployment settings.
+  canary:
+    # Initial traffic percentage for the canary.
+    initial_weight: 5
+    # Steps to increment traffic (percentage points).
+    increment: 10
+    # Duration to wait between increments.
+    interval: "5m"
+    # Automatically promote if all health checks pass.
+    auto_promote: true
+
+  # Health check configuration for deployment validation.
+  health_check:
+    # HTTP endpoint to check.
+    path: "/health"
+    # Expected HTTP status code.
+    expected_status: 200
+    # How often to check.
+    interval: "10s"
+    # Number of consecutive successes required.
+    threshold: 3
+
+# Feature flag defaults.
+flags:
+  # Default environment for flag operations.
+  default_env: "staging"
+  # Stale flag detection: warn about flags older than this duration.
+  stale_threshold: "30d"
+
+# Notification settings.
+notifications:
+  # Slack webhook for deployment notifications.
+  # slack_webhook: "https://hooks.slack.com/services/T.../B.../xxx"
+
+  # Events that trigger notifications.
+  events:
+    - "deploy.started"
+    - "deploy.completed"
+    - "deploy.failed"
+    - "deploy.rolled_back"
+    - "flag.changed"

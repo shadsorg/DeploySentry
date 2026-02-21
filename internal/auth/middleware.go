@@ -1,0 +1,152 @@
+package auth
+
+import (
+	"context"
+	"net/http"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+)
+
+// APIKeyValidator defines the interface for validating API keys.
+type APIKeyValidator interface {
+	// ValidateAPIKey checks the key and returns the associated org/project info.
+	ValidateAPIKey(ctx context.Context, key string) (*APIKeyInfo, error)
+}
+
+// APIKeyInfo holds the identity information extracted from a validated API key.
+type APIKeyInfo struct {
+	OrgID     uuid.UUID `json:"org_id"`
+	ProjectID uuid.UUID `json:"project_id"`
+	Scopes    []string  `json:"scopes"`
+}
+
+// AuthMiddleware provides Gin middleware for authenticating requests via
+// JWT bearer tokens or API keys.
+type AuthMiddleware struct {
+	jwtSecret    []byte
+	keyValidator APIKeyValidator
+}
+
+// NewAuthMiddleware creates a new AuthMiddleware with the given JWT secret
+// and optional API key validator.
+func NewAuthMiddleware(jwtSecret string, keyValidator APIKeyValidator) *AuthMiddleware {
+	return &AuthMiddleware{
+		jwtSecret:    []byte(jwtSecret),
+		keyValidator: keyValidator,
+	}
+}
+
+// RequireAuth returns a Gin middleware that requires a valid JWT or API key
+// in the Authorization header. On success, it sets "user_id", "email",
+// and "auth_method" on the Gin context.
+func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "authorization header required"})
+			return
+		}
+
+		// Try Bearer token (JWT) first.
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+			if m.authenticateJWT(c, tokenStr) {
+				c.Next()
+				return
+			}
+			return
+		}
+
+		// Try API key.
+		if strings.HasPrefix(authHeader, "ApiKey ") {
+			apiKey := strings.TrimPrefix(authHeader, "ApiKey ")
+			if m.authenticateAPIKey(c, apiKey) {
+				c.Next()
+				return
+			}
+			return
+		}
+
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unsupported authorization scheme"})
+	}
+}
+
+// RequireScope returns a Gin middleware that checks the authenticated
+// request has the required scope. Must be used after RequireAuth.
+func (m *AuthMiddleware) RequireScope(scope string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		method, _ := c.Get("auth_method")
+		if method == "api_key" {
+			scopes, exists := c.Get("api_key_scopes")
+			if !exists {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "insufficient permissions"})
+				return
+			}
+			scopeSlice, ok := scopes.([]string)
+			if !ok {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "insufficient permissions"})
+				return
+			}
+			for _, s := range scopeSlice {
+				if s == "admin" || s == scope {
+					c.Next()
+					return
+				}
+			}
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "insufficient scope"})
+			return
+		}
+
+		// JWT-authenticated users pass scope checks (RBAC handles fine-grained permissions).
+		c.Next()
+	}
+}
+
+// authenticateJWT validates a JWT token and sets context values.
+func (m *AuthMiddleware) authenticateJWT(c *gin.Context, tokenStr string) bool {
+	claims := &TokenClaims{}
+	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return m.jwtSecret, nil
+	})
+
+	if err != nil || !token.Valid {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+		return false
+	}
+
+	c.Set("user_id", claims.UserID)
+	c.Set("email", claims.Email)
+	c.Set("auth_method", "jwt")
+	if claims.OrgID != "" {
+		c.Set("org_id", claims.OrgID)
+	}
+
+	return true
+}
+
+// authenticateAPIKey validates an API key and sets context values.
+func (m *AuthMiddleware) authenticateAPIKey(c *gin.Context, key string) bool {
+	if m.keyValidator == nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "API key authentication not configured"})
+		return false
+	}
+
+	info, err := m.keyValidator.ValidateAPIKey(c.Request.Context(), key)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid API key"})
+		return false
+	}
+
+	c.Set("org_id", info.OrgID.String())
+	c.Set("project_id", info.ProjectID.String())
+	c.Set("api_key_scopes", info.Scopes)
+	c.Set("auth_method", "api_key")
+
+	return true
+}

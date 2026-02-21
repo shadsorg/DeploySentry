@@ -1,0 +1,101 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: deploysentry-staging
+
+namePrefix: staging-
+
+resources:
+  - ../../base
+
+patches:
+  # Scale to 2 replicas for staging
+  - target:
+      kind: Deployment
+      name: deploysentry-api
+    patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: deploysentry-api
+      spec:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - name: api-server
+                resources:
+                  requests:
+                    cpu: 200m
+                    memory: 256Mi
+                  limits:
+                    cpu: "1"
+                    memory: 512Mi
+
+  # Adjust HPA for staging (2-5 replicas)
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: deploysentry-api
+    patch: |
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: deploysentry-api
+      spec:
+        minReplicas: 2
+        maxReplicas: 5
+
+  # Adjust PDB for staging
+  - target:
+      kind: PodDisruptionBudget
+      name: deploysentry-api
+    patch: |
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: deploysentry-api
+      spec:
+        minAvailable: 1
+
+  # Update ingress host for staging
+  - target:
+      kind: Ingress
+      name: deploysentry-api
+    patch: |
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: deploysentry-api
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-staging
+      spec:
+        tls:
+          - hosts:
+              - api.staging.deploysentry.io
+            secretName: deploysentry-api-staging-tls
+        rules:
+          - host: api.staging.deploysentry.io
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: staging-deploysentry-api
+                      port:
+                        name: http
+
+configMapGenerator:
+  - name: deploysentry-config
+    behavior: merge
+    literals:
+      - log_level=info
+      - environment=staging
+      - database_host=postgres.deploysentry-staging.svc.cluster.local
+      - redis_host=redis.deploysentry-staging.svc.cluster.local
+      - nats_url=nats://nats.deploysentry-staging.svc.cluster.local:4222
+      - database_sslmode=require
+
+images:
+  - name: deploysentry/api-server
+    newTag: staging-latest

@@ -1,0 +1,101 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: deploysentry-dev
+
+namePrefix: dev-
+
+resources:
+  - ../../base
+
+patches:
+  # Scale down to 1 replica for dev
+  - target:
+      kind: Deployment
+      name: deploysentry-api
+    patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: deploysentry-api
+      spec:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - name: api-server
+                resources:
+                  requests:
+                    cpu: 100m
+                    memory: 128Mi
+                  limits:
+                    cpu: 500m
+                    memory: 256Mi
+
+  # Adjust HPA for dev (1-2 replicas)
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: deploysentry-api
+    patch: |
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: deploysentry-api
+      spec:
+        minReplicas: 1
+        maxReplicas: 2
+
+  # Adjust PDB for dev (allow all pods to be disrupted)
+  - target:
+      kind: PodDisruptionBudget
+      name: deploysentry-api
+    patch: |
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: deploysentry-api
+      spec:
+        minAvailable: 0
+
+  # Update ingress host for dev
+  - target:
+      kind: Ingress
+      name: deploysentry-api
+    patch: |
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: deploysentry-api
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-staging
+      spec:
+        tls:
+          - hosts:
+              - api.dev.deploysentry.io
+            secretName: deploysentry-api-dev-tls
+        rules:
+          - host: api.dev.deploysentry.io
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: dev-deploysentry-api
+                      port:
+                        name: http
+
+configMapGenerator:
+  - name: deploysentry-config
+    behavior: merge
+    literals:
+      - log_level=debug
+      - environment=dev
+      - database_host=postgres.deploysentry-dev.svc.cluster.local
+      - redis_host=redis.deploysentry-dev.svc.cluster.local
+      - nats_url=nats://nats.deploysentry-dev.svc.cluster.local:4222
+      - database_sslmode=disable
+
+images:
+  - name: deploysentry/api-server
+    newTag: dev-latest

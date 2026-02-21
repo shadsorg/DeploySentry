@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: deploysentry-api
+  labels:
+    app.kubernetes.io/name: deploysentry-api
+    app.kubernetes.io/component: api-server
+    app.kubernetes.io/part-of: deploysentry
+    app.kubernetes.io/managed-by: kustomize
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/rate-limit-connections: "10"
+    nginx.ingress.kubernetes.io/rate-limit-rps: "50"
+spec:
+  tls:
+    - hosts:
+        - api.deploysentry.io
+      secretName: deploysentry-api-tls
+  rules:
+    - host: api.deploysentry.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: deploysentry-api
+                port:
+                  name: http

@@ -1,16 +1,16 @@
 # 13 — Testing Strategy & Quality
 
 ## Unit Tests (~60% of total tests)
-- [ ] Go `testing` + `testify` for backend services
+- [x] Go `testing` + `testify` for backend services
 - [ ] Business logic tests:
-  - [ ] Flag evaluation engine (all rule types, edge cases)
-  - [ ] Health score computation (weighted signals, thresholds)
-  - [ ] Deployment state machine transitions
-  - [ ] Rollback trigger evaluation
-  - [ ] Canary phase progression logic
-  - [ ] RBAC permission checks
-  - [ ] API key validation
-- [ ] Model validation tests
+  - [x] Flag evaluation engine (all rule types, edge cases)
+  - [x] Health score computation (weighted signals, thresholds)
+  - [x] Deployment state machine transitions
+  - [x] Rollback trigger evaluation
+  - [x] Canary phase progression logic
+  - [x] RBAC permission checks
+  - [x] API key validation
+- [x] Model validation tests
 - [ ] Jest for React UI component tests
 
 ## Integration Tests (~30% of total tests)
@@ -26,10 +26,10 @@
 - [ ] NATS messaging tests
   - [ ] Event publishing and subscription
   - [ ] At-least-once delivery verification
-- [ ] API handler tests (Go `httptest` + `testify`)
+- [x] API handler tests (Go `httptest` + `testify`)
   - [ ] Request validation
-  - [ ] Auth middleware
-  - [ ] RBAC enforcement
+  - [x] Auth middleware
+  - [x] RBAC enforcement
   - [ ] Response format
 
 ## End-to-End Tests (~10% of total tests)
@@ -61,28 +61,25 @@
 - [ ] Performance regression detection
 
 ## CI Pipeline (`.github/workflows/ci.yml`)
-- [ ] Lint stage:
-  - [ ] golangci-lint for Go code
+- [x] Lint stage:
+  - [x] golangci-lint for Go code
   - [ ] eslint + prettier for React UI
   - [ ] sqlfluff for SQL migrations
-- [ ] Test stage:
-  - [ ] Unit tests (parallel by package)
-  - [ ] Integration tests (with testcontainers)
-  - [ ] Code coverage reporting
-- [ ] Build stage:
-  - [ ] Go binaries (linux/amd64, darwin/amd64, darwin/arm64)
-  - [ ] Docker images
+- [x] Test stage:
+  - [x] Unit tests (parallel by package)
+  - [x] Integration tests (with testcontainers)
+  - [x] Code coverage reporting
+- [x] Build stage:
+  - [x] Go binaries (linux/amd64, darwin/amd64, darwin/arm64)
+  - [x] Docker images
   - [ ] UI static bundle
-- [ ] Deploy-dev stage:
-  - [ ] Auto-deploy to dev on main merge
-  - [ ] Run smoke tests post-deploy
 
 ## Release Pipeline (`.github/workflows/release.yml`)
-- [ ] Semantic version tagging
-- [ ] Changelog generation
-- [ ] Docker image build and push to registry
-- [ ] GitHub Release creation
-- [ ] Binary artifact uploads (CLI)
+- [x] Semantic version tagging
+- [x] Changelog generation
+- [x] Docker image build and push to registry
+- [x] GitHub Release creation
+- [x] Binary artifact uploads (CLI)
 
 ## Non-Functional Requirements Verification
 

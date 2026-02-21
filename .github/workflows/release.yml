@@ -15,9 +15,48 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  validate-tag:
+    name: Validate Semantic Version Tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      major: ${{ steps.version.outputs.major }}
+      minor: ${{ steps.version.outputs.minor }}
+      patch: ${{ steps.version.outputs.patch }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - name: Extract and validate semantic version
+        id: version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+          # Parse semantic version components (supports optional pre-release).
+          if [[ "${VERSION}" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)(-([a-zA-Z0-9.]+))?$ ]]; then
+            echo "major=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+            echo "minor=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
+            echo "patch=${BASH_REMATCH[3]}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=${BASH_REMATCH[5]}" >> "$GITHUB_OUTPUT"
+            echo "Valid semantic version: ${VERSION}"
+          else
+            echo "::error::Tag '${TAG}' does not follow semantic versioning (vMAJOR.MINOR.PATCH[-PRERELEASE])."
+            exit 1
+          fi
+
+      - name: Determine release type
+        run: |
+          PRERELEASE="${{ steps.version.outputs.prerelease }}"
+          if [ -n "${PRERELEASE}" ]; then
+            echo "Release type: pre-release (${PRERELEASE})"
+          else
+            echo "Release type: stable"
+          fi
+
   release-binaries:
     name: Release Binaries
     runs-on: ubuntu-latest
+    needs: validate-tag
 
     strategy:
       matrix:
@@ -36,17 +75,13 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Extract version
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-
       - name: Build binaries
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
         run: |
-          VERSION=${{ steps.version.outputs.version }}
+          VERSION=${{ needs.validate-tag.outputs.version }}
           COMMIT=$(git rev-parse --short HEAD)
           DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           LDFLAGS="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.buildDate=${DATE}"
@@ -71,18 +106,16 @@ jobs:
             deploysentry-cli-${{ matrix.goos }}-${{ matrix.goarch }}
             checksums-${{ matrix.goos }}-${{ matrix.goarch }}.txt
           generate_release_notes: true
+          prerelease: ${{ needs.validate-tag.outputs.prerelease != '' }}
 
   release-docker:
     name: Release Docker Images
     runs-on: ubuntu-latest
+    needs: validate-tag
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Extract version
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -94,6 +127,37 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Compute Docker tags for API image
+        id: api-tags
+        run: |
+          VERSION="${{ needs.validate-tag.outputs.version }}"
+          MAJOR="${{ needs.validate-tag.outputs.major }}"
+          MINOR="${{ needs.validate-tag.outputs.minor }}"
+          PRERELEASE="${{ needs.validate-tag.outputs.prerelease }}"
+          BASE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api"
+
+          TAGS="${BASE}:${VERSION}"
+          # Only tag major/minor/latest for stable (non-prerelease) versions.
+          if [ -z "${PRERELEASE}" ]; then
+            TAGS="${TAGS},${BASE}:${MAJOR}.${MINOR},${BASE}:${MAJOR},${BASE}:latest"
+          fi
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+
+      - name: Compute Docker tags for Web image
+        id: web-tags
+        run: |
+          VERSION="${{ needs.validate-tag.outputs.version }}"
+          MAJOR="${{ needs.validate-tag.outputs.major }}"
+          MINOR="${{ needs.validate-tag.outputs.minor }}"
+          PRERELEASE="${{ needs.validate-tag.outputs.prerelease }}"
+          BASE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web"
+
+          TAGS="${BASE}:${VERSION}"
+          if [ -z "${PRERELEASE}" ]; then
+            TAGS="${TAGS},${BASE}:${MAJOR}.${MINOR},${BASE}:${MAJOR},${BASE}:latest"
+          fi
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
+
       - name: Build and push API image
         uses: docker/build-push-action@v6
         with:
@@ -102,12 +166,10 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           build-args: |
-            VERSION=${{ steps.version.outputs.version }}
+            VERSION=${{ needs.validate-tag.outputs.version }}
             COMMIT=${{ github.sha }}
             DATE=${{ github.event.head_commit.timestamp }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:${{ steps.version.outputs.version }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/api:latest
+          tags: ${{ steps.api-tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -118,8 +180,6 @@ jobs:
           file: deploy/docker/Dockerfile.web
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:${{ steps.version.outputs.version }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:latest
+          tags: ${{ steps.web-tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

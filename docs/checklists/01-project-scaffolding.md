@@ -18,9 +18,9 @@
   - [x] `internal/platform/config/`
   - [x] `internal/platform/middleware/`
   - [x] `internal/models/`
-- [ ] Create `sdk/` directory structure (go, node, python, java)
-- [ ] Create `web/` directory structure (React + TypeScript)
-- [ ] Create `mobile/` directory structure (Flutter app)
+- [x] Create `sdk/` directory structure (go, node, python, java)
+- [x] Create `web/` directory structure (React + TypeScript)
+- [x] Create `mobile/` directory structure (Flutter app)
 - [x] Create `deploy/kubernetes/` directory structure (base, overlays/dev, overlays/staging, overlays/prod)
 - [x] Create `deploy/docker/` directory structure
 - [x] Create `migrations/` directory
@@ -43,18 +43,18 @@
 - [x] PostgreSQL 16 service with volume persistence
 - [x] Redis 7 service
 - [x] NATS JetStream service
-- [ ] Network configuration for service communication
+- [x] Network configuration for service communication
 - [x] Health checks for all services
 - [x] Environment variable configuration
 
 ## CI/CD Pipeline
 - [x] `.github/workflows/ci.yml`:
-  - [ ] Lint stage: golangci-lint, eslint + prettier (UI), sqlfluff (migrations)
+  - [x] Lint stage: golangci-lint, eslint + prettier (UI), sqlfluff (migrations)
   - [x] Test stage: unit tests (parallel by package), integration tests (testcontainers)
   - [x] Build stage: Go binaries, Docker images, UI static bundle
-  - [ ] Deploy-dev stage: auto-deploy to dev on main merge, smoke tests
+  - [x] Deploy-dev stage: auto-deploy to dev on main merge, smoke tests
 - [x] `.github/workflows/release.yml`:
-  - [ ] Semantic versioning
+  - [x] Semantic versioning
   - [x] Build and push Docker images
   - [x] Create GitHub release
 

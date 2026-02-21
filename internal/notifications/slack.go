@@ -157,6 +157,12 @@ func formatEventText(event *Event) string {
 		return fmt.Sprintf("Release *%s* promoted to %s in *%s*", event.Data["version"], event.Data["environment"], project)
 	case EventHealthDegraded:
 		return fmt.Sprintf("Health degraded for *%s*: score %s", project, event.Data["score"])
+	case EventDeployPhaseCompleted:
+		return fmt.Sprintf("Phase %s completed for *%s* (version: %s)", event.Data["phase"], project, event.Data["version"])
+	case EventDeployRollbackInitiated:
+		return fmt.Sprintf("Rollback initiated for *%s* (version: %s): %s", project, event.Data["version"], event.Data["reason"])
+	case EventHealthAlertResolved:
+		return fmt.Sprintf("Health alert resolved for *%s*: score %s", project, event.Data["score"])
 	default:
 		return fmt.Sprintf("Event %s for %s", event.Type, project)
 	}

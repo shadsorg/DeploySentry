@@ -4,6 +4,8 @@
 
 # Binaries
 bin/
+/cli
+/api
 *.exe
 *.exe~
 *.dll

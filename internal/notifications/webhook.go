@@ -36,6 +36,18 @@ type WebhookConfig struct {
 	EventTypes []EventType `json:"event_types,omitempty"`
 }
 
+// DeliveryStatus represents the current state of a webhook delivery.
+type DeliveryStatus string
+
+const (
+	// DeliveryPending indicates the delivery has not yet been attempted.
+	DeliveryPending DeliveryStatus = "pending"
+	// DeliveryDelivered indicates the delivery was successful.
+	DeliveryDelivered DeliveryStatus = "delivered"
+	// DeliveryFailed indicates all delivery attempts have failed.
+	DeliveryFailed DeliveryStatus = "failed"
+)
+
 // webhookPayload is the JSON payload delivered to webhook endpoints.
 type webhookPayload struct {
 	ID        string            `json:"id"`
@@ -48,12 +60,13 @@ type webhookPayload struct {
 
 // DeliveryResult records the outcome of a webhook delivery attempt.
 type DeliveryResult struct {
-	Attempt      int       `json:"attempt"`
-	StatusCode   int       `json:"status_code"`
-	ResponseBody string    `json:"response_body,omitempty"`
-	Error        string    `json:"error,omitempty"`
-	Success      bool      `json:"success"`
-	DeliveredAt  time.Time `json:"delivered_at"`
+	Attempt      int            `json:"attempt"`
+	StatusCode   int            `json:"status_code"`
+	ResponseBody string         `json:"response_body,omitempty"`
+	Error        string         `json:"error,omitempty"`
+	Success      bool           `json:"success"`
+	Status       DeliveryStatus `json:"status"`
+	DeliveredAt  time.Time      `json:"delivered_at"`
 }
 
 // WebhookChannel implements the Channel interface for delivering notifications
@@ -120,14 +133,18 @@ func (w *WebhookChannel) Send(ctx context.Context, event *Event) error {
 	signature := w.sign(body)
 
 	var lastErr error
+	var lastResult *DeliveryResult
 	delay := w.config.RetryDelay
 
 	for attempt := 1; attempt <= w.config.MaxRetries; attempt++ {
 		result := w.deliver(ctx, body, signature, attempt)
+		lastResult = result
 		if result.Success {
+			result.Status = DeliveryDelivered
 			return nil
 		}
 
+		result.Status = DeliveryPending
 		lastErr = fmt.Errorf("attempt %d: status=%d error=%s", attempt, result.StatusCode, result.Error)
 
 		// Don't retry on the last attempt.
@@ -141,6 +158,11 @@ func (w *WebhookChannel) Send(ctx context.Context, event *Event) error {
 			}
 			delay *= 2 // Exponential backoff.
 		}
+	}
+
+	// Mark the final result as failed after exhausting all retries.
+	if lastResult != nil {
+		lastResult.Status = DeliveryFailed
 	}
 
 	return fmt.Errorf("webhook delivery failed after %d attempts: %w", w.config.MaxRetries, lastErr)

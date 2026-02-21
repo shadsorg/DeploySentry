@@ -19,6 +19,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      - deploysentry-net
 
   redis:
     image: redis:7-alpine
@@ -35,6 +37,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
+    networks:
+      - deploysentry-net
 
   nats:
     image: nats:2-alpine
@@ -56,6 +60,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
+    networks:
+      - deploysentry-net
 
 volumes:
   postgres_data:
@@ -64,3 +70,8 @@ volumes:
     driver: local
   nats_data:
     driver: local
+
+networks:
+  deploysentry-net:
+    name: deploysentry-net
+    driver: bridge

@@ -110,6 +110,32 @@ func (m *mockReleaseRepo) UpdateReleaseEnvironment(_ context.Context, re *models
 	return errors.New("release environment not found")
 }
 
+func (m *mockReleaseRepo) GetLatestRelease(_ context.Context, projectID, environmentID uuid.UUID) (*models.Release, error) {
+	// Return the first release that matches the project.
+	for _, r := range m.releases {
+		if r.ProjectID == projectID {
+			copy := *r
+			return &copy, nil
+		}
+	}
+	return nil, errors.New("no releases found")
+}
+
+func (m *mockReleaseRepo) GetReleaseTimeline(_ context.Context, projectID uuid.UUID) ([]*models.ReleaseTimeline, error) {
+	var result []*models.ReleaseTimeline
+	for _, r := range m.releases {
+		if r.ProjectID == projectID {
+			result = append(result, &models.ReleaseTimeline{
+				ReleaseID: r.ID,
+				Version:   r.Version,
+				Title:     r.Title,
+				Status:    r.LifecycleStatus,
+			})
+		}
+	}
+	return result, nil
+}
+
 // validRelease returns a fully populated Release with all required fields set.
 func validRelease() *models.Release {
 	return &models.Release{

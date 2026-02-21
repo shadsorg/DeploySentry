@@ -20,13 +20,14 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockDeployService struct {
-	createFn   func(ctx context.Context, d *models.Deployment) error
-	getFn      func(ctx context.Context, id uuid.UUID) (*models.Deployment, error)
-	listFn     func(ctx context.Context, projectID uuid.UUID, opts ListOptions) ([]*models.Deployment, error)
-	promoteFn  func(ctx context.Context, id uuid.UUID) error
-	rollbackFn func(ctx context.Context, id uuid.UUID) error
-	pauseFn    func(ctx context.Context, id uuid.UUID) error
-	resumeFn   func(ctx context.Context, id uuid.UUID) error
+	createFn    func(ctx context.Context, d *models.Deployment) error
+	getFn       func(ctx context.Context, id uuid.UUID) (*models.Deployment, error)
+	listFn      func(ctx context.Context, projectID uuid.UUID, opts ListOptions) ([]*models.Deployment, error)
+	promoteFn   func(ctx context.Context, id uuid.UUID) error
+	rollbackFn  func(ctx context.Context, id uuid.UUID) error
+	pauseFn     func(ctx context.Context, id uuid.UUID) error
+	resumeFn    func(ctx context.Context, id uuid.UUID) error
+	getActiveFn func(ctx context.Context, projectID uuid.UUID) ([]*models.Deployment, error)
 }
 
 func (m *mockDeployService) CreateDeployment(ctx context.Context, d *models.Deployment) error {
@@ -78,6 +79,13 @@ func (m *mockDeployService) ResumeDeployment(ctx context.Context, id uuid.UUID) 
 	return nil
 }
 
+func (m *mockDeployService) GetActiveDeployments(ctx context.Context, projectID uuid.UUID) ([]*models.Deployment, error) {
+	if m.getActiveFn != nil {
+		return m.getActiveFn(ctx, projectID)
+	}
+	return []*models.Deployment{}, nil
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -86,7 +94,8 @@ func setupDeployRouter(svc DeployService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	handler := NewHandler(svc)
-	handler.RegisterRoutes(router.Group("/api"))
+	// Pass nil for RBAC to disable permission checks in unit tests.
+	handler.RegisterRoutes(router.Group("/api"), nil)
 	return router
 }
 

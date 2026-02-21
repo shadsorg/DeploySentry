@@ -63,8 +63,8 @@
 ## CI Pipeline (`.github/workflows/ci.yml`)
 - [x] Lint stage:
   - [x] golangci-lint for Go code
-  - [ ] eslint + prettier for React UI
-  - [ ] sqlfluff for SQL migrations
+  - [x] eslint + prettier for React UI
+  - [x] sqlfluff for SQL migrations
 - [x] Test stage:
   - [x] Unit tests (parallel by package)
   - [x] Integration tests (with testcontainers)

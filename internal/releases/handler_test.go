@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/deploysentry/deploysentry/internal/auth"
 	"github.com/deploysentry/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -20,10 +21,15 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockReleaseService struct {
-	createFn  func(ctx context.Context, release *models.Release) error
-	getFn     func(ctx context.Context, id uuid.UUID) (*models.Release, error)
-	listFn    func(ctx context.Context, projectID uuid.UUID, opts ListOptions) ([]*models.Release, error)
-	promoteFn func(ctx context.Context, releaseID, environmentID, deployedBy uuid.UUID) error
+	createFn            func(ctx context.Context, release *models.Release) error
+	getFn               func(ctx context.Context, id uuid.UUID) (*models.Release, error)
+	listFn              func(ctx context.Context, projectID uuid.UUID, opts ListOptions) ([]*models.Release, error)
+	promoteFn           func(ctx context.Context, releaseID, environmentID, deployedBy uuid.UUID) error
+	updateStatusFn      func(ctx context.Context, releaseID uuid.UUID, status models.ReleaseLifecycleStatus) error
+	setPromotionGateFn  func(ctx context.Context, gate *PromotionGate) error
+	checkPromotionFn    func(ctx context.Context, releaseID, environmentID uuid.UUID) (bool, error)
+	getReleaseHealthFn  func(ctx context.Context, releaseID uuid.UUID) (*ReleaseHealthSummary, error)
+	getReleaseStatusFn  func(ctx context.Context, releaseID uuid.UUID) (*ReleaseStatusResponse, error)
 }
 
 func (m *mockReleaseService) Create(ctx context.Context, release *models.Release) error {
@@ -54,13 +60,62 @@ func (m *mockReleaseService) Promote(ctx context.Context, releaseID, environment
 	return nil
 }
 
+func (m *mockReleaseService) UpdateStatus(ctx context.Context, releaseID uuid.UUID, status models.ReleaseLifecycleStatus) error {
+	if m.updateStatusFn != nil {
+		return m.updateStatusFn(ctx, releaseID, status)
+	}
+	return nil
+}
+
+func (m *mockReleaseService) SetPromotionGate(ctx context.Context, gate *PromotionGate) error {
+	if m.setPromotionGateFn != nil {
+		return m.setPromotionGateFn(ctx, gate)
+	}
+	return nil
+}
+
+func (m *mockReleaseService) CheckPromotionGates(ctx context.Context, releaseID, environmentID uuid.UUID) (bool, error) {
+	if m.checkPromotionFn != nil {
+		return m.checkPromotionFn(ctx, releaseID, environmentID)
+	}
+	return true, nil
+}
+
+func (m *mockReleaseService) GetReleaseHealth(ctx context.Context, releaseID uuid.UUID) (*ReleaseHealthSummary, error) {
+	if m.getReleaseHealthFn != nil {
+		return m.getReleaseHealthFn(ctx, releaseID)
+	}
+	return &ReleaseHealthSummary{ReleaseID: releaseID, OverallScore: 1.0, Healthy: true}, nil
+}
+
+func (m *mockReleaseService) GetReleaseStatus(ctx context.Context, releaseID uuid.UUID) (*ReleaseStatusResponse, error) {
+	if m.getReleaseStatusFn != nil {
+		return m.getReleaseStatusFn(ctx, releaseID)
+	}
+	return &ReleaseStatusResponse{
+		ReleaseID: releaseID,
+		Status:    models.ReleaseStatusDraft,
+	}, nil
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
+// injectRole is test middleware that sets the role on the gin context so that
+// RBAC middleware passes.
+func injectRole(role auth.Role) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Set("role", role)
+		c.Next()
+	}
+}
+
 func setupReleaseRouter(svc ReleaseService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
+	// Inject an admin role so RBAC middleware passes in tests.
+	router.Use(injectRole(auth.RoleAdmin))
 	handler := NewHandler(svc)
 	handler.RegisterRoutes(router.Group("/api"))
 	return router
@@ -253,4 +308,97 @@ func TestPromoteRelease_InvalidID(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// GET /releases/:id/status  (getReleaseStatus)
+// ---------------------------------------------------------------------------
+
+func TestGetReleaseStatus_Valid(t *testing.T) {
+	releaseID := uuid.New()
+	svc := &mockReleaseService{
+		getReleaseStatusFn: func(_ context.Context, id uuid.UUID) (*ReleaseStatusResponse, error) {
+			return &ReleaseStatusResponse{
+				ReleaseID: id,
+				Version:   "v1.0.0",
+				Status:    models.ReleaseStatusActive,
+			}, nil
+		},
+	}
+	router := setupReleaseRouter(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/releases/"+releaseID.String()+"/status", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestGetReleaseStatus_InvalidID(t *testing.T) {
+	router := setupReleaseRouter(&mockReleaseService{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/releases/bad-uuid/status", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestGetReleaseStatus_NotFound(t *testing.T) {
+	svc := &mockReleaseService{
+		getReleaseStatusFn: func(_ context.Context, _ uuid.UUID) (*ReleaseStatusResponse, error) {
+			return nil, errors.New("not found")
+		},
+	}
+	router := setupReleaseRouter(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/releases/"+uuid.New().String()+"/status", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// RBAC
+// ---------------------------------------------------------------------------
+
+func TestRBAC_ViewerCannotCreate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(injectRole(auth.RoleViewer))
+	handler := NewHandler(&mockReleaseService{})
+	handler.RegisterRoutes(router.Group("/api"))
+
+	body := map[string]interface{}{
+		"project_id": uuid.New().String(),
+		"version":    "v1.0.0",
+		"title":      "test",
+		"artifact":   "app:v1",
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/releases", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestRBAC_ViewerCanRead(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(injectRole(auth.RoleViewer))
+	handler := NewHandler(&mockReleaseService{})
+	handler.RegisterRoutes(router.Group("/api"))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/releases/"+uuid.New().String(), nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
 }

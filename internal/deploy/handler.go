@@ -3,6 +3,7 @@ package deploy
 import (
 	"net/http"
 
+	"github.com/deploysentry/deploysentry/internal/auth"
 	"github.com/deploysentry/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -19,17 +20,35 @@ func NewHandler(service DeployService) *Handler {
 }
 
 // RegisterRoutes mounts all deployment API routes on the given router group.
-func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+// Each route is protected by RBAC middleware that verifies the caller holds
+// the required permission. When rbac is nil the routes are registered without
+// permission checks (useful for testing).
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, rbac *auth.RBACChecker) {
 	deployments := rg.Group("/deployments")
 	{
-		deployments.POST("", h.createDeployment)
-		deployments.GET("", h.listDeployments)
-		deployments.GET("/:id", h.getDeployment)
-		deployments.POST("/:id/promote", h.promoteDeployment)
-		deployments.POST("/:id/rollback", h.rollbackDeployment)
-		deployments.POST("/:id/pause", h.pauseDeployment)
-		deployments.POST("/:id/resume", h.resumeDeployment)
+		deployments.POST("", mw(rbac, auth.PermDeployCreate), h.createDeployment)
+		deployments.GET("", mw(rbac, auth.PermDeployRead), h.listDeployments)
+		deployments.GET("/:id", mw(rbac, auth.PermDeployRead), h.getDeployment)
+		deployments.POST("/:id/promote", mw(rbac, auth.PermDeployPromote), h.promoteDeployment)
+		deployments.POST("/:id/rollback", mw(rbac, auth.PermDeployRollback), h.rollbackDeployment)
+		deployments.POST("/:id/pause", mw(rbac, auth.PermDeployManage), h.pauseDeployment)
+		deployments.POST("/:id/resume", mw(rbac, auth.PermDeployManage), h.resumeDeployment)
 	}
+
+	// Project-scoped routes.
+	projects := rg.Group("/projects")
+	{
+		projects.GET("/:id/deployments/active", mw(rbac, auth.PermDeployRead), h.getActiveDeployments)
+	}
+}
+
+// mw returns a RequirePermission middleware when rbac is non-nil, or a no-op
+// handler when rbac is nil (for backwards-compatible test setups).
+func mw(rbac *auth.RBACChecker, perm auth.Permission) gin.HandlerFunc {
+	if rbac == nil {
+		return func(c *gin.Context) { c.Next() }
+	}
+	return auth.RequirePermission(rbac, perm)
 }
 
 // createDeploymentRequest is the JSON body for creating a new deployment.
@@ -175,4 +194,22 @@ func (h *Handler) resumeDeployment(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "running"})
+}
+
+// getActiveDeployments returns all non-terminal deployments for the project
+// identified by the :id URL parameter.
+func (h *Handler) getActiveDeployments(c *gin.Context) {
+	projectID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid project id"})
+		return
+	}
+
+	deployments, err := h.service.GetActiveDeployments(c.Request.Context(), projectID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get active deployments"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"deployments": deployments})
 }

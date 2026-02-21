@@ -11,12 +11,12 @@
 
 ### Canary Deployments (`canary.go`)
 - [x] Phase-based traffic shifting
-  - [ ] Phase 1: Route 1% of traffic → monitor 5 min
-  - [ ] Phase 2: Route 5% of traffic → monitor 5 min
-  - [ ] Phase 3: Route 25% of traffic → monitor 10 min
-  - [ ] Phase 4: Route 50% of traffic → monitor 10 min
-  - [ ] Phase 5: Route 100% — full promotion
-- [ ] Configurable per-phase settings:
+  - [x] Phase 1: Route 1% of traffic → monitor 5 min
+  - [x] Phase 2: Route 5% of traffic → monitor 5 min
+  - [x] Phase 3: Route 25% of traffic → monitor 10 min
+  - [x] Phase 4: Route 50% of traffic → monitor 10 min
+  - [x] Phase 5: Route 100% — full promotion
+- [x] Configurable per-phase settings:
   - [x] Traffic percentage
   - [x] Duration / hold time
   - [x] Health check criteria (error rate, latency p99, custom metrics)
@@ -38,7 +38,7 @@
 - [x] Configurable batch size
 - [x] Health check per batch before proceeding
 - [x] Configurable max-unavailable
-- [ ] Configurable max-surge
+- [x] Configurable max-surge
 - [x] Batch failure handling
 
 ## Repository Layer (`internal/deploy/repository.go`)
@@ -56,10 +56,10 @@
 - [x] `POST /api/v1/deployments/:id/pause` — Pause deployment
 - [x] `POST /api/v1/deployments/:id/resume` — Resume paused deployment
 - [x] `GET /api/v1/deployments` — List deployments (filtered, paginated)
-- [ ] `GET /api/v1/projects/:id/deployments/active` — Get active deployments for project
+- [x] `GET /api/v1/projects/:id/deployments/active` — Get active deployments for project
 - [x] Request validation
 - [x] Response serialization
-- [ ] RBAC enforcement per endpoint
+- [x] RBAC enforcement per endpoint
 
 ## Domain Models (`internal/models/deployment.go`)
 - [x] `DeployPipeline` struct

@@ -8,7 +8,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/deploysentry/deploysentry/internal/auth"
 	"github.com/deploysentry/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -102,6 +104,26 @@ func (m *mockFlagService) DeleteRule(ctx context.Context, ruleID uuid.UUID) erro
 	return nil
 }
 
+func (m *mockFlagService) BatchEvaluate(ctx context.Context, projectID, environmentID uuid.UUID, keys []string, evalCtx models.EvaluationContext) ([]*models.FlagEvaluationResult, error) {
+	results := make([]*models.FlagEvaluationResult, len(keys))
+	for i, key := range keys {
+		results[i] = &models.FlagEvaluationResult{FlagKey: key, Enabled: true, Value: "on", Reason: "default"}
+	}
+	return results, nil
+}
+
+func (m *mockFlagService) BulkToggle(ctx context.Context, flagIDs []uuid.UUID, enabled bool) error {
+	return nil
+}
+
+func (m *mockFlagService) DetectStaleFlags(ctx context.Context, projectID uuid.UUID, threshold time.Duration) ([]*models.FeatureFlag, error) {
+	return nil, nil
+}
+
+func (m *mockFlagService) WarmCache(ctx context.Context, projectID uuid.UUID) error {
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -109,7 +131,13 @@ func (m *mockFlagService) DeleteRule(ctx context.Context, ruleID uuid.UUID) erro
 func setupFlagRouter(svc FlagService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	handler := NewHandler(svc)
+	// Inject a role into the context so that RBAC middleware passes in tests.
+	router.Use(func(c *gin.Context) {
+		c.Set("role", auth.RoleOwner)
+		c.Next()
+	})
+	rbac := auth.NewRBACChecker()
+	handler := NewHandler(svc, rbac)
 	handler.RegisterRoutes(router.Group("/api"))
 	return router
 }

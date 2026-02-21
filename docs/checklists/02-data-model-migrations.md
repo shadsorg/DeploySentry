@@ -2,7 +2,7 @@
 
 ## Migration Tooling
 - [x] Set up golang-migrate for migration management
-- [ ] Create migration runner in `internal/platform/database/`
+- [x] Create migration runner in `internal/platform/database/`
 - [x] Add migration commands to Makefile
 
 ## Core Entity Migrations
@@ -81,7 +81,7 @@
 ### Flag Evaluation Log (014)
 - [x] `014_create_flag_evaluation_log.up.sql`
   - [x] `flag_evaluation_log` table: id (UUID PK), flag_id, flag_key, environment, context_hash, result_value (JSONB), rule_matched, evaluated_at
-  - [ ] Index on (evaluated_at) — partitioned by month
+  - [x] Index on (evaluated_at) — partitioned by month
 - [x] `014_create_flag_evaluation_log.down.sql`
 
 ## Release Tracker Migrations

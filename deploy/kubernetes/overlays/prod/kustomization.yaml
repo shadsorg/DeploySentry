@@ -1,0 +1,135 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: deploysentry-prod
+
+namePrefix: prod-
+
+resources:
+  - ../../base
+
+patches:
+  # Production deployment with 3 replicas, higher resources, and anti-affinity
+  - target:
+      kind: Deployment
+      name: deploysentry-api
+    patch: |
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: deploysentry-api
+      spec:
+        replicas: 3
+        strategy:
+          type: RollingUpdate
+          rollingUpdate:
+            maxUnavailable: 0
+            maxSurge: 1
+        template:
+          spec:
+            affinity:
+              podAntiAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  - labelSelector:
+                      matchExpressions:
+                        - key: app.kubernetes.io/name
+                          operator: In
+                          values:
+                            - deploysentry-api
+                    topologyKey: kubernetes.io/hostname
+                preferredDuringSchedulingIgnoredDuringExecution:
+                  - weight: 100
+                    podAffinityTerm:
+                      labelSelector:
+                        matchExpressions:
+                          - key: app.kubernetes.io/name
+                            operator: In
+                            values:
+                              - deploysentry-api
+                      topologyKey: topology.kubernetes.io/zone
+            topologySpreadConstraints:
+              - maxSkew: 1
+                topologyKey: topology.kubernetes.io/zone
+                whenUnsatisfiable: DoNotSchedule
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: deploysentry-api
+            containers:
+              - name: api-server
+                resources:
+                  requests:
+                    cpu: 500m
+                    memory: 512Mi
+                  limits:
+                    cpu: "2"
+                    memory: 1Gi
+
+  # Production HPA (3-10 replicas)
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: deploysentry-api
+    patch: |
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: deploysentry-api
+      spec:
+        minReplicas: 3
+        maxReplicas: 10
+
+  # Production PDB
+  - target:
+      kind: PodDisruptionBudget
+      name: deploysentry-api
+    patch: |
+      apiVersion: policy/v1
+      kind: PodDisruptionBudget
+      metadata:
+        name: deploysentry-api
+      spec:
+        minAvailable: 2
+
+  # Production ingress with production TLS
+  - target:
+      kind: Ingress
+      name: deploysentry-api
+    patch: |
+      apiVersion: networking.k8s.io/v1
+      kind: Ingress
+      metadata:
+        name: deploysentry-api
+        annotations:
+          cert-manager.io/cluster-issuer: letsencrypt-prod
+          nginx.ingress.kubernetes.io/rate-limit-connections: "20"
+          nginx.ingress.kubernetes.io/rate-limit-rps: "100"
+      spec:
+        tls:
+          - hosts:
+              - api.deploysentry.io
+            secretName: deploysentry-api-prod-tls
+        rules:
+          - host: api.deploysentry.io
+            http:
+              paths:
+                - path: /
+                  pathType: Prefix
+                  backend:
+                    service:
+                      name: prod-deploysentry-api
+                      port:
+                        name: http
+
+configMapGenerator:
+  - name: deploysentry-config
+    behavior: merge
+    literals:
+      - log_level=warn
+      - environment=production
+      - database_host=postgres.deploysentry-prod.svc.cluster.local
+      - redis_host=redis.deploysentry-prod.svc.cluster.local
+      - nats_url=nats://nats.deploysentry-prod.svc.cluster.local:4222
+      - database_sslmode=require
+
+images:
+  - name: deploysentry/api-server
+    newTag: latest

@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deploysentry-config
+  labels:
+    app.kubernetes.io/name: deploysentry-api
+    app.kubernetes.io/component: api-server
+    app.kubernetes.io/part-of: deploysentry
+    app.kubernetes.io/managed-by: kustomize
+data:
+  # Application settings
+  log_level: "info"
+  environment: "production"
+
+  # Database configuration (non-sensitive)
+  database_host: "postgres.deploysentry.svc.cluster.local"
+  database_port: "5432"
+  database_name: "deploysentry"
+  database_sslmode: "require"
+
+  # Redis configuration
+  redis_host: "redis.deploysentry.svc.cluster.local"
+  redis_port: "6379"
+
+  # NATS configuration
+  nats_url: "nats://nats.deploysentry.svc.cluster.local:4222"
+
+  # Feature flags
+  flag_evaluation_cache_ttl: "30s"
+  flag_sync_interval: "10s"
+
+  # Deployment settings
+  canary_default_steps: "10,25,50,75,100"
+  health_check_interval: "30s"
+  rollback_timeout: "300s"
+
+  # Telemetry
+  otel_exporter_endpoint: "otel-collector.monitoring.svc.cluster.local:4317"
+  otel_service_name: "deploysentry-api"

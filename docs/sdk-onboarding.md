@@ -669,45 +669,49 @@ Rules are evaluated in priority order (lower number = higher precedence). The fi
 ## Architecture Overview
 
 ```
-                          +-----------------+
-                          |   Dashboard UI  |
-                          |   (React SPA)   |
-                          +--------+--------+
-                                   |
-                              HTTPS/REST
-                                   |
-                          +--------v--------+
-                          | DeploySentry API|
-                          |   (Go / Gin)    |
-                          +--+---------+--+-+
-                             |         |  |
-                    +--------+    +----+  +--------+
-                    |             |                 |
-             +------v---+  +-----v-----+  +-------v-------+
-             |PostgreSQL |  |   Redis   |  |     NATS      |
-             | (flags,   |  | (eval     |  |  JetStream    |
-             |  deploys, |  |  cache)   |  | (event bus)   |
-             |  users)   |  +-----------+  +-------+-------+
-             +----------+                          |
-                                            +------v------+
-                                            |  Sentinel   |
-                                            |  Server     |
-                                            +--+--+--+----+
-                                               |  |  |
-                                         SSE/gRPC streams
-                                            |  |  |  |
-                                  +---------+  |  |  +--------+
-                                  |            |  |            |
-                             +----v---+  +----v--+-+  +----v----+
-                             | Go SDK |  |Node SDK |  |React SDK|
-                             |  svc   |  |  svc    |  |  app    |
-                             +--------+  +---------+  +---------+
-                                                |
-                                          +-----v-------+
-                                          |Flutter SDK  |
-                                          | mobile app  |
-                                          +-------------+
+              +-----------------+                  +------------------+
+              |   Dashboard UI  |                  |   Mobile App     |
+              |   (React SPA)   |                  |   (Flutter)      |
+              +--------+--------+                  +--------+---------+
+                       |                                    |
+                  HTTPS/REST                           HTTPS/REST
+                       |                                    |
+                       +----------------+-------------------+
+                                        |
+                               +--------v--------+
+                               | DeploySentry API|
+                               |   (Go / Gin)    |
+                               +--+---------+--+-+
+                                  |         |  |
+                         +--------+    +----+  +--------+
+                         |             |                 |
+                  +------v---+  +-----v-----+  +-------v-------+
+                  |PostgreSQL |  |   Redis   |  |     NATS      |
+                  | (flags,   |  | (eval     |  |  JetStream    |
+                  |  deploys, |  |  cache)   |  | (event bus)   |
+                  |  users)   |  +-----------+  +-------+-------+
+                  +----------+                          |
+                                                 +------v------+
+                                                 |  Sentinel   |
+                                                 |  Server     |
+                                                 +--+--+--+--+-+
+                                                    |  |  |  |
+                                              SSE/gRPC streams
+                                                 |  |  |  |  |
+                                       +---------+  |  |  |  +--------+
+                                       |            |  |  |            |
+                                  +----v---+  +----v--+-+  +----v----+
+                                  | Go SDK |  |Node SDK |  |React SDK|
+                                  |  svc   |  |  svc    |  |  app    |
+                                  +--------+  +---------+  +---------+
+                                                     |
+                                               +-----v-------+
+                                               |Flutter SDK  |
+                                               | mobile lib  |
+                                               +-------------+
 ```
+
+The **Mobile App** (Flutter) connects directly to the DeploySentry REST API for admin operations (login, managing deployments, flags, and releases). It is separate from the **Flutter SDK**, which is a library for third-party apps to evaluate feature flags via the Sentinel streaming infrastructure.
 
 **Data flow for a flag evaluation:**
 
@@ -719,7 +723,7 @@ Rules are evaluated in priority order (lower number = higher precedence). The fi
 
 **Data flow for a flag update (push):**
 
-1. UI or API call updates the flag in PostgreSQL.
+1. UI, mobile app, or API call updates the flag in PostgreSQL.
 2. Redis cache is invalidated for the changed flag.
 3. A `flag.changed` event is published to NATS JetStream.
 4. Sentinel server receives the event and broadcasts to connected SDKs.

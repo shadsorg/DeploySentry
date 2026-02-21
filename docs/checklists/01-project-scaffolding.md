@@ -20,6 +20,7 @@
   - [x] `internal/models/`
 - [ ] Create `sdk/` directory structure (go, node, python, java)
 - [ ] Create `web/` directory structure (React + TypeScript)
+- [ ] Create `mobile/` directory structure (Flutter app)
 - [x] Create `deploy/kubernetes/` directory structure (base, overlays/dev, overlays/staging, overlays/prod)
 - [x] Create `deploy/docker/` directory structure
 - [x] Create `migrations/` directory

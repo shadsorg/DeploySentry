@@ -13,6 +13,7 @@ This guide walks through setting up local feature flags, integrating the DeployS
    - [Go SDK](#go-sdk)
    - [Node.js / TypeScript SDK](#nodejs--typescript-sdk)
    - [Python SDK](#python-sdk)
+   - [Flutter / Dart SDK](#flutter--dart-sdk)
 5. [API Endpoints for UI Flag Management](#api-endpoints-for-ui-flag-management)
 6. [Sentinel Server Push Updates](#sentinel-server-push-updates)
 7. [Authentication](#authentication)
@@ -272,6 +273,118 @@ print(f"dark mode: {dark_mode}")
 client.close()
 ```
 
+### Flutter / Dart SDK
+
+Add the DeploySentry Flutter SDK to your `pubspec.yaml`:
+
+```yaml
+dependencies:
+  deploysentry_flutter: ^1.0.0
+```
+
+**Initialize the client** in your app's startup (typically in `main.dart` or an early widget):
+
+```dart
+import 'package:deploysentry_flutter/deploysentry_flutter.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final client = DeploySentryClient(
+    apiKey: 'ds_key_xxxxxxxxxxxx',
+    baseURL: 'http://localhost:8080',
+    environment: 'staging',
+  );
+  await client.initialize();
+
+  runApp(
+    DeploySentryProvider(
+      client: client,
+      child: const MyApp(),
+    ),
+  );
+}
+```
+
+**Evaluate flags** using the provider or directly via the client:
+
+```dart
+import 'package:deploysentry_flutter/deploysentry_flutter.dart';
+import 'package:flutter/material.dart';
+
+class DashboardScreen extends StatelessWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Reactive — rebuilds automatically when the flag changes via SSE push.
+    final darkMode = DeploySentry.of(context).boolValue(
+      'enable-dark-mode',
+      defaultValue: false,
+      context: EvaluationContext(
+        userId: 'user-123',
+        attributes: {'plan': 'enterprise', 'country': 'US'},
+      ),
+    );
+
+    return MaterialApp(
+      theme: darkMode ? ThemeData.dark() : ThemeData.light(),
+      home: const Scaffold(body: Center(child: Text('Dashboard'))),
+    );
+  }
+}
+```
+
+**Using hooks** (with the `flutter_hooks` or `riverpod` pattern):
+
+```dart
+// With a ChangeNotifier / ValueNotifier approach
+class FlagNotifier extends ValueNotifier<bool> {
+  FlagNotifier(this._client, this._key, bool defaultValue)
+      : super(defaultValue) {
+    _client.onFlagChanged(_key, (newValue) {
+      value = newValue == 'true';
+    });
+  }
+
+  final DeploySentryClient _client;
+  final String _key;
+}
+```
+
+**Evaluate other flag types:**
+
+```dart
+final client = DeploySentry.of(context);
+
+// String flag
+final bannerText = client.stringValue('promo-banner-text', defaultValue: 'Welcome!');
+
+// JSON flag (returns a decoded Map<String, dynamic>)
+final checkoutConfig = client.jsonValue('checkout-config', defaultValue: {});
+
+// Integer flag
+final maxRetries = client.intValue('max-retries', defaultValue: 3);
+```
+
+**How it works internally:**
+
+1. On `initialize()`, the SDK fetches all flag definitions for the configured project/environment and stores them in an in-memory cache.
+2. The SDK opens an SSE connection to `GET /api/v1/flags/stream` to receive real-time push updates from the Sentinel server.
+3. Flag evaluations read from the local cache (sub-millisecond). On cache miss, the SDK calls `POST /api/v1/flags/evaluate`.
+4. When the SSE stream delivers a `flag.changed` event, the local cache is invalidated and the `DeploySentryProvider` notifies dependent widgets to rebuild.
+5. If the network is unavailable, the SDK continues serving stale cached values (offline mode) and reconnects with exponential backoff when connectivity is restored.
+
+**Cleanup on app disposal:**
+
+```dart
+@override
+void dispose() {
+  DeploySentry.of(context).client.close();
+  super.dispose();
+}
+```
+
 ## API Endpoints for UI Flag Management
 
 These are the REST endpoints exposed by the DeploySentry API server for managing feature flags from the dashboard UI. All endpoints are mounted under `/api/v1` and require authentication via JWT bearer token or API key.
@@ -395,17 +508,17 @@ The Sentinel server is the DeploySentry component responsible for broadcasting r
                                  |         Sentinel Server                  |
                                  |  Subscribes to NATS "flag.changed"      |
                                  |  Broadcasts via SSE / gRPC streams      |
-                                 +----+----+-----------+-------------------+
-                                      |    |           |
-                                      ↓    ↓           ↓
-                                   SDK A  SDK B      SDK C
-                                 (Go svc) (Node svc) (React app)
+                                 +----+----+-------+-------+---------------+
+                                      |    |       |       |
+                                      ↓    ↓       ↓       ↓
+                                   SDK A  SDK B   SDK C   SDK D
+                                 (Go svc)(Node) (React) (Flutter)
 ```
 
 1. **Flag change** -- A user toggles a flag or updates a targeting rule via the UI or API.
 2. **Persist + publish** -- The API server writes the change to PostgreSQL, invalidates the Redis cache, and publishes a `flag.changed` event to NATS JetStream.
 3. **Sentinel broadcasts** -- The Sentinel server is a durable NATS consumer subscribed to flag change events. On receiving an event, it broadcasts the update to all connected SDK clients via:
-   - **SSE (Server-Sent Events)** for browser-based and HTTP clients (Node.js, Python, React SDKs)
+   - **SSE (Server-Sent Events)** for browser-based and HTTP clients (Node.js, Python, React, Flutter SDKs)
    - **gRPC streaming** for backend services (Go, Java SDKs)
 4. **SDK cache refresh** -- Each SDK receives the push notification, invalidates its local cache entry, and fetches the updated flag definition. Subsequent evaluations immediately reflect the new value.
 
@@ -556,40 +669,49 @@ Rules are evaluated in priority order (lower number = higher precedence). The fi
 ## Architecture Overview
 
 ```
-                          +-----------------+
-                          |   Dashboard UI  |
-                          |   (React SPA)   |
-                          +--------+--------+
-                                   |
-                              HTTPS/REST
-                                   |
-                          +--------v--------+
-                          | DeploySentry API|
-                          |   (Go / Gin)    |
-                          +--+---------+--+-+
-                             |         |  |
-                    +--------+    +----+  +--------+
-                    |             |                 |
-             +------v---+  +-----v-----+  +-------v-------+
-             |PostgreSQL |  |   Redis   |  |     NATS      |
-             | (flags,   |  | (eval     |  |  JetStream    |
-             |  deploys, |  |  cache)   |  | (event bus)   |
-             |  users)   |  +-----------+  +-------+-------+
-             +----------+                          |
-                                            +------v------+
-                                            |  Sentinel   |
-                                            |  Server     |
-                                            +--+--+--+----+
-                                               |  |  |
-                                         SSE/gRPC streams
-                                               |  |  |
-                                     +---------+  |  +--------+
-                                     |            |            |
-                                +----v---+  +----v----+  +----v----+
-                                | Go SDK |  |Node SDK |  |React SDK|
-                                |  svc   |  |  svc    |  |  app    |
-                                +--------+  +---------+  +---------+
+              +-----------------+                  +------------------+
+              |   Dashboard UI  |                  |   Mobile App     |
+              |   (React SPA)   |                  |   (Flutter)      |
+              +--------+--------+                  +--------+---------+
+                       |                                    |
+                  HTTPS/REST                           HTTPS/REST
+                       |                                    |
+                       +----------------+-------------------+
+                                        |
+                               +--------v--------+
+                               | DeploySentry API|
+                               |   (Go / Gin)    |
+                               +--+---------+--+-+
+                                  |         |  |
+                         +--------+    +----+  +--------+
+                         |             |                 |
+                  +------v---+  +-----v-----+  +-------v-------+
+                  |PostgreSQL |  |   Redis   |  |     NATS      |
+                  | (flags,   |  | (eval     |  |  JetStream    |
+                  |  deploys, |  |  cache)   |  | (event bus)   |
+                  |  users)   |  +-----------+  +-------+-------+
+                  +----------+                          |
+                                                 +------v------+
+                                                 |  Sentinel   |
+                                                 |  Server     |
+                                                 +--+--+--+--+-+
+                                                    |  |  |  |
+                                              SSE/gRPC streams
+                                                 |  |  |  |  |
+                                       +---------+  |  |  |  +--------+
+                                       |            |  |  |            |
+                                  +----v---+  +----v--+-+  +----v----+
+                                  | Go SDK |  |Node SDK |  |React SDK|
+                                  |  svc   |  |  svc    |  |  app    |
+                                  +--------+  +---------+  +---------+
+                                                     |
+                                               +-----v-------+
+                                               |Flutter SDK  |
+                                               | mobile lib  |
+                                               +-------------+
 ```
+
+The **Mobile App** (Flutter) connects directly to the DeploySentry REST API for admin operations (login, managing deployments, flags, and releases). It is separate from the **Flutter SDK**, which is a library for third-party apps to evaluate feature flags via the Sentinel streaming infrastructure.
 
 **Data flow for a flag evaluation:**
 
@@ -601,7 +723,7 @@ Rules are evaluated in priority order (lower number = higher precedence). The fi
 
 **Data flow for a flag update (push):**
 
-1. UI or API call updates the flag in PostgreSQL.
+1. UI, mobile app, or API call updates the flag in PostgreSQL.
 2. Redis cache is invalidated for the changed flag.
 3. A `flag.changed` event is published to NATS JetStream.
 4. Sentinel server receives the event and broadcasts to connected SDKs.

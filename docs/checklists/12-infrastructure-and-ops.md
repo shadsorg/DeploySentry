@@ -3,39 +3,39 @@
 ## Kubernetes Deployment
 
 ### Base Resources (`deploy/kubernetes/base/`)
-- [ ] API server Deployment manifest
-- [ ] API server Service (ClusterIP)
-- [ ] Ingress resource (L7 load balancer)
-- [ ] Horizontal Pod Autoscaler (HPA) based on CPU/memory and custom metrics
-- [ ] Pod Disruption Budgets (PDB) for safe rollouts
-- [ ] Resource requests and limits per pod
-- [ ] Readiness probes (HTTP health check)
-- [ ] Liveness probes (HTTP health check)
-- [ ] ConfigMaps for application config
-- [ ] Secrets for sensitive config
+- [x] API server Deployment manifest
+- [x] API server Service (ClusterIP)
+- [x] Ingress resource (L7 load balancer)
+- [x] Horizontal Pod Autoscaler (HPA) based on CPU/memory and custom metrics
+- [x] Pod Disruption Budgets (PDB) for safe rollouts
+- [x] Resource requests and limits per pod
+- [x] Readiness probes (HTTP health check)
+- [x] Liveness probes (HTTP health check)
+- [x] ConfigMaps for application config
+- [x] Secrets for sensitive config
 - [ ] Service accounts with RBAC
 - [ ] Network policies for pod-to-pod communication
 
 ### Environment Overlays
 
 #### Dev (`deploy/kubernetes/overlays/dev/`)
-- [ ] Dev-specific resource limits (lower)
-- [ ] Dev environment variables
+- [x] Dev-specific resource limits (lower)
+- [x] Dev environment variables
 - [ ] Auto-deploy on merge to `main`
 - [ ] Synthetic/seeded test data
 
 #### Staging (`deploy/kubernetes/overlays/staging/`)
-- [ ] Staging-specific resource limits
-- [ ] Staging environment variables
+- [x] Staging-specific resource limits
+- [x] Staging environment variables
 - [ ] Anonymized prod data mirror
 - [ ] Auto-deploy after dev health check
 
 #### Prod (`deploy/kubernetes/overlays/prod/`)
-- [ ] Production resource limits (higher)
-- [ ] Production environment variables
+- [x] Production resource limits (higher)
+- [x] Production environment variables
 - [ ] Canary deployment with manual promotion gate
-- [ ] Multi-replica configuration
-- [ ] Pod anti-affinity rules
+- [x] Multi-replica configuration
+- [x] Pod anti-affinity rules
 
 ### Service Mesh (Optional)
 - [ ] mTLS between services (sidecar proxy)
@@ -45,26 +45,26 @@
 ## Docker Images
 
 ### API Server (`deploy/docker/Dockerfile.api`)
-- [ ] Multi-stage build
-- [ ] Stage 1: Build Go binary
-- [ ] Stage 2: Minimal runtime image (distroless/alpine)
-- [ ] Non-root user
+- [x] Multi-stage build
+- [x] Stage 1: Build Go binary
+- [x] Stage 2: Minimal runtime image (distroless/alpine)
+- [x] Non-root user
 - [ ] Health check instruction
 
 ### Web UI (`deploy/docker/Dockerfile.web`)
-- [ ] Multi-stage build
-- [ ] Stage 1: Build React static bundle
-- [ ] Stage 2: Nginx serving static files
-- [ ] Nginx configuration for SPA routing
+- [x] Multi-stage build
+- [x] Stage 1: Build React static bundle
+- [x] Stage 2: Nginx serving static files
+- [x] Nginx configuration for SPA routing
 
 ## Docker Compose (`deploy/docker-compose.yml`)
-- [ ] PostgreSQL 16 with initialization scripts
-- [ ] Redis 7
-- [ ] NATS JetStream
+- [x] PostgreSQL 16 with initialization scripts
+- [x] Redis 7
+- [x] NATS JetStream
 - [ ] API server (optional, for full-stack local dev)
 - [ ] Web UI dev server (optional)
-- [ ] Volume mounts for data persistence
-- [ ] Health checks for all services
+- [x] Volume mounts for data persistence
+- [x] Health checks for all services
 
 ## Observability Stack
 
@@ -72,7 +72,7 @@
 - [ ] OpenTelemetry SDK instrumentation in Go services
   - [ ] Traces (HTTP handlers, DB queries, external calls)
   - [ ] Metrics (request count, latency, error rate)
-  - [ ] Logs (structured JSON logging)
+  - [x] Logs (structured JSON logging)
 - [ ] OTel Collector deployment and configuration
 - [ ] Trace propagation (W3C Trace Context)
 
@@ -94,10 +94,10 @@
 - [ ] Alert notification channels
 
 ### Logging
-- [ ] Structured JSON logging format
+- [x] Structured JSON logging format
 - [ ] Loki integration for log aggregation
 - [ ] Log correlation with trace IDs
-- [ ] Log level configuration
+- [x] Log level configuration
 
 ### Tracing
 - [ ] Jaeger or Tempo for distributed tracing

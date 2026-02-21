@@ -2,37 +2,37 @@
 
 ## Core Service (`internal/notifications/service.go`)
 - [ ] Event subscription (listen to NATS JetStream events)
-- [ ] Notification routing (which events go to which channels)
-- [ ] Notification template rendering
+- [x] Notification routing (which events go to which channels)
+- [x] Notification template rendering
 - [ ] Delivery retry with exponential backoff
 - [ ] Notification preferences per user/project
 
 ## Slack Integration (`internal/notifications/slack.go`)
-- [ ] Slack webhook integration
+- [x] Slack webhook integration
 - [ ] Slack Bot API integration (optional)
-- [ ] Rich message formatting (blocks, attachments)
-- [ ] Channel configuration per project/environment
+- [x] Rich message formatting (blocks, attachments)
+- [x] Channel configuration per project/environment
 - [ ] Event-specific message templates:
-  - [ ] Deployment started
+  - [x] Deployment started
   - [ ] Deployment phase completed
-  - [ ] Deployment succeeded
-  - [ ] Deployment failed
+  - [x] Deployment succeeded
+  - [x] Deployment failed
   - [ ] Rollback initiated
-  - [ ] Rollback completed
-  - [ ] Health alert triggered
+  - [x] Rollback completed
+  - [x] Health alert triggered
   - [ ] Health alert resolved
-  - [ ] Feature flag toggled
+  - [x] Feature flag toggled
 
 ## Webhook Integration (`internal/notifications/webhook.go`)
 - [ ] Webhook endpoint management (CRUD)
-- [ ] HMAC signature verification (shared secret)
-- [ ] Webhook event filtering (subscribe to specific event types)
-- [ ] Delivery tracking and retry:
-  - [ ] Retry up to 3 times with exponential backoff
-  - [ ] Record response status and body
+- [x] HMAC signature verification (shared secret)
+- [x] Webhook event filtering (subscribe to specific event types)
+- [x] Delivery tracking and retry:
+  - [x] Retry up to 3 times with exponential backoff
+  - [x] Record response status and body
   - [ ] Mark delivery as pending/delivered/failed
-- [ ] Webhook event payload format (RFC-compliant):
-  - [ ] `id`, `type`, `created_at`, `project_id`, `data`
+- [x] Webhook event payload format (RFC-compliant):
+  - [x] `id`, `type`, `created_at`, `project_id`, `data`
 - [ ] Supported event types:
   - [ ] `deployment.created`, `deployment.phase.completed`, `deployment.completed`, `deployment.failed`
   - [ ] `deployment.rollback.initiated`, `deployment.rollback.completed`
@@ -41,7 +41,7 @@
   - [ ] `health.alert.triggered`, `health.alert.resolved`
 
 ## Email Integration (`internal/notifications/email.go`)
-- [ ] Email provider integration (SMTP / SES)
+- [x] Email provider integration (SMTP / SES)
 - [ ] HTML email templates
 - [ ] Email notification preferences
 - [ ] Digest mode (batch notifications into periodic summaries)

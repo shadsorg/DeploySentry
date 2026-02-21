@@ -15,6 +15,7 @@ Provide a single pane of glass for deployment orchestration, progressive rollout
 - **Release tracking**: End-to-end visibility from commit to production
 - **Observability integration**: Connect deploys to metrics, logs, and error rates
 - **Developer experience**: CLI-first workflow with dashboard for oversight
+- **Mobile access**: Flutter-based mobile app for on-the-go deployment management and flag control
 
 ---
 
@@ -26,8 +27,8 @@ Provide a single pane of glass for deployment orchestration, progressive rollout
 ┌─────────────────────────────────────────────────────────────────┐
 │                        DeploySentry Platform                     │
 ├─────────────┬─────────────┬──────────────┬──────────────────────┤
-│   Web UI    │   CLI Tool  │  REST API    │  Webhooks / Events   │
-│  (React)    │  (Go/Rust)  │  (Go)        │  (async workers)     │
+│   Web UI    │ Mobile App  │   CLI Tool  │  REST API    │  Webhooks / Events   │
+│  (React)    │ (Flutter)   │  (Go/Rust)  │  (Go)        │  (async workers)     │
 ├─────────────┴─────────────┴──────────────┴──────────────────────┤
 │                         API Gateway                              │
 │                    (Auth, Rate Limiting, Routing)                 │
@@ -69,6 +70,7 @@ Provide a single pane of glass for deployment orchestration, progressive rollout
 | Backend services | Go | Performance, strong concurrency, proven in infrastructure tooling |
 | CLI | Go (Cobra) | Single binary distribution, cross-platform |
 | Web UI | React + TypeScript | Component ecosystem, type safety |
+| Mobile App | Flutter / Dart | Cross-platform (iOS + Android), shared codebase, native performance |
 | Primary database | PostgreSQL 16 | JSONB for flexible schemas, strong consistency |
 | Cache / ephemeral | Redis 7 | Flag evaluation cache, session data, rate limiting |
 | Message broker | NATS JetStream | Lightweight, high throughput, at-least-once delivery |
@@ -249,6 +251,7 @@ SDKs will be provided for major languages/platforms:
 | Python | P1 | HTTP |
 | Java / Kotlin | P1 | gRPC |
 | React (client-side) | P0 | HTTP + SSE, React context provider |
+| Flutter / Dart | P1 | HTTP + SSE, InheritedWidget provider |
 | Ruby | P2 | HTTP |
 
 **SDK responsibilities:**
@@ -841,11 +844,32 @@ CREATE TABLE webhook_deliveries (
 | 16 | Documentation site, API reference, onboarding flow, production hardening |
 
 **Exit criteria:**
-- [ ] SDKs available for Go, Node.js, Python, Java, React
+- [ ] SDKs available for Go, Node.js, Python, Java, React, Flutter
 - [ ] Blue/green deployments functional
 - [ ] Documentation site live with API reference and guides
 - [ ] Load testing completed (target: 10K flag evaluations/sec, 100 concurrent deployments)
 - [ ] Security audit completed
+
+### Phase 5 — Mobile App (Weeks 17–20)
+
+**Goal**: Flutter-based mobile admin app with full deployment and feature flag management.
+
+| Week | Deliverable |
+|------|------------|
+| 17 | Flutter project scaffolding, OAuth login (GitHub/Google), JWT session management, RBAC-aware navigation |
+| 18 | Dashboard home screen, deployment list/detail views with real-time status via SSE, deployment actions (promote, pause, rollback) |
+| 19 | Feature flag list/detail views, toggle controls, targeting rule viewer/editor, flag creation |
+| 20 | Release tracking views, settings screens (org, project, profile), push notifications, app store preparation |
+
+**Exit criteria:**
+- [ ] User can log in via OAuth (GitHub, Google) on iOS and Android
+- [ ] RBAC enforced — viewers see read-only UI, editors can toggle flags and manage deploys
+- [ ] Dashboard shows active deployments, flag summaries, and release health
+- [ ] Can create, promote, pause, and rollback deployments from mobile
+- [ ] Can create, toggle, and edit targeting rules for feature flags from mobile
+- [ ] Real-time deployment status updates via SSE
+- [ ] Push notifications for deployment events and health alerts
+- [ ] Offline mode with cached data and queued actions
 
 ---
 
@@ -875,6 +899,7 @@ CREATE TABLE webhook_deliveries (
 | API tests | Go `httptest` + `testify` | HTTP handlers, middleware, auth |
 | SDK tests | Language-specific testing frameworks | SDK evaluation logic, caching, streaming |
 | E2E tests | Playwright | Web UI critical flows |
+| Mobile tests | flutter_test + integration_test | Mobile app widgets, navigation, API integration |
 | Load tests | k6 | Flag evaluation throughput, API latency under load |
 | Contract tests | Pact | SDK ↔ API compatibility |
 
@@ -894,6 +919,7 @@ stages:
       - Go binaries (linux/amd64, darwin/amd64, darwin/arm64)
       - Docker images
       - UI static bundle
+      - Flutter mobile app (iOS + Android)
   - deploy-dev:
       - Auto-deploy to dev on main merge
       - Run smoke tests
@@ -911,6 +937,7 @@ stages:
 | Flag evaluation (API) | < 10ms p99 |
 | Deployment creation API | < 200ms p99 |
 | Dashboard page load | < 2s (LCP) |
+| Mobile app cold start | < 3s to interactive |
 | Deployment status update | < 500ms (SSE/WebSocket) |
 | System availability | 99.9% uptime |
 
@@ -1014,6 +1041,19 @@ deploysentry/
 │   │   └── store/
 │   ├── package.json
 │   └── tsconfig.json
+├── mobile/                     # Flutter mobile app
+│   ├── lib/
+│   │   ├── main.dart
+│   │   ├── app/                # App shell, routing, theme
+│   │   ├── auth/               # Login, OAuth, session
+│   │   ├── deployments/        # Deployment views & controls
+│   │   ├── flags/              # Feature flag views & controls
+│   │   ├── releases/           # Release views
+│   │   ├── settings/           # Org, project, profile settings
+│   │   ├── shared/             # Shared widgets, API client, models
+│   │   └── dashboard/          # Home dashboard
+│   ├── pubspec.yaml
+│   └── test/
 ├── deploy/                     # Deployment manifests
 │   ├── kubernetes/
 │   │   ├── base/
@@ -1023,7 +1063,8 @@ deploysentry/
 │   │       └── prod/
 │   ├── docker/
 │   │   ├── Dockerfile.api
-│   │   └── Dockerfile.web
+│   │   ├── Dockerfile.web
+│   │   └── Dockerfile.mobile   # (optional, for CI builds)
 │   └── docker-compose.yml      # Local dev environment
 ├── docs/                       # Documentation
 │   └── PROJECT_PLAN.md

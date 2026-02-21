@@ -3,42 +3,42 @@
 ## Health Monitor (`internal/health/`)
 
 ### Core Monitor (`monitor.go`)
-- [ ] Health check orchestration for active deployments
-- [ ] Periodic health evaluation loop
-- [ ] Signal aggregation from multiple sources
-- [ ] Health status change event emission
-- [ ] Configurable evaluation windows
+- [x] Health check orchestration for active deployments
+- [x] Periodic health evaluation loop
+- [x] Signal aggregation from multiple sources
+- [x] Health status change event emission
+- [x] Configurable evaluation windows
 
 ### Health Score Computation (`scorer.go`)
-- [ ] Composite health score (0–100) from weighted signals:
+- [x] Composite health score (0–100) from weighted signals:
   - [ ] Error rate (5xx): 30% default weight
   - [ ] Latency p99: 20% default weight
   - [ ] Error tracking (new errors): 20% default weight
   - [ ] Custom metrics: 15% default weight
   - [ ] Synthetic checks: 15% default weight
-- [ ] Formula: `health_score = sum(signal_score_i * weight_i)`
+- [x] Formula: `health_score = sum(signal_score_i * weight_i)`
 - [ ] Signal score: `100 * max(0, 1 - (current_value / threshold_value))`
-- [ ] Configurable weights per project/environment
-- [ ] Configurable thresholds per signal
+- [x] Configurable weights per project/environment
+- [x] Configurable thresholds per signal
 - [ ] Health score history tracking
 
 ### Integration Points (`integrations/`)
 
 #### Prometheus Integration (`prometheus.go`)
-- [ ] PromQL query execution
-- [ ] Metric scraping for error rate, latency percentiles
-- [ ] Custom metric query support
-- [ ] Connection pooling and timeout handling
+- [x] PromQL query execution
+- [x] Metric scraping for error rate, latency percentiles
+- [x] Custom metric query support
+- [x] Connection pooling and timeout handling
 
 #### Sentry Integration (`sentry.go`)
 - [ ] Webhook receiver for new issues
-- [ ] Error count per release API integration
-- [ ] New error detection for health scoring
+- [x] Error count per release API integration
+- [x] New error detection for health scoring
 
 #### Datadog Integration (`datadog.go`)
-- [ ] Datadog API client for metrics
+- [x] Datadog API client for metrics
 - [ ] Monitor status integration
-- [ ] Custom metric queries
+- [x] Custom metric queries
 
 #### Custom Integration
 - [ ] HTTP endpoint polling
@@ -50,7 +50,7 @@
 ## Rollback Controller (`internal/rollback/`)
 
 ### Controller (`controller.go`)
-- [ ] Rollback state machine implementation:
+- [x] Rollback state machine implementation:
   ```
   HEALTHY → EVALUATING → RECOVERED (if auto-heal)
   HEALTHY → EVALUATING → ROLLING_BACK → ROLLED_BACK (if threshold breached)
@@ -58,14 +58,14 @@
 - [ ] Rollback trigger evaluation:
   - [ ] Error rate exceeds threshold (configurable, e.g., > 5% for 2 min)
   - [ ] Latency p99 exceeds threshold
-  - [ ] Health check failures
-  - [ ] Manual trigger via API/CLI/UI
+  - [x] Health check failures
+  - [x] Manual trigger via API/CLI/UI
   - [ ] External signal (PagerDuty incident auto-created)
 - [ ] Rollback decision cooldown (prevent flapping)
-- [ ] Manual override capability
+- [x] Manual override capability
 
 ### Rollback Strategies (`strategies.go`)
-- [ ] Re-deploy previous known-good version
+- [x] Re-deploy previous known-good version
 - [ ] Traffic shift back to blue environment (for blue/green)
 - [ ] Feature flag kill switch (disable flag that gates new code)
 - [ ] Strategy selection based on deployment type
@@ -74,4 +74,4 @@
 ### Rollback API
 - [ ] `POST /api/v1/deployments/:id/rollback` — Manual rollback trigger
 - [ ] `GET /api/v1/rollbacks` — List rollback history
-- [ ] Rollback event emission for notifications
+- [x] Rollback event emission for notifications

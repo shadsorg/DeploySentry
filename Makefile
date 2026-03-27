@@ -7,7 +7,7 @@ DATE    ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS := -ldflags "-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildDate=$(DATE)"
 
 # Database migration settings
-MIGRATE_DSN ?= postgres://deploysentry:deploysentry@localhost:5432/deploysentry?sslmode=disable
+MIGRATE_DSN ?= postgres://deploysentry:deploysentry@localhost:5432/deploysentry?sslmode=disable&search_path=deploy
 MIGRATE_DIR ?= migrations
 
 # Default target

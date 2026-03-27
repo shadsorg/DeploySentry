@@ -25,6 +25,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/platform/database/postgres"
 	"github.com/deploysentry/deploysentry/internal/platform/messaging"
 	"github.com/deploysentry/deploysentry/internal/platform/middleware"
+	"github.com/deploysentry/deploysentry/internal/platform/metrics"
 	"github.com/deploysentry/deploysentry/internal/releases"
 )
 
@@ -44,6 +45,14 @@ func run() error {
 	}
 
 	log.Printf("starting deploysentry API server on %s:%d", cfg.Server.Host, cfg.Server.Port)
+
+	// Production configuration validation
+	if os.Getenv("DS_ENVIRONMENT") == "production" {
+		if err := cfg.ValidateProduction(); err != nil {
+			return fmt.Errorf("production configuration validation failed: %w", err)
+		}
+		log.Println("production configuration validation passed")
+	}
 
 	// -------------------------------------------------------------------------
 	// Initialize Database
@@ -98,6 +107,11 @@ func run() error {
 	router.Use(gin.Recovery())
 	router.Use(gin.Logger())
 
+	// Production readiness middleware
+	router.Use(middleware.RequestID())
+	router.Use(middleware.SecurityHeaders(middleware.DefaultSecurityConfig()))
+	router.Use(metrics.InstrumentHandler())
+
 	// Health check endpoint.
 	router.GET("/health", func(c *gin.Context) {
 		healthCtx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
@@ -137,6 +151,9 @@ func run() error {
 	router.GET("/ready", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ready"})
 	})
+
+	// Prometheus metrics endpoint (no authentication required for scraping).
+	router.GET("/metrics", metrics.Handler())
 
 	// -------------------------------------------------------------------------
 	// Repositories

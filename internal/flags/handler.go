@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/deploysentry/deploysentry/internal/auth"
 	"github.com/deploysentry/deploysentry/internal/models"
@@ -54,13 +55,18 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // createFlagRequest is the JSON body for creating a new feature flag.
 type createFlagRequest struct {
-	ProjectID     uuid.UUID `json:"project_id" binding:"required"`
-	EnvironmentID uuid.UUID `json:"environment_id" binding:"required"`
-	Key           string    `json:"key" binding:"required"`
-	Name          string    `json:"name" binding:"required"`
-	Description   string    `json:"description"`
-	FlagType      string    `json:"flag_type" binding:"required"`
-	DefaultValue  string    `json:"default_value"`
+	ProjectID     uuid.UUID  `json:"project_id" binding:"required"`
+	EnvironmentID uuid.UUID  `json:"environment_id" binding:"required"`
+	Key           string     `json:"key" binding:"required"`
+	Name          string     `json:"name" binding:"required"`
+	Description   string     `json:"description"`
+	FlagType      string     `json:"flag_type" binding:"required"`
+	Category      string     `json:"category"`
+	Purpose       string     `json:"purpose"`
+	Owners        []string   `json:"owners"`
+	IsPermanent   bool       `json:"is_permanent"`
+	ExpiresAt     *time.Time `json:"expires_at"`
+	DefaultValue  string     `json:"default_value"`
 }
 
 func (h *Handler) createFlag(c *gin.Context) {
@@ -76,6 +82,11 @@ func (h *Handler) createFlag(c *gin.Context) {
 		createdBy = uuid.Nil
 	}
 
+	category := models.FlagCategory(req.Category)
+	if category == "" {
+		category = models.FlagCategoryFeature
+	}
+
 	flag := &models.FeatureFlag{
 		ProjectID:     req.ProjectID,
 		EnvironmentID: req.EnvironmentID,
@@ -83,6 +94,11 @@ func (h *Handler) createFlag(c *gin.Context) {
 		Name:          req.Name,
 		Description:   req.Description,
 		FlagType:      models.FlagType(req.FlagType),
+		Category:      category,
+		Purpose:       req.Purpose,
+		Owners:        req.Owners,
+		IsPermanent:   req.IsPermanent,
+		ExpiresAt:     req.ExpiresAt,
 		DefaultValue:  req.DefaultValue,
 		Enabled:       false,
 		CreatedBy:     createdBy,
@@ -138,9 +154,14 @@ func (h *Handler) listFlags(c *gin.Context) {
 
 // updateFlagRequest is the JSON body for updating a feature flag.
 type updateFlagRequest struct {
-	Name         string `json:"name"`
-	Description  string `json:"description"`
-	DefaultValue string `json:"default_value"`
+	Name         string     `json:"name"`
+	Description  string     `json:"description"`
+	Category     string     `json:"category"`
+	Purpose      string     `json:"purpose"`
+	Owners       []string   `json:"owners"`
+	IsPermanent  *bool      `json:"is_permanent"`
+	ExpiresAt    *time.Time `json:"expires_at"`
+	DefaultValue string     `json:"default_value"`
 }
 
 func (h *Handler) updateFlag(c *gin.Context) {
@@ -167,6 +188,21 @@ func (h *Handler) updateFlag(c *gin.Context) {
 	}
 	if req.Description != "" {
 		flag.Description = req.Description
+	}
+	if req.Category != "" {
+		flag.Category = models.FlagCategory(req.Category)
+	}
+	if req.Purpose != "" {
+		flag.Purpose = req.Purpose
+	}
+	if req.Owners != nil {
+		flag.Owners = req.Owners
+	}
+	if req.IsPermanent != nil {
+		flag.IsPermanent = *req.IsPermanent
+	}
+	if req.ExpiresAt != nil {
+		flag.ExpiresAt = req.ExpiresAt
 	}
 	if req.DefaultValue != "" {
 		flag.DefaultValue = req.DefaultValue

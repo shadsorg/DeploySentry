@@ -130,6 +130,51 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
+// ValidateProduction checks that all required settings for production
+// deployment are properly configured and returns an error if any are missing
+// or use insecure defaults.
+func (c *Config) ValidateProduction() error {
+	errors := []string{}
+
+	// Check authentication security
+	if c.Auth.JWTSecret == "" || c.Auth.JWTSecret == "change-me-in-production" || c.Auth.JWTSecret == "change-me-in-production-use-a-strong-random-string" {
+		errors = append(errors, "DS_AUTH_JWT_SECRET must be set to a strong random string in production")
+	}
+
+	// Check database security
+	if c.Database.SSLMode == "disable" {
+		errors = append(errors, "DS_DATABASE_SSL_MODE should be 'require' or 'verify-full' in production")
+	}
+	if c.Database.Password == "" || c.Database.Password == "deploysentry" {
+		errors = append(errors, "DS_DATABASE_PASSWORD must be set to a strong password in production")
+	}
+
+	// Check Redis security
+	if c.Redis.Password == "" {
+		errors = append(errors, "DS_REDIS_PASSWORD should be set in production")
+	}
+
+	// Check server configuration
+	if c.Server.Host == "localhost" || c.Server.Host == "127.0.0.1" {
+		errors = append(errors, "DS_SERVER_HOST should be '0.0.0.0' or a specific interface in production")
+	}
+
+	// Check timeouts are reasonable
+	if c.Server.ReadTimeout < 5*time.Second {
+		errors = append(errors, "DS_SERVER_READ_TIMEOUT should be at least 5s in production")
+	}
+	if c.Server.WriteTimeout < 5*time.Second {
+		errors = append(errors, "DS_SERVER_WRITE_TIMEOUT should be at least 5s in production")
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("production configuration validation failed:\n- %s",
+			strings.Join(errors, "\n- "))
+	}
+
+	return nil
+}
+
 // setDefaults configures sensible default values for all settings.
 func setDefaults(v *viper.Viper) {
 	// Server defaults.

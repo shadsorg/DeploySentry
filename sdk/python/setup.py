@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="deploysentry",
-    version="0.1.0",
+    version="1.0.0",
     description="Official Python SDK for the DeploySentry platform",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
@@ -14,8 +14,7 @@ setup(
         "Source": "https://github.com/deploysentry/deploysentry/tree/main/sdk/python",
         "Tracker": "https://github.com/deploysentry/deploysentry/issues",
     },
-    packages=find_packages(where="src"),
-    package_dir={"": "src"},
+    packages=find_packages(),
     python_requires=">=3.9",
     install_requires=[
         "httpx>=0.24.0",
@@ -28,7 +27,7 @@ setup(
         ],
     },
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python :: 3",
@@ -36,6 +35,7 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
     ],
     license="Apache-2.0",
 )

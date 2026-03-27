@@ -1,0 +1,39 @@
+{
+  "name": "@deploysentry/react",
+  "version": "1.0.0",
+  "description": "Official React SDK for the DeploySentry feature flag platform",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "lint": "eslint src/",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "deploysentry",
+    "feature-flags",
+    "react",
+    "hooks",
+    "sdk"
+  ],
+  "author": "DeploySentry",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deploysentry/deploysentry.git",
+    "directory": "sdk/react"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "react": "^18.0.0",
+    "typescript": "^5.0.0"
+  }
+}

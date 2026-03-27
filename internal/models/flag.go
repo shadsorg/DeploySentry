@@ -21,6 +21,28 @@ const (
 	FlagTypeJSON FlagType = "json"
 )
 
+// FlagCategory classifies a flag's intent so teams can filter and manage flags
+// by their lifecycle pattern.
+type FlagCategory string
+
+const (
+	// FlagCategoryRelease gates code that ships with a release and is removed
+	// once the release is fully rolled out.
+	FlagCategoryRelease FlagCategory = "release"
+	// FlagCategoryFeature controls long-lived product features that may remain
+	// flagged permanently (e.g. plan-gated functionality).
+	FlagCategoryFeature FlagCategory = "feature"
+	// FlagCategoryExperiment is used for A/B tests and experiments with a
+	// defined end date.
+	FlagCategoryExperiment FlagCategory = "experiment"
+	// FlagCategoryOps controls operational behaviors like maintenance mode,
+	// rate limits, or circuit breakers.
+	FlagCategoryOps FlagCategory = "ops"
+	// FlagCategoryPermission gates access to functionality based on
+	// entitlements or roles.
+	FlagCategoryPermission FlagCategory = "permission"
+)
+
 // RuleType identifies the kind of targeting rule applied to a feature flag.
 type RuleType string
 
@@ -39,20 +61,25 @@ const (
 
 // FeatureFlag represents a feature flag configuration.
 type FeatureFlag struct {
-	ID            uuid.UUID `json:"id" db:"id"`
-	ProjectID     uuid.UUID `json:"project_id" db:"project_id"`
-	EnvironmentID uuid.UUID `json:"environment_id" db:"environment_id"`
-	Key           string    `json:"key" db:"key"`
-	Name          string    `json:"name" db:"name"`
-	Description   string    `json:"description,omitempty" db:"description"`
-	FlagType      FlagType  `json:"flag_type" db:"flag_type"`
-	Enabled       bool      `json:"enabled" db:"enabled"`
-	DefaultValue  string    `json:"default_value" db:"default_value"`
-	Archived      bool      `json:"archived" db:"archived"`
-	Tags          []string  `json:"tags,omitempty" db:"-"`
-	CreatedBy     uuid.UUID `json:"created_by" db:"created_by"`
-	CreatedAt     time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
+	ID            uuid.UUID    `json:"id" db:"id"`
+	ProjectID     uuid.UUID    `json:"project_id" db:"project_id"`
+	EnvironmentID uuid.UUID    `json:"environment_id" db:"environment_id"`
+	Key           string       `json:"key" db:"key"`
+	Name          string       `json:"name" db:"name"`
+	Description   string       `json:"description,omitempty" db:"description"`
+	FlagType      FlagType     `json:"flag_type" db:"flag_type"`
+	Category      FlagCategory `json:"category" db:"category"`
+	Purpose       string       `json:"purpose,omitempty" db:"purpose"`
+	Owners        []string     `json:"owners,omitempty" db:"-"`
+	IsPermanent   bool         `json:"is_permanent" db:"is_permanent"`
+	ExpiresAt     *time.Time   `json:"expires_at,omitempty" db:"expires_at"`
+	Enabled       bool         `json:"enabled" db:"enabled"`
+	DefaultValue  string       `json:"default_value" db:"default_value"`
+	Archived      bool         `json:"archived" db:"archived"`
+	Tags          []string     `json:"tags,omitempty" db:"-"`
+	CreatedBy     uuid.UUID    `json:"created_by" db:"created_by"`
+	CreatedAt     time.Time    `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time    `json:"updated_at" db:"updated_at"`
 }
 
 // TargetingRule defines a single rule that influences how a feature flag is
@@ -86,12 +113,24 @@ type EvaluationContext struct {
 // FlagEvaluationResult contains the outcome of evaluating a feature flag
 // against a given context.
 type FlagEvaluationResult struct {
-	FlagKey     string `json:"flag_key"`
-	Enabled     bool   `json:"enabled"`
-	Value       string `json:"value"`
-	Reason      string `json:"reason"`
-	RuleID      string `json:"rule_id,omitempty"`
-	VariationID string `json:"variation_id,omitempty"`
+	FlagKey     string        `json:"flag_key"`
+	Enabled     bool          `json:"enabled"`
+	Value       string        `json:"value"`
+	Reason      string        `json:"reason"`
+	RuleID      string        `json:"rule_id,omitempty"`
+	VariationID string        `json:"variation_id,omitempty"`
+	Metadata    *FlagMetadata `json:"metadata,omitempty"`
+}
+
+// FlagMetadata contains descriptive information about a flag returned alongside
+// evaluation results. SDKs use this to surface flag intent in logs and tooling.
+type FlagMetadata struct {
+	Category    FlagCategory `json:"category"`
+	Purpose     string       `json:"purpose,omitempty"`
+	Owners      []string     `json:"owners,omitempty"`
+	IsPermanent bool         `json:"is_permanent"`
+	ExpiresAt   *time.Time   `json:"expires_at,omitempty"`
+	Tags        []string     `json:"tags,omitempty"`
 }
 
 // Validate checks that the FeatureFlag has all required fields populated.
@@ -116,6 +155,15 @@ func (f *FeatureFlag) Validate() error {
 		// valid
 	default:
 		return errors.New("unsupported flag type")
+	}
+	switch f.Category {
+	case FlagCategoryRelease, FlagCategoryFeature, FlagCategoryExperiment, FlagCategoryOps, FlagCategoryPermission, "":
+		// valid (empty defaults to "feature" at persistence layer)
+	default:
+		return errors.New("unsupported flag category: must be release, feature, experiment, ops, or permission")
+	}
+	if !f.IsPermanent && f.ExpiresAt == nil && f.Category == FlagCategoryRelease {
+		return errors.New("release flags must have an expiration date or be marked permanent")
 	}
 	return nil
 }

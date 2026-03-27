@@ -13,11 +13,19 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
+	"github.com/deploysentry/deploysentry/internal/auth"
+	"github.com/deploysentry/deploysentry/internal/deploy"
+	"github.com/deploysentry/deploysentry/internal/flags"
 	"github.com/deploysentry/deploysentry/internal/platform/cache"
+	"github.com/deploysentry/deploysentry/internal/platform/cache/flagcache"
 	"github.com/deploysentry/deploysentry/internal/platform/config"
 	"github.com/deploysentry/deploysentry/internal/platform/database"
+	"github.com/deploysentry/deploysentry/internal/platform/database/postgres"
 	"github.com/deploysentry/deploysentry/internal/platform/messaging"
+	"github.com/deploysentry/deploysentry/internal/platform/middleware"
+	"github.com/deploysentry/deploysentry/internal/releases"
 )
 
 func main() {
@@ -131,6 +139,56 @@ func run() error {
 	})
 
 	// -------------------------------------------------------------------------
+	// Repositories
+	// -------------------------------------------------------------------------
+	userRepo := postgres.NewUserRepository(db.Pool)
+	apiKeyRepo := postgres.NewAPIKeyRepository(db.Pool)
+	auditRepo := postgres.NewAuditLogRepository(db.Pool)
+	flagRepo := postgres.NewFlagRepository(db.Pool)
+	deployRepo := postgres.NewDeployRepository(db.Pool)
+	releaseRepo := postgres.NewReleaseRepository(db.Pool)
+
+	// -------------------------------------------------------------------------
+	// Services
+	// -------------------------------------------------------------------------
+	flagCache := flagcache.NewFlagCache(rdb)
+	flagService := flags.NewFlagService(flagRepo, flagCache, nc)
+	deployService := deploy.NewDeployService(deployRepo, nc)
+	releaseService := releases.NewReleaseServiceWithPublisher(releaseRepo, nc)
+	apiKeyService := auth.NewAPIKeyService(apiKeyRepo)
+	rbacChecker := auth.NewRBACChecker()
+
+	// -------------------------------------------------------------------------
+	// Middleware
+	// -------------------------------------------------------------------------
+	apiKeyValidator := &apiKeyValidatorAdapter{service: apiKeyService}
+	authMiddleware := auth.NewAuthMiddleware(cfg.Auth.JWTSecret, apiKeyValidator)
+	corsMiddleware := middleware.CORS(middleware.DefaultCORSConfig())
+	rateLimiter := middleware.NewRateLimiter(rdb.Client, middleware.DefaultRateLimitConfig())
+
+	// -------------------------------------------------------------------------
+	// Routes
+	// -------------------------------------------------------------------------
+
+	// Authenticated API routes.
+	api := router.Group("/api/v1")
+	api.Use(corsMiddleware)
+	api.Use(rateLimiter.Middleware())
+	api.Use(authMiddleware.RequireAuth())
+
+	flags.NewHandler(flagService, rbacChecker).RegisterRoutes(api)
+	deploy.NewHandler(deployService).RegisterRoutes(api, rbacChecker)
+	releases.NewHandler(releaseService).RegisterRoutes(api)
+	auth.NewUserHandler(userRepo).RegisterRoutes(api)
+	auth.NewAPIKeyHandler(apiKeyService).RegisterRoutes(api)
+	auth.NewAuditHandler(auditRepo).RegisterRoutes(api)
+
+	// Public routes (no auth required).
+	public := router.Group("/api/v1")
+	public.Use(corsMiddleware)
+	auth.NewLoginHandler(userRepo, cfg.Auth).RegisterRoutes(public)
+
+	// -------------------------------------------------------------------------
 	// Start HTTP Server
 	// -------------------------------------------------------------------------
 	srv := &http.Server{
@@ -193,4 +251,34 @@ func version() string {
 		return "dev"
 	}
 	return v
+}
+
+// apiKeyValidatorAdapter adapts *auth.APIKeyService to the auth.APIKeyValidator
+// interface expected by AuthMiddleware. It bridges ValidateKey (which returns
+// *models.APIKey) to ValidateAPIKey (which returns *auth.APIKeyInfo).
+type apiKeyValidatorAdapter struct {
+	service *auth.APIKeyService
+}
+
+func (a *apiKeyValidatorAdapter) ValidateAPIKey(ctx context.Context, key string) (*auth.APIKeyInfo, error) {
+	apiKey, err := a.service.ValidateKey(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+
+	var projectID uuid.UUID
+	if apiKey.ProjectID != nil {
+		projectID = *apiKey.ProjectID
+	}
+
+	scopes := make([]string, len(apiKey.Scopes))
+	for i, s := range apiKey.Scopes {
+		scopes[i] = string(s)
+	}
+
+	return &auth.APIKeyInfo{
+		OrgID:     apiKey.OrgID,
+		ProjectID: projectID,
+		Scopes:    scopes,
+	}, nil
 }

@@ -1,0 +1,50 @@
+{
+  "description": "POST /api/v1/flags/batch-evaluate response shape",
+  "body": {
+    "results": [
+      {
+        "flag_key": "dark-mode",
+        "value": true,
+        "enabled": true,
+        "reason": "TARGETING_MATCH",
+        "flag_type": "boolean",
+        "metadata": {
+          "category": "feature",
+          "purpose": "Enable dark mode",
+          "owners": ["frontend-team"],
+          "is_permanent": false,
+          "tags": ["ui"]
+        }
+      },
+      {
+        "flag_key": "new-checkout",
+        "value": "variant-b",
+        "enabled": true,
+        "reason": "PERCENTAGE_ROLLOUT",
+        "flag_type": "string",
+        "metadata": {
+          "category": "experiment",
+          "purpose": "A/B test new checkout flow",
+          "owners": ["checkout-team"],
+          "is_permanent": false,
+          "expires_at": "2026-07-01T00:00:00Z",
+          "tags": ["checkout"]
+        }
+      },
+      {
+        "flag_key": "max-items",
+        "value": 50,
+        "enabled": true,
+        "reason": "DEFAULT_VALUE",
+        "flag_type": "integer",
+        "metadata": {
+          "category": "ops",
+          "purpose": "Maximum items per page",
+          "owners": ["platform-team"],
+          "is_permanent": true,
+          "tags": ["pagination"]
+        }
+      }
+    ]
+  }
+}

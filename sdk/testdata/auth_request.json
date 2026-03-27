@@ -1,0 +1,11 @@
+{
+  "description": "All SDK HTTP requests must include this authorization header format",
+  "header_name": "Authorization",
+  "header_value_prefix": "ApiKey ",
+  "example_header": "ApiKey ds_live_abc123",
+  "invalid_formats": [
+    "Bearer ds_live_abc123",
+    "Token ds_live_abc123",
+    "ds_live_abc123"
+  ]
+}

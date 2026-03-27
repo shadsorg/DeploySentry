@@ -1,0 +1,19 @@
+{
+  "description": "POST /api/v1/flags/evaluate request body",
+  "body": {
+    "flag_key": "dark-mode",
+    "project_id": "proj-1",
+    "environment_id": "production",
+    "context": {
+      "user_id": "user-42",
+      "org_id": "org-7",
+      "attributes": {
+        "plan": "enterprise",
+        "region": "us-east"
+      }
+    },
+    "session_id": "user:user-42"
+  },
+  "required_fields": ["flag_key"],
+  "optional_fields": ["project_id", "environment_id", "context", "session_id"]
+}

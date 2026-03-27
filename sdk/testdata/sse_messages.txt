@@ -1,0 +1,14 @@
+event: flag_change
+data: {"event": "flag.toggled", "flag_id": "flag-uuid-1", "flag_key": "dark-mode", "enabled": false}
+
+event: flag_change
+data: {"event": "flag.created", "flag_id": "flag-uuid-4", "flag_key": "beta-banner", "enabled": true, "value": "Welcome to beta!", "metadata": {"category": "release", "purpose": "Show beta banner", "owners": ["marketing"], "is_permanent": false, "expires_at": "2026-08-01T00:00:00Z", "tags": ["banner"]}}
+
+event: flag_change
+data: {"event": "flag.updated", "flag_id": "flag-uuid-1", "flag_key": "dark-mode", "enabled": true, "value": true, "metadata": {"category": "feature", "purpose": "Enable dark mode", "owners": ["frontend-team"], "is_permanent": false, "tags": ["ui"]}}
+
+event: flag_change
+data: {"event": "flag.deleted", "flag_id": "flag-uuid-2", "flag_key": "new-checkout"}
+
+: heartbeat
+

@@ -1,0 +1,27 @@
+{
+  "description": "POST /api/v1/flags/evaluate response shape",
+  "body": {
+    "flag_key": "dark-mode",
+    "value": true,
+    "enabled": true,
+    "reason": "TARGETING_MATCH",
+    "flag_type": "boolean",
+    "metadata": {
+      "category": "feature",
+      "purpose": "Enable dark mode for eligible users",
+      "owners": ["frontend-team"],
+      "is_permanent": false,
+      "expires_at": "2026-06-01T00:00:00Z",
+      "tags": ["ui", "theme"]
+    }
+  },
+  "valid_reasons": [
+    "TARGETING_MATCH",
+    "PERCENTAGE_ROLLOUT",
+    "DEFAULT_VALUE",
+    "FLAG_DISABLED",
+    "NOT_FOUND",
+    "ERROR",
+    "SESSION_CACHED"
+  ]
+}

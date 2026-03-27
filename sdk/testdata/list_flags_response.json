@@ -1,0 +1,57 @@
+{
+  "description": "GET /api/v1/flags response shape",
+  "body": {
+    "flags": [
+      {
+        "id": "flag-uuid-1",
+        "key": "dark-mode",
+        "name": "Dark Mode",
+        "flag_type": "boolean",
+        "enabled": true,
+        "default_value": "false",
+        "value": true,
+        "metadata": {
+          "category": "feature",
+          "purpose": "Enable dark mode for eligible users",
+          "owners": ["frontend-team"],
+          "is_permanent": false,
+          "expires_at": "2026-06-01T00:00:00Z",
+          "tags": ["ui", "theme"]
+        }
+      },
+      {
+        "id": "flag-uuid-2",
+        "key": "new-checkout",
+        "name": "New Checkout Flow",
+        "flag_type": "string",
+        "enabled": true,
+        "default_value": "control",
+        "value": "variant-b",
+        "metadata": {
+          "category": "experiment",
+          "purpose": "A/B test new checkout flow",
+          "owners": ["checkout-team"],
+          "is_permanent": false,
+          "expires_at": "2026-07-01T00:00:00Z",
+          "tags": ["checkout"]
+        }
+      },
+      {
+        "id": "flag-uuid-3",
+        "key": "max-items",
+        "name": "Max Items Per Page",
+        "flag_type": "integer",
+        "enabled": true,
+        "default_value": "25",
+        "value": 50,
+        "metadata": {
+          "category": "ops",
+          "purpose": "Maximum items per page",
+          "owners": ["platform-team"],
+          "is_permanent": true,
+          "tags": ["pagination"]
+        }
+      }
+    ]
+  }
+}

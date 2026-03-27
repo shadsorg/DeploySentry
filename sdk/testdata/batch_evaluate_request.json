@@ -1,0 +1,16 @@
+{
+  "description": "POST /api/v1/flags/batch-evaluate request body",
+  "body": {
+    "flag_keys": ["dark-mode", "new-checkout", "max-items"],
+    "project_id": "proj-1",
+    "environment_id": "production",
+    "context": {
+      "user_id": "user-42",
+      "org_id": "org-7",
+      "attributes": {
+        "plan": "enterprise"
+      }
+    },
+    "session_id": "user:user-42"
+  }
+}

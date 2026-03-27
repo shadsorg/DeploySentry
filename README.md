@@ -1,265 +1,541 @@
 # DeploySentry
 
-Deploy release and feature flag management platform. Orchestrate safe deployments with canary releases, blue/green strategies, and automated rollbacks. Manage feature flags with granular targeting, percentage rollouts, and kill switches.
-
-## Table of Contents
-
-- [Quick Start](#quick-start)
-- [Architecture](#architecture)
-- [Core Features](#core-features)
-  - [Deployment Strategies](#deployment-strategies)
-  - [Feature Flags](#feature-flags)
-  - [Rollback System](#rollback-system)
-  - [Health Monitoring](#health-monitoring)
-  - [Notifications](#notifications)
-- [CLI Reference](#cli-reference)
-- [API Reference](#api-reference)
-- [SDKs](#sdks)
-- [Configuration](#configuration)
-- [Development](#development)
-- [Project Structure](#project-structure)
-
----
+Deploy release and feature flag management platform. DeploySentry gives engineering teams full visibility and control over their deployment lifecycle — safe rollouts, feature flags with granular targeting, release tracking, and automated rollbacks.
 
 ## Quick Start
 
-### Prerequisites
-
-- Docker and Docker Compose
-- Go 1.22+
-- Node.js 18+ (for the web UI)
-- [golang-migrate](https://github.com/golang-migrate/migrate) (for database migrations)
-
-### 1. Clone and configure
-
 ```bash
-git clone https://github.com/shadsorg/deploysentry.git
-cd deploysentry
-cp .env.example .env
-```
-
-### 2. Start infrastructure
-
-```bash
-# Start PostgreSQL, Redis, and NATS
+# 1. Start backing services (PostgreSQL, Redis, NATS)
 make dev-up
 
-# Run database migrations
+# 2. Run database migrations
 make migrate-up
-```
 
-### 3. Start the API server
+# 3. Copy and configure environment variables
+cp .env.example .env
 
-```bash
+# 4. Start the API server (default: localhost:8080)
 make run-api
-# API available at http://localhost:8080
 ```
-
-### 4. Start the web UI (optional)
-
-```bash
-make run-web
-# Web UI available at http://localhost:5173
-```
-
-### 5. Install the CLI
-
-```bash
-go install ./cmd/cli
-deploysentry config init
-deploysentry auth login
-```
-
-### 6. Create your first deployment
-
-```bash
-# Create a project
-deploysentry projects create --name "my-app" --org "my-org"
-
-# Deploy with canary strategy
-deploysentry deploy create \
-  --project my-app \
-  --env production \
-  --strategy canary \
-  --image my-app:v1.2.0
-
-# Check deployment status
-deploysentry deploy status
-```
-
-### 7. Create your first feature flag
-
-```bash
-deploysentry flags create \
-  --project my-app \
-  --key "enable-dark-mode" \
-  --name "Enable Dark Mode" \
-  --env staging
-
-# Toggle it on
-deploysentry flags toggle --key "enable-dark-mode" --env staging
-```
-
----
 
 ## Architecture
 
 ```
-                    ┌──────────────────────────────────────────────┐
-                    │            DeploySentry Platform             │
-                    ├──────────┬──────────┬────────────┬──────────┤
-                    │  Web UI  │ Mobile   │  CLI Tool  │   SDKs   │
-                    │ (React)  │(Flutter) │ (Go/Cobra) │(7 langs) │
-                    ├──────────┴──────────┴────────────┴──────────┤
-                    │         REST API (Go / Gin)                 │
-                    │    Auth  ·  Rate Limiting  ·  CORS          │
-                    ├─────────────────────────────────────────────┤
-                    │              Core Services                  │
-                    │  ┌─────────┐ ┌─────────┐ ┌──────────────┐  │
-                    │  │ Deploy  │ │ Feature │ │   Release    │  │
-                    │  │ Service │ │  Flags  │ │   Tracker    │  │
-                    │  └─────────┘ └─────────┘ └──────────────┘  │
-                    │  ┌─────────┐ ┌─────────┐ ┌──────────────┐  │
-                    │  │Rollback │ │ Health  │ │Notifications │  │
-                    │  │Controller│ │Monitor │ │   Service    │  │
-                    │  └─────────┘ └─────────┘ └──────────────┘  │
-                    ├─────────────────────────────────────────────┤
-                    │            Infrastructure                   │
-                    │  PostgreSQL  ·  Redis  ·  NATS JetStream   │
-                    └─────────────────────────────────────────────┘
+ Dashboard UI / Mobile App / CLI
+         │
+     HTTPS/REST
+         │
+ ┌───────▼────────┐
+ │ DeploySentry API│
+ │   (Go / Gin)   │
+ └──┬──────┬────┬──┘
+    │      │    │
+ ┌──▼──┐ ┌▼──┐ ┌▼──────────┐
+ │ PG  │ │Redis│ │   NATS    │
+ │     │ │    │ │ JetStream │
+ └─────┘ └────┘ └─────┬─────┘
+                       │
+                ┌──────▼──────┐
+                │  Sentinel   │
+                │  Server     │
+                └──┬──┬──┬──┬─┘
+              SSE/gRPC streams
+                │  │  │  │
+            SDK clients (Go, Node, Python, etc.)
 ```
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| Backend | Go 1.22+ / Gin | API server, business logic |
-| Web UI | React 18 + TypeScript / Vite | Dashboard and management console |
-| Mobile | Flutter / Dart | iOS and Android management app |
-| CLI | Go / Cobra | Developer workflow tool |
-| Database | PostgreSQL 16 | Primary data store with JSONB |
-| Cache | Redis 7 | Flag evaluation cache, rate limiting |
-| Messaging | NATS JetStream | Real-time push updates, event streaming |
-| Auth | JWT + OAuth2 | Token-based auth with SSO support |
-| Observability | OpenTelemetry | Metrics, traces, logs |
+**Core services:** Deploy Service, Feature Flag Service, Release Tracker, Health Monitor, Rollback Controller, Notification Service.
+
+**Stack:** Go 1.22+, PostgreSQL 16, Redis 7, NATS JetStream, React + TypeScript (web), Flutter (mobile).
 
 ---
 
-## Core Features
+## Feature Flags
 
-### Deployment Strategies
+### Flag Categories
 
-#### Canary Deployments
+Every flag has a **category** that describes its intent and lifecycle. This makes it easy to filter, audit, and clean up flags across your projects.
 
-Gradually shift traffic to the new version while monitoring health metrics.
+| Category | Purpose | Typical Lifecycle |
+|----------|---------|-------------------|
+| `release` | Gates code shipping with a release. Remove once fully rolled out. | Days to weeks. **Requires expiration date.** |
+| `feature` | Controls long-lived product features (plan-gated, A/B permanent). | Weeks to permanent. |
+| `experiment` | A/B tests and experiments with a defined end date. | Days to weeks. |
+| `ops` | Operational controls — maintenance mode, rate limits, circuit breakers. | Permanent or event-driven. |
+| `permission` | Gates access based on entitlements or roles. | Permanent. |
 
-```yaml
-# .deploysentry.yml
-deploy:
-  strategy: "canary"
-  canary:
-    initial_weight: 5      # Start with 5% traffic
-    increment: 10           # Increase by 10% per phase
-    interval: "5m"          # Wait 5 minutes between phases
-    auto_promote: true      # Auto-promote if healthy
-```
+### Flag Metadata
 
-Traffic progression: 5% -> 15% -> 25% -> 35% -> ... -> 100%
+Every flag carries metadata that makes it self-documenting and accountable:
 
-Health checks run at each phase. If error rate exceeds thresholds, the deployment is automatically rolled back.
+| Field | Type | Description |
+|-------|------|-------------|
+| `category` | string | `release`, `feature`, `experiment`, `ops`, or `permission` |
+| `purpose` | string | Human-readable description of why this flag exists |
+| `owners` | string[] | Team or individuals responsible (e.g. `["team-frontend", "jane@example.com"]`) |
+| `is_permanent` | boolean | If true, flag is not expected to expire |
+| `expires_at` | timestamp | When this flag should be cleaned up (required for `release` flags) |
+| `tags` | string[] | Arbitrary labels for filtering |
 
-#### Blue/Green Deployments
+### How Flags Work
 
-Deploy to an inactive environment, then atomically switch traffic.
-
-```bash
-deploysentry deploy create --strategy blue-green --image my-app:v2.0.0
-# Validates the green environment, then switches traffic
-# Instant rollback by switching back to blue
-```
-
-#### Rolling Updates
-
-Update instances in configurable batches with health checks between each batch.
-
-```bash
-deploysentry deploy create --strategy rolling --batch-size 2 --max-unavailable 1
-```
-
-### Feature Flags
-
-The feature flag system supports multiple flag types with a priority-ordered evaluation engine.
-
-**Flag types:**
-- **Boolean** -- simple on/off toggles
-- **Percentage rollout** -- deterministic user bucketing (consistent experience per user)
-- **User targeting** -- explicit include/exclude lists
-- **Attribute matching** -- target by country, plan, app version, etc.
-- **Segment targeting** -- reusable audience definitions
-- **Schedule-based** -- activate flags at specific times
+Feature flags let you decouple deployment from release. Ship code behind a flag, then control who sees it — by user, percentage, attribute, segment, or schedule — without redeploying.
 
 **Evaluation flow:**
+1. SDK checks local in-memory cache (sub-millisecond)
+2. On cache miss, SDK calls `POST /api/v1/flags/evaluate`
+3. API checks Redis cache, falls back to PostgreSQL
+4. Result cached at both layers and returned
 
-1. Check kill switch (overrides everything)
-2. Check explicit user targeting (include/exclude lists)
-3. Evaluate targeting rules in priority order
-4. Apply percentage rollout (deterministic hash of user ID)
-5. Fall back to default value
+**Real-time updates:**
+When a flag changes, the API publishes to NATS JetStream. The Sentinel server broadcasts to all connected SDKs via SSE or gRPC streaming. SDKs invalidate their local cache immediately — no polling required.
 
-Flag evaluations are cached in Redis for sub-millisecond latency. Real-time updates are pushed via NATS to all connected SDKs.
+### Creating Flags
 
-### Rollback System
-
-Automated rollback with a state machine:
-
-```
-HEALTHY -> EVALUATING -> ROLLING_BACK -> ROLLED_BACK
-```
-
-**Automatic triggers (configurable):**
-- Error rate exceeds 5%
-- Latency p99 exceeds 2 seconds
-- Health check failures exceed threshold
-
-**Rollback strategies:**
-- **Instant** -- immediately revert to previous version
-- **Gradual** -- reverse the canary progression
-- **Canary revert** -- shift traffic back through canary phases
+**Via CLI:**
 
 ```bash
-# Manual rollback
-deploysentry deploy rollback --deployment-id <id>
+# Release flag — gates a new checkout flow, owned by payments team, expires in 30 days
+deploysentry flag create \
+  --key new-checkout-flow \
+  --name "New Checkout Flow" \
+  --type boolean \
+  --category release \
+  --purpose "Progressive rollout of redesigned checkout" \
+  --owners team-payments,alice@example.com \
+  --expires-at 2026-04-21T00:00:00Z \
+  --default false \
+  --env production
 
-# Check rollback history
-deploysentry deploy status --deployment-id <id>
+# Feature flag — permanent plan-gated functionality
+deploysentry flag create \
+  --key advanced-analytics \
+  --name "Advanced Analytics" \
+  --type boolean \
+  --category feature \
+  --purpose "Enterprise-only analytics dashboard" \
+  --owners team-analytics \
+  --permanent \
+  --default false \
+  --env production
+
+# Ops flag — circuit breaker for external API
+deploysentry flag create \
+  --key vendor-api-circuit-breaker \
+  --name "Vendor API Circuit Breaker" \
+  --type boolean \
+  --category ops \
+  --purpose "Kill switch for vendor API calls during outages" \
+  --owners team-platform \
+  --permanent \
+  --default false \
+  --env production
 ```
 
-### Health Monitoring
+**Via API:**
 
-The health monitor aggregates signals from APM integrations to compute a deployment health score.
+```bash
+curl -X POST http://localhost:8080/api/v1/flags \
+  -H "Authorization: ApiKey <your-api-key>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "project_id": "<project-uuid>",
+    "environment_id": "<environment-uuid>",
+    "key": "new-checkout-flow",
+    "name": "New Checkout Flow",
+    "flag_type": "boolean",
+    "category": "release",
+    "purpose": "Progressive rollout of redesigned checkout",
+    "owners": ["team-payments", "alice@example.com"],
+    "expires_at": "2026-04-21T00:00:00Z",
+    "default_value": "false"
+  }'
+```
 
-**Integrations:**
-- Error tracking (Sentry, Datadog, etc.)
-- Latency metrics (p50, p95, p99)
-- Custom metrics via webhooks
-- HTTP health check endpoints
+### Targeting Rules
+
+Rules are evaluated in priority order (lower number = higher precedence). First match wins.
+
+| Rule Type | Description | Example |
+|-----------|-------------|---------|
+| `percentage` | Hash-based rollout (deterministic per user+flag) | Roll out to 25% of users |
+| `user_target` | Match specific user IDs | Enable for `user-123`, `user-456` |
+| `attribute` | Match context attributes with operators | `plan eq enterprise` |
+| `segment` | Match pre-defined user segments | Beta testers segment |
+| `schedule` | Time-window activation | Enable Mon-Fri 9am-5pm |
+
+**Attribute operators:** `eq`, `neq`, `contains`, `starts_with`, `ends_with`, `in`, `gt`, `gte`, `lt`, `lte`
+
+---
+
+## Integrating Into Your Project
+
+### 1. Get an API Key
+
+Create an API key with at minimum `flags:read` scope. If reporting evaluation telemetry, also add `flags:write`.
+
+```bash
+deploysentry apikey create --name "my-service" --scopes flags:read
+```
+
+### 2. Install the SDK
+
+| Language | Package | Install |
+|----------|---------|---------|
+| Go | `github.com/deploysentry/deploysentry-go` | `go get github.com/deploysentry/deploysentry-go` |
+| Node.js | `@deploysentry/sdk` | `npm install @deploysentry/sdk` |
+| Python | `deploysentry` | `pip install deploysentry` |
+| Java | `io.deploysentry:deploysentry-java` | Maven/Gradle (see below) |
+| React | `@deploysentry/react` | `npm install @deploysentry/react` |
+| Flutter | `deploysentry_flutter` | `flutter pub add deploysentry_flutter` |
+| Ruby | `deploysentry` | `gem install deploysentry` |
+
+### 3. Initialize and Evaluate
+
+All SDKs follow the same pattern: initialize with your API key, evaluate flags with user context, and access rich metadata.
+
+#### Go
+
+```go
+import deploysentry "github.com/deploysentry/deploysentry-go"
+
+client, err := deploysentry.NewClient(
+    deploysentry.WithAPIKey("ds_key_xxxxxxxxxxxx"),
+    deploysentry.WithBaseURL("https://deploysentry.example.com"),
+    deploysentry.WithEnvironment("production"),
+    deploysentry.WithProject("my-project"),
+)
+defer client.Close()
+
+client.Initialize()
+
+evalCtx := deploysentry.NewEvaluationContext().
+    UserID("user-123").
+    Set("plan", "enterprise").
+    Build()
+
+// Simple evaluation
+darkMode := client.BoolValue(ctx, "enable-dark-mode", false, evalCtx)
+
+// Rich evaluation with metadata
+result := client.Detail(ctx, "new-checkout-flow", evalCtx)
+fmt.Printf("value=%s category=%s owners=%v expires=%v\n",
+    result.Value, result.Metadata.Category, result.Metadata.Owners, result.Metadata.ExpiresAt)
+
+// Query flags by category
+releaseFlags := client.FlagsByCategory(deploysentry.CategoryRelease)
+expiredFlags := client.ExpiredFlags()
+owners := client.FlagOwners("new-checkout-flow")
+```
+
+#### Node.js / TypeScript
+
+```typescript
+import { DeploySentryClient } from '@deploysentry/sdk';
+
+const client = new DeploySentryClient({
+  apiKey: 'ds_key_xxxxxxxxxxxx',
+  baseURL: 'https://deploysentry.example.com',
+  environment: 'production',
+  project: 'my-project',
+});
+await client.initialize();
+
+// Simple evaluation
+const darkMode = await client.boolValue('enable-dark-mode', false, {
+  userId: 'user-123',
+  attributes: { plan: 'enterprise' },
+});
+
+// Rich evaluation with metadata
+const result = await client.detail('new-checkout-flow');
+console.log(result.metadata.category);  // "release"
+console.log(result.metadata.owners);    // ["team-payments", "alice@example.com"]
+console.log(result.metadata.expiresAt); // "2026-04-21T00:00:00Z"
+
+// Query by category
+const releaseFlags = client.flagsByCategory('release');
+const expiredFlags = client.expiredFlags();
+
+await client.close();
+```
+
+#### Python
+
+```python
+from deploysentry import DeploySentryClient, EvaluationContext, FlagCategory
+
+client = DeploySentryClient(
+    api_key="ds_key_xxxxxxxxxxxx",
+    base_url="https://deploysentry.example.com",
+    environment="production",
+    project="my-project",
+)
+client.initialize()
+
+ctx = EvaluationContext(user_id="user-123", attributes={"plan": "enterprise"})
+
+# Simple evaluation
+dark_mode = client.bool_value("enable-dark-mode", default=False, context=ctx)
+
+# Rich evaluation with metadata
+result = client.detail("new-checkout-flow", context=ctx)
+print(result.metadata.category)   # FlagCategory.RELEASE
+print(result.metadata.owners)     # ["team-payments", "alice@example.com"]
+print(result.metadata.expires_at) # datetime
+
+# Query by category
+release_flags = client.flags_by_category(FlagCategory.RELEASE)
+expired_flags = client.expired_flags()
+
+client.close()
+```
+
+#### Java
+
+```java
+import io.deploysentry.*;
+
+var options = ClientOptions.builder()
+    .apiKey("ds_key_xxxxxxxxxxxx")
+    .baseURL("https://deploysentry.example.com")
+    .environment("production")
+    .project("my-project")
+    .build();
+
+try (var client = new DeploySentryClient(options)) {
+    client.initialize();
+
+    var ctx = EvaluationContext.builder()
+        .userId("user-123")
+        .attribute("plan", "enterprise")
+        .build();
+
+    // Simple evaluation
+    boolean darkMode = client.boolValue("enable-dark-mode", false, ctx);
+
+    // Rich evaluation with metadata
+    EvaluationResult<Boolean> result = client.detail("new-checkout-flow", ctx);
+    System.out.println(result.getMetadata().getCategory());  // RELEASE
+    System.out.println(result.getMetadata().getOwners());     // [team-payments, alice@example.com]
+
+    // Query by category
+    List<Flag> releaseFlags = client.flagsByCategory(FlagCategory.RELEASE);
+    List<Flag> expiredFlags = client.expiredFlags();
+}
+```
+
+#### React
+
+```tsx
+import { DeploySentryProvider, useFlag, useFlagDetail, useFlagsByCategory } from '@deploysentry/react';
+
+function App() {
+  return (
+    <DeploySentryProvider
+      apiKey="ds_key_xxxxxxxxxxxx"
+      baseURL="https://deploysentry.example.com"
+      environment="production"
+      project="my-project"
+      user={{ userId: 'user-123', attributes: { plan: 'enterprise' } }}
+    >
+      <Dashboard />
+    </DeploySentryProvider>
+  );
+}
+
+function Dashboard() {
+  // Simple flag evaluation — re-renders on SSE updates
+  const darkMode = useFlag('enable-dark-mode', false);
+
+  // Rich metadata access
+  const { value, enabled, metadata, loading } = useFlagDetail('new-checkout-flow');
+  // metadata.category === 'release'
+  // metadata.owners === ['team-payments', 'alice@example.com']
+
+  // Query by category
+  const releaseFlags = useFlagsByCategory('release');
+
+  return <div className={darkMode ? 'dark' : 'light'}>...</div>;
+}
+```
+
+#### Flutter / Dart
+
+```dart
+import 'package:deploysentry_flutter/deploysentry_flutter.dart';
+
+final client = DeploySentryClient(
+  apiKey: 'ds_key_xxxxxxxxxxxx',
+  baseURL: 'https://deploysentry.example.com',
+  environment: 'production',
+  project: 'my-project',
+);
+await client.initialize();
+
+final ctx = EvaluationContext(
+  userId: 'user-123',
+  attributes: {'plan': 'enterprise'},
+);
+
+// Simple evaluation
+final darkMode = client.boolValue('enable-dark-mode', defaultValue: false, context: ctx);
+
+// Rich evaluation with metadata
+final result = client.detail('new-checkout-flow', context: ctx);
+print(result.metadata?.category);  // FlagCategory.release
+print(result.metadata?.owners);    // ['team-payments', 'alice@example.com']
+
+// Query by category
+final releaseFlags = client.flagsByCategory(FlagCategory.release);
+final expiredFlags = client.expiredFlags();
+```
+
+#### Ruby
+
+```ruby
+require 'deploysentry'
+
+client = DeploySentry::Client.new(
+  api_key: 'ds_key_xxxxxxxxxxxx',
+  base_url: 'https://deploysentry.example.com',
+  environment: 'production',
+  project: 'my-project',
+)
+client.initialize!
+
+ctx = DeploySentry::EvaluationContext.new(
+  user_id: 'user-123',
+  attributes: { 'plan' => 'enterprise' },
+)
+
+# Simple evaluation
+dark_mode = client.bool_value('enable-dark-mode', default: false, context: ctx)
+
+# Rich evaluation with metadata
+result = client.detail('new-checkout-flow', context: ctx)
+puts result.metadata.category   # "release"
+puts result.metadata.owners     # ["team-payments", "alice@example.com"]
+
+# Query by category
+release_flags = client.flags_by_category(DeploySentry::FlagCategory::RELEASE)
+expired_flags = client.expired_flags
+
+client.close
+```
+
+### 4. Add Project Config
+
+Drop a `.deploysentry.yml` in your project root to set defaults for CLI and SDK:
 
 ```yaml
-deploy:
-  health_check:
-    path: "/health"
-    expected_status: 200
-    interval: "10s"
-    threshold: 3    # consecutive successes required
+org: "my-organization"
+project: "my-project"
+env: "staging"
+
+api:
+  url: "https://deploysentry.example.com"
+
+flags:
+  default_env: "staging"
+  stale_threshold: "30d"
 ```
 
-### Notifications
+### 5. SDK Behavior
 
-Get alerted on deployment and flag events through multiple channels.
+All SDKs follow the same pattern:
 
-**Channels:** Slack, PagerDuty, Email, Webhooks
+- **Initialization:** Fetches all flag definitions for the configured project/environment and populates an in-memory cache.
+- **Evaluation:** Reads from local cache first (< 1ms). Falls back to API on cache miss.
+- **Real-time updates:** Opens an SSE stream to the Sentinel server. When a flag changes, the local cache is invalidated and refreshed automatically.
+- **Offline mode:** If the API is unreachable, the SDK continues serving stale cached values and reconnects with exponential backoff.
+- **Metadata:** All evaluation results include flag metadata (category, purpose, owners, expiration) for logging and observability.
+- **Cleanup:** Call `close()` on shutdown to release the streaming connection.
 
-**Events:**
-- `deploy.started`, `deploy.completed`, `deploy.failed`, `deploy.rolled_back`
-- `flag.changed`, `flag.created`, `flag.deleted`
+---
+
+## Monitoring Flags
+
+### Flag Lifecycle Management
+
+Use flag categories and metadata to keep your flag inventory healthy:
+
+```bash
+# Find all release flags that should have been cleaned up
+deploysentry flag list --category release --expired
+
+# Find all flags owned by a specific team
+deploysentry flag list --owner team-payments
+
+# Find stale flags (not evaluated in 30+ days)
+deploysentry flag list --stale
+
+# Archive a flag that's fully rolled out
+deploysentry flag archive new-checkout-flow
+```
+
+SDKs also expose these queries programmatically:
+
+| Method | Description |
+|--------|-------------|
+| `flagsByCategory(category)` | All cached flags of a given category |
+| `expiredFlags()` | Flags past their `expires_at` date |
+| `flagOwners(key)` | Owners for a specific flag |
+| `allFlags()` | All cached flags with full metadata |
+
+### Flag Health Dashboard
+
+The web dashboard provides real-time visibility into flag state:
+
+- **Active flags** — which flags are enabled, per environment, grouped by category
+- **Evaluation metrics** — how often each flag is evaluated, hit rates by rule
+- **Expiration tracking** — flags approaching or past their expiration date
+- **Owner accountability** — flags grouped by owner for cleanup assignments
+- **Stale flag detection** — flags not evaluated within the configured `stale_threshold`
+- **Audit log** — every flag change recorded with who, when, and what changed
+
+### API Endpoints for Monitoring
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v1/flags?project_id=<uuid>` | List all flags with metadata |
+| `GET` | `/api/v1/flags?project_id=<uuid>&category=release` | Filter by category |
+| `GET` | `/api/v1/flags/:id` | Flag details including rules and metadata |
+| `GET` | `/health` | Full health check (DB, Redis, NATS) |
+| `GET` | `/ready` | Lightweight readiness probe |
+
+### Observability Integration
+
+DeploySentry connects flag state to your existing observability stack:
+
+- **Structured logging** — All flag evaluations and changes emit structured JSON logs including category, owners, and purpose. Forward to your log aggregator (Datadog, Splunk, ELK) for correlation.
+- **NATS events** — Subscribe to `flag.changed.<project_id>` events from NATS JetStream to trigger custom alerting or dashboards.
+- **Webhooks** — Configure outbound webhooks to receive HTTP POST callbacks on flag changes. Payloads are signed with HMAC-SHA256 (`X-DeploySentry-Signature` header).
+- **Prometheus metrics** (planned) — Flag evaluation counters, cache hit rates, and streaming connection health exposed at `/metrics`.
+
+### Webhook Notifications
+
+Configure webhooks in the dashboard to get notified of flag changes:
+
+```json
+{
+  "event_type": "flag.toggled",
+  "timestamp": "2026-03-21T12:00:00Z",
+  "project_id": "<uuid>",
+  "data": {
+    "flag_key": "new-checkout-flow",
+    "category": "release",
+    "owners": ["team-payments"],
+    "enabled": true
+  }
+}
+```
+
+Supported events: `flag.changed`, `deploy.started`, `deploy.completed`, `deploy.failed`, `deploy.rolled_back`
+
+### Slack Integration
+
+DeploySentry sends deploy and flag change notifications to Slack. Configure via `.deploysentry.yml`:
 
 ```yaml
 notifications:
@@ -274,348 +550,157 @@ notifications:
 
 ---
 
-## CLI Reference
+## Deployments
 
-```
-deploysentry config init                  Initialize project configuration
-deploysentry auth login                   Authenticate with DeploySentry
-deploysentry auth logout                  Clear stored credentials
+DeploySentry supports three deployment strategies:
 
-deploysentry deploy create                Start a new deployment
-deploysentry deploy list                  List deployments
-deploysentry deploy status                Check deployment status
-deploysentry deploy promote               Advance canary to next phase
-deploysentry deploy rollback              Trigger rollback
-deploysentry deploy pause                 Pause an active deployment
-deploysentry deploy resume                Resume a paused deployment
-
-deploysentry flags list                   List feature flags
-deploysentry flags create                 Create a new flag
-deploysentry flags toggle                 Toggle a flag on/off
-deploysentry flags rule add               Add a targeting rule
-
-deploysentry releases list                List releases
-deploysentry releases promote             Promote a release to next environment
-
-deploysentry projects list                List projects
-deploysentry projects create              Create a new project
-
-deploysentry version                      Print version information
-deploysentry completion bash|zsh|fish     Generate shell completions
-```
-
----
-
-## API Reference
-
-### Deployments
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/deployments` | Create a new deployment |
-| `GET` | `/api/v1/deployments/:id` | Get deployment details |
-| `GET` | `/api/v1/deployments` | List deployments |
-| `POST` | `/api/v1/deployments/:id/promote` | Promote to next phase |
-| `POST` | `/api/v1/deployments/:id/rollback` | Trigger rollback |
-| `POST` | `/api/v1/deployments/:id/pause` | Pause deployment |
-| `POST` | `/api/v1/deployments/:id/resume` | Resume deployment |
-| `GET` | `/api/v1/projects/:id/deployments/active` | Get active deployments |
-
-### Feature Flags
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/flags` | Create a flag |
-| `GET` | `/api/v1/flags/:id` | Get flag details |
-| `POST` | `/api/v1/flags/:id/toggle` | Toggle a flag |
-| `POST` | `/api/v1/flags/:id/rules` | Add targeting rule |
-| `GET` | `/api/v1/flags/evaluate` | Evaluate a single flag |
-| `POST` | `/api/v1/flags/batch-evaluate` | Evaluate multiple flags |
-
-### Health
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/health` | Full health check |
-| `GET` | `/ready` | Readiness probe |
-
-**Authentication:** All API endpoints (except `/health` and `/ready`) require either a JWT token or API key:
+| Strategy | Description | Use Case |
+|----------|-------------|----------|
+| **Canary** | Gradually shift traffic (1% → 5% → 25% → 50% → 100%) with health checks at each phase | Production releases requiring validation |
+| **Blue/Green** | Atomic traffic switch with instant rollback | Zero-downtime releases |
+| **Rolling** | Batch-based instance updates | Stateless services, fast rollouts |
 
 ```bash
-# Using API key
-curl -H "Authorization: ApiKey ds_key_xxx" http://localhost:8080/api/v1/flags
+# Create a canary deployment
+deploysentry deploy create --strategy canary --version v2.1.0 --env production
 
-# Using JWT
-curl -H "Authorization: Bearer <jwt-token>" http://localhost:8080/api/v1/flags
+# Check deployment status
+deploysentry deploy status <deploy-id>
+
+# Promote to full traffic
+deploysentry deploy promote <deploy-id>
+
+# Rollback if something goes wrong
+deploysentry deploy rollback <deploy-id>
 ```
+
+### Automated Rollbacks
+
+The Health Monitor continuously checks error rates, latency, error tracking signals, and custom metrics. If health drops below the configured threshold during a deployment, the Rollback Controller automatically reverts traffic.
 
 ---
 
-## SDKs
+## Authentication
 
-DeploySentry provides official SDKs for 7 platforms. All SDKs support feature flag evaluation, local caching, real-time push updates via NATS, and offline mode.
+| Method | Use Case | Header |
+|--------|----------|--------|
+| JWT Bearer Token | Dashboard UI, mobile app | `Authorization: Bearer <jwt>` |
+| API Key | Services, SDKs, CI/CD | `Authorization: ApiKey <key>` |
 
-| SDK | Language | Install | Source |
-|-----|----------|---------|--------|
-| **Go** | Go | `go get github.com/deploysentry/deploysentry/sdk/go` | [`sdk/go`](sdk/go) |
-| **Node.js** | TypeScript / JavaScript | `npm install @deploysentry/sdk` | [`sdk/node`](sdk/node) |
-| **Python** | Python 3.9+ | `pip install deploysentry` | [`sdk/python`](sdk/python) |
-| **Java** | Java | Maven / Gradle | [`sdk/java`](sdk/java) |
-| **Ruby** | Ruby | `gem install deploysentry` | [`sdk/ruby`](sdk/ruby) |
-| **React** | TypeScript / React | `npm install @deploysentry/react` | [`sdk/react`](sdk/react) |
-| **Flutter** | Dart / Flutter | `deploysentry_flutter` (pub.dev) | [`sdk/flutter`](sdk/flutter) |
+**API key scopes:** `flags:read`, `flags:write`, `deploys:read`, `deploys:write`, `releases:read`, `releases:write`, `admin`
 
-### Go SDK
-
-```go
-import ds "github.com/deploysentry/deploysentry/sdk/go"
-
-client, err := ds.NewClient(ds.Config{
-    APIKey:      "ds_key_xxx",
-    ProjectID:   "project-uuid",
-    Environment: "production",
-})
-defer client.Close()
-
-enabled, err := client.IsEnabled("enable-dark-mode", ds.Context{
-    UserID: "user-123",
-    Attributes: map[string]interface{}{
-        "plan": "premium",
-    },
-})
-```
-
-### Node.js SDK
-
-```typescript
-import { DeploySentry } from '@deploysentry/sdk';
-
-const client = new DeploySentry({
-  apiKey: 'ds_key_xxx',
-  projectId: 'project-uuid',
-  environment: 'production',
-});
-
-const enabled = await client.isEnabled('enable-dark-mode', {
-  userId: 'user-123',
-  attributes: { plan: 'premium' },
-});
-```
-
-### Python SDK
-
-```python
-from deploysentry import DeploySentryClient
-
-client = DeploySentryClient(
-    api_key="ds_key_xxx",
-    project_id="project-uuid",
-    environment="production",
-)
-
-enabled = client.is_enabled("enable-dark-mode", context={
-    "user_id": "user-123",
-    "attributes": {"plan": "premium"},
-})
-```
-
-### React SDK
-
-```tsx
-import { DeploySentryProvider, useFlag } from '@deploysentry/react';
-
-function App() {
-  return (
-    <DeploySentryProvider
-      apiKey="ds_key_xxx"
-      projectId="project-uuid"
-      environment="production"
-      user={{ id: 'user-123', attributes: { plan: 'premium' } }}
-    >
-      <MyComponent />
-    </DeploySentryProvider>
-  );
-}
-
-function MyComponent() {
-  const darkMode = useFlag('enable-dark-mode');
-  return <div className={darkMode ? 'dark' : 'light'}>...</div>;
-}
-```
-
-### Flutter SDK
-
-```dart
-import 'package:deploysentry_flutter/deploysentry_flutter.dart';
-
-final client = DeploySentryClient(
-  apiKey: 'ds_key_xxx',
-  projectId: 'project-uuid',
-  environment: 'production',
-);
-
-final enabled = await client.isEnabled('enable-dark-mode', context: {
-  'userId': 'user-123',
-  'attributes': {'plan': 'premium'},
-});
-```
-
-For detailed SDK integration guides, see [docs/sdk-onboarding.md](docs/sdk-onboarding.md).
+**OAuth providers:** GitHub, Google
 
 ---
 
-## Configuration
+## Database
 
-### Environment Variables
+DeploySentry is designed for **shared database environments** and uses the PostgreSQL `deploy` schema namespace to isolate its tables from other applications.
 
-All environment variables use the `DS_` prefix. Copy `.env.example` to `.env` to get started.
+### Schema Namespace
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DS_SERVER_HOST` | `0.0.0.0` | API server bind address |
-| `DS_SERVER_PORT` | `8080` | API server port |
-| `DS_DATABASE_HOST` | `localhost` | PostgreSQL host |
-| `DS_DATABASE_PORT` | `5432` | PostgreSQL port |
-| `DS_DATABASE_USER` | `deploysentry` | PostgreSQL user |
-| `DS_DATABASE_PASSWORD` | `deploysentry` | PostgreSQL password |
-| `DS_DATABASE_NAME` | `deploysentry` | PostgreSQL database name |
-| `DS_DATABASE_SSL_MODE` | `disable` | PostgreSQL SSL mode |
-| `DS_REDIS_HOST` | `localhost` | Redis host |
-| `DS_REDIS_PORT` | `6379` | Redis port |
-| `DS_NATS_URL` | `nats://localhost:4222` | NATS server URL |
-| `DS_AUTH_JWT_SECRET` | (change in prod) | JWT signing secret |
-| `DS_AUTH_JWT_EXPIRATION` | `24h` | JWT token lifetime |
-| `DS_LOG_LEVEL` | `info` | Log level (debug, info, warn, error) |
-| `DS_LOG_FORMAT` | `json` | Log format (json, text) |
+All tables live in the `deploy` schema, not `public`:
 
-### Project Configuration File
+```sql
+-- Example: Tables are created like this
+CREATE SCHEMA IF NOT EXISTS deploy;
+CREATE TABLE deploy.feature_flags (...);
+```
 
-Place `.deploysentry.yml` in your project root or at `~/.deploysentry.yml`:
+**Connection Configuration:**
+- Application DSN: `postgres://user:pass@host:port/db?search_path=deploy`
+- Migration DSN: `postgres://user:pass@host:port/db?search_path=deploy`
+- All queries automatically target the `deploy` schema
 
-```yaml
-org: "my-organization"
-project: "my-project"
-env: "staging"
+### Shared Database Benefits
 
-api:
-  url: "https://api.deploysentry.example.com"
+✅ **Isolation:** Complete separation from other applications
+✅ **Security:** Schema-level permissions and access controls
+✅ **Naming:** No table/index conflicts with other services
+✅ **Operations:** Independent migrations and maintenance
 
-deploy:
-  strategy: "canary"
-  canary:
-    initial_weight: 5
-    increment: 10
-    interval: "5m"
-    auto_promote: true
-  health_check:
-    path: "/health"
-    expected_status: 200
-    interval: "10s"
-    threshold: 3
+### Database Requirements
 
-flags:
-  default_env: "staging"
-  stale_threshold: "30d"
+- **PostgreSQL 16+** with `pgcrypto` extension
+- **Schema permissions:** `USAGE` on `deploy` schema
+- **Table permissions:** `ALL PRIVILEGES` on tables in `deploy` schema
+- **Index naming:** All indexes prefixed with `deploy_` to prevent conflicts
 
-notifications:
-  events:
-    - "deploy.started"
-    - "deploy.completed"
-    - "deploy.failed"
-    - "deploy.rolled_back"
-    - "flag.changed"
+### Production Setup
+
+For shared database environments, create dedicated users:
+
+```sql
+-- Database owner (for migrations)
+CREATE USER deploysentry_owner WITH LOGIN PASSWORD 'secure-password';
+GRANT CREATE ON DATABASE production_db TO deploysentry_owner;
+
+-- Application user (for runtime)
+CREATE USER deploysentry_app WITH LOGIN PASSWORD 'secure-password';
+GRANT USAGE ON SCHEMA deploy TO deploysentry_app;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA deploy TO deploysentry_app;
+```
+
+Then run migrations as the owner:
+```bash
+# migrations/025_secure_deploy_schema.up.sql handles permission setup
+make migrate-up
 ```
 
 ---
 
 ## Development
 
-### Make Targets
-
-| Command | Description |
-|---------|-------------|
-| `make dev-up` | Start infrastructure (PostgreSQL, Redis, NATS) |
-| `make dev-down` | Stop infrastructure |
-| `make migrate-up` | Run database migrations |
-| `make migrate-down` | Roll back last migration |
-| `make run-api` | Start API server |
-| `make run-web` | Start web UI dev server |
-| `make test` | Run all tests with race detection |
-| `make test-unit` | Run unit tests only |
-| `make test-int` | Run integration tests only |
-| `make build` | Build binaries for Linux and macOS |
-| `make docker-build` | Build Docker images |
-| `make lint` | Run Go linters |
-| `make clean` | Remove build artifacts |
-
-### Docker Compose Services
-
-```
-PostgreSQL:  localhost:5432  (user: deploysentry, password: deploysentry)
-Redis:       localhost:6379
-NATS:        localhost:4222  (client)  /  localhost:8222  (monitoring)
-```
-
-### Running Tests
-
 ```bash
-# All tests
-make test
-
-# Unit tests only (fast)
-make test-unit
-
-# Integration tests (requires running infrastructure)
-make test-int
+make dev-up          # Start PostgreSQL, Redis, NATS
+make dev-down        # Stop infrastructure
+make migrate-up      # Run migrations
+make run-api         # Start API server
+make run-web         # Start web frontend dev server
+make test            # Run all tests
+make test-unit       # Unit tests only
+make test-int        # Integration tests only
+make lint            # Run linters
+make build           # Build binaries (linux, darwin amd64/arm64)
+make docker-build    # Build Docker images
 ```
 
-### Building
+### Environment Variables
 
-```bash
-# Build for all platforms
-make build
-# Outputs to bin/:
-#   deploysentry-linux-amd64, deploysentry-cli-linux-amd64
-#   deploysentry-darwin-amd64, deploysentry-cli-darwin-amd64
-#   deploysentry-darwin-arm64, deploysentry-cli-darwin-arm64
+See [`.env.example`](.env.example) for all configuration options. Key variables:
 
-# Docker images
-make docker-build
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DS_SERVER_PORT` | `8080` | API server port |
+| `DS_DATABASE_HOST` | `localhost` | PostgreSQL host |
+| `DS_DATABASE_SCHEMA` | `deploy` | PostgreSQL schema namespace (for shared databases) |
+| `DS_REDIS_HOST` | `localhost` | Redis host (flag evaluation cache) |
+| `DS_NATS_URL` | `nats://localhost:4222` | NATS server (real-time push updates) |
+| `DS_AUTH_JWT_SECRET` | — | JWT signing secret (change in production) |
 
 ---
 
-## Project Structure
+## Project Status
 
-```
-cmd/
-  api/                  API server entry point
-  cli/                  CLI tool (auth, deploy, flags, releases, projects, config)
-internal/
-  auth/                 Authentication, OAuth2, RBAC, API keys
-  deploy/               Deployment orchestration and strategies (canary, blue/green, rolling)
-  flags/                Feature flag evaluation engine, targeting rules, repository
-  releases/             Release tracking and environment promotion
-  rollback/             Automated rollback controller and strategies
-  health/               Health monitoring, scoring, APM integrations
-  notifications/        Slack, PagerDuty, email, webhook notifications
-  models/               Domain models (org, project, user, deployment, flag, release)
-  platform/
-    config/             Configuration loading
-    database/           PostgreSQL connection and migrations
-    cache/              Redis caching layer
-    messaging/          NATS message broker
-    middleware/         CORS, rate limiting
-sdk/                    Multi-language SDKs (Go, Node, Python, Java, Ruby, React, Flutter)
-web/                    React + TypeScript web dashboard
-mobile/                 Flutter mobile app
-deploy/                 Docker Compose, Dockerfiles, Kubernetes manifests
-migrations/             PostgreSQL migration files
-docs/                   Project plan, SDK onboarding guide, implementation checklists
-```
+The backend services, database layer, CLI tool, client SDKs, and core business logic are complete. See [`docs/PROJECT_PLAN.md`](docs/PROJECT_PLAN.md) for the full plan and [`docs/checklists/`](docs/checklists/) for detailed progress tracking.
 
----
+| Component | Status |
+|-----------|--------|
+| Project Scaffolding | Complete |
+| Data Model & Migrations | Complete |
+| Auth & RBAC | Complete |
+| Deploy Service | Complete |
+| Feature Flag Service | Complete |
+| Release Tracker | Complete |
+| Health & Rollback | Complete |
+| Notification Service | Complete |
+| CLI Tool | Complete |
+| Client SDKs (Go, Node, Python, Java, React, Flutter, Ruby) | Complete |
+| Web Dashboard | In Progress |
+| Infrastructure & Ops | In Progress |
+| Testing & Quality | In Progress |
+| Mobile App | Planned |
 
 ## License
 
-Apache-2.0
+See [LICENSE](LICENSE) for details.

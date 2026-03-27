@@ -368,10 +368,12 @@ export class DeploySentryClient {
 
   private scheduleReconnect(): void {
     if (this.destroyed) return;
-    const delay = Math.min(
+    const baseDelay = Math.min(
       1000 * Math.pow(2, this.sseRetryCount),
       DeploySentryClient.SSE_MAX_RETRY_DELAY_MS,
     );
+    const jitter = baseDelay * 0.2 * (2 * Math.random() - 1);
+    const delay = baseDelay + jitter;
     this.sseRetryCount++;
     this.sseRetryTimer = setTimeout(() => {
       this.sseRetryTimer = null;

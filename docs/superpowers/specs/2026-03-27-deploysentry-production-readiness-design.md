@@ -41,7 +41,7 @@ releaseRepo := postgres.NewReleaseRepository(db.Pool())
 
 **Cache adapter** — wraps Redis client to satisfy the `flags.Cache` interface:
 ```go
-flagCache := postgres.NewFlagCache(rdb)  // implements flags.Cache (GetFlag, SetFlag, GetRules, SetRules, Invalidate)
+flagCache := flagcache.NewFlagCache(rdb)  // implements flags.Cache (GetFlag, SetFlag, GetRules, SetRules, Invalidate)
 ```
 
 **Service instantiation** — wire repos, cache, and messaging (must match actual constructors):
@@ -50,7 +50,7 @@ flagService := flags.NewFlagService(flagRepo, flagCache, nc)  // flags.NewFlagSe
 deployService := deploy.NewDeployService(deployRepo, nc)       // deploy.NewDeployService(DeployRepository, MessagePublisher)
 releaseService := releases.NewReleaseServiceWithPublisher(releaseRepo, nc)  // releases.NewReleaseServiceWithPublisher(ReleaseRepository, EventPublisher)
 apiKeyService := auth.NewAPIKeyService(apiKeyRepo)             // auth.NewAPIKeyService(APIKeyRepository)
-rbacChecker := auth.NewRBACChecker(userRepo)                   // needed by flags handler
+rbacChecker := auth.NewRBACChecker()                            // stateless, no args
 ```
 
 **Handler registration** on `/api/v1` group (must match actual constructors):
@@ -231,10 +231,11 @@ deploysentry.WithSessionID(fmt.Sprintf("%s:%s:%s", userID, appVersion, region))
 ```
 
 ### Server Changes
-- New optional field on evaluation request: `session_id`
+- New optional field on evaluation request: `session_id` (add to `evaluateRequest` and `batchEvaluateRequest` structs)
 - Redis cache key: `flag_session:{session_id}:{flag_key}` → serialized evaluation result
-- New config: `DS_SESSION_TTL` (default 30 minutes, sliding)
+- New config: `DS_SESSION_TTL` (default 30 minutes, sliding) — add `SessionTTL time.Duration` to `config.AuthConfig` struct
 - No session header = fresh evaluation every time (backwards compatible)
+- Add SSE heartbeat: send `: heartbeat\n\n` comment every 15 seconds in `streamFlags` handler (not currently implemented)
 
 ### SDK Changes (all 7)
 - `WithSessionID(id)` / `session_id` option on client init — **opt-in only, no auto-generation**
@@ -268,9 +269,11 @@ Add to `UserRepository` interface and postgres implementation:
 `internal/auth/login_handler.go` — `LoginHandler`:
 - `POST /api/v1/auth/register` — creates user with email + argon2id-hashed password, returns JWT
 - `POST /api/v1/auth/login` — validates email + password, returns JWT
-- Uses existing `auth.GenerateToken()` for JWT creation
-- Uses existing argon2id constants from `apikeys.go` for password hashing
 - Constructor: `NewLoginHandler(userRepo UserRepository, cfg config.AuthConfig) *LoginHandler`
+
+**JWT generation:** The existing `OAuthHandler.generateJWT()` is unexported and receiver-bound. Extract a shared function `auth.GenerateJWT(secret []byte, expiry time.Duration, userID uuid.UUID, email string) (string, error)` that both `OAuthHandler` and `LoginHandler` call. Uses existing argon2id constants from `apikeys.go` for password hashing.
+
+**Interface change:** Add `CreateUser(ctx context.Context, user *models.User) error` to the existing `auth.UserRepository` interface (in `user_handler.go`). This keeps all user persistence methods in one interface.
 
 ### Scope Note
 OAuth (GitHub/Google) is out of scope for this spec. The existing OAuth handler scaffold remains; it can be wired up in a future iteration.
@@ -371,12 +374,16 @@ Each SDK's contract tests load these fixtures and verify:
 ```
 POST /api/v1/flags/evaluate
 Request:  { flag_key, project_id, environment_id, context: { user_id, org_id, attributes }, session_id? }
-Response: { value, enabled, reason, flag_key, flag_type, metadata: { category, purpose, owners, tags, expires_at } }
+Response: { value, enabled, reason, flag_key, metadata: { category, purpose, owners, tags, expires_at } }
+```
+Note: `FlagEvaluationResult` model does not currently include `flag_type`. If needed, add it to the model; otherwise omit from docs.
 
+```
 POST /api/v1/flags/batch-evaluate
 Request:  { flag_keys: [...], project_id, environment_id, context, session_id? }
-Response: { evaluations: [ { flag_key, value, enabled, reason, metadata } ] }
+Response: { results: [ { flag_key, value, enabled, reason, metadata } ] }
 ```
+Note: the handler returns `"results"` key (not `"evaluations"`). The `session_id` field must be added to both `evaluateRequest` and `batchEvaluateRequest` structs in the handler.
 
 **SSE protocol:**
 - Endpoint: `GET /api/v1/flags/stream?project_id=X&token=Y`

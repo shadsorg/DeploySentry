@@ -54,7 +54,7 @@ Examples:
     --description "Checkout page A/B test variant"
 
   # Create a flag with tags
-  deploysentry flags create --key api-rate-limit --type number --default 100 \
+  deploysentry flags create --key api-rate-limit --type integer --default 100 \
     --tag backend --tag performance`,
 	RunE: runFlagsCreate,
 }
@@ -195,7 +195,7 @@ Examples:
 func init() {
 	// flags create flags
 	flagsCreateCmd.Flags().String("key", "", "unique flag key (required)")
-	flagsCreateCmd.Flags().String("type", "boolean", "flag type: boolean, string, number, json")
+	flagsCreateCmd.Flags().String("type", "boolean", "flag type: boolean, string, integer, json")
 	flagsCreateCmd.Flags().String("default", "", "default value for the flag")
 	flagsCreateCmd.Flags().String("description", "", "description of the flag")
 	flagsCreateCmd.Flags().StringSlice("tag", nil, "tags for the flag (can be specified multiple times)")
@@ -248,9 +248,9 @@ func runFlagsCreate(cmd *cobra.Command, args []string) error {
 	tags, _ := cmd.Flags().GetStringSlice("tag")
 
 	// Validate flag type.
-	validTypes := map[string]bool{"boolean": true, "string": true, "number": true, "json": true}
+	validTypes := map[string]bool{"boolean": true, "string": true, "integer": true, "json": true}
 	if !validTypes[flagType] {
-		return fmt.Errorf("invalid flag type %q; must be one of: boolean, string, number, json", flagType)
+		return fmt.Errorf("invalid flag type %q; must be one of: boolean, string, integer, json", flagType)
 	}
 
 	client, err := clientFromConfig()

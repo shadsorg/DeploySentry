@@ -1,6 +1,7 @@
 import type {
   ApiFlagResponse,
   Flag,
+  FlagDetail,
   FlagMetadata,
   UserContext,
 } from './types';
@@ -132,6 +133,110 @@ export class DeploySentryClient {
       isPermanent: flag.isPermanent,
       expiresAt: flag.expiresAt,
       tags: flag.tags,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Typed evaluation methods
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Evaluate a boolean flag from the in-memory store.
+   *
+   * No API call is made -- the value comes from the flags already fetched
+   * via {@link init} and kept up-to-date by SSE.
+   */
+  boolValue(key: string, defaultValue: boolean): boolean {
+    const flag = this.flags.get(key);
+    if (!flag || !flag.enabled) return defaultValue;
+    if (typeof flag.value === 'boolean') return flag.value;
+    if (flag.value === 'true') return true;
+    if (flag.value === 'false') return false;
+    return defaultValue;
+  }
+
+  /**
+   * Evaluate a string flag from the in-memory store.
+   */
+  stringValue(key: string, defaultValue: string): string {
+    const flag = this.flags.get(key);
+    if (!flag || !flag.enabled) return defaultValue;
+    if (typeof flag.value === 'string') return flag.value;
+    if (flag.value != null) return String(flag.value);
+    return defaultValue;
+  }
+
+  /**
+   * Evaluate a number flag from the in-memory store.
+   *
+   * TypeScript has no separate `int` type -- this returns `number` and is
+   * the idiomatic equivalent of `intValue` / `floatValue` in other SDKs.
+   */
+  numberValue(key: string, defaultValue: number): number {
+    const flag = this.flags.get(key);
+    if (!flag || !flag.enabled) return defaultValue;
+    if (typeof flag.value === 'number') return flag.value;
+    if (typeof flag.value === 'string') {
+      const parsed = Number(flag.value);
+      if (!Number.isNaN(parsed)) return parsed;
+    }
+    return defaultValue;
+  }
+
+  /**
+   * Evaluate a JSON (object) flag from the in-memory store.
+   */
+  jsonValue<T extends object = object>(key: string, defaultValue: T): T {
+    const flag = this.flags.get(key);
+    if (!flag || !flag.enabled) return defaultValue;
+    if (typeof flag.value === 'object' && flag.value !== null) return flag.value as T;
+    if (typeof flag.value === 'string') {
+      try {
+        return JSON.parse(flag.value) as T;
+      } catch {
+        return defaultValue;
+      }
+    }
+    return defaultValue;
+  }
+
+  /**
+   * Return the full evaluation detail for a flag from the in-memory store.
+   *
+   * Returns `{ value, enabled, metadata, loading }` matching the
+   * {@link FlagDetail} interface used by the `useFlagDetail` hook.
+   */
+  detail(key: string): FlagDetail {
+    const flag = this.flags.get(key);
+    const loading = !this.initialised;
+
+    if (!flag) {
+      return {
+        value: undefined,
+        enabled: false,
+        metadata: {
+          category: 'feature',
+          purpose: '',
+          owners: [],
+          isPermanent: false,
+          tags: [],
+        },
+        loading,
+      };
+    }
+
+    return {
+      value: flag.value,
+      enabled: flag.enabled,
+      metadata: {
+        category: flag.category,
+        purpose: flag.purpose,
+        owners: flag.owners,
+        isPermanent: flag.isPermanent,
+        expiresAt: flag.expiresAt,
+        tags: flag.tags,
+      },
+      loading,
     };
   }
 

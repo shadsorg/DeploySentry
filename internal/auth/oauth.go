@@ -223,20 +223,7 @@ func (h *OAuthHandler) completeAuth(c *gin.Context, provider string, oauthUser *
 
 // generateJWT creates a signed JWT for the authenticated user.
 func (h *OAuthHandler) generateJWT(userID uuid.UUID, email string) (string, error) {
-	now := time.Now().UTC()
-	claims := &TokenClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(now.Add(h.jwtExpiry)),
-			IssuedAt:  jwt.NewNumericDate(now),
-			Issuer:    "deploysentry",
-			Subject:   userID.String(),
-		},
-		UserID: userID,
-		Email:  email,
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(h.jwtSecret)
+	return GenerateJWT(h.jwtSecret, h.jwtExpiry, userID, email)
 }
 
 // GenerateRefreshToken creates a signed refresh token with a longer expiration

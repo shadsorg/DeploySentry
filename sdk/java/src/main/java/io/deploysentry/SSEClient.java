@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -25,6 +26,7 @@ public final class SSEClient implements AutoCloseable {
 
     private static final long INITIAL_RETRY_MS = 1_000;
     private static final long MAX_RETRY_MS = 30_000;
+    private static final double JITTER_FRACTION = 0.2;
 
     private final HttpClient httpClient;
     private final URI endpoint;
@@ -147,7 +149,9 @@ public final class SSEClient implements AutoCloseable {
                     }
                 }
                 try {
-                    Thread.sleep(retryMs);
+                    double jitter = retryMs * JITTER_FRACTION * (2 * ThreadLocalRandom.current().nextDouble() - 1);
+                    long jitteredDelay = Math.max(0, retryMs + (long) jitter);
+                    Thread.sleep(jitteredDelay);
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     break;

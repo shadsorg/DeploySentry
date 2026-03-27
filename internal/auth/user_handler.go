@@ -12,6 +12,9 @@ import (
 
 // UserRepository defines the persistence interface for user operations.
 type UserRepository interface {
+	// CreateUser persists a new user record.
+	CreateUser(ctx context.Context, user *models.User) error
+
 	// GetUser retrieves a user by their ID.
 	GetUser(ctx context.Context, id uuid.UUID) (*models.User, error)
 

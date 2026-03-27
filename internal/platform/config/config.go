@@ -36,17 +36,24 @@ type DatabaseConfig struct {
 	User            string        `mapstructure:"user"`
 	Password        string        `mapstructure:"password"`
 	Name            string        `mapstructure:"name"`
+	Schema          string        `mapstructure:"schema"`
 	SSLMode         string        `mapstructure:"ssl_mode"`
 	MaxOpenConns    int           `mapstructure:"max_open_conns"`
 	MaxIdleConns    int           `mapstructure:"max_idle_conns"`
 	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"`
 }
 
-// DSN returns the PostgreSQL connection string.
+// DSN returns the PostgreSQL connection string. The search_path is set to the
+// configured schema (default: "deploy") so all tables live in the deploy
+// namespace rather than public.
 func (d DatabaseConfig) DSN() string {
+	schema := d.Schema
+	if schema == "" {
+		schema = "deploy"
+	}
 	return fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
-		d.User, d.Password, d.Host, d.Port, d.Name, d.SSLMode,
+		"postgres://%s:%s@%s:%d/%s?sslmode=%s&search_path=%s",
+		d.User, d.Password, d.Host, d.Port, d.Name, d.SSLMode, schema,
 	)
 }
 
@@ -73,11 +80,12 @@ type NATSConfig struct {
 
 // AuthConfig holds authentication and authorization configuration.
 type AuthConfig struct {
-	JWTSecret       string        `mapstructure:"jwt_secret"`
-	JWTExpiration   time.Duration `mapstructure:"jwt_expiration"`
-	OAuth2ClientID  string        `mapstructure:"oauth2_client_id"`
-	OAuth2Secret    string        `mapstructure:"oauth2_client_secret"`
-	OAuth2RedirectURL string      `mapstructure:"oauth2_redirect_url"`
+	JWTSecret         string        `mapstructure:"jwt_secret"`
+	JWTExpiration     time.Duration `mapstructure:"jwt_expiration"`
+	OAuth2ClientID    string        `mapstructure:"oauth2_client_id"`
+	OAuth2Secret      string        `mapstructure:"oauth2_client_secret"`
+	OAuth2RedirectURL string        `mapstructure:"oauth2_redirect_url"`
+	SessionTTL        time.Duration `mapstructure:"session_ttl"`
 }
 
 // LogConfig holds logging configuration.
@@ -137,6 +145,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("database.user", "deploysentry")
 	v.SetDefault("database.password", "deploysentry")
 	v.SetDefault("database.name", "deploysentry")
+	v.SetDefault("database.schema", "deploy")
 	v.SetDefault("database.ssl_mode", "disable")
 	v.SetDefault("database.max_open_conns", 25)
 	v.SetDefault("database.max_idle_conns", 10)
@@ -157,6 +166,7 @@ func setDefaults(v *viper.Viper) {
 	// Auth defaults.
 	v.SetDefault("auth.jwt_secret", "change-me-in-production")
 	v.SetDefault("auth.jwt_expiration", 24*time.Hour)
+	v.SetDefault("auth.session_ttl", 30*time.Minute)
 
 	// Log defaults.
 	v.SetDefault("log.level", "info")

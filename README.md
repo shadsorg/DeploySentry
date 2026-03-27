@@ -651,6 +651,35 @@ make migrate-up
 
 ## Development
 
+### Quick Start for New Developers
+
+```bash
+# One-command setup (first time only)
+make dev-setup
+
+# Daily development workflow
+make dev-cli start     # Start services
+make dev-cli api       # Start API server (separate terminal)
+make dev-cli web       # Start web UI (separate terminal)
+```
+
+### Development CLI
+
+All development tasks are available through the unified CLI:
+
+```bash
+make dev-cli help               # Show all available commands
+make dev-cli start              # Start PostgreSQL, Redis, NATS
+make dev-cli stop               # Stop all services
+make dev-cli test               # Run all tests
+make dev-cli test unit          # Unit tests only
+make dev-cli reset-db           # Reset database
+make dev-cli logs postgres      # Show service logs
+make dev-cli debug 2345        # Start API with debugger
+```
+
+### Traditional Make Commands
+
 ```bash
 make dev-up          # Start PostgreSQL, Redis, NATS
 make dev-down        # Stop infrastructure
@@ -664,6 +693,8 @@ make lint            # Run linters
 make build           # Build binaries (linux, darwin amd64/arm64)
 make docker-build    # Build Docker images
 ```
+
+See [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md) for comprehensive development documentation.
 
 ### Environment Variables
 

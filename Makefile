@@ -1,4 +1,4 @@
-.PHONY: dev-up dev-down migrate-up migrate-down run-api run-web test test-unit test-int build docker-build lint clean help
+.PHONY: dev-up dev-down migrate-up migrate-down run-api run-web test test-unit test-int build docker-build lint clean help dev-setup dev-cli
 
 # Build metadata
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -13,13 +13,31 @@ MIGRATE_DIR ?= migrations
 # Default target
 .DEFAULT_GOAL := help
 
+## dev-setup: Set up complete development environment (new developers)
+dev-setup:
+	./scripts/dev-setup.sh
+
+## dev-cli: Access development CLI (use 'make dev-cli help' for commands)
+dev-cli:
+	./scripts/dev.sh $(filter-out $@,$(MAKECMDGOALS))
+
 ## help: Show this help message
 help:
 	@echo "DeploySentry - Deploy release and feature flag management"
 	@echo ""
 	@echo "Usage: make [target]"
 	@echo ""
+	@echo "Quick start for new developers:"
+	@echo "  make dev-setup    # Complete environment setup"
+	@echo "  make dev-cli start    # Start services"
+	@echo "  make dev-cli api      # Start API (separate terminal)"
+	@echo "  make dev-cli web      # Start web UI (separate terminal)"
+	@echo ""
 	@grep -E '^## ' $(MAKEFILE_LIST) | sed 's/## /  /' | sort
+
+# Catch-all rule for dev-cli arguments
+%:
+	@:
 
 ## dev-up: Start development infrastructure (PostgreSQL, Redis, NATS)
 dev-up:

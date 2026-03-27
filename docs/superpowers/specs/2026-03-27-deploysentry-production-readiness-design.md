@@ -12,7 +12,7 @@
 | Data access | Raw SQL with pgx | Matches existing platform layer, no new dependencies |
 | Auth header standard | `Authorization: ApiKey <key>` | Avoids ambiguity with JWT Bearer tokens; 4 of 7 SDKs already use it |
 | SDK test strategy | Unit + contract tests | Catches cross-SDK drift (like the auth header bug) without requiring a live server |
-| Dashboard auth | JWT login flow | Uses existing JWT middleware and user management; OAuth layered later |
+| Dashboard auth | Email/password + JWT | Requires new login endpoint and password hash column; OAuth layered later |
 | Sequencing | Core-first expansion | Working auth + flags system after ~35% of work; validates architecture early |
 
 ---
@@ -31,34 +31,43 @@
 
 **Repository instantiation** — concrete pgx-backed implementations:
 ```go
-userRepo := postgres.NewUserRepository(db)
-apiKeyRepo := postgres.NewAPIKeyRepository(db)
-auditRepo := postgres.NewAuditLogRepository(db)
-flagRepo := postgres.NewFlagRepository(db)
-deployRepo := postgres.NewDeployRepository(db)
-releaseRepo := postgres.NewReleaseRepository(db)
+userRepo := postgres.NewUserRepository(db.Pool())
+apiKeyRepo := postgres.NewAPIKeyRepository(db.Pool())
+auditRepo := postgres.NewAuditLogRepository(db.Pool())
+flagRepo := postgres.NewFlagRepository(db.Pool())
+deployRepo := postgres.NewDeployRepository(db.Pool())
+releaseRepo := postgres.NewReleaseRepository(db.Pool())
 ```
 
-**Service instantiation** — wire repos, cache, and messaging:
+**Cache adapter** — wraps Redis client to satisfy the `flags.Cache` interface:
 ```go
-flagService := flags.NewService(flagRepo, rdb, nc)
-deployService := deploy.NewService(deployRepo, nc)
-releaseService := releases.NewService(releaseRepo, nc)
+flagCache := postgres.NewFlagCache(rdb)  // implements flags.Cache (GetFlag, SetFlag, GetRules, SetRules, Invalidate)
 ```
 
-**Handler registration** on `/api/v1` group:
+**Service instantiation** — wire repos, cache, and messaging (must match actual constructors):
+```go
+flagService := flags.NewFlagService(flagRepo, flagCache, nc)  // flags.NewFlagService(FlagRepository, Cache, EventPublisher)
+deployService := deploy.NewDeployService(deployRepo, nc)       // deploy.NewDeployService(DeployRepository, MessagePublisher)
+releaseService := releases.NewReleaseServiceWithPublisher(releaseRepo, nc)  // releases.NewReleaseServiceWithPublisher(ReleaseRepository, EventPublisher)
+apiKeyService := auth.NewAPIKeyService(apiKeyRepo)             // auth.NewAPIKeyService(APIKeyRepository)
+rbacChecker := auth.NewRBACChecker(userRepo)                   // needed by flags handler
+```
+
+**Handler registration** on `/api/v1` group (must match actual constructors):
 ```go
 api := router.Group("/api/v1")
-flags.NewHandler(flagService).RegisterRoutes(api)
-deploy.NewHandler(deployService).RegisterRoutes(api)
-releases.NewHandler(releaseService).RegisterRoutes(api)
+flags.NewHandler(flagService, rbacChecker).RegisterRoutes(api)   // requires (FlagService, *RBACChecker)
+deploy.NewHandler(deployService).RegisterRoutes(api)              // requires (DeployService)
+releases.NewHandler(releaseService).RegisterRoutes(api)           // requires (ReleaseService)
 auth.NewUserHandler(userRepo).RegisterRoutes(api)
-auth.NewAPIKeyHandler(apiKeyRepo).RegisterRoutes(api)
+auth.NewAPIKeyHandler(apiKeyService).RegisterRoutes(api)          // requires (*APIKeyService), not repo
 auth.NewAuditHandler(auditRepo).RegisterRoutes(api)
+auth.NewLoginHandler(userRepo, cfg.Auth).RegisterRoutes(api)      // NEW — see Section 7a
 ```
 
-### New Package
-`internal/platform/database/postgres/` — all concrete repository implementations, one file per domain.
+### New Packages
+- `internal/platform/database/postgres/` — all concrete repository implementations, one file per domain
+- `internal/platform/cache/flagcache/` — adapter implementing `flags.Cache` interface over the Redis client (methods: `GetFlag`, `SetFlag`, `GetRules`, `SetRules`, `Invalidate`)
 
 ---
 
@@ -79,7 +88,26 @@ auth.NewAuditHandler(auditRepo).RegisterRoutes(api)
 | `releases.go` | ReleaseRepository | 9 | `releases`, `release_environments` |
 | `helpers.go` | (shared) | — | — |
 
-**Total: 52 interface methods**
+**Total: 52 interface methods** (plus 5 methods for the `flags.Cache` adapter)
+
+### Domain Error Types (`errors.go`)
+```go
+var ErrNotFound = errors.New("not found")
+```
+All repositories map `pgx.ErrNoRows` to `ErrNotFound`. Callers check with `errors.Is(err, postgres.ErrNotFound)`.
+
+### Transaction Handling
+Multi-table operations use `pgxpool.Pool.Begin()` for atomicity:
+- `CreateDeployment` — creates deployment + initial phase in one transaction
+- `DeleteRule` — deletes rule + reorders remaining rule priorities
+- API key rotation (if added) — creates new key + revokes old atomically
+
+### `whereBuilder` Helper API
+```go
+type whereBuilder struct { conditions []string; args []any }
+func (w *whereBuilder) Add(condition string, arg any)  // e.g., w.Add("project_id = $%d", projectID)
+func (w *whereBuilder) Build() (string, []any)          // returns " WHERE x AND y", [args...]
+```
 
 ### Patterns
 
@@ -131,7 +159,7 @@ Go, Node, Python, Ruby already use `ApiKey` — no changes needed.
 ```typescript
 boolValue(key: string, defaultValue: boolean): boolean
 stringValue(key: string, defaultValue: string): string
-intValue(key: string, defaultValue: number): number
+numberValue(key: string, defaultValue: number): number  // "number" is idiomatic TS (no int type)
 jsonValue(key: string, defaultValue: object): object
 detail(key: string): FlagDetail  // { value, enabled, reason, metadata }
 ```
@@ -178,10 +206,13 @@ X-DeploySentry-Session: <session-id>
 ### Flow
 
 1. SDK sends `session_id` with evaluation requests (via header and/or request body)
-2. Server checks Redis for `session:{session_id}`
+2. Server checks Redis for `flag_session:{session_id}` (note: `flag_session:` prefix to avoid collision with auth `session:` prefix)
 3. **Cache hit:** return cached evaluation results (even if underlying flag changed)
 4. **Cache miss:** evaluate fresh, cache results in Redis with sliding TTL
 5. SSE updates are still received by SDKs but queued — take effect on next session refresh
+
+### Cache Key Format
+Per-flag granularity: `flag_session:{session_id}:{flag_key}` — allows individual flag evaluation without caching all flags at once. Batch evaluations cache each flag separately under the same session prefix.
 
 ### Session ID Composition (SDK-side)
 
@@ -201,14 +232,14 @@ deploysentry.WithSessionID(fmt.Sprintf("%s:%s:%s", userID, appVersion, region))
 
 ### Server Changes
 - New optional field on evaluation request: `session_id`
-- Redis cache key: `session:{session_id}` → serialized flag evaluation results
+- Redis cache key: `flag_session:{session_id}:{flag_key}` → serialized evaluation result
 - New config: `DS_SESSION_TTL` (default 30 minutes, sliding)
 - No session header = fresh evaluation every time (backwards compatible)
 
 ### SDK Changes (all 7)
-- `WithSessionID(id)` / `session_id` option on client init
-- Auto-generate UUID if not provided
-- Send `X-DeploySentry-Session` header on all evaluation requests
+- `WithSessionID(id)` / `session_id` option on client init — **opt-in only, no auto-generation**
+- If no session ID configured, SDKs do not send `X-DeploySentry-Session` header (preserves backward compatibility)
+- Send `X-DeploySentry-Session` header only when session ID is explicitly set
 - `refreshSession()` method to clear local + server cache and get fresh evaluations
 
 ### New Reason Value
@@ -216,13 +247,44 @@ deploysentry.WithSessionID(fmt.Sprintf("%s:%s:%s", userID, appVersion, region))
 
 ---
 
-## 7. Web Dashboard — API Integration & Auth Flow
+## 7a. Email/Password Authentication (New)
+
+The existing auth package only supports OAuth (GitHub, Google). There is no email/password login, no password storage, and no `CreateUser` method. This section adds what's needed for dashboard JWT auth.
+
+### New Migration
+`022_add_password_auth.up.sql`:
+```sql
+ALTER TABLE users ADD COLUMN password_hash TEXT;
+ALTER TABLE users ADD COLUMN password_set_at TIMESTAMPTZ;
+```
+
+### New Repository Method
+Add to `UserRepository` interface and postgres implementation:
+- `CreateUser(ctx context.Context, user *models.User) error`
+
+**Updated total: 53 interface methods** (52 original + 1 new)
+
+### New Handler
+`internal/auth/login_handler.go` — `LoginHandler`:
+- `POST /api/v1/auth/register` — creates user with email + argon2id-hashed password, returns JWT
+- `POST /api/v1/auth/login` — validates email + password, returns JWT
+- Uses existing `auth.GenerateToken()` for JWT creation
+- Uses existing argon2id constants from `apikeys.go` for password hashing
+- Constructor: `NewLoginHandler(userRepo UserRepository, cfg config.AuthConfig) *LoginHandler`
+
+### Scope Note
+OAuth (GitHub/Google) is out of scope for this spec. The existing OAuth handler scaffold remains; it can be wired up in a future iteration.
+
+---
+
+## 7b. Web Dashboard — API Integration & Auth Flow
 
 ### New Components
 
 | Component | Purpose |
 |-----------|---------|
 | `LoginPage.tsx` | Email/password form, calls `POST /api/v1/auth/login` |
+| `RegisterPage.tsx` | Registration form, calls `POST /api/v1/auth/register` |
 | `ProtectedRoute.tsx` | Wraps routes, redirects to `/login` if no valid token |
 | `AuthProvider.tsx` | React context for auth state, token in `localStorage` (`ds_token`) |
 
@@ -232,7 +294,7 @@ Token refresh strategy: on 401 response, redirect to login. No refresh token in 
 
 | Page | Mock Data Replaced With |
 |------|------------------------|
-| Dashboard | `GET /flags`, `GET /deployments`, `GET /releases` for counts + recent items |
+| Dashboard | `GET /api/v1/flags`, `GET /api/v1/deployments`, `GET /api/v1/releases` for counts + recent items |
 | FlagListPage | `GET /api/v1/flags?project_id=X` with filter/search params |
 | FlagCreatePage | `POST /api/v1/flags` |
 | FlagDetailPage | `GET /api/v1/flags/:id`, `GET /api/v1/flags/:id/rules` |
@@ -242,7 +304,7 @@ Token refresh strategy: on 401 response, redirect to login. No refresh token in 
 
 ### Real-time Updates
 - `useSSE()` hook connects to `GET /api/v1/flags/stream` with JWT token as query param
-- On `flag.updated`/`flag.created`/`flag.deleted` events, invalidate React Query cache
+- On `flag_change` events (current server-side SSE event name), invalidate React Query cache
 - Connection managed by `AuthProvider` — connects on login, disconnects on logout
 
 ### Error/Loading States
@@ -267,7 +329,7 @@ Token refresh strategy: on 401 response, redirect to login. No refresh token in 
 | `batch_evaluate_request.json` | Batch evaluation request format |
 | `batch_evaluate_response.json` | Batch response with multiple flags |
 | `list_flags_response.json` | Flag list with all fields including metadata |
-| `sse_messages.txt` | Raw SSE frames: `flag.updated`, `flag.created`, `flag.deleted` |
+| `sse_messages.txt` | Raw SSE frames: `flag_change` events with `flag.toggled`, `flag.created`, `flag.updated`, `flag.deleted` payloads |
 
 ### Contract Test Behavior
 Each SDK's contract tests load these fixtures and verify:
@@ -318,8 +380,10 @@ Response: { evaluations: [ { flag_key, value, enabled, reason, metadata } ] }
 
 **SSE protocol:**
 - Endpoint: `GET /api/v1/flags/stream?project_id=X&token=Y`
-- Event types: `flag.updated`, `flag.created`, `flag.deleted`, `heartbeat`
-- Message format: `data: { "flag_key": "...", "flag": { ...full flag object } }`
+- Event name: `flag_change` (the SSE event field; current server implementation uses `c.SSEvent("flag_change", msg)`)
+- Data payload includes an `event` field for the specific change type: `flag.toggled`, `flag.created`, `flag.updated`, `flag.deleted`
+- Message format: `event: flag_change\ndata: { "event": "flag.toggled", "flag_id": "...", "flag_key": "...", "enabled": true }\n\n`
+- Heartbeat: server sends empty comment (`: heartbeat`) every 15 seconds for connection keepalive
 - Reconnection: exponential backoff 1s–30s, 2x factor, +/-20% jitter
 
 **All reason values:**
@@ -349,28 +413,38 @@ Response: { evaluations: [ { flag_key, value, enabled, reason, metadata } ] }
 ## Execution Sequence
 
 **Phase 1 — Core (working auth + flags end-to-end):**
-1. Route wiring in `main.go` (Section 1)
-2. Auth repositories: users, API keys, audit (Section 2 — 22 methods)
-3. Flags repository (Section 2 — 12 methods)
-4. Session consistency server-side (Section 6 — Redis caching)
-5. **Checkpoint: flag evaluation works via API**
+1. Flags.Cache adapter over Redis (Section 1)
+2. Auth repositories: users (+ CreateUser), API keys, audit (Section 2 — 23 methods)
+3. Email/password login handler + migration 022 (Section 7a)
+4. Flags repository (Section 2 — 12 methods)
+5. Route wiring in `main.go` — all middleware + handlers (Section 1)
+6. **Checkpoint: flag evaluation works via API with auth**
 
 **Phase 2 — Remaining backend:**
-6. Deploy repository (Section 2 — 9 methods)
-7. Release repository (Section 2 — 9 methods)
+7. Deploy repository (Section 2 — 9 methods)
+8. Release repository (Section 2 — 9 methods)
+9. Session consistency server-side — Redis caching (Section 6)
 
 **Phase 3 — Dashboard:**
-8. Login flow + auth provider (Section 7)
-9. Connect all pages to API (Section 7)
-10. SSE real-time updates (Section 7)
+10. Login/register flow + auth provider (Section 7b)
+11. Connect all pages to API (Section 7b)
+12. SSE real-time updates (Section 7b)
 
-**Phase 4 — SDKs (parallelizable):**
-11. Fix auth headers in Java, React, Flutter (Section 3)
-12. Add React typed evaluation methods (Section 4)
-13. Standardize SSE reconnection (Section 5)
-14. Add session consistency to all SDKs (Section 6)
-15. Shared contract fixtures (Section 8)
-16. Unit + contract tests for all 7 SDKs (Section 8)
+**Phase 4 — SDKs (parallelizable, except 17→18 dependency):**
+13. Fix auth headers in Java, React, Flutter (Section 3)
+14. Add React typed evaluation methods (Section 4)
+15. Standardize SSE reconnection (Section 5)
+16. Add session consistency to all SDKs (Section 6)
+17. Shared contract fixtures — must complete before step 18 (Section 8)
+18. Unit + contract tests for all 7 SDKs (Section 8)
 
 **Phase 5 — Documentation:**
-17. README updates (Section 9)
+19. README updates (Section 9)
+
+## Out of Scope
+
+The following exist in migrations/code but are not addressed in this spec:
+- **Organizations, Projects, Environments CRUD** — migrations 001, 004, 006 create these tables but no handlers or repos exist. For initial production use, seed data can be inserted via migration or CLI tool. Full CRUD is a separate spec.
+- **Webhook endpoints and deliveries** — migrations 017, 018. Notification service publishes events but webhook management UI/API is deferred.
+- **OAuth (GitHub/Google)** — existing handler scaffold remains; wired up in a future iteration.
+- **Prometheus metrics export** — mentioned in README as planned.

@@ -5,14 +5,14 @@ import Breadcrumb from './Breadcrumb';
 import RealtimeManager from '@/services/realtime';
 
 export default function HierarchyLayout() {
-  const { orgSlug } = useParams();
+  const { orgSlug, projectSlug, appSlug } = useParams();
 
-  // Persist last-used org for DefaultRedirect
+  // Persist last-used context for DefaultRedirect and LegacyRedirect
   useEffect(() => {
-    if (orgSlug) {
-      localStorage.setItem('ds_last_org', orgSlug);
-    }
-  }, [orgSlug]);
+    if (orgSlug) localStorage.setItem('ds_last_org', orgSlug);
+    if (projectSlug) localStorage.setItem('ds_last_project', projectSlug);
+    if (appSlug) localStorage.setItem('ds_last_app', appSlug);
+  }, [orgSlug, projectSlug, appSlug]);
 
   // Initialize realtime (moved from App.tsx)
   useEffect(() => {

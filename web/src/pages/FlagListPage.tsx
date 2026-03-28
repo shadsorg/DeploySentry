@@ -229,7 +229,7 @@ function formatDate(iso: string): string {
 export default function FlagListPage() {
   const { orgSlug, projectSlug, appSlug } = useParams();
   const contextName = appSlug ? getAppName(appSlug) : projectSlug ? getProjectName(projectSlug) : '';
-  const heading = appSlug ? `${contextName} — Flags` : 'Feature Flags';
+  const heading = appSlug ? `${contextName} — Flags` : contextName ? `${contextName} — Feature Flags` : 'Feature Flags';
 
   const createPath = appSlug
     ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags/new`

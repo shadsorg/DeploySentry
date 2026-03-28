@@ -55,8 +55,8 @@ export const flagsApi = {
 
 // Deployments
 export const deploymentsApi = {
-  list: (projectId: string) =>
-    request<{ deployments: Deployment[] }>(`/deployments?project_id=${projectId}`),
+  list: (applicationId: string) =>
+    request<{ deployments: Deployment[] }>(`/deployments?application_id=${applicationId}`),
   get: (id: string) => request<Deployment>(`/deployments/${id}`),
   create: (data: { project_id: string; environment_id: string; version: string; strategy: string }) =>
     request<Deployment>('/deployments', { method: 'POST', body: JSON.stringify(data) }),
@@ -72,8 +72,8 @@ export const deploymentsApi = {
 
 // Releases
 export const releasesApi = {
-  list: (projectId: string) =>
-    request<{ releases: Release[] }>(`/releases?project_id=${projectId}`),
+  list: (applicationId: string) =>
+    request<{ releases: Release[] }>(`/releases?application_id=${applicationId}`),
   get: (id: string) => request<Release>(`/releases/${id}`),
   create: (data: { project_id: string; version: string; description?: string; commit_sha?: string }) =>
     request<Release>('/releases', { method: 'POST', body: JSON.stringify(data) }),

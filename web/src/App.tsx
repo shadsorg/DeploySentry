@@ -54,9 +54,9 @@ export default function App() {
               {/* App-level */}
               <Route path="apps/:appSlug">
                 <Route path="deployments" element={<DeploymentsPage />} />
-                <Route path="deployments/:id" element={<DeploymentsPage />} />
+                <Route path="deployments/:id" element={<DeploymentsPage />} /> {/* Detail page in Phase 2 */}
                 <Route path="releases" element={<ReleasesPage />} />
-                <Route path="releases/:id" element={<ReleasesPage />} />
+                <Route path="releases/:id" element={<ReleasesPage />} /> {/* Detail page in Phase 2 */}
                 <Route path="flags" element={<FlagListPage />} />
                 <Route path="flags/new" element={<FlagCreatePage />} />
                 <Route path="flags/:id" element={<FlagDetailPage />} />

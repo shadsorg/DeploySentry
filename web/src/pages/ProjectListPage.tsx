@@ -12,6 +12,7 @@ export default function ProjectListPage() {
     <div>
       <div className="page-header-row">
         <h1 className="page-header">{orgName} — Projects</h1>
+        <button className="btn btn-primary" disabled>Create Project</button>
       </div>
 
       {projects.length === 0 ? (

@@ -4,7 +4,45 @@ import React, { useState } from 'react';
 // Types
 // ---------------------------------------------------------------------------
 
-type SettingsTab = 'api-keys' | 'webhooks' | 'notifications' | 'project';
+type SettingsTab = 'api-keys' | 'webhooks' | 'notifications' | 'project' | 'members';
+
+interface SettingsPageProps {
+  level?: 'org' | 'project' | 'app';
+  tab?: string;
+}
+
+function defaultTab(level: string, tab?: string): SettingsTab {
+  if (tab === 'members') return 'members';
+  if (tab === 'api-keys') return 'api-keys';
+  switch (level) {
+    case 'org': return 'webhooks';
+    case 'project': return 'project';
+    case 'app': return 'project';
+    default: return 'webhooks';
+  }
+}
+
+function getTabsForLevel(level: string): { key: SettingsTab; label: string }[] {
+  switch (level) {
+    case 'org':
+      return [
+        { key: 'members', label: 'Members' },
+        { key: 'api-keys', label: 'API Keys' },
+        { key: 'webhooks', label: 'Webhooks' },
+        { key: 'notifications', label: 'Notifications' },
+      ];
+    case 'project':
+      return [
+        { key: 'project', label: 'Project Settings' },
+      ];
+    case 'app':
+      return [
+        { key: 'project', label: 'App Settings' },
+      ];
+    default:
+      return [];
+  }
+}
 
 interface APIKey {
   id: string;
@@ -94,8 +132,8 @@ function scopeBadgeClass(scope: string): string {
 // Component
 // ---------------------------------------------------------------------------
 
-const SettingsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('api-keys');
+const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
+  const [activeTab, setActiveTab] = useState<SettingsTab>(defaultTab(level, tab));
 
   // Notifications form state
   const [slackUrl, setSlackUrl] = useState('');
@@ -130,32 +168,41 @@ const SettingsPage: React.FC = () => {
     });
   };
 
-  const TABS: { key: SettingsTab; label: string }[] = [
-    { key: 'api-keys', label: 'API Keys' },
-    { key: 'webhooks', label: 'Webhooks' },
-    { key: 'notifications', label: 'Notifications' },
-    { key: 'project', label: 'Project' },
-  ];
+  const headingMap: Record<string, string> = {
+    org: 'Organization Settings',
+    project: 'Project Settings',
+    app: 'Application Settings',
+  };
+
+  const tabs = getTabsForLevel(level);
 
   return (
     <div>
       {/* Page header */}
       <div className="page-header">
-        <h1>Settings</h1>
+        <h1>{headingMap[level]}</h1>
       </div>
 
       {/* Tabs */}
       <div className="tabs">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.key}
-            className={`tab ${activeTab === t.key ? 'active' : ''}`}
+            className={`tab${activeTab === t.key ? ' active' : ''}`}
             onClick={() => setActiveTab(t.key)}
           >
             {t.label}
           </button>
         ))}
       </div>
+
+      {/* Members tab */}
+      {activeTab === 'members' && (
+        <div className="settings-section">
+          <h2>Members</h2>
+          <p className="text-muted">Organization member management coming in Phase 3.</p>
+        </div>
+      )}
 
       {/* API Keys tab */}
       {activeTab === 'api-keys' && (

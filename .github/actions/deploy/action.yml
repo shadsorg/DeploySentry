@@ -1,0 +1,127 @@
+name: "DeploySentry Deploy"
+description: "Trigger a deployment via the DeploySentry API"
+branding:
+  icon: "upload-cloud"
+  color: "blue"
+
+inputs:
+  api-url:
+    description: "DeploySentry API base URL"
+    required: true
+  api-key:
+    description: "DeploySentry API key"
+    required: true
+  project-id:
+    description: "Project UUID"
+    required: true
+  environment-id:
+    description: "Environment UUID"
+    required: true
+  version:
+    description: "Version to deploy (defaults to short SHA)"
+    required: false
+    default: ""
+  strategy:
+    description: "Deployment strategy (canary, blue-green, rolling)"
+    required: false
+    default: "rolling"
+  wait:
+    description: "Wait for deployment to complete"
+    required: false
+    default: "false"
+  timeout:
+    description: "Timeout in seconds when waiting"
+    required: false
+    default: "300"
+
+outputs:
+  deployment-id:
+    description: "The created deployment ID"
+    value: ${{ steps.deploy.outputs.deployment_id }}
+  status:
+    description: "Deployment status"
+    value: ${{ steps.deploy.outputs.status }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Trigger deployment
+      id: deploy
+      shell: bash
+      env:
+        DS_API_URL: ${{ inputs.api-url }}
+        DS_API_KEY: ${{ inputs.api-key }}
+        DS_PROJECT_ID: ${{ inputs.project-id }}
+        DS_ENVIRONMENT_ID: ${{ inputs.environment-id }}
+        DS_VERSION: ${{ inputs.version || github.sha }}
+        DS_STRATEGY: ${{ inputs.strategy }}
+      run: |
+        # Use short SHA if no version specified
+        VERSION="${DS_VERSION}"
+        if [ ${#VERSION} -gt 12 ]; then
+          VERSION="${VERSION:0:7}"
+        fi
+
+        echo "Creating deployment: version=${VERSION}, strategy=${DS_STRATEGY}"
+
+        RESPONSE=$(curl -sf -X POST "${DS_API_URL}/api/v1/deployments" \
+          -H "Authorization: ApiKey ${DS_API_KEY}" \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"project_id\": \"${DS_PROJECT_ID}\",
+            \"environment_id\": \"${DS_ENVIRONMENT_ID}\",
+            \"version\": \"${VERSION}\",
+            \"strategy\": \"${DS_STRATEGY}\"
+          }")
+
+        DEPLOYMENT_ID=$(echo "${RESPONSE}" | jq -r '.id // .deployment_id // empty')
+
+        if [ -z "${DEPLOYMENT_ID}" ]; then
+          echo "::error::Failed to create deployment"
+          echo "${RESPONSE}"
+          exit 1
+        fi
+
+        echo "deployment_id=${DEPLOYMENT_ID}" >> "$GITHUB_OUTPUT"
+        echo "status=created" >> "$GITHUB_OUTPUT"
+        echo "Deployment created: ${DEPLOYMENT_ID}"
+
+    - name: Wait for deployment
+      if: inputs.wait == 'true'
+      shell: bash
+      env:
+        DS_API_URL: ${{ inputs.api-url }}
+        DS_API_KEY: ${{ inputs.api-key }}
+        DEPLOYMENT_ID: ${{ steps.deploy.outputs.deployment_id }}
+        TIMEOUT: ${{ inputs.timeout }}
+      run: |
+        echo "Waiting for deployment ${DEPLOYMENT_ID} to complete (timeout: ${TIMEOUT}s)..."
+
+        ELAPSED=0
+        while [ $ELAPSED -lt $TIMEOUT ]; do
+          STATUS=$(curl -sf "${DS_API_URL}/api/v1/deployments/${DEPLOYMENT_ID}" \
+            -H "Authorization: ApiKey ${DS_API_KEY}" \
+            | jq -r '.status // empty')
+
+          case "${STATUS}" in
+            completed|active)
+              echo "Deployment completed successfully!"
+              echo "status=${STATUS}" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+            failed|rolled_back|cancelled)
+              echo "::error::Deployment ${STATUS}"
+              echo "status=${STATUS}" >> "$GITHUB_OUTPUT"
+              exit 1
+              ;;
+            *)
+              echo "Status: ${STATUS} (${ELAPSED}s elapsed)"
+              ;;
+          esac
+
+          sleep 10
+          ELAPSED=$((ELAPSED + 10))
+        done
+
+        echo "::error::Deployment timed out after ${TIMEOUT}s"
+        exit 1

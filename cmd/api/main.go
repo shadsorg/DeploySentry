@@ -19,6 +19,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/auth"
 	"github.com/deploysentry/deploysentry/internal/deploy"
 	"github.com/deploysentry/deploysentry/internal/flags"
+	githubint "github.com/deploysentry/deploysentry/internal/integrations/github"
 	"github.com/deploysentry/deploysentry/internal/notifications"
 	"github.com/deploysentry/deploysentry/internal/platform/cache"
 	"github.com/deploysentry/deploysentry/internal/platform/cache/flagcache"
@@ -266,6 +267,22 @@ func run() error {
 	public := router.Group("/api/v1")
 	public.Use(corsMiddleware)
 	auth.NewLoginHandler(userRepo, cfg.Auth).RegisterRoutes(public)
+
+	// GitHub webhook integration (public, verified by signature).
+	if cfg.GitHub.WebhookSecret != "" || cfg.GitHub.AutoDeploy {
+		ghProjectID, _ := uuid.Parse(cfg.GitHub.DefaultProjectID)
+		ghEnvID, _ := uuid.Parse(cfg.GitHub.DefaultEnvironmentID)
+		ghHandler := githubint.NewHandler(githubint.Config{
+			WebhookSecret:        cfg.GitHub.WebhookSecret,
+			DefaultProjectID:     ghProjectID,
+			DefaultEnvironmentID: ghEnvID,
+			DefaultStrategy:      cfg.GitHub.DefaultStrategy,
+			AutoDeploy:           cfg.GitHub.AutoDeploy,
+			DeployBranches:       cfg.GitHub.DeployBranches,
+		}, deployService)
+		ghHandler.RegisterRoutes(public)
+		log.Println("github webhook integration enabled")
+	}
 
 	// -------------------------------------------------------------------------
 	// Start HTTP Server

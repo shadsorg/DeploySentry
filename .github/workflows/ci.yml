@@ -250,14 +250,16 @@ jobs:
           path: bin/
 
       - name: Deploy to dev environment
-        env:
-          DEPLOY_ENV: dev
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          echo "Deploying to dev environment with image tag ${IMAGE_TAG}..."
-          # Deploy using the project's deployment mechanism.
-          # This is a placeholder; replace with actual deploy command.
-          # e.g., kubectl set image deployment/api api=deploysentry/api:${IMAGE_TAG}
+        uses: ./.github/actions/deploy
+        with:
+          api-url: ${{ vars.DEV_API_URL || 'https://dev-api.deploysentry.io' }}
+          api-key: ${{ secrets.DEPLOYSENTRY_API_KEY }}
+          project-id: ${{ vars.DEPLOYSENTRY_PROJECT_ID }}
+          environment-id: ${{ vars.DEPLOYSENTRY_DEV_ENV_ID }}
+          version: ${{ github.sha }}
+          strategy: rolling
+          wait: "true"
+          timeout: "300"
 
       - name: Run smoke tests
         env:

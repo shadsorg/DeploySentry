@@ -19,6 +19,7 @@ type Config struct {
 	Auth          AuthConfig
 	Log           LogConfig
 	Notifications NotificationsConfig
+	GitHub        GitHubConfig
 }
 
 // NotificationsConfig holds configuration for all notification channels.
@@ -51,6 +52,16 @@ type EmailNotificationConfig struct {
 type PagerDutyNotificationConfig struct {
 	Enabled    bool   `mapstructure:"enabled"`
 	RoutingKey string `mapstructure:"routing_key"`
+}
+
+// GitHubConfig holds GitHub integration configuration.
+type GitHubConfig struct {
+	WebhookSecret      string   `mapstructure:"webhook_secret"`
+	AutoDeploy         bool     `mapstructure:"auto_deploy"`
+	DeployBranches     []string `mapstructure:"deploy_branches"`
+	DefaultProjectID   string   `mapstructure:"default_project_id"`
+	DefaultEnvironmentID string `mapstructure:"default_environment_id"`
+	DefaultStrategy    string   `mapstructure:"default_strategy"`
 }
 
 // ServerConfig holds HTTP server configuration.
@@ -249,6 +260,11 @@ func setDefaults(v *viper.Viper) {
 	// Log defaults.
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "json")
+
+	// GitHub integration defaults.
+	v.SetDefault("github.auto_deploy", false)
+	v.SetDefault("github.deploy_branches", []string{"main"})
+	v.SetDefault("github.default_strategy", "rolling")
 
 	// Notification defaults (all disabled by default).
 	v.SetDefault("notifications.slack.enabled", false)

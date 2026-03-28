@@ -1,20 +1,12 @@
-import { NavLink, useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth';
-
-const navItems = [
-  { to: '/', label: 'Dashboard', icon: '~' },
-  { to: '/flags', label: 'Feature Flags', icon: '#' },
-  { to: '/deployments', label: 'Deployments', icon: '>' },
-  { to: '/releases', label: 'Releases', icon: '@' },
-];
-
-const secondaryItems = [
-  { to: '/sdks', label: 'SDKs & Docs', icon: '{' },
-  { to: '/settings', label: 'Settings', icon: '*' },
-];
+import { NavLink, useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/auth';
+import OrgSwitcher from './OrgSwitcher';
+import ProjectSwitcher from './ProjectSwitcher';
+import AppAccordion from './AppAccordion';
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const { orgSlug, projectSlug } = useParams();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -29,31 +21,77 @@ export default function Sidebar() {
         <span className="sidebar-title">DeploySentry</span>
       </div>
 
+      <div className="sidebar-switchers">
+        <OrgSwitcher />
+        {projectSlug && <ProjectSwitcher />}
+      </div>
+
       <nav className="sidebar-nav">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === '/'}
-            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-          >
-            <span className="nav-icon">{item.icon}</span>
-            {item.label}
-          </NavLink>
-        ))}
+        {/* App accordion — only when a project is selected */}
+        {projectSlug && <AppAccordion />}
 
-        <div className="sidebar-section">Integrate</div>
+        {/* Project-level nav */}
+        {projectSlug && orgSlug && (
+          <>
+            <div className="sidebar-section">Project</div>
+            <NavLink
+              to={`/orgs/${orgSlug}/projects/${projectSlug}/flags`}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <span className="nav-icon">#</span>
+              Feature Flags
+            </NavLink>
+            <NavLink
+              to={`/orgs/${orgSlug}/projects/${projectSlug}/analytics`}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <span className="nav-icon">%</span>
+              Analytics
+            </NavLink>
+            <NavLink
+              to={`/orgs/${orgSlug}/projects/${projectSlug}/sdks`}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <span className="nav-icon">{'{'}</span>
+              SDKs & Docs
+            </NavLink>
+            <NavLink
+              to={`/orgs/${orgSlug}/projects/${projectSlug}/settings`}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <span className="nav-icon">*</span>
+              Settings
+            </NavLink>
+          </>
+        )}
 
-        {secondaryItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-          >
-            <span className="nav-icon">{item.icon}</span>
-            {item.label}
-          </NavLink>
-        ))}
+        {/* Org-level nav */}
+        {orgSlug && (
+          <>
+            <div className="sidebar-section">Organization</div>
+            <NavLink
+              to={`/orgs/${orgSlug}/members`}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <span className="nav-icon">@</span>
+              Members
+            </NavLink>
+            <NavLink
+              to={`/orgs/${orgSlug}/api-keys`}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <span className="nav-icon">!</span>
+              API Keys
+            </NavLink>
+            <NavLink
+              to={`/orgs/${orgSlug}/settings`}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <span className="nav-icon">*</span>
+              Settings
+            </NavLink>
+          </>
+        )}
       </nav>
 
       <div className="sidebar-footer">

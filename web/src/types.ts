@@ -130,3 +130,22 @@ export interface UpdateFlagRequest {
   expires_at?: string;
   default_value?: string;
 }
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Application {
+  id: string;
+  project_id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  repo_url?: string;
+  created_at: string;
+  updated_at: string;
+}

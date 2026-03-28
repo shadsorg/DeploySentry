@@ -17,7 +17,7 @@ import (
 func testDeployment() *models.Deployment {
 	return &models.Deployment{
 		ID:             uuid.New(),
-		ProjectID:      uuid.New(),
+		ApplicationID:  uuid.New(),
 		EnvironmentID:  uuid.New(),
 		Strategy:       models.DeployStrategyCanary,
 		Artifact:       "app:latest",

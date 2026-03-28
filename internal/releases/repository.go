@@ -11,39 +11,24 @@ import (
 
 // ReleaseRepository defines the persistence interface for release entities.
 type ReleaseRepository interface {
-	// CreateRelease persists a new release record.
-	CreateRelease(ctx context.Context, release *models.Release) error
+	// Create persists a new release record.
+	Create(ctx context.Context, release *models.Release) error
 
-	// GetRelease retrieves a release by its unique identifier.
-	GetRelease(ctx context.Context, id uuid.UUID) (*models.Release, error)
+	// GetByID retrieves a release by its unique identifier.
+	GetByID(ctx context.Context, id uuid.UUID) (*models.Release, error)
 
-	// ListReleases returns releases for a project, ordered by creation time descending.
-	ListReleases(ctx context.Context, projectID uuid.UUID, opts ListOptions) ([]*models.Release, error)
+	// ListByApplication returns releases for an application, ordered by creation time descending.
+	ListByApplication(ctx context.Context, appID uuid.UUID) ([]models.Release, error)
 
-	// UpdateRelease persists changes to an existing release.
-	UpdateRelease(ctx context.Context, release *models.Release) error
+	// Update persists changes to an existing release.
+	Update(ctx context.Context, release *models.Release) error
 
-	// CreateReleaseEnvironment persists a new release-environment association.
-	CreateReleaseEnvironment(ctx context.Context, re *models.ReleaseEnvironment) error
+	// Delete removes a release by its unique identifier.
+	Delete(ctx context.Context, id uuid.UUID) error
 
-	// ListReleaseEnvironments returns the environments associated with a release.
-	ListReleaseEnvironments(ctx context.Context, releaseID uuid.UUID) ([]*models.ReleaseEnvironment, error)
+	// AddFlagChange persists a new flag change associated with a release.
+	AddFlagChange(ctx context.Context, fc *models.ReleaseFlagChange) error
 
-	// UpdateReleaseEnvironment persists changes to a release-environment association.
-	UpdateReleaseEnvironment(ctx context.Context, re *models.ReleaseEnvironment) error
-
-	// GetLatestRelease returns the most recent release for a project and
-	// environment combination, ordered by creation time descending.
-	GetLatestRelease(ctx context.Context, projectID, environmentID uuid.UUID) (*models.Release, error)
-
-	// GetReleaseTimeline returns a chronological timeline of release deployments
-	// across all environments for a project.
-	GetReleaseTimeline(ctx context.Context, projectID uuid.UUID) ([]*models.ReleaseTimeline, error)
-}
-
-// ListOptions controls pagination and filtering for release list queries.
-type ListOptions struct {
-	Limit  int                    `json:"limit"`
-	Offset int                    `json:"offset"`
-	Status *models.ReleaseStatus  `json:"status,omitempty"`
+	// ListFlagChanges returns the flag changes associated with a release.
+	ListFlagChanges(ctx context.Context, releaseID uuid.UUID) ([]models.ReleaseFlagChange, error)
 }

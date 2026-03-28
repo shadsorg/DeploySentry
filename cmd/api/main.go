@@ -270,11 +270,11 @@ func run() error {
 
 	// GitHub webhook integration (public, verified by signature).
 	if cfg.GitHub.WebhookSecret != "" || cfg.GitHub.AutoDeploy {
-		ghProjectID, _ := uuid.Parse(cfg.GitHub.DefaultProjectID)
+		ghAppID, _ := uuid.Parse(cfg.GitHub.DefaultProjectID)
 		ghEnvID, _ := uuid.Parse(cfg.GitHub.DefaultEnvironmentID)
 		ghHandler := githubint.NewHandler(githubint.Config{
 			WebhookSecret:        cfg.GitHub.WebhookSecret,
-			DefaultProjectID:     ghProjectID,
+			DefaultApplicationID: ghAppID,
 			DefaultEnvironmentID: ghEnvID,
 			DefaultStrategy:      cfg.GitHub.DefaultStrategy,
 			AutoDeploy:           cfg.GitHub.AutoDeploy,
@@ -362,19 +362,16 @@ func (a *apiKeyValidatorAdapter) ValidateAPIKey(ctx context.Context, key string)
 		return nil, err
 	}
 
-	var projectID uuid.UUID
-	if apiKey.ProjectID != nil {
-		projectID = *apiKey.ProjectID
-	}
-
 	scopes := make([]string, len(apiKey.Scopes))
 	for i, s := range apiKey.Scopes {
 		scopes[i] = string(s)
 	}
 
 	return &auth.APIKeyInfo{
-		OrgID:     apiKey.OrgID,
-		ProjectID: projectID,
-		Scopes:    scopes,
+		OrgID:         apiKey.OrgID,
+		ProjectID:     apiKey.ProjectID,
+		ApplicationID: apiKey.ApplicationID,
+		EnvironmentID: apiKey.EnvironmentID,
+		Scopes:        scopes,
 	}, nil
 }

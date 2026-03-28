@@ -443,8 +443,8 @@ func TestRequireAuth_ValidAPIKey(t *testing.T) {
 
 	validator := &mockKeyValidator{
 		info: &APIKeyInfo{
-			OrgID:     orgID,
-			ProjectID: projectID,
+			OrgID:     &orgID,
+			ProjectID: &projectID,
 			Scopes:    scopes,
 		},
 		err: nil,

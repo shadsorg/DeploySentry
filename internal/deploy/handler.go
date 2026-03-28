@@ -44,10 +44,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, rbac *auth.RBACChecker) {
 		deployments.POST("/:id/resume", mw(rbac, auth.PermDeployManage), h.resumeDeployment)
 	}
 
-	// Project-scoped routes.
-	projects := rg.Group("/projects")
+	// Application-scoped routes.
+	applications := rg.Group("/applications")
 	{
-		projects.GET("/:project_id/deployments/active", mw(rbac, auth.PermDeployRead), h.getActiveDeployments)
+		applications.GET("/:app_id/deployments/active", mw(rbac, auth.PermDeployRead), h.getActiveDeployments)
 	}
 }
 
@@ -62,7 +62,7 @@ func mw(rbac *auth.RBACChecker, perm auth.Permission) gin.HandlerFunc {
 
 // createDeploymentRequest is the JSON body for creating a new deployment.
 type createDeploymentRequest struct {
-	ProjectID     uuid.UUID `json:"project_id" binding:"required"`
+	ApplicationID uuid.UUID `json:"application_id" binding:"required"`
 	EnvironmentID uuid.UUID `json:"environment_id" binding:"required"`
 	Strategy      string    `json:"strategy" binding:"required"`
 	Artifact      string    `json:"artifact" binding:"required"`
@@ -85,7 +85,7 @@ func (h *Handler) createDeployment(c *gin.Context) {
 	}
 
 	d := &models.Deployment{
-		ProjectID:     req.ProjectID,
+		ApplicationID: req.ApplicationID,
 		EnvironmentID: req.EnvironmentID,
 		Strategy:      models.DeployStrategyType(req.Strategy),
 		Artifact:      req.Artifact,
@@ -120,7 +120,7 @@ func (h *Handler) createDeployment(c *gin.Context) {
 	if h.webhookSvc != nil {
 		webhookData := map[string]interface{}{
 			"deployment_id":  d.ID,
-			"project_id":     d.ProjectID,
+			"application_id": d.ApplicationID,
 			"environment_id": d.EnvironmentID,
 			"version":        d.Version,
 			"strategy":       string(d.Strategy),
@@ -134,7 +134,7 @@ func (h *Handler) createDeployment(c *gin.Context) {
 			orgID, _ = orgIDVal.(uuid.UUID)
 		}
 
-		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentCreated, orgID, &d.ProjectID, webhookData, &createdBy); err != nil {
+		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentCreated, orgID, &d.ApplicationID, webhookData, &createdBy); err != nil {
 			// Log error but don't fail the request
 		}
 	}
@@ -159,15 +159,15 @@ func (h *Handler) getDeployment(c *gin.Context) {
 }
 
 func (h *Handler) listDeployments(c *gin.Context) {
-	projectIDStr := c.Query("project_id")
-	if projectIDStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "project_id query parameter is required"})
+	appIDStr := c.Query("app_id")
+	if appIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "app_id query parameter is required"})
 		return
 	}
 
-	projectID, err := uuid.Parse(projectIDStr)
+	applicationID, err := uuid.Parse(appIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid project_id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid app_id"})
 		return
 	}
 
@@ -176,7 +176,7 @@ func (h *Handler) listDeployments(c *gin.Context) {
 		Offset: 0,
 	}
 
-	deployments, err := h.service.ListDeployments(c.Request.Context(), projectID, opts)
+	deployments, err := h.service.ListDeployments(c.Request.Context(), applicationID, opts)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list deployments"})
 		return
@@ -252,7 +252,7 @@ func (h *Handler) rollbackDeployment(c *gin.Context) {
 
 		webhookData := map[string]interface{}{
 			"deployment_id":  deployment.ID,
-			"project_id":     deployment.ProjectID,
+			"application_id": deployment.ApplicationID,
 			"environment_id": deployment.EnvironmentID,
 			"version":        deployment.Version,
 			"strategy":       string(deployment.Strategy),
@@ -263,7 +263,7 @@ func (h *Handler) rollbackDeployment(c *gin.Context) {
 			orgID, _ = orgIDVal.(uuid.UUID)
 		}
 
-		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentRolledback, orgID, &deployment.ProjectID, webhookData, &rolledBackBy); err != nil {
+		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentRolledback, orgID, &deployment.ApplicationID, webhookData, &rolledBackBy); err != nil {
 			// Log error but don't fail the request
 		}
 	}
@@ -323,7 +323,7 @@ func (h *Handler) pauseDeployment(c *gin.Context) {
 
 		webhookData := map[string]interface{}{
 			"deployment_id":  deployment.ID,
-			"project_id":     deployment.ProjectID,
+			"application_id": deployment.ApplicationID,
 			"environment_id": deployment.EnvironmentID,
 			"version":        deployment.Version,
 			"strategy":       string(deployment.Strategy),
@@ -334,7 +334,7 @@ func (h *Handler) pauseDeployment(c *gin.Context) {
 			orgID, _ = orgIDVal.(uuid.UUID)
 		}
 
-		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentPaused, orgID, &deployment.ProjectID, webhookData, &pausedBy); err != nil {
+		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentPaused, orgID, &deployment.ApplicationID, webhookData, &pausedBy); err != nil {
 			// Log error but don't fail the request
 		}
 	}
@@ -394,7 +394,7 @@ func (h *Handler) resumeDeployment(c *gin.Context) {
 
 		webhookData := map[string]interface{}{
 			"deployment_id":  deployment.ID,
-			"project_id":     deployment.ProjectID,
+			"application_id": deployment.ApplicationID,
 			"environment_id": deployment.EnvironmentID,
 			"version":        deployment.Version,
 			"strategy":       string(deployment.Strategy),
@@ -405,7 +405,7 @@ func (h *Handler) resumeDeployment(c *gin.Context) {
 			orgID, _ = orgIDVal.(uuid.UUID)
 		}
 
-		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentResumed, orgID, &deployment.ProjectID, webhookData, &resumedBy); err != nil {
+		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentResumed, orgID, &deployment.ApplicationID, webhookData, &resumedBy); err != nil {
 			// Log error but don't fail the request
 		}
 	}
@@ -413,16 +413,16 @@ func (h *Handler) resumeDeployment(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "running"})
 }
 
-// getActiveDeployments returns all non-terminal deployments for the project
-// identified by the :id URL parameter.
+// getActiveDeployments returns all non-terminal deployments for the application
+// identified by the :app_id URL parameter.
 func (h *Handler) getActiveDeployments(c *gin.Context) {
-	projectID, err := uuid.Parse(c.Param("id"))
+	applicationID, err := uuid.Parse(c.Param("app_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid project id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid application id"})
 		return
 	}
 
-	deployments, err := h.service.GetActiveDeployments(c.Request.Context(), projectID)
+	deployments, err := h.service.GetActiveDeployments(c.Request.Context(), applicationID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get active deployments"})
 		return

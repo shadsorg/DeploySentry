@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DashboardService, { type DashboardData } from '../services/dashboard';
-import { useAutoRefresh, useRealtimeUpdates } from '../services/realtime';
-import type { Deployment } from '../types';
+import { useAutoRefresh } from '../services/realtime';
 
 // ---------------------------------------------------------------------------
 // Helper functions

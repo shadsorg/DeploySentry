@@ -42,6 +42,7 @@ export interface DashboardData {
 class DashboardService {
   private static instance: DashboardService;
   private projectId: string = '';
+  // @ts-expect-error stored for future per-environment filtering
   private environmentId: string = '';
 
   static getInstance(): DashboardService {

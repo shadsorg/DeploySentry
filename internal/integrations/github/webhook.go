@@ -27,8 +27,8 @@ type Config struct {
 	// WebhookSecret is used to verify webhook signatures from GitHub.
 	WebhookSecret string
 
-	// DefaultProjectID is the project to create deployments under when not specified.
-	DefaultProjectID uuid.UUID
+	// DefaultApplicationID is the application to create deployments under when not specified.
+	DefaultApplicationID uuid.UUID
 
 	// DefaultEnvironmentID is the environment to deploy to when not specified.
 	DefaultEnvironmentID uuid.UUID
@@ -140,7 +140,7 @@ func (h *Handler) handlePush(c *gin.Context, body []byte) {
 
 	d := &models.Deployment{
 		ID:            uuid.New(),
-		ProjectID:     h.config.DefaultProjectID,
+		ApplicationID: h.config.DefaultApplicationID,
 		EnvironmentID: h.config.DefaultEnvironmentID,
 		Version:       shortSHA,
 		Strategy:      models.DeployStrategyType(h.config.DefaultStrategy),
@@ -207,7 +207,7 @@ func (h *Handler) handleRelease(c *gin.Context, body []byte) {
 	// Create deployment from release tag
 	d := &models.Deployment{
 		ID:            uuid.New(),
-		ProjectID:     h.config.DefaultProjectID,
+		ApplicationID: h.config.DefaultApplicationID,
 		EnvironmentID: h.config.DefaultEnvironmentID,
 		Version:       event.Release.TagName,
 		Strategy:      models.DeployStrategyType(h.config.DefaultStrategy),

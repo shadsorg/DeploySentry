@@ -149,6 +149,8 @@ function statusBadgeClass(status: DeployStatus): string {
       return 'badge badge-pending';
     case 'pending':
       return 'badge badge-pending';
+    default:
+      return 'badge';
   }
 }
 

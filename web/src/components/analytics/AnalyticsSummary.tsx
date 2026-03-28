@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { analyticsApi } from '../../api';
 
 interface AnalyticsSummaryProps {
   projectId: string;

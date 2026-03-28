@@ -25,8 +25,8 @@ type DeployService interface {
 	// GetDeployment retrieves a deployment by ID.
 	GetDeployment(ctx context.Context, id uuid.UUID) (*models.Deployment, error)
 
-	// ListDeployments returns deployments for a project.
-	ListDeployments(ctx context.Context, projectID uuid.UUID, opts ListOptions) ([]*models.Deployment, error)
+	// ListDeployments returns deployments for an application.
+	ListDeployments(ctx context.Context, applicationID uuid.UUID, opts ListOptions) ([]*models.Deployment, error)
 
 	// PromoteDeployment advances a deployment to full traffic.
 	PromoteDeployment(ctx context.Context, id uuid.UUID) error
@@ -40,8 +40,8 @@ type DeployService interface {
 	// ResumeDeployment resumes a paused deployment.
 	ResumeDeployment(ctx context.Context, id uuid.UUID) error
 
-	// GetActiveDeployments returns all non-terminal deployments for a project.
-	GetActiveDeployments(ctx context.Context, projectID uuid.UUID) ([]*models.Deployment, error)
+	// GetActiveDeployments returns all non-terminal deployments for an application.
+	GetActiveDeployments(ctx context.Context, applicationID uuid.UUID) ([]*models.Deployment, error)
 }
 
 // deployService is the concrete implementation of DeployService.
@@ -91,15 +91,15 @@ func (s *deployService) GetDeployment(ctx context.Context, id uuid.UUID) (*model
 	return d, nil
 }
 
-// ListDeployments returns a paginated list of deployments for a project.
-func (s *deployService) ListDeployments(ctx context.Context, projectID uuid.UUID, opts ListOptions) ([]*models.Deployment, error) {
+// ListDeployments returns a paginated list of deployments for an application.
+func (s *deployService) ListDeployments(ctx context.Context, applicationID uuid.UUID, opts ListOptions) ([]*models.Deployment, error) {
 	if opts.Limit <= 0 {
 		opts.Limit = 20
 	}
 	if opts.Limit > 100 {
 		opts.Limit = 100
 	}
-	deployments, err := s.repo.ListDeployments(ctx, projectID, opts)
+	deployments, err := s.repo.ListDeployments(ctx, applicationID, opts)
 	if err != nil {
 		return nil, fmt.Errorf("listing deployments: %w", err)
 	}
@@ -196,11 +196,11 @@ func (s *deployService) ResumeDeployment(ctx context.Context, id uuid.UUID) erro
 }
 
 // GetActiveDeployments returns all non-terminal deployments (pending, running,
-// paused, promoting) for the given project.
-func (s *deployService) GetActiveDeployments(ctx context.Context, projectID uuid.UUID) ([]*models.Deployment, error) {
-	// Retrieve all deployments for the project with a generous limit
+// paused, promoting) for the given application.
+func (s *deployService) GetActiveDeployments(ctx context.Context, applicationID uuid.UUID) ([]*models.Deployment, error) {
+	// Retrieve all deployments for the application with a generous limit
 	// and filter to non-terminal statuses.
-	all, err := s.repo.ListDeployments(ctx, projectID, ListOptions{Limit: 100})
+	all, err := s.repo.ListDeployments(ctx, applicationID, ListOptions{Limit: 100})
 	if err != nil {
 		return nil, fmt.Errorf("listing deployments for active lookup: %w", err)
 	}

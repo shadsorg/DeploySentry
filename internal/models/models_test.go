@@ -26,7 +26,7 @@ func validUser() User {
 func validDeployment() Deployment {
 	return Deployment{
 		ID:            uuid.New(),
-		ProjectID:     uuid.New(),
+		ApplicationID: uuid.New(),
 		EnvironmentID: uuid.New(),
 		Artifact:      "myapp:latest",
 		Version:       "1.0.0",
@@ -49,13 +49,10 @@ func validFeatureFlag() FeatureFlag {
 
 func validRelease() Release {
 	return Release{
-		ID:        uuid.New(),
-		ProjectID: uuid.New(),
-		Version:   "1.0.0",
-		Title:     "Initial Release",
-		Artifact:  "myapp:1.0.0",
-		CreatedBy: uuid.New(),
-		Status:    ReleaseStatusDraft,
+		ID:            uuid.New(),
+		ApplicationID: uuid.New(),
+		Name:          "Initial Release",
+		Status:        ReleaseDraft,
 	}
 }
 
@@ -88,17 +85,18 @@ func validProject() Project {
 
 func validEnvironment() Environment {
 	return Environment{
-		ID:        uuid.New(),
-		ProjectID: uuid.New(),
-		Name:      "production",
-		Slug:      "production",
+		ID:            uuid.New(),
+		ApplicationID: uuid.New(),
+		Name:          "production",
+		Slug:          "production",
 	}
 }
 
 func validAPIKey() APIKey {
+	orgID := uuid.New()
 	return APIKey{
 		ID:        uuid.New(),
-		OrgID:     uuid.New(),
+		OrgID:     &orgID,
 		Name:      "CI Key",
 		Scopes:    []APIKeyScope{APIKeyScopeReadFlags},
 		CreatedBy: uuid.New(),
@@ -205,9 +203,9 @@ func TestDeploymentValidate(t *testing.T) {
 			wantErr: "",
 		},
 		{
-			name:    "missing project_id",
-			modify:  func(d *Deployment) { d.ProjectID = uuid.Nil },
-			wantErr: "project_id is required",
+			name:    "missing application_id",
+			modify:  func(d *Deployment) { d.ApplicationID = uuid.Nil },
+			wantErr: "application_id is required",
 		},
 		{
 			name:    "missing environment_id",
@@ -504,11 +502,6 @@ func TestFeatureFlagValidate(t *testing.T) {
 			wantErr: "project_id is required",
 		},
 		{
-			name:    "missing environment_id",
-			modify:  func(f *FeatureFlag) { f.EnvironmentID = uuid.Nil },
-			wantErr: "environment_id is required",
-		},
-		{
 			name:    "empty key",
 			modify:  func(f *FeatureFlag) { f.Key = "" },
 			wantErr: "flag key is required",
@@ -768,29 +761,40 @@ func TestReleaseValidate(t *testing.T) {
 			wantErr: "",
 		},
 		{
-			name:    "missing project_id",
-			modify:  func(r *Release) { r.ProjectID = uuid.Nil },
-			wantErr: "project_id is required",
+			name:    "missing application_id",
+			modify:  func(r *Release) { r.ApplicationID = uuid.Nil },
+			wantErr: "application_id is required",
 		},
 		{
-			name:    "empty version",
-			modify:  func(r *Release) { r.Version = "" },
-			wantErr: "version is required",
+			name:    "missing name",
+			modify:  func(r *Release) { r.Name = "" },
+			wantErr: "name is required",
 		},
 		{
-			name:    "empty title",
-			modify:  func(r *Release) { r.Title = "" },
-			wantErr: "title is required",
+			name: "sticky without header",
+			modify: func(r *Release) {
+				r.SessionSticky = true
+				r.StickyHeader = ""
+			},
+			wantErr: "sticky_header is required when session_sticky is true",
 		},
 		{
-			name:    "empty artifact",
-			modify:  func(r *Release) { r.Artifact = "" },
-			wantErr: "artifact is required",
+			name: "sticky with header",
+			modify: func(r *Release) {
+				r.SessionSticky = true
+				r.StickyHeader = "X-Release-Id"
+			},
+			wantErr: "",
 		},
 		{
-			name:    "missing created_by",
-			modify:  func(r *Release) { r.CreatedBy = uuid.Nil },
-			wantErr: "created_by is required",
+			name:    "traffic_percent below 0",
+			modify:  func(r *Release) { r.TrafficPercent = -1 },
+			wantErr: "traffic_percent must be between 0 and 100",
+		},
+		{
+			name:    "traffic_percent above 100",
+			modify:  func(r *Release) { r.TrafficPercent = 101 },
+			wantErr: "traffic_percent must be between 0 and 100",
 		},
 	}
 
@@ -809,45 +813,50 @@ func TestReleaseValidate(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// 9. Release.ValidateTransition()
+// 9. Release.TransitionTo()
 // ---------------------------------------------------------------------------
 
-func TestReleaseValidateTransition(t *testing.T) {
+func TestReleaseTransitionTo(t *testing.T) {
 	// All valid transitions.
 	validCases := []struct {
 		from ReleaseStatus
 		to   ReleaseStatus
 	}{
-		{ReleaseStatusDraft, ReleaseStatusActive},
-		{ReleaseStatusDraft, ReleaseStatusArchived},
-		{ReleaseStatusActive, ReleaseStatusCompleted},
-		{ReleaseStatusActive, ReleaseStatusFailed},
-		{ReleaseStatusActive, ReleaseStatusArchived},
-		{ReleaseStatusCompleted, ReleaseStatusArchived},
-		{ReleaseStatusFailed, ReleaseStatusDraft},
-		{ReleaseStatusFailed, ReleaseStatusArchived},
+		{ReleaseDraft, ReleaseRollingOut},
+		{ReleaseRollingOut, ReleasePaused},
+		{ReleaseRollingOut, ReleaseCompleted},
+		{ReleaseRollingOut, ReleaseRolledBack},
+		{ReleasePaused, ReleaseRollingOut},
+		{ReleasePaused, ReleaseRolledBack},
 	}
 
 	for _, tc := range validCases {
 		t.Run(string(tc.from)+"->"+string(tc.to), func(t *testing.T) {
-			r := Release{Status: tc.from}
-			err := r.ValidateTransition(tc.to)
+			r := Release{Status: tc.from, ApplicationID: uuid.New(), Name: "test"}
+			err := r.TransitionTo(tc.to)
 			assert.NoError(t, err)
+			assert.Equal(t, tc.to, r.Status)
 		})
 	}
 
-	// Archived is terminal -- no transitions allowed.
-	allReleaseStatuses := []ReleaseStatus{
-		ReleaseStatusDraft, ReleaseStatusActive, ReleaseStatusCompleted,
-		ReleaseStatusFailed, ReleaseStatusArchived,
+	// Terminal states should not allow any transitions.
+	terminalStates := []ReleaseStatus{
+		ReleaseCompleted,
+		ReleaseRolledBack,
 	}
-	for _, target := range allReleaseStatuses {
-		t.Run("archived->"+string(target)+"_rejected", func(t *testing.T) {
-			r := Release{Status: ReleaseStatusArchived}
-			err := r.ValidateTransition(target)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "invalid release status transition")
-		})
+	allReleaseStatuses := []ReleaseStatus{
+		ReleaseDraft, ReleaseRollingOut, ReleasePaused,
+		ReleaseCompleted, ReleaseRolledBack,
+	}
+	for _, terminal := range terminalStates {
+		for _, target := range allReleaseStatuses {
+			t.Run(string(terminal)+"->"+string(target)+"_rejected", func(t *testing.T) {
+				r := Release{Status: terminal}
+				err := r.TransitionTo(target)
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), "no transitions from terminal status")
+			})
+		}
 	}
 
 	// Invalid transitions from non-terminal states.
@@ -855,31 +864,22 @@ func TestReleaseValidateTransition(t *testing.T) {
 		from ReleaseStatus
 		to   ReleaseStatus
 	}{
-		{ReleaseStatusDraft, ReleaseStatusCompleted},
-		{ReleaseStatusDraft, ReleaseStatusFailed},
-		{ReleaseStatusActive, ReleaseStatusDraft},
-		{ReleaseStatusCompleted, ReleaseStatusActive},
-		{ReleaseStatusCompleted, ReleaseStatusFailed},
-		{ReleaseStatusFailed, ReleaseStatusCompleted},
-		{ReleaseStatusFailed, ReleaseStatusActive},
+		{ReleaseDraft, ReleaseCompleted},
+		{ReleaseDraft, ReleasePaused},
+		{ReleaseDraft, ReleaseRolledBack},
+		{ReleaseRollingOut, ReleaseDraft},
+		{ReleasePaused, ReleaseDraft},
+		{ReleasePaused, ReleaseCompleted},
 	}
 
 	for _, tc := range invalidCases {
 		t.Run(string(tc.from)+"->"+string(tc.to)+"_invalid", func(t *testing.T) {
 			r := Release{Status: tc.from}
-			err := r.ValidateTransition(tc.to)
+			err := r.TransitionTo(tc.to)
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "invalid release status transition")
+			assert.Contains(t, err.Error(), "invalid transition")
 		})
 	}
-
-	// Unknown current status.
-	t.Run("unknown_current_status", func(t *testing.T) {
-		r := Release{Status: "bogus"}
-		err := r.ValidateTransition(ReleaseStatusActive)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "unknown current release status")
-	})
 }
 
 // ---------------------------------------------------------------------------
@@ -1075,9 +1075,9 @@ func TestEnvironmentValidate(t *testing.T) {
 			wantErr: "",
 		},
 		{
-			name:    "missing project_id",
-			modify:  func(e *Environment) { e.ProjectID = uuid.Nil },
-			wantErr: "project_id is required",
+			name:    "missing application_id",
+			modify:  func(e *Environment) { e.ApplicationID = uuid.Nil },
+			wantErr: "application_id is required",
 		},
 		{
 			name:    "empty name",
@@ -1121,9 +1121,17 @@ func TestAPIKeyValidate(t *testing.T) {
 			wantErr: "",
 		},
 		{
-			name:    "missing org_id",
-			modify:  func(k *APIKey) { k.OrgID = uuid.Nil },
-			wantErr: "org_id is required",
+			name:    "no scope set",
+			modify:  func(k *APIKey) { k.OrgID = nil },
+			wantErr: "exactly one scope (org_id, project_id, application_id, environment_id) must be set",
+		},
+		{
+			name: "multiple scopes set",
+			modify: func(k *APIKey) {
+				pid := uuid.New()
+				k.ProjectID = &pid
+			},
+			wantErr: "only one scope (org_id, project_id, application_id, environment_id) may be set",
 		},
 		{
 			name:    "empty name",

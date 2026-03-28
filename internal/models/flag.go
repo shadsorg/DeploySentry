@@ -63,6 +63,7 @@ const (
 type FeatureFlag struct {
 	ID            uuid.UUID    `json:"id" db:"id"`
 	ProjectID     uuid.UUID    `json:"project_id" db:"project_id"`
+	ApplicationID *uuid.UUID   `json:"application_id,omitempty" db:"application_id"`
 	EnvironmentID uuid.UUID    `json:"environment_id" db:"environment_id"`
 	Key           string       `json:"key" db:"key"`
 	Name          string       `json:"name" db:"name"`
@@ -138,9 +139,6 @@ func (f *FeatureFlag) Validate() error {
 	if f.ProjectID == uuid.Nil {
 		return errors.New("project_id is required")
 	}
-	if f.EnvironmentID == uuid.Nil {
-		return errors.New("environment_id is required")
-	}
 	if f.Key == "" {
 		return errors.New("flag key is required")
 	}
@@ -161,6 +159,9 @@ func (f *FeatureFlag) Validate() error {
 		// valid (empty defaults to "feature" at persistence layer)
 	default:
 		return errors.New("unsupported flag category: must be release, feature, experiment, ops, or permission")
+	}
+	if f.Category == FlagCategoryRelease && f.ApplicationID == nil {
+		return errors.New("application_id is required for release flags")
 	}
 	if !f.IsPermanent && f.ExpiresAt == nil && f.Category == FlagCategoryRelease {
 		return errors.New("release flags must have an expiration date or be marked permanent")

@@ -79,7 +79,7 @@ func (h *APIKeyHandler) createAPIKey(c *gin.Context) {
 
 	result, err := h.service.GenerateKey(
 		c.Request.Context(),
-		orgID,
+		&orgID,
 		req.ProjectID,
 		req.Name,
 		req.Scopes,

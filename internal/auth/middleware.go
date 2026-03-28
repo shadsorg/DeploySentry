@@ -72,9 +72,11 @@ type APIKeyValidator interface {
 
 // APIKeyInfo holds the identity information extracted from a validated API key.
 type APIKeyInfo struct {
-	OrgID     uuid.UUID `json:"org_id"`
-	ProjectID uuid.UUID `json:"project_id"`
-	Scopes    []string  `json:"scopes"`
+	OrgID         *uuid.UUID `json:"org_id,omitempty"`
+	ProjectID     *uuid.UUID `json:"project_id,omitempty"`
+	ApplicationID *uuid.UUID `json:"application_id,omitempty"`
+	EnvironmentID *uuid.UUID `json:"environment_id,omitempty"`
+	Scopes        []string   `json:"scopes"`
 }
 
 // AuthMiddleware provides Gin middleware for authenticating requests via
@@ -197,8 +199,18 @@ func (m *AuthMiddleware) authenticateAPIKey(c *gin.Context, key string) bool {
 		return false
 	}
 
-	c.Set("org_id", info.OrgID.String())
-	c.Set("project_id", info.ProjectID.String())
+	if info.OrgID != nil {
+		c.Set("org_id", info.OrgID.String())
+	}
+	if info.ProjectID != nil {
+		c.Set("project_id", info.ProjectID.String())
+	}
+	if info.ApplicationID != nil {
+		c.Set("application_id", info.ApplicationID.String())
+	}
+	if info.EnvironmentID != nil {
+		c.Set("environment_id", info.EnvironmentID.String())
+	}
 	c.Set("api_key_scopes", info.Scopes)
 	c.Set("auth_method", "api_key")
 

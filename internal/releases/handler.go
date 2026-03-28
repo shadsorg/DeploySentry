@@ -24,48 +24,59 @@ func NewHandler(service ReleaseService) *Handler {
 }
 
 // RegisterRoutes mounts all release API routes on the given router group.
+// Routes are nested under /applications/:app_id/releases.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
-	releases := rg.Group("/releases")
+	releases := rg.Group("/applications/:app_id/releases")
 	{
 		releases.POST("", auth.RequirePermission(h.rbac, auth.PermReleaseCreate), h.createRelease)
 		releases.GET("", auth.RequirePermission(h.rbac, auth.PermReleaseRead), h.listReleases)
 		releases.GET("/:id", auth.RequirePermission(h.rbac, auth.PermReleaseRead), h.getRelease)
-		releases.GET("/:id/status", auth.RequirePermission(h.rbac, auth.PermReleaseRead), h.getReleaseStatus)
+		releases.DELETE("/:id", auth.RequirePermission(h.rbac, auth.PermReleaseCreate), h.deleteRelease)
+		releases.POST("/:id/start", auth.RequirePermission(h.rbac, auth.PermReleasePromote), h.startRelease)
 		releases.POST("/:id/promote", auth.RequirePermission(h.rbac, auth.PermReleasePromote), h.promoteRelease)
+		releases.POST("/:id/pause", auth.RequirePermission(h.rbac, auth.PermReleasePromote), h.pauseRelease)
+		releases.POST("/:id/rollback", auth.RequirePermission(h.rbac, auth.PermReleasePromote), h.rollbackRelease)
+		releases.POST("/:id/complete", auth.RequirePermission(h.rbac, auth.PermReleasePromote), h.completeRelease)
+		releases.POST("/:id/flag-changes", auth.RequirePermission(h.rbac, auth.PermReleaseCreate), h.addFlagChange)
+		releases.GET("/:id/flag-changes", auth.RequirePermission(h.rbac, auth.PermReleaseRead), h.listFlagChanges)
 	}
 }
 
 // createReleaseRequest is the JSON body for creating a new release.
 type createReleaseRequest struct {
-	ProjectID   uuid.UUID `json:"project_id" binding:"required"`
-	Version     string    `json:"version" binding:"required"`
-	Title       string    `json:"title" binding:"required"`
-	Description string    `json:"description"`
-	CommitSHA   string    `json:"commit_sha"`
-	Artifact    string    `json:"artifact" binding:"required"`
+	Name          string `json:"name" binding:"required"`
+	Description   string `json:"description"`
+	SessionSticky bool   `json:"session_sticky"`
+	StickyHeader  string `json:"sticky_header"`
 }
 
 func (h *Handler) createRelease(c *gin.Context) {
+	appID, err := uuid.Parse(c.Param("app_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid application id"})
+		return
+	}
+
 	var req createReleaseRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	userID, _ := c.Get("user_id")
-	createdBy, ok := userID.(uuid.UUID)
-	if !ok {
-		createdBy = uuid.Nil
+	var createdBy *uuid.UUID
+	if userID, exists := c.Get("user_id"); exists {
+		if uid, ok := userID.(uuid.UUID); ok {
+			createdBy = &uid
+		}
 	}
 
 	release := &models.Release{
-		ProjectID:   req.ProjectID,
-		Version:     req.Version,
-		Title:       req.Title,
-		Description: req.Description,
-		CommitSHA:   req.CommitSHA,
-		Artifact:    req.Artifact,
-		CreatedBy:   createdBy,
+		ApplicationID: appID,
+		Name:          req.Name,
+		Description:   req.Description,
+		SessionSticky: req.SessionSticky,
+		StickyHeader:  req.StickyHeader,
+		CreatedBy:     createdBy,
 	}
 
 	if err := h.service.Create(c.Request.Context(), release); err != nil {
@@ -83,7 +94,7 @@ func (h *Handler) getRelease(c *gin.Context) {
 		return
 	}
 
-	release, err := h.service.Get(c.Request.Context(), id)
+	release, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "release not found"})
 		return
@@ -93,21 +104,13 @@ func (h *Handler) getRelease(c *gin.Context) {
 }
 
 func (h *Handler) listReleases(c *gin.Context) {
-	projectIDStr := c.Query("project_id")
-	if projectIDStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "project_id query parameter is required"})
-		return
-	}
-
-	projectID, err := uuid.Parse(projectIDStr)
+	appID, err := uuid.Parse(c.Param("app_id"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid project_id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid application id"})
 		return
 	}
 
-	opts := ListOptions{Limit: 20, Offset: 0}
-
-	releases, err := h.service.List(c.Request.Context(), projectID, opts)
+	releases, err := h.service.ListByApplication(c.Request.Context(), appID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list releases"})
 		return
@@ -116,9 +119,39 @@ func (h *Handler) listReleases(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"releases": releases})
 }
 
+func (h *Handler) deleteRelease(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid release id"})
+		return
+	}
+
+	if err := h.service.Delete(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusNoContent, nil)
+}
+
+func (h *Handler) startRelease(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid release id"})
+		return
+	}
+
+	if err := h.service.Start(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "started"})
+}
+
 // promoteReleaseRequest is the JSON body for promoting a release.
 type promoteReleaseRequest struct {
-	EnvironmentID uuid.UUID `json:"environment_id" binding:"required"`
+	TrafficPercent int `json:"traffic_percent" binding:"required"`
 }
 
 func (h *Handler) promoteRelease(c *gin.Context) {
@@ -134,13 +167,7 @@ func (h *Handler) promoteRelease(c *gin.Context) {
 		return
 	}
 
-	userID, _ := c.Get("user_id")
-	deployedBy, ok := userID.(uuid.UUID)
-	if !ok {
-		deployedBy = uuid.Nil
-	}
-
-	if err := h.service.Promote(c.Request.Context(), id, req.EnvironmentID, deployedBy); err != nil {
+	if err := h.service.Promote(c.Request.Context(), id, req.TrafficPercent); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
@@ -148,19 +175,98 @@ func (h *Handler) promoteRelease(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "promoted"})
 }
 
-// getReleaseStatus returns the release status across all environments.
-func (h *Handler) getReleaseStatus(c *gin.Context) {
+func (h *Handler) pauseRelease(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid release id"})
 		return
 	}
 
-	status, err := h.service.GetReleaseStatus(c.Request.Context(), id)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "release not found"})
+	if err := h.service.Pause(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, status)
+	c.JSON(http.StatusOK, gin.H{"status": "paused"})
+}
+
+func (h *Handler) rollbackRelease(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid release id"})
+		return
+	}
+
+	if err := h.service.Rollback(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "rolled_back"})
+}
+
+func (h *Handler) completeRelease(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid release id"})
+		return
+	}
+
+	if err := h.service.Complete(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "completed"})
+}
+
+// addFlagChangeRequest is the JSON body for adding a flag change to a release.
+type addFlagChangeRequest struct {
+	FlagID        uuid.UUID `json:"flag_id" binding:"required"`
+	EnvironmentID uuid.UUID `json:"environment_id" binding:"required"`
+	NewEnabled    *bool     `json:"new_enabled"`
+}
+
+func (h *Handler) addFlagChange(c *gin.Context) {
+	releaseID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid release id"})
+		return
+	}
+
+	var req addFlagChangeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	fc := &models.ReleaseFlagChange{
+		ReleaseID:     releaseID,
+		FlagID:        req.FlagID,
+		EnvironmentID: req.EnvironmentID,
+		NewEnabled:    req.NewEnabled,
+	}
+
+	if err := h.service.AddFlagChange(c.Request.Context(), fc); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, fc)
+}
+
+func (h *Handler) listFlagChanges(c *gin.Context) {
+	releaseID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid release id"})
+		return
+	}
+
+	changes, err := h.service.ListFlagChanges(c.Request.Context(), releaseID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list flag changes"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"flag_changes": changes})
 }

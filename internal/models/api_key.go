@@ -31,8 +31,10 @@ const (
 // to the platform without user authentication.
 type APIKey struct {
 	ID            uuid.UUID     `json:"id" db:"id"`
-	OrgID         uuid.UUID     `json:"org_id" db:"org_id"`
+	OrgID         *uuid.UUID    `json:"org_id,omitempty" db:"org_id"`
 	ProjectID     *uuid.UUID    `json:"project_id,omitempty" db:"project_id"`
+	ApplicationID *uuid.UUID    `json:"application_id,omitempty" db:"application_id"`
+	EnvironmentID *uuid.UUID    `json:"environment_id,omitempty" db:"environment_id"`
 	Name          string        `json:"name" db:"name"`
 	KeyPrefix     string        `json:"key_prefix" db:"key_prefix"`
 	KeyHash       string        `json:"-" db:"key_hash"`
@@ -46,8 +48,24 @@ type APIKey struct {
 
 // Validate checks that the APIKey has all required fields populated.
 func (k *APIKey) Validate() error {
-	if k.OrgID == uuid.Nil {
-		return errors.New("org_id is required")
+	scopeCount := 0
+	if k.OrgID != nil {
+		scopeCount++
+	}
+	if k.ProjectID != nil {
+		scopeCount++
+	}
+	if k.ApplicationID != nil {
+		scopeCount++
+	}
+	if k.EnvironmentID != nil {
+		scopeCount++
+	}
+	if scopeCount == 0 {
+		return errors.New("exactly one scope (org_id, project_id, application_id, environment_id) must be set")
+	}
+	if scopeCount > 1 {
+		return errors.New("only one scope (org_id, project_id, application_id, environment_id) may be set")
 	}
 	if k.Name == "" {
 		return errors.New("name is required")

@@ -49,12 +49,12 @@ func (m *mockDeployRepo) GetDeployment(_ context.Context, id uuid.UUID) (*models
 	return d, nil
 }
 
-func (m *mockDeployRepo) ListDeployments(_ context.Context, projectID uuid.UUID, opts ListOptions) ([]*models.Deployment, error) {
+func (m *mockDeployRepo) ListDeployments(_ context.Context, applicationID uuid.UUID, opts ListOptions) ([]*models.Deployment, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	var result []*models.Deployment
 	for _, d := range m.deployments {
-		if d.ProjectID == projectID {
+		if d.ApplicationID == applicationID {
 			result = append(result, d)
 		}
 	}
@@ -72,22 +72,6 @@ func (m *mockDeployRepo) UpdateDeployment(_ context.Context, d *models.Deploymen
 	}
 	m.deployments[d.ID] = d
 	return nil
-}
-
-func (m *mockDeployRepo) ListDeploymentPhases(_ context.Context, _ uuid.UUID) ([]*models.DeploymentPhase, error) {
-	return nil, nil
-}
-
-func (m *mockDeployRepo) CreateDeploymentPhase(_ context.Context, _ *models.DeploymentPhase) error {
-	return nil
-}
-
-func (m *mockDeployRepo) UpdateDeploymentPhase(_ context.Context, _ *models.DeploymentPhase) error {
-	return nil
-}
-
-func (m *mockDeployRepo) GetPipeline(_ context.Context, _ uuid.UUID) (*models.DeployPipeline, error) {
-	return nil, fmt.Errorf("pipeline not found")
 }
 
 func (m *mockDeployRepo) GetLatestDeployment(_ context.Context, _, _ uuid.UUID) (*models.Deployment, error) {
@@ -129,7 +113,7 @@ func (m *mockPublisher) events() []string {
 
 func validDeployment() *models.Deployment {
 	return &models.Deployment{
-		ProjectID:     uuid.New(),
+		ApplicationID: uuid.New(),
 		EnvironmentID: uuid.New(),
 		Strategy:      models.DeployStrategyCanary,
 		Artifact:      "myapp:v1.2.3",
@@ -256,7 +240,7 @@ func TestListDeployments_DefaultLimit(t *testing.T) {
 	// Create a few deployments under the same project.
 	for i := 0; i < 3; i++ {
 		d := validDeployment()
-		d.ProjectID = projectID
+		d.ApplicationID = projectID
 		err := svc.CreateDeployment(context.Background(), d)
 		assert.NoError(t, err)
 	}
@@ -273,7 +257,7 @@ func TestListDeployments_CapsAt100(t *testing.T) {
 
 	projectID := uuid.New()
 	d := validDeployment()
-	d.ProjectID = projectID
+	d.ApplicationID = projectID
 	_ = svc.CreateDeployment(context.Background(), d)
 
 	// Request with limit > 100 should be capped. The service should still
@@ -291,7 +275,7 @@ func TestListDeployments_ReturnsResults(t *testing.T) {
 	projectID := uuid.New()
 	for i := 0; i < 5; i++ {
 		d := validDeployment()
-		d.ProjectID = projectID
+		d.ApplicationID = projectID
 		_ = svc.CreateDeployment(context.Background(), d)
 	}
 

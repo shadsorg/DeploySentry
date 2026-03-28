@@ -4,7 +4,6 @@ import AnalyticsSummary from '../components/analytics/AnalyticsSummary';
 import FlagAnalytics from '../components/analytics/FlagAnalytics';
 import DeploymentAnalytics from '../components/analytics/DeploymentAnalytics';
 import SystemHealthWidget from '../components/analytics/SystemHealthWidget';
-import { analyticsApi } from '../api';
 
 type TimeRange = '24h' | '7d' | '30d';
 type TabType = 'overview' | 'flags' | 'deployments' | 'system';

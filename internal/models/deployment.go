@@ -54,33 +54,17 @@ var validTransitions = map[DeployStatus][]DeployStatus{
 	DeployStatusCancelled:  {},
 }
 
-// DeployPipeline defines an ordered sequence of environments that a deployment
-// must pass through (e.g., staging -> canary -> production).
-type DeployPipeline struct {
-	ID          uuid.UUID `json:"id" db:"id"`
-	ProjectID   uuid.UUID `json:"project_id" db:"project_id"`
-	Name        string    `json:"name" db:"name"`
-	Description string    `json:"description,omitempty" db:"description"`
-	// Stages is the ordered list of environment IDs in this pipeline.
-	Stages    []uuid.UUID `json:"stages" db:"-"`
-	CreatedAt time.Time   `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time   `json:"updated_at" db:"updated_at"`
-}
-
 // Deployment represents a single deployment of an artifact to an environment.
 type Deployment struct {
 	ID             uuid.UUID          `json:"id" db:"id"`
-	ProjectID      uuid.UUID          `json:"project_id" db:"project_id"`
+	ApplicationID  uuid.UUID          `json:"application_id" db:"application_id"`
 	EnvironmentID  uuid.UUID          `json:"environment_id" db:"environment_id"`
-	PipelineID     *uuid.UUID         `json:"pipeline_id,omitempty" db:"pipeline_id"`
-	ReleaseID      *uuid.UUID         `json:"release_id,omitempty" db:"release_id"`
 	Strategy       DeployStrategyType `json:"strategy" db:"strategy"`
 	Status         DeployStatus       `json:"status" db:"status"`
 	Artifact       string             `json:"artifact" db:"artifact"`
 	Version        string             `json:"version" db:"version"`
 	CommitSHA      string             `json:"commit_sha,omitempty" db:"commit_sha"`
 	TrafficPercent int                `json:"traffic_percent" db:"traffic_percent"`
-	Metadata       map[string]string  `json:"metadata,omitempty" db:"-"`
 	CreatedBy      uuid.UUID          `json:"created_by" db:"created_by"`
 	StartedAt      *time.Time         `json:"started_at,omitempty" db:"started_at"`
 	CompletedAt    *time.Time         `json:"completed_at,omitempty" db:"completed_at"`
@@ -141,8 +125,8 @@ func (d *Deployment) TransitionTo(target DeployStatus) error {
 
 // Validate checks that the Deployment has all required fields populated.
 func (d *Deployment) Validate() error {
-	if d.ProjectID == uuid.Nil {
-		return errors.New("project_id is required")
+	if d.ApplicationID == uuid.Nil {
+		return errors.New("application_id is required")
 	}
 	if d.EnvironmentID == uuid.Nil {
 		return errors.New("environment_id is required")

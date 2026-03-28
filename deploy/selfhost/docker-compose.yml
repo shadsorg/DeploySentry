@@ -6,14 +6,19 @@
 #      → Copy the tunnel token
 #      → Add public hostname: deploysentry.yourdomain.com → http://web:80
 #
-#   2. Create .env file:
+#   2. Ensure PostgreSQL is running locally on port 5432 with:
+#      - Database: deploysentry
+#      - User: deploysentry / Password: deploysentry
+#      - Schema: deploy (run init-deploy-schema.sql if needed)
+#
+#   3. Create .env file:
 #      echo "JWT_SECRET=$(openssl rand -base64 32)" > .env
 #      echo "CLOUDFLARE_TUNNEL_TOKEN=your-token-here" >> .env
 #
-#   3. Run migrations (one-time):
+#   4. Run migrations (one-time):
 #      docker compose --profile setup run --rm migrate
 #
-#   4. Start everything:
+#   5. Start everything:
 #      docker compose up -d
 #
 # No port forwarding required. Cloudflare Tunnel handles everything.
@@ -39,7 +44,8 @@ services:
     build:
       context: ../..
       dockerfile: deploy/selfhost/Dockerfile.web
-    # No ports exposed — tunnel routes traffic in
+    ports:
+      - "5001:80"
     depends_on:
       api:
         condition: service_healthy
@@ -55,7 +61,7 @@ services:
     environment:
       DS_SERVER_HOST: 0.0.0.0
       DS_SERVER_PORT: "8080"
-      DS_DATABASE_HOST: postgres
+      DS_DATABASE_HOST: host.docker.internal
       DS_DATABASE_PORT: "5432"
       DS_DATABASE_USER: deploysentry
       DS_DATABASE_PASSWORD: deploysentry
@@ -67,9 +73,9 @@ services:
       DS_NATS_URL: nats://nats:4222
       DS_AUTH_JWT_SECRET: ${JWT_SECRET:-change-me-use-openssl-rand-base64-32}
       DS_LOG_LEVEL: info
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
       nats:
@@ -80,24 +86,6 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
-    restart: unless-stopped
-
-  # -----------------------------------------------------------------------
-  # PostgreSQL
-  # -----------------------------------------------------------------------
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: deploysentry
-      POSTGRES_PASSWORD: deploysentry
-      POSTGRES_DB: deploysentry
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U deploysentry"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
     restart: unless-stopped
 
   # -----------------------------------------------------------------------
@@ -134,15 +122,13 @@ services:
       - ../../migrations:/migrations:ro
     command:
       - -path=/migrations
-      - -database=postgres://deploysentry:deploysentry@postgres:5432/deploysentry?sslmode=disable
+      - -database=postgres://deploysentry:deploysentry@host.docker.internal:5432/deploysentry?sslmode=disable&search_path=deploy
       - up
-    depends_on:
-      postgres:
-        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     profiles:
       - setup
 
 volumes:
-  pgdata:
   redisdata:
   natsdata:

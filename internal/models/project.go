@@ -44,8 +44,8 @@ type ProjectMember struct {
 // Environment represents a deployment target (e.g., staging, production)
 // within a project.
 type Environment struct {
-	ID          uuid.UUID `json:"id" db:"id"`
-	ProjectID   uuid.UUID `json:"project_id" db:"project_id"`
+	ID            uuid.UUID `json:"id" db:"id"`
+	ApplicationID uuid.UUID `json:"application_id" db:"application_id"`
 	Name        string    `json:"name" db:"name"`
 	Slug        string    `json:"slug" db:"slug"`
 	Description string    `json:"description,omitempty" db:"description"`
@@ -74,8 +74,8 @@ func (p *Project) Validate() error {
 
 // Validate checks that the Environment has all required fields populated.
 func (e *Environment) Validate() error {
-	if e.ProjectID == uuid.Nil {
-		return errors.New("project_id is required")
+	if e.ApplicationID == uuid.Nil {
+		return errors.New("application_id is required")
 	}
 	if e.Name == "" {
 		return errors.New("environment name is required")

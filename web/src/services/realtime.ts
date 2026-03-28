@@ -22,11 +22,10 @@ class RealtimeManager {
   private static instance: RealtimeManager;
   private eventSource: EventSource | null = null;
   private eventCallbacks = new Map<RealtimeEventType, Set<EventCallback>>();
-  private refreshInterval: NodeJS.Timeout | null = null;
-  private reconnectTimeout: NodeJS.Timeout | null = null;
+  private refreshInterval: ReturnType<typeof setInterval> | null = null;
+  private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private isConnected = false;
   private baseUrl = '';
-  private apiKey = '';
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
 
@@ -48,7 +47,6 @@ class RealtimeManager {
     refreshInterval?: number;
   } = {}): Promise<void> {
     this.baseUrl = options.baseUrl || '';
-    this.apiKey = options.apiKey || '';
 
     // Set up periodic refresh if specified
     if (options.refreshInterval) {

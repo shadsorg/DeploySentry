@@ -13,11 +13,12 @@ import (
 
 // mockReleaseRepo is an in-memory mock implementation of ReleaseRepository.
 type mockReleaseRepo struct {
-	releases     map[uuid.UUID]*models.Release
-	releaseEnvs  []*models.ReleaseEnvironment
-	createErr    error
-	updateErr    error
-	createEnvErr error
+	releases    map[uuid.UUID]*models.Release
+	flagChanges []*models.ReleaseFlagChange
+	createErr   error
+	updateErr   error
+	deleteErr   error
+	fcErr       error
 }
 
 func newMockRepo() *mockReleaseRepo {
@@ -26,7 +27,7 @@ func newMockRepo() *mockReleaseRepo {
 	}
 }
 
-func (m *mockReleaseRepo) CreateRelease(_ context.Context, release *models.Release) error {
+func (m *mockReleaseRepo) Create(_ context.Context, release *models.Release) error {
 	if m.createErr != nil {
 		return m.createErr
 	}
@@ -35,7 +36,7 @@ func (m *mockReleaseRepo) CreateRelease(_ context.Context, release *models.Relea
 	return nil
 }
 
-func (m *mockReleaseRepo) GetRelease(_ context.Context, id uuid.UUID) (*models.Release, error) {
+func (m *mockReleaseRepo) GetByID(_ context.Context, id uuid.UUID) (*models.Release, error) {
 	r, ok := m.releases[id]
 	if !ok {
 		return nil, errors.New("release not found")
@@ -44,30 +45,17 @@ func (m *mockReleaseRepo) GetRelease(_ context.Context, id uuid.UUID) (*models.R
 	return &copy, nil
 }
 
-func (m *mockReleaseRepo) ListReleases(_ context.Context, projectID uuid.UUID, opts ListOptions) ([]*models.Release, error) {
-	var result []*models.Release
+func (m *mockReleaseRepo) ListByApplication(_ context.Context, appID uuid.UUID) ([]models.Release, error) {
+	var result []models.Release
 	for _, r := range m.releases {
-		if r.ProjectID == projectID {
-			if opts.Status != nil && r.Status != *opts.Status {
-				continue
-			}
-			copy := *r
-			result = append(result, &copy)
+		if r.ApplicationID == appID {
+			result = append(result, *r)
 		}
-	}
-	// Apply simple limit/offset.
-	if opts.Offset > 0 && opts.Offset < len(result) {
-		result = result[opts.Offset:]
-	} else if opts.Offset >= len(result) {
-		result = nil
-	}
-	if opts.Limit > 0 && opts.Limit < len(result) {
-		result = result[:opts.Limit]
 	}
 	return result, nil
 }
 
-func (m *mockReleaseRepo) UpdateRelease(_ context.Context, release *models.Release) error {
+func (m *mockReleaseRepo) Update(_ context.Context, release *models.Release) error {
 	if m.updateErr != nil {
 		return m.updateErr
 	}
@@ -76,61 +64,28 @@ func (m *mockReleaseRepo) UpdateRelease(_ context.Context, release *models.Relea
 	return nil
 }
 
-func (m *mockReleaseRepo) CreateReleaseEnvironment(_ context.Context, re *models.ReleaseEnvironment) error {
-	if m.createEnvErr != nil {
-		return m.createEnvErr
+func (m *mockReleaseRepo) Delete(_ context.Context, id uuid.UUID) error {
+	if m.deleteErr != nil {
+		return m.deleteErr
 	}
-	copy := *re
-	m.releaseEnvs = append(m.releaseEnvs, &copy)
+	delete(m.releases, id)
 	return nil
 }
 
-func (m *mockReleaseRepo) ListReleaseEnvironments(_ context.Context, releaseID uuid.UUID) ([]*models.ReleaseEnvironment, error) {
-	var result []*models.ReleaseEnvironment
-	for _, re := range m.releaseEnvs {
-		if re.ReleaseID == releaseID {
-			copy := *re
-			result = append(result, &copy)
-		}
+func (m *mockReleaseRepo) AddFlagChange(_ context.Context, fc *models.ReleaseFlagChange) error {
+	if m.fcErr != nil {
+		return m.fcErr
 	}
-	return result, nil
+	copy := *fc
+	m.flagChanges = append(m.flagChanges, &copy)
+	return nil
 }
 
-func (m *mockReleaseRepo) UpdateReleaseEnvironment(_ context.Context, re *models.ReleaseEnvironment) error {
-	if m.updateErr != nil {
-		return m.updateErr
-	}
-	for i, existing := range m.releaseEnvs {
-		if existing.ID == re.ID {
-			copy := *re
-			m.releaseEnvs[i] = &copy
-			return nil
-		}
-	}
-	return errors.New("release environment not found")
-}
-
-func (m *mockReleaseRepo) GetLatestRelease(_ context.Context, projectID, environmentID uuid.UUID) (*models.Release, error) {
-	// Return the first release that matches the project.
-	for _, r := range m.releases {
-		if r.ProjectID == projectID {
-			copy := *r
-			return &copy, nil
-		}
-	}
-	return nil, errors.New("no releases found")
-}
-
-func (m *mockReleaseRepo) GetReleaseTimeline(_ context.Context, projectID uuid.UUID) ([]*models.ReleaseTimeline, error) {
-	var result []*models.ReleaseTimeline
-	for _, r := range m.releases {
-		if r.ProjectID == projectID {
-			result = append(result, &models.ReleaseTimeline{
-				ReleaseID: r.ID,
-				Version:   r.Version,
-				Title:     r.Title,
-				Status:    r.LifecycleStatus,
-			})
+func (m *mockReleaseRepo) ListFlagChanges(_ context.Context, releaseID uuid.UUID) ([]models.ReleaseFlagChange, error) {
+	var result []models.ReleaseFlagChange
+	for _, fc := range m.flagChanges {
+		if fc.ReleaseID == releaseID {
+			result = append(result, *fc)
 		}
 	}
 	return result, nil
@@ -139,11 +94,8 @@ func (m *mockReleaseRepo) GetReleaseTimeline(_ context.Context, projectID uuid.U
 // validRelease returns a fully populated Release with all required fields set.
 func validRelease() *models.Release {
 	return &models.Release{
-		ProjectID: uuid.New(),
-		Version:   "1.0.0",
-		Title:     "Initial Release",
-		Artifact:  "app:1.0.0",
-		CreatedBy: uuid.New(),
+		ApplicationID: uuid.New(),
+		Name:          "Enable checkout v2",
 	}
 }
 
@@ -161,7 +113,7 @@ func TestCreate_AssignsIDAndDraftStatus(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.NotEqual(t, uuid.Nil, release.ID, "Create should assign a new UUID")
-	assert.Equal(t, models.ReleaseStatusDraft, release.Status, "Create should set status to draft")
+	assert.Equal(t, models.ReleaseDraft, release.Status, "Create should set status to draft")
 }
 
 func TestCreate_SetsTimestamps(t *testing.T) {
@@ -178,20 +130,6 @@ func TestCreate_SetsTimestamps(t *testing.T) {
 	assert.Equal(t, release.CreatedAt, release.UpdatedAt, "CreatedAt and UpdatedAt should match on creation")
 }
 
-func TestCreate_PreservesExistingID(t *testing.T) {
-	repo := newMockRepo()
-	svc := NewReleaseService(repo)
-	ctx := context.Background()
-
-	presetID := uuid.New()
-	release := validRelease()
-	release.ID = presetID
-
-	err := svc.Create(ctx, release)
-	require.NoError(t, err)
-	assert.Equal(t, presetID, release.ID, "Create should preserve a pre-set non-nil ID")
-}
-
 func TestCreate_ValidationError(t *testing.T) {
 	repo := newMockRepo()
 	svc := NewReleaseService(repo)
@@ -203,29 +141,14 @@ func TestCreate_ValidationError(t *testing.T) {
 		wantMsg string
 	}{
 		{
-			name:    "missing project_id",
-			modify:  func(r *models.Release) { r.ProjectID = uuid.Nil },
-			wantMsg: "project_id is required",
+			name:    "missing application_id",
+			modify:  func(r *models.Release) { r.ApplicationID = uuid.Nil },
+			wantMsg: "application_id is required",
 		},
 		{
-			name:    "missing version",
-			modify:  func(r *models.Release) { r.Version = "" },
-			wantMsg: "version is required",
-		},
-		{
-			name:    "missing title",
-			modify:  func(r *models.Release) { r.Title = "" },
-			wantMsg: "title is required",
-		},
-		{
-			name:    "missing artifact",
-			modify:  func(r *models.Release) { r.Artifact = "" },
-			wantMsg: "artifact is required",
-		},
-		{
-			name:    "missing created_by",
-			modify:  func(r *models.Release) { r.CreatedBy = uuid.Nil },
-			wantMsg: "created_by is required",
+			name:    "missing name",
+			modify:  func(r *models.Release) { r.Name = "" },
+			wantMsg: "name is required",
 		},
 	}
 
@@ -266,15 +189,15 @@ func TestCreate_PersistsToRepo(t *testing.T) {
 
 	stored, ok := repo.releases[release.ID]
 	require.True(t, ok, "release should be stored in the repository")
-	assert.Equal(t, release.Version, stored.Version)
-	assert.Equal(t, models.ReleaseStatusDraft, stored.Status)
+	assert.Equal(t, release.Name, stored.Name)
+	assert.Equal(t, models.ReleaseDraft, stored.Status)
 }
 
 // ---------------------------------------------------------------------------
 // Get tests
 // ---------------------------------------------------------------------------
 
-func TestGet_ExistingRelease(t *testing.T) {
+func TestGetByID_ExistingRelease(t *testing.T) {
 	repo := newMockRepo()
 	svc := NewReleaseService(repo)
 	ctx := context.Background()
@@ -282,271 +205,177 @@ func TestGet_ExistingRelease(t *testing.T) {
 	release := validRelease()
 	require.NoError(t, svc.Create(ctx, release))
 
-	fetched, err := svc.Get(ctx, release.ID)
+	fetched, err := svc.GetByID(ctx, release.ID)
 	require.NoError(t, err)
 	assert.Equal(t, release.ID, fetched.ID)
-	assert.Equal(t, release.Version, fetched.Version)
-	assert.Equal(t, release.Title, fetched.Title)
-	assert.Equal(t, models.ReleaseStatusDraft, fetched.Status)
+	assert.Equal(t, release.Name, fetched.Name)
+	assert.Equal(t, models.ReleaseDraft, fetched.Status)
 }
 
-func TestGet_NotFound(t *testing.T) {
+func TestGetByID_NotFound(t *testing.T) {
 	repo := newMockRepo()
 	svc := NewReleaseService(repo)
 	ctx := context.Background()
 
-	_, err := svc.Get(ctx, uuid.New())
+	_, err := svc.GetByID(ctx, uuid.New())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "getting release")
 }
 
 // ---------------------------------------------------------------------------
-// List tests
+// Lifecycle tests
 // ---------------------------------------------------------------------------
 
-func TestList_DefaultLimit(t *testing.T) {
+func TestStart_DraftToRollingOut(t *testing.T) {
 	repo := newMockRepo()
 	svc := NewReleaseService(repo)
 	ctx := context.Background()
 
-	projectID := uuid.New()
-	// Create 25 releases for the same project.
-	for i := 0; i < 25; i++ {
-		r := validRelease()
-		r.ProjectID = projectID
-		require.NoError(t, svc.Create(ctx, r))
-	}
+	release := validRelease()
+	require.NoError(t, svc.Create(ctx, release))
 
-	// Limit 0 should default to 20.
-	results, err := svc.List(ctx, projectID, ListOptions{Limit: 0})
+	err := svc.Start(ctx, release.ID)
 	require.NoError(t, err)
-	assert.LessOrEqual(t, len(results), 20, "default limit should cap results at 20")
+
+	updated, err := svc.GetByID(ctx, release.ID)
+	require.NoError(t, err)
+	assert.Equal(t, models.ReleaseRollingOut, updated.Status)
+	assert.NotNil(t, updated.StartedAt)
 }
 
-func TestList_CapsAt100(t *testing.T) {
+func TestPromote_UpdatesTrafficPercent(t *testing.T) {
 	repo := newMockRepo()
 	svc := NewReleaseService(repo)
 	ctx := context.Background()
 
-	projectID := uuid.New()
-	// Create 105 releases.
-	for i := 0; i < 105; i++ {
-		r := validRelease()
-		r.ProjectID = projectID
-		require.NoError(t, svc.Create(ctx, r))
-	}
+	release := validRelease()
+	require.NoError(t, svc.Create(ctx, release))
+	require.NoError(t, svc.Start(ctx, release.ID))
 
-	// Requesting limit 200 should be capped to 100.
-	results, err := svc.List(ctx, projectID, ListOptions{Limit: 200})
+	err := svc.Promote(ctx, release.ID, 50)
 	require.NoError(t, err)
-	assert.LessOrEqual(t, len(results), 100, "limit should be capped at 100")
+
+	updated, err := svc.GetByID(ctx, release.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 50, updated.TrafficPercent)
 }
 
-func TestList_NegativeLimit(t *testing.T) {
+func TestPause_RollingOutToPaused(t *testing.T) {
 	repo := newMockRepo()
 	svc := NewReleaseService(repo)
 	ctx := context.Background()
 
-	projectID := uuid.New()
-	for i := 0; i < 25; i++ {
-		r := validRelease()
-		r.ProjectID = projectID
-		require.NoError(t, svc.Create(ctx, r))
-	}
+	release := validRelease()
+	require.NoError(t, svc.Create(ctx, release))
+	require.NoError(t, svc.Start(ctx, release.ID))
 
-	// Negative limit should default to 20.
-	results, err := svc.List(ctx, projectID, ListOptions{Limit: -5})
+	err := svc.Pause(ctx, release.ID)
 	require.NoError(t, err)
-	assert.LessOrEqual(t, len(results), 20, "negative limit should default to 20")
+
+	updated, err := svc.GetByID(ctx, release.ID)
+	require.NoError(t, err)
+	assert.Equal(t, models.ReleasePaused, updated.Status)
 }
 
-func TestList_ReturnsResultsFromRepo(t *testing.T) {
+func TestRollback_SetsRolledBack(t *testing.T) {
 	repo := newMockRepo()
 	svc := NewReleaseService(repo)
 	ctx := context.Background()
 
-	projectID := uuid.New()
-	for i := 0; i < 3; i++ {
-		r := validRelease()
-		r.ProjectID = projectID
-		require.NoError(t, svc.Create(ctx, r))
-	}
+	release := validRelease()
+	require.NoError(t, svc.Create(ctx, release))
+	require.NoError(t, svc.Start(ctx, release.ID))
 
-	// Also create a release for a different project to verify filtering.
-	other := validRelease()
-	require.NoError(t, svc.Create(ctx, other))
-
-	results, err := svc.List(ctx, projectID, ListOptions{Limit: 10})
+	err := svc.Rollback(ctx, release.ID)
 	require.NoError(t, err)
-	assert.Len(t, results, 3, "should return exactly the releases for the given project")
-	for _, r := range results {
-		assert.Equal(t, projectID, r.ProjectID)
-	}
+
+	updated, err := svc.GetByID(ctx, release.ID)
+	require.NoError(t, err)
+	assert.Equal(t, models.ReleaseRolledBack, updated.Status)
+	assert.NotNil(t, updated.CompletedAt)
 }
 
-func TestList_EmptyResults(t *testing.T) {
+func TestComplete_SetsCompleted(t *testing.T) {
 	repo := newMockRepo()
 	svc := NewReleaseService(repo)
 	ctx := context.Background()
 
-	results, err := svc.List(ctx, uuid.New(), ListOptions{Limit: 10})
+	release := validRelease()
+	require.NoError(t, svc.Create(ctx, release))
+	require.NoError(t, svc.Start(ctx, release.ID))
+
+	err := svc.Complete(ctx, release.ID)
 	require.NoError(t, err)
-	assert.Empty(t, results, "listing for non-existent project should return empty slice")
+
+	updated, err := svc.GetByID(ctx, release.ID)
+	require.NoError(t, err)
+	assert.Equal(t, models.ReleaseCompleted, updated.Status)
+	assert.NotNil(t, updated.CompletedAt)
+}
+
+func TestDelete_DraftOnly(t *testing.T) {
+	repo := newMockRepo()
+	svc := NewReleaseService(repo)
+	ctx := context.Background()
+
+	release := validRelease()
+	require.NoError(t, svc.Create(ctx, release))
+
+	// Can delete draft
+	err := svc.Delete(ctx, release.ID)
+	require.NoError(t, err)
+
+	_, err = svc.GetByID(ctx, release.ID)
+	require.Error(t, err)
+}
+
+func TestDelete_NonDraftFails(t *testing.T) {
+	repo := newMockRepo()
+	svc := NewReleaseService(repo)
+	ctx := context.Background()
+
+	release := validRelease()
+	require.NoError(t, svc.Create(ctx, release))
+	require.NoError(t, svc.Start(ctx, release.ID))
+
+	err := svc.Delete(ctx, release.ID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "only draft releases can be deleted")
 }
 
 // ---------------------------------------------------------------------------
-// Promote tests
+// Flag change tests
 // ---------------------------------------------------------------------------
 
-func TestPromote_DraftToActive(t *testing.T) {
+func TestAddFlagChange_Valid(t *testing.T) {
 	repo := newMockRepo()
 	svc := NewReleaseService(repo)
 	ctx := context.Background()
 
-	release := validRelease()
-	require.NoError(t, svc.Create(ctx, release))
-	assert.Equal(t, models.ReleaseStatusDraft, release.Status)
-
-	envID := uuid.New()
-	deployedBy := uuid.New()
-	err := svc.Promote(ctx, release.ID, envID, deployedBy)
+	fc := &models.ReleaseFlagChange{
+		ReleaseID:     uuid.New(),
+		FlagID:        uuid.New(),
+		EnvironmentID: uuid.New(),
+	}
+	err := svc.AddFlagChange(ctx, fc)
 	require.NoError(t, err)
-
-	// Verify the release was transitioned to active.
-	updated, err := svc.Get(ctx, release.ID)
-	require.NoError(t, err)
-	assert.Equal(t, models.ReleaseStatusActive, updated.Status)
-	assert.NotNil(t, updated.ReleasedAt, "ReleasedAt should be set after promotion")
-	assert.False(t, updated.UpdatedAt.IsZero(), "UpdatedAt should be refreshed")
+	assert.NotEqual(t, uuid.Nil, fc.ID)
 }
 
-func TestPromote_CreatesReleaseEnvironment(t *testing.T) {
+func TestListFlagChanges(t *testing.T) {
 	repo := newMockRepo()
 	svc := NewReleaseService(repo)
 	ctx := context.Background()
 
-	release := validRelease()
-	require.NoError(t, svc.Create(ctx, release))
+	releaseID := uuid.New()
+	fc := &models.ReleaseFlagChange{
+		ReleaseID:     releaseID,
+		FlagID:        uuid.New(),
+		EnvironmentID: uuid.New(),
+	}
+	require.NoError(t, svc.AddFlagChange(ctx, fc))
 
-	envID := uuid.New()
-	deployedBy := uuid.New()
-	err := svc.Promote(ctx, release.ID, envID, deployedBy)
+	changes, err := svc.ListFlagChanges(ctx, releaseID)
 	require.NoError(t, err)
-
-	// Verify the release-environment record was created.
-	require.Len(t, repo.releaseEnvs, 1)
-	re := repo.releaseEnvs[0]
-	assert.Equal(t, release.ID, re.ReleaseID)
-	assert.Equal(t, envID, re.EnvironmentID)
-	assert.Equal(t, models.ReleaseStatusActive, re.Status)
-	assert.NotNil(t, re.DeployedAt)
-	require.NotNil(t, re.DeployedBy)
-	assert.Equal(t, deployedBy, *re.DeployedBy)
-	assert.NotEqual(t, uuid.Nil, re.ID, "release environment should have an assigned ID")
-}
-
-func TestPromote_AlreadyActiveSkipsTransition(t *testing.T) {
-	repo := newMockRepo()
-	svc := NewReleaseService(repo)
-	ctx := context.Background()
-
-	release := validRelease()
-	require.NoError(t, svc.Create(ctx, release))
-
-	// First promotion: draft -> active.
-	envID1 := uuid.New()
-	deployedBy := uuid.New()
-	require.NoError(t, svc.Promote(ctx, release.ID, envID1, deployedBy))
-
-	// Verify it is now active.
-	updated, err := svc.Get(ctx, release.ID)
-	require.NoError(t, err)
-	assert.Equal(t, models.ReleaseStatusActive, updated.Status)
-	firstReleasedAt := updated.ReleasedAt
-
-	// Second promotion: already active, should still create env record.
-	envID2 := uuid.New()
-	err = svc.Promote(ctx, release.ID, envID2, deployedBy)
-	require.NoError(t, err)
-
-	// Verify ReleasedAt was not overwritten (status was already active, no re-transition).
-	afterSecond, err := svc.Get(ctx, release.ID)
-	require.NoError(t, err)
-	assert.Equal(t, models.ReleaseStatusActive, afterSecond.Status)
-	assert.Equal(t, firstReleasedAt, afterSecond.ReleasedAt, "ReleasedAt should not change on second promote")
-
-	// Verify two environment records exist.
-	assert.Len(t, repo.releaseEnvs, 2)
-	assert.Equal(t, envID1, repo.releaseEnvs[0].EnvironmentID)
-	assert.Equal(t, envID2, repo.releaseEnvs[1].EnvironmentID)
-}
-
-func TestPromote_ReleaseNotFound(t *testing.T) {
-	repo := newMockRepo()
-	svc := NewReleaseService(repo)
-	ctx := context.Background()
-
-	err := svc.Promote(ctx, uuid.New(), uuid.New(), uuid.New())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "getting release for promotion")
-}
-
-func TestPromote_NonDraftRelease_SkipsTransition(t *testing.T) {
-	repo := newMockRepo()
-	svc := NewReleaseService(repo)
-	ctx := context.Background()
-
-	release := validRelease()
-	require.NoError(t, svc.Create(ctx, release))
-
-	// Manually set the release to active (non-draft) to test that Promote
-	// skips the draft->active transition and still creates the env record.
-	stored := repo.releases[release.ID]
-	stored.Status = models.ReleaseStatusActive
-
-	envID := uuid.New()
-	deployedBy := uuid.New()
-	err := svc.Promote(ctx, release.ID, envID, deployedBy)
-	require.NoError(t, err)
-
-	// Verify the release environment was created.
-	assert.Len(t, repo.releaseEnvs, 1)
-	assert.Equal(t, envID, repo.releaseEnvs[0].EnvironmentID)
-}
-
-func TestPromote_CreateReleaseEnvironmentFails(t *testing.T) {
-	envErr := errors.New("environment table locked")
-	repo := newMockRepo()
-	repo.createEnvErr = envErr
-	svc := NewReleaseService(repo)
-	ctx := context.Background()
-
-	release := validRelease()
-	require.NoError(t, svc.Create(ctx, release))
-
-	// Reset createErr to nil since we only want CreateReleaseEnvironment to fail.
-	repo.createErr = nil
-
-	err := svc.Promote(ctx, release.ID, uuid.New(), uuid.New())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "creating release environment")
-	assert.ErrorIs(t, err, envErr)
-}
-
-func TestPromote_UpdateReleaseFails(t *testing.T) {
-	updateErr := errors.New("optimistic lock conflict")
-	repo := newMockRepo()
-	svc := NewReleaseService(repo)
-	ctx := context.Background()
-
-	release := validRelease()
-	require.NoError(t, svc.Create(ctx, release))
-
-	// Set the update error after creation to simulate failure during promotion.
-	repo.updateErr = updateErr
-
-	err := svc.Promote(ctx, release.ID, uuid.New(), uuid.New())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "activating release")
-	assert.ErrorIs(t, err, updateErr)
+	assert.Len(t, changes, 1)
 }

@@ -1,7 +1,7 @@
 export type FlagCategory = 'release' | 'feature' | 'experiment' | 'ops' | 'permission';
 export type FlagType = 'boolean' | 'string' | 'integer' | 'json';
 export type DeployStrategy = 'canary' | 'blue-green' | 'rolling';
-export type DeployStatus = 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'rolled_back';
+export type DeployStatus = 'pending' | 'running' | 'paused' | 'completed' | 'failed' | 'rolled_back' | 'active' | 'rolling-back';
 export type ReleaseStatus = 'draft' | 'staging' | 'canary' | 'production' | 'archived';
 export type RuleType = 'percentage' | 'user_target' | 'attribute' | 'segment' | 'schedule';
 

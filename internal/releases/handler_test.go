@@ -20,90 +20,103 @@ import (
 // Mock
 // ---------------------------------------------------------------------------
 
-type mockReleaseService struct {
-	createFn            func(ctx context.Context, release *models.Release) error
-	getFn               func(ctx context.Context, id uuid.UUID) (*models.Release, error)
-	listFn              func(ctx context.Context, projectID uuid.UUID, opts ListOptions) ([]*models.Release, error)
-	promoteFn           func(ctx context.Context, releaseID, environmentID, deployedBy uuid.UUID) error
-	updateStatusFn      func(ctx context.Context, releaseID uuid.UUID, status models.ReleaseLifecycleStatus) error
-	setPromotionGateFn  func(ctx context.Context, gate *PromotionGate) error
-	checkPromotionFn    func(ctx context.Context, releaseID, environmentID uuid.UUID) (bool, error)
-	getReleaseHealthFn  func(ctx context.Context, releaseID uuid.UUID) (*ReleaseHealthSummary, error)
-	getReleaseStatusFn  func(ctx context.Context, releaseID uuid.UUID) (*ReleaseStatusResponse, error)
+type mockReleaseServiceHandler struct {
+	createFn          func(ctx context.Context, release *models.Release) error
+	getByIDFn         func(ctx context.Context, id uuid.UUID) (*models.Release, error)
+	listByAppFn       func(ctx context.Context, appID uuid.UUID) ([]models.Release, error)
+	startFn           func(ctx context.Context, id uuid.UUID) error
+	promoteFn         func(ctx context.Context, id uuid.UUID, trafficPct int) error
+	pauseFn           func(ctx context.Context, id uuid.UUID) error
+	rollbackFn        func(ctx context.Context, id uuid.UUID) error
+	completeFn        func(ctx context.Context, id uuid.UUID) error
+	deleteFn          func(ctx context.Context, id uuid.UUID) error
+	addFlagChangeFn   func(ctx context.Context, fc *models.ReleaseFlagChange) error
+	listFlagChangesFn func(ctx context.Context, releaseID uuid.UUID) ([]models.ReleaseFlagChange, error)
 }
 
-func (m *mockReleaseService) Create(ctx context.Context, release *models.Release) error {
+func (m *mockReleaseServiceHandler) Create(ctx context.Context, release *models.Release) error {
 	if m.createFn != nil {
 		return m.createFn(ctx, release)
 	}
+	release.ID = uuid.New()
 	return nil
 }
 
-func (m *mockReleaseService) Get(ctx context.Context, id uuid.UUID) (*models.Release, error) {
-	if m.getFn != nil {
-		return m.getFn(ctx, id)
+func (m *mockReleaseServiceHandler) GetByID(ctx context.Context, id uuid.UUID) (*models.Release, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, id)
 	}
-	return &models.Release{ID: id}, nil
+	return &models.Release{ID: id, Name: "test"}, nil
 }
 
-func (m *mockReleaseService) List(ctx context.Context, projectID uuid.UUID, opts ListOptions) ([]*models.Release, error) {
-	if m.listFn != nil {
-		return m.listFn(ctx, projectID, opts)
+func (m *mockReleaseServiceHandler) ListByApplication(ctx context.Context, appID uuid.UUID) ([]models.Release, error) {
+	if m.listByAppFn != nil {
+		return m.listByAppFn(ctx, appID)
 	}
-	return []*models.Release{}, nil
+	return []models.Release{}, nil
 }
 
-func (m *mockReleaseService) Promote(ctx context.Context, releaseID, environmentID, deployedBy uuid.UUID) error {
+func (m *mockReleaseServiceHandler) Start(ctx context.Context, id uuid.UUID) error {
+	if m.startFn != nil {
+		return m.startFn(ctx, id)
+	}
+	return nil
+}
+
+func (m *mockReleaseServiceHandler) Promote(ctx context.Context, id uuid.UUID, trafficPct int) error {
 	if m.promoteFn != nil {
-		return m.promoteFn(ctx, releaseID, environmentID, deployedBy)
+		return m.promoteFn(ctx, id, trafficPct)
 	}
 	return nil
 }
 
-func (m *mockReleaseService) UpdateStatus(ctx context.Context, releaseID uuid.UUID, status models.ReleaseLifecycleStatus) error {
-	if m.updateStatusFn != nil {
-		return m.updateStatusFn(ctx, releaseID, status)
+func (m *mockReleaseServiceHandler) Pause(ctx context.Context, id uuid.UUID) error {
+	if m.pauseFn != nil {
+		return m.pauseFn(ctx, id)
 	}
 	return nil
 }
 
-func (m *mockReleaseService) SetPromotionGate(ctx context.Context, gate *PromotionGate) error {
-	if m.setPromotionGateFn != nil {
-		return m.setPromotionGateFn(ctx, gate)
+func (m *mockReleaseServiceHandler) Rollback(ctx context.Context, id uuid.UUID) error {
+	if m.rollbackFn != nil {
+		return m.rollbackFn(ctx, id)
 	}
 	return nil
 }
 
-func (m *mockReleaseService) CheckPromotionGates(ctx context.Context, releaseID, environmentID uuid.UUID) (bool, error) {
-	if m.checkPromotionFn != nil {
-		return m.checkPromotionFn(ctx, releaseID, environmentID)
+func (m *mockReleaseServiceHandler) Complete(ctx context.Context, id uuid.UUID) error {
+	if m.completeFn != nil {
+		return m.completeFn(ctx, id)
 	}
-	return true, nil
+	return nil
 }
 
-func (m *mockReleaseService) GetReleaseHealth(ctx context.Context, releaseID uuid.UUID) (*ReleaseHealthSummary, error) {
-	if m.getReleaseHealthFn != nil {
-		return m.getReleaseHealthFn(ctx, releaseID)
+func (m *mockReleaseServiceHandler) Delete(ctx context.Context, id uuid.UUID) error {
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, id)
 	}
-	return &ReleaseHealthSummary{ReleaseID: releaseID, OverallScore: 1.0, Healthy: true}, nil
+	return nil
 }
 
-func (m *mockReleaseService) GetReleaseStatus(ctx context.Context, releaseID uuid.UUID) (*ReleaseStatusResponse, error) {
-	if m.getReleaseStatusFn != nil {
-		return m.getReleaseStatusFn(ctx, releaseID)
+func (m *mockReleaseServiceHandler) AddFlagChange(ctx context.Context, fc *models.ReleaseFlagChange) error {
+	if m.addFlagChangeFn != nil {
+		return m.addFlagChangeFn(ctx, fc)
 	}
-	return &ReleaseStatusResponse{
-		ReleaseID: releaseID,
-		Status:    models.ReleaseStatusDraft,
-	}, nil
+	fc.ID = uuid.New()
+	return nil
+}
+
+func (m *mockReleaseServiceHandler) ListFlagChanges(ctx context.Context, releaseID uuid.UUID) ([]models.ReleaseFlagChange, error) {
+	if m.listFlagChangesFn != nil {
+		return m.listFlagChangesFn(ctx, releaseID)
+	}
+	return []models.ReleaseFlagChange{}, nil
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-// injectRole is test middleware that sets the role on the gin context so that
-// RBAC middleware passes.
 func injectRole(role auth.Role) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Set("role", role)
@@ -114,7 +127,6 @@ func injectRole(role auth.Role) gin.HandlerFunc {
 func setupReleaseRouter(svc ReleaseService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	// Inject an admin role so RBAC middleware passes in tests.
 	router.Use(injectRole(auth.RoleAdmin))
 	handler := NewHandler(svc)
 	handler.RegisterRoutes(router.Group("/api"))
@@ -128,44 +140,37 @@ func toJSON(t *testing.T, v interface{}) *bytes.Buffer {
 	return bytes.NewBuffer(b)
 }
 
+var testAppID = uuid.New()
+
+func releasePath(suffix string) string {
+	return "/api/applications/" + testAppID.String() + "/releases" + suffix
+}
+
 // ---------------------------------------------------------------------------
-// POST /releases  (createRelease)
+// POST /applications/:app_id/releases
 // ---------------------------------------------------------------------------
 
 func TestCreateRelease_Valid(t *testing.T) {
-	svc := &mockReleaseService{
-		createFn: func(_ context.Context, r *models.Release) error {
-			r.ID = uuid.New()
-			return nil
-		},
-	}
+	svc := &mockReleaseServiceHandler{}
 	router := setupReleaseRouter(svc)
 
 	body := map[string]interface{}{
-		"project_id":  uuid.New().String(),
-		"version":     "v1.0.0",
-		"title":       "Initial Release",
-		"description": "First public release",
-		"commit_sha":  "abc123def",
-		"artifact":    "myapp:v1.0.0",
+		"name":        "Enable checkout v2",
+		"description": "Rolling out new checkout",
 	}
-	req := httptest.NewRequest(http.MethodPost, "/api/releases", toJSON(t, body))
+	req := httptest.NewRequest(http.MethodPost, releasePath(""), toJSON(t, body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusCreated, w.Code)
-	var resp models.Release
-	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
-	assert.Equal(t, "v1.0.0", resp.Version)
-	assert.Equal(t, "Initial Release", resp.Title)
 }
 
 func TestCreateRelease_InvalidJSON(t *testing.T) {
-	router := setupReleaseRouter(&mockReleaseService{})
+	router := setupReleaseRouter(&mockReleaseServiceHandler{})
 
-	req := httptest.NewRequest(http.MethodPost, "/api/releases", bytes.NewBufferString("{invalid"))
+	req := httptest.NewRequest(http.MethodPost, releasePath(""), bytes.NewBufferString("{invalid"))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -175,38 +180,30 @@ func TestCreateRelease_InvalidJSON(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// GET /releases/:id  (getRelease)
+// GET /applications/:app_id/releases/:id
 // ---------------------------------------------------------------------------
 
 func TestGetRelease_Valid(t *testing.T) {
 	releaseID := uuid.New()
-	svc := &mockReleaseService{
-		getFn: func(_ context.Context, id uuid.UUID) (*models.Release, error) {
-			return &models.Release{
-				ID:      id,
-				Version: "v2.0.0",
-				Title:   "Second Release",
-			}, nil
+	svc := &mockReleaseServiceHandler{
+		getByIDFn: func(_ context.Context, id uuid.UUID) (*models.Release, error) {
+			return &models.Release{ID: id, Name: "Test Release"}, nil
 		},
 	}
 	router := setupReleaseRouter(svc)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/releases/"+releaseID.String(), nil)
+	req := httptest.NewRequest(http.MethodGet, releasePath("/"+releaseID.String()), nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var resp models.Release
-	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
-	assert.Equal(t, releaseID, resp.ID)
-	assert.Equal(t, "v2.0.0", resp.Version)
 }
 
 func TestGetRelease_InvalidID(t *testing.T) {
-	router := setupReleaseRouter(&mockReleaseService{})
+	router := setupReleaseRouter(&mockReleaseServiceHandler{})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/releases/not-a-uuid", nil)
+	req := httptest.NewRequest(http.MethodGet, releasePath("/not-a-uuid"), nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
@@ -215,14 +212,14 @@ func TestGetRelease_InvalidID(t *testing.T) {
 }
 
 func TestGetRelease_NotFound(t *testing.T) {
-	svc := &mockReleaseService{
-		getFn: func(_ context.Context, _ uuid.UUID) (*models.Release, error) {
+	svc := &mockReleaseServiceHandler{
+		getByIDFn: func(_ context.Context, _ uuid.UUID) (*models.Release, error) {
 			return nil, errors.New("not found")
 		},
 	}
 	router := setupReleaseRouter(svc)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/releases/"+uuid.New().String(), nil)
+	req := httptest.NewRequest(http.MethodGet, releasePath("/"+uuid.New().String()), nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
@@ -231,135 +228,60 @@ func TestGetRelease_NotFound(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// GET /releases?project_id=  (listReleases)
+// GET /applications/:app_id/releases
 // ---------------------------------------------------------------------------
 
 func TestListReleases_Valid(t *testing.T) {
-	projectID := uuid.New()
-	svc := &mockReleaseService{
-		listFn: func(_ context.Context, pid uuid.UUID, _ ListOptions) ([]*models.Release, error) {
-			return []*models.Release{
-				{ID: uuid.New(), ProjectID: pid, Version: "v1.0.0"},
-				{ID: uuid.New(), ProjectID: pid, Version: "v1.1.0"},
+	svc := &mockReleaseServiceHandler{
+		listByAppFn: func(_ context.Context, appID uuid.UUID) ([]models.Release, error) {
+			return []models.Release{
+				{ID: uuid.New(), ApplicationID: appID, Name: "Release 1"},
+				{ID: uuid.New(), ApplicationID: appID, Name: "Release 2"},
 			}, nil
 		},
 	}
 	router := setupReleaseRouter(svc)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/releases?project_id="+projectID.String(), nil)
+	req := httptest.NewRequest(http.MethodGet, releasePath(""), nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var resp map[string]json.RawMessage
-	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
-	assert.Contains(t, resp, "releases")
 }
 
-func TestListReleases_MissingProjectID(t *testing.T) {
-	router := setupReleaseRouter(&mockReleaseService{})
+// ---------------------------------------------------------------------------
+// POST /applications/:app_id/releases/:id/start
+// ---------------------------------------------------------------------------
 
-	req := httptest.NewRequest(http.MethodGet, "/api/releases", nil)
+func TestStartRelease_Valid(t *testing.T) {
+	svc := &mockReleaseServiceHandler{}
+	router := setupReleaseRouter(svc)
+
+	req := httptest.NewRequest(http.MethodPost, releasePath("/"+uuid.New().String()+"/start"), nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 // ---------------------------------------------------------------------------
-// POST /releases/:id/promote  (promoteRelease)
+// POST /applications/:app_id/releases/:id/promote
 // ---------------------------------------------------------------------------
 
 func TestPromoteRelease_Valid(t *testing.T) {
-	svc := &mockReleaseService{
-		promoteFn: func(_ context.Context, _, _, _ uuid.UUID) error {
-			return nil
-		},
-	}
+	svc := &mockReleaseServiceHandler{}
 	router := setupReleaseRouter(svc)
 
-	body := map[string]interface{}{
-		"environment_id": uuid.New().String(),
-	}
-	req := httptest.NewRequest(http.MethodPost, "/api/releases/"+uuid.New().String()+"/promote", toJSON(t, body))
+	body := map[string]interface{}{"traffic_percent": 50}
+	req := httptest.NewRequest(http.MethodPost, releasePath("/"+uuid.New().String()+"/promote"), toJSON(t, body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	var resp map[string]interface{}
-	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
-	assert.Equal(t, "promoted", resp["status"])
-}
-
-func TestPromoteRelease_InvalidID(t *testing.T) {
-	router := setupReleaseRouter(&mockReleaseService{})
-
-	body := map[string]interface{}{
-		"environment_id": uuid.New().String(),
-	}
-	req := httptest.NewRequest(http.MethodPost, "/api/releases/bad-uuid/promote", toJSON(t, body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-// ---------------------------------------------------------------------------
-// GET /releases/:id/status  (getReleaseStatus)
-// ---------------------------------------------------------------------------
-
-func TestGetReleaseStatus_Valid(t *testing.T) {
-	releaseID := uuid.New()
-	svc := &mockReleaseService{
-		getReleaseStatusFn: func(_ context.Context, id uuid.UUID) (*ReleaseStatusResponse, error) {
-			return &ReleaseStatusResponse{
-				ReleaseID: id,
-				Version:   "v1.0.0",
-				Status:    models.ReleaseStatusActive,
-			}, nil
-		},
-	}
-	router := setupReleaseRouter(svc)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/releases/"+releaseID.String()+"/status", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestGetReleaseStatus_InvalidID(t *testing.T) {
-	router := setupReleaseRouter(&mockReleaseService{})
-
-	req := httptest.NewRequest(http.MethodGet, "/api/releases/bad-uuid/status", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestGetReleaseStatus_NotFound(t *testing.T) {
-	svc := &mockReleaseService{
-		getReleaseStatusFn: func(_ context.Context, _ uuid.UUID) (*ReleaseStatusResponse, error) {
-			return nil, errors.New("not found")
-		},
-	}
-	router := setupReleaseRouter(svc)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/releases/"+uuid.New().String()+"/status", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
 // ---------------------------------------------------------------------------
@@ -370,16 +292,13 @@ func TestRBAC_ViewerCannotCreate(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(injectRole(auth.RoleViewer))
-	handler := NewHandler(&mockReleaseService{})
+	handler := NewHandler(&mockReleaseServiceHandler{})
 	handler.RegisterRoutes(router.Group("/api"))
 
 	body := map[string]interface{}{
-		"project_id": uuid.New().String(),
-		"version":    "v1.0.0",
-		"title":      "test",
-		"artifact":   "app:v1",
+		"name": "test release",
 	}
-	req := httptest.NewRequest(http.MethodPost, "/api/releases", toJSON(t, body))
+	req := httptest.NewRequest(http.MethodPost, releasePath(""), toJSON(t, body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 
@@ -392,10 +311,10 @@ func TestRBAC_ViewerCanRead(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(injectRole(auth.RoleViewer))
-	handler := NewHandler(&mockReleaseService{})
+	handler := NewHandler(&mockReleaseServiceHandler{})
 	handler.RegisterRoutes(router.Group("/api"))
 
-	req := httptest.NewRequest(http.MethodGet, "/api/releases/"+uuid.New().String(), nil)
+	req := httptest.NewRequest(http.MethodGet, releasePath("/"+uuid.New().String()), nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)

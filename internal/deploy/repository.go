@@ -17,26 +17,14 @@ type DeployRepository interface {
 	// GetDeployment retrieves a deployment by its unique identifier.
 	GetDeployment(ctx context.Context, id uuid.UUID) (*models.Deployment, error)
 
-	// ListDeployments returns deployments for a project, ordered by creation time descending.
-	ListDeployments(ctx context.Context, projectID uuid.UUID, opts ListOptions) ([]*models.Deployment, error)
+	// ListDeployments returns deployments for an application, ordered by creation time descending.
+	ListDeployments(ctx context.Context, applicationID uuid.UUID, opts ListOptions) ([]*models.Deployment, error)
 
 	// UpdateDeployment persists changes to an existing deployment.
 	UpdateDeployment(ctx context.Context, d *models.Deployment) error
 
-	// ListDeploymentPhases returns the ordered phases for a deployment.
-	ListDeploymentPhases(ctx context.Context, deploymentID uuid.UUID) ([]*models.DeploymentPhase, error)
-
-	// CreateDeploymentPhase persists a new deployment phase.
-	CreateDeploymentPhase(ctx context.Context, phase *models.DeploymentPhase) error
-
-	// UpdateDeploymentPhase persists changes to an existing deployment phase.
-	UpdateDeploymentPhase(ctx context.Context, phase *models.DeploymentPhase) error
-
-	// GetPipeline retrieves a deploy pipeline by ID.
-	GetPipeline(ctx context.Context, id uuid.UUID) (*models.DeployPipeline, error)
-
-	// GetLatestDeployment returns the most recent deployment for a project and environment.
-	GetLatestDeployment(ctx context.Context, projectID, environmentID uuid.UUID) (*models.Deployment, error)
+	// GetLatestDeployment returns the most recent deployment for an application and environment.
+	GetLatestDeployment(ctx context.Context, applicationID, environmentID uuid.UUID) (*models.Deployment, error)
 }
 
 // ListOptions controls pagination and filtering for list queries.

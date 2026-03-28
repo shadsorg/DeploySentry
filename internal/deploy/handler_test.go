@@ -22,12 +22,12 @@ import (
 type mockDeployService struct {
 	createFn    func(ctx context.Context, d *models.Deployment) error
 	getFn       func(ctx context.Context, id uuid.UUID) (*models.Deployment, error)
-	listFn      func(ctx context.Context, projectID uuid.UUID, opts ListOptions) ([]*models.Deployment, error)
+	listFn      func(ctx context.Context, applicationID uuid.UUID, opts ListOptions) ([]*models.Deployment, error)
 	promoteFn   func(ctx context.Context, id uuid.UUID) error
 	rollbackFn  func(ctx context.Context, id uuid.UUID) error
 	pauseFn     func(ctx context.Context, id uuid.UUID) error
 	resumeFn    func(ctx context.Context, id uuid.UUID) error
-	getActiveFn func(ctx context.Context, projectID uuid.UUID) ([]*models.Deployment, error)
+	getActiveFn func(ctx context.Context, applicationID uuid.UUID) ([]*models.Deployment, error)
 }
 
 func (m *mockDeployService) CreateDeployment(ctx context.Context, d *models.Deployment) error {
@@ -44,9 +44,9 @@ func (m *mockDeployService) GetDeployment(ctx context.Context, id uuid.UUID) (*m
 	return &models.Deployment{ID: id}, nil
 }
 
-func (m *mockDeployService) ListDeployments(ctx context.Context, projectID uuid.UUID, opts ListOptions) ([]*models.Deployment, error) {
+func (m *mockDeployService) ListDeployments(ctx context.Context, applicationID uuid.UUID, opts ListOptions) ([]*models.Deployment, error) {
 	if m.listFn != nil {
-		return m.listFn(ctx, projectID, opts)
+		return m.listFn(ctx, applicationID, opts)
 	}
 	return []*models.Deployment{}, nil
 }
@@ -79,9 +79,9 @@ func (m *mockDeployService) ResumeDeployment(ctx context.Context, id uuid.UUID) 
 	return nil
 }
 
-func (m *mockDeployService) GetActiveDeployments(ctx context.Context, projectID uuid.UUID) ([]*models.Deployment, error) {
+func (m *mockDeployService) GetActiveDeployments(ctx context.Context, applicationID uuid.UUID) ([]*models.Deployment, error) {
 	if m.getActiveFn != nil {
-		return m.getActiveFn(ctx, projectID)
+		return m.getActiveFn(ctx, applicationID)
 	}
 	return []*models.Deployment{}, nil
 }
@@ -120,7 +120,7 @@ func TestCreateDeployment_Valid(t *testing.T) {
 	router := setupDeployRouter(svc)
 
 	body := map[string]interface{}{
-		"project_id":     uuid.New().String(),
+		"application_id": uuid.New().String(),
 		"environment_id": uuid.New().String(),
 		"strategy":       "canary",
 		"artifact":       "myapp:v1.2.3",
@@ -160,7 +160,7 @@ func TestCreateDeployment_ServiceError(t *testing.T) {
 	router := setupDeployRouter(svc)
 
 	body := map[string]interface{}{
-		"project_id":     uuid.New().String(),
+		"application_id": uuid.New().String(),
 		"environment_id": uuid.New().String(),
 		"strategy":       "canary",
 		"artifact":       "myapp:v1.0.0",
@@ -227,21 +227,21 @@ func TestHandler_GetDeployment_NotFound(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// GET /deployments?project_id=  (listDeployments)
+// GET /deployments?app_id=  (listDeployments)
 // ---------------------------------------------------------------------------
 
 func TestListDeployments_Valid(t *testing.T) {
-	projectID := uuid.New()
+	applicationID := uuid.New()
 	svc := &mockDeployService{
-		listFn: func(_ context.Context, pid uuid.UUID, _ ListOptions) ([]*models.Deployment, error) {
+		listFn: func(_ context.Context, appID uuid.UUID, _ ListOptions) ([]*models.Deployment, error) {
 			return []*models.Deployment{
-				{ID: uuid.New(), ProjectID: pid, Artifact: "app:v1"},
+				{ID: uuid.New(), ApplicationID: appID, Artifact: "app:v1"},
 			}, nil
 		},
 	}
 	router := setupDeployRouter(svc)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/deployments?project_id="+projectID.String(), nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/deployments?app_id="+applicationID.String(), nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
@@ -252,7 +252,7 @@ func TestListDeployments_Valid(t *testing.T) {
 	assert.Contains(t, resp, "deployments")
 }
 
-func TestListDeployments_MissingProjectID(t *testing.T) {
+func TestListDeployments_MissingAppID(t *testing.T) {
 	router := setupDeployRouter(&mockDeployService{})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/deployments", nil)
@@ -263,10 +263,10 @@ func TestListDeployments_MissingProjectID(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestListDeployments_InvalidProjectID(t *testing.T) {
+func TestListDeployments_InvalidAppID(t *testing.T) {
 	router := setupDeployRouter(&mockDeployService{})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/deployments?project_id=invalid", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/deployments?app_id=invalid", nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)

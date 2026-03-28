@@ -75,7 +75,6 @@ services:
     name: deploysentry-web
     runtime: static
     plan: starter
-    region: ohio
     repo: https://github.com/shadsorg/DeploySentry.git
     branch: main
     buildCommand: cd web && npm ci && npm run build
@@ -93,7 +92,7 @@ services:
         fromService:
           name: deploysentry-api
           type: web
-          property: url
+          property: host
 
   # -----------------------------------------------------------------------
   # NATS (Private Service)

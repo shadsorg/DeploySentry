@@ -1,4 +1,4 @@
-import type { Flag, Deployment, Release, ApiKey, CreateFlagRequest, UpdateFlagRequest, TargetingRule } from './types';
+import type { Flag, Deployment, Release, ApiKey, CreateFlagRequest, UpdateFlagRequest, TargetingRule, Organization, Application } from './types';
 
 const BASE = '/api/v1';
 
@@ -177,4 +177,17 @@ export const analyticsApi = {
     const qs = new URLSearchParams({ project_id: projectId, start_date: startDate, end_date: endDate, format });
     return request<any>(`/analytics/admin/export?${qs}`);
   },
+};
+
+// Organizations
+export const orgsApi = {
+  list: () => request<{ organizations: Organization[] }>('/orgs'),
+  get: (slug: string) => request<Organization>(`/orgs/${slug}`),
+};
+
+// Applications
+export const applicationsApi = {
+  list: (projectId: string) =>
+    request<{ applications: Application[] }>(`/projects/${projectId}/applications`),
+  get: (id: string) => request<Application>(`/applications/${id}`),
 };

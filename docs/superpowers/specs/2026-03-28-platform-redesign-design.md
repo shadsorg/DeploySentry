@@ -50,52 +50,97 @@ CREATE TABLE applications (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE(project_id, slug)
 );
+
+CREATE INDEX idx_applications_project ON applications(project_id);
 ```
 
 ### 2.2 Modified: `environments`
 
-Move from project-scoped to application-scoped.
+Move from project-scoped to application-scoped. The existing unique constraint `(project_id, slug)` must be dropped and recreated as `(application_id, slug)`.
 
 ```sql
--- Migration: rename project_id → application_id
+-- Drop existing constraint and FK
+ALTER TABLE environments DROP CONSTRAINT IF EXISTS environments_project_id_slug_key;
+ALTER TABLE environments DROP CONSTRAINT IF EXISTS environments_project_id_fkey;
+
+-- Rename column
 ALTER TABLE environments RENAME COLUMN project_id TO application_id;
+
+-- Add new FK and unique constraint
 ALTER TABLE environments ADD CONSTRAINT fk_environments_application
     FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE;
+ALTER TABLE environments ADD CONSTRAINT environments_application_id_slug_key
+    UNIQUE (application_id, slug);
+
+CREATE INDEX idx_environments_application ON environments(application_id);
 ```
 
 ### 2.3 Modified: `deployments`
 
-Deployments become the code-shipping concept. Absorb version/artifact/commit fields from the old Release model. Scoped to application.
+Deployments become the code-shipping concept. Absorb version/artifact/commit fields from the old Release model. Scoped to application + environment.
+
+Note: The existing `deployments` table has `pipeline_id` (FK to `deploy_pipelines`), `release_id`, and a TEXT `environment` column from the original migration. The `project_id` was added later in migration 023 as nullable. This migration must handle all of these legacy columns.
 
 ```sql
+-- Drop legacy FKs and columns
+ALTER TABLE deployments DROP CONSTRAINT IF EXISTS deployments_pipeline_id_fkey;
+ALTER TABLE deployments DROP CONSTRAINT IF EXISTS deployments_release_id_fkey;
+ALTER TABLE deployments DROP COLUMN IF EXISTS pipeline_id;
+ALTER TABLE deployments DROP COLUMN IF EXISTS release_id;
+ALTER TABLE deployments DROP COLUMN IF EXISTS environment;  -- TEXT column, replaced by environment_id FK
+
+-- Rename project_id → application_id
 ALTER TABLE deployments RENAME COLUMN project_id TO application_id;
 ALTER TABLE deployments ADD CONSTRAINT fk_deployments_application
     FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE;
 
--- Ensure these columns exist (some already do from schema reconciliation)
+-- Ensure environment_id exists as a proper FK
+ALTER TABLE deployments ADD COLUMN IF NOT EXISTS environment_id UUID
+    REFERENCES environments(id) ON DELETE SET NULL;
+
+-- Ensure code-shipping fields exist
 ALTER TABLE deployments ADD COLUMN IF NOT EXISTS version TEXT NOT NULL DEFAULT '';
 ALTER TABLE deployments ADD COLUMN IF NOT EXISTS commit_sha TEXT;
 ALTER TABLE deployments ADD COLUMN IF NOT EXISTS artifact TEXT NOT NULL DEFAULT '';
 -- strategy, traffic_percent, status already exist
+
+CREATE INDEX idx_deployments_application ON deployments(application_id);
+CREATE INDEX idx_deployments_environment ON deployments(environment_id);
 ```
 
-Deployment statuses: `pending`, `running`, `paused`, `completed`, `failed`, `rolled_back`.
+Deployment statuses: `pending`, `running`, `promoting`, `paused`, `completed`, `failed`, `rolled_back`, `cancelled`.
 
-### 2.4 Redefined: `releases`
+State machine transitions:
+- `pending` → `running`
+- `running` → `promoting`, `paused`, `completed`, `failed`, `rolled_back`
+- `promoting` → `running`, `completed`, `failed`
+- `paused` → `running`, `rolled_back`, `cancelled`
+- `failed` → `rolled_back`
 
-Drop the old release model (version/artifact tracking) and replace with the flag-change-event concept.
+### 2.4 Drop legacy tables
+
+The `deploy_pipelines` table and old `releases`/`release_environments` tables are no longer needed.
 
 ```sql
 DROP TABLE IF EXISTS release_environments;
-
--- Recreate releases as flag change bundles
 DROP TABLE IF EXISTS releases;
+DROP TABLE IF EXISTS deploy_pipelines;
+```
+
+Note: Any `audit_log` entries referencing old release or pipeline IDs will have dangling `resource_id` values. This is acceptable — the audit log stores IDs as TEXT references, not FKs. Old entries remain for historical record but the referenced resources no longer exist.
+
+### 2.5 Redefined: `releases`
+
+Releases are now flag-change bundles with rollout strategy.
+
+Release strategy is always `percentage` — traffic is rolled out as a percentage of users/requests. The distinction between "target specific segments first" vs "broad rollout" is handled by targeting rules on the individual flags, not by the release strategy. This avoids ambiguity with deployment-level canary (which is an infrastructure concept).
+
+```sql
 CREATE TABLE releases (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     application_id  UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
     name            TEXT NOT NULL,
     description     TEXT,
-    strategy        TEXT NOT NULL CHECK (strategy IN ('percentage', 'canary')),
     session_sticky  BOOLEAN NOT NULL DEFAULT false,
     sticky_header   TEXT,           -- e.g., 'X-Session-ID', required when session_sticky = true
     traffic_percent INT NOT NULL DEFAULT 0,
@@ -107,9 +152,12 @@ CREATE TABLE releases (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE INDEX idx_releases_application ON releases(application_id);
+CREATE INDEX idx_releases_status ON releases(status);
 ```
 
-### 2.5 New Table: `release_flag_changes`
+### 2.6 New Table: `release_flag_changes`
 
 Tracks each flag change within a release.
 
@@ -119,8 +167,8 @@ CREATE TABLE release_flag_changes (
     release_id        UUID NOT NULL REFERENCES releases(id) ON DELETE CASCADE,
     flag_id           UUID NOT NULL REFERENCES feature_flags(id) ON DELETE CASCADE,
     environment_id    UUID NOT NULL REFERENCES environments(id) ON DELETE CASCADE,
-    previous_value    TEXT,
-    new_value         TEXT,
+    previous_value    JSONB,
+    new_value         JSONB,
     previous_enabled  BOOLEAN,
     new_enabled       BOOLEAN,
     applied_at        TIMESTAMPTZ,
@@ -131,26 +179,41 @@ CREATE INDEX idx_release_flag_changes_release ON release_flag_changes(release_id
 CREATE INDEX idx_release_flag_changes_flag ON release_flag_changes(flag_id);
 ```
 
-### 2.6 Modified: `feature_flags`
+### 2.7 Modified: `feature_flags`
 
-Add optional application_id. Release flags require it; feature/experiment/ops/permission flags leave it null (project-wide).
+Add optional `application_id`. Release flags require it; other categories leave it null (project-wide).
+
+The existing unique constraint `(project_id, key)` must be replaced with partial indexes to support both project-level and application-level flags.
 
 ```sql
 ALTER TABLE feature_flags ADD COLUMN IF NOT EXISTS application_id UUID
     REFERENCES applications(id) ON DELETE CASCADE;
 
--- Enforce: release flags must have application_id
--- This is enforced at the application layer, not as a DB constraint,
--- because ALTER TABLE ADD CONSTRAINT CHECK with subqueries is not supported.
+-- Drop existing unique constraint
+ALTER TABLE feature_flags DROP CONSTRAINT IF EXISTS feature_flags_project_id_key_key;
+
+-- Project-level flags: unique by (project_id, key) where application_id IS NULL
+CREATE UNIQUE INDEX idx_flags_project_key
+    ON feature_flags(project_id, key) WHERE application_id IS NULL;
+
+-- Application-level flags: unique by (application_id, key)
+CREATE UNIQUE INDEX idx_flags_application_key
+    ON feature_flags(application_id, key) WHERE application_id IS NOT NULL;
+
+-- Deprecate feature_flags.enabled and feature_flags.environment_id
+-- These are replaced by flag_environment_state table.
+-- The columns are kept for backward compatibility during migration but
+-- should not be used by new code. The feature_flags.enabled column becomes
+-- a "global default" — the initial value used when seeding flag_environment_state.
 ```
 
-Application-layer rule:
+Application-layer rules:
 - `category = 'release'` → `application_id` REQUIRED
 - `category IN ('feature', 'experiment', 'ops', 'permission')` → `application_id` NULLABLE (project-wide)
 
-### 2.7 New Table: `flag_environment_state`
+### 2.8 New Table: `flag_environment_state`
 
-Per-environment enabled state and value override for each flag.
+Per-environment enabled state and value override for each flag. Replaces the single `enabled` column on `feature_flags`.
 
 ```sql
 CREATE TABLE flag_environment_state (
@@ -158,7 +221,7 @@ CREATE TABLE flag_environment_state (
     flag_id         UUID NOT NULL REFERENCES feature_flags(id) ON DELETE CASCADE,
     environment_id  UUID NOT NULL REFERENCES environments(id) ON DELETE CASCADE,
     enabled         BOOLEAN NOT NULL DEFAULT false,
-    value           TEXT,
+    value           JSONB,
     updated_by      UUID REFERENCES users(id) ON DELETE SET NULL,
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE(flag_id, environment_id)
@@ -168,20 +231,25 @@ CREATE INDEX idx_flag_env_state_flag ON flag_environment_state(flag_id);
 CREATE INDEX idx_flag_env_state_env ON flag_environment_state(environment_id);
 ```
 
-### 2.8 Modified: `api_keys` — Hierarchical Scoping
+### 2.9 Modified: `api_keys` — Hierarchical Scoping
 
 API keys can be scoped to exactly one level. Keys inherit down the hierarchy.
 
+The existing Go model has `OrgID` as a required (non-pointer) field. This changes — all scope columns become nullable, and exactly one must be set.
+
 ```sql
--- org_id already exists from schema reconciliation
--- project_id already exists
+-- org_id already exists from schema reconciliation but may need to become nullable
+ALTER TABLE api_keys ALTER COLUMN org_id DROP NOT NULL;
+-- project_id already exists and is nullable
 ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS application_id UUID
     REFERENCES applications(id) ON DELETE CASCADE;
 ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS environment_id UUID
     REFERENCES environments(id) ON DELETE CASCADE;
-```
 
-Scope resolution: exactly one of `(org_id, project_id, application_id, environment_id)` is non-null. Enforced at the application layer.
+-- Enforce exactly one scope is set
+ALTER TABLE api_keys ADD CONSTRAINT chk_api_keys_single_scope
+    CHECK (num_nonnulls(org_id, project_id, application_id, environment_id) = 1);
+```
 
 Inheritance rules:
 - **Org key** → access to all projects, applications, environments under the org.
@@ -189,7 +257,7 @@ Inheritance rules:
 - **Application key** → access to all environments under the application.
 - **Environment key** → access to only that environment (typical for SDK use in production).
 
-### 2.9 New Table: `settings`
+### 2.10 New Table: `settings`
 
 Cascading configuration at any hierarchy level.
 
@@ -203,7 +271,10 @@ CREATE TABLE settings (
     key             TEXT NOT NULL,
     value           JSONB NOT NULL,
     updated_by      UUID REFERENCES users(id) ON DELETE SET NULL,
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- Enforce exactly one scope is set
+    CONSTRAINT chk_settings_single_scope
+        CHECK (num_nonnulls(org_id, project_id, application_id, environment_id) = 1)
 );
 
 -- Ensure one setting per key per scope
@@ -331,7 +402,7 @@ Shows: version, commit SHA, artifact link, strategy, traffic %, status timeline,
 
 ### 4.6 Release Detail Page
 
-Shows: name, description, strategy, traffic %, session-sticky config, status.
+Shows: name, description, traffic %, session-sticky config, status.
 Lists all flag changes in the release with before/after values per environment.
 Actions: Start, Promote (increase traffic %), Pause, Rollback, Complete.
 
@@ -342,7 +413,8 @@ Actions: Start, Promote (increase traffic %), Pause, Rollback, Complete.
 /register
 /orgs/new                                    — create org
 /orgs/:orgSlug/projects                      — project list
-/orgs/:orgSlug/projects/:projectSlug/flags   — project-level flags
+/orgs/:orgSlug/projects/:projectSlug/flags   — project-level flags list
+/orgs/:orgSlug/projects/:projectSlug/flags/:id — project-level flag detail
 /orgs/:orgSlug/projects/:projectSlug/settings
 /orgs/:orgSlug/projects/:projectSlug/apps/:appSlug/deployments
 /orgs/:orgSlug/projects/:projectSlug/apps/:appSlug/deployments/:id
@@ -371,10 +443,11 @@ curl -fsSL https://dr-sentry.com/get-cli | sh
 Behavior:
 1. Detect OS (`linux` / `darwin`) and architecture (`amd64` / `arm64`).
 2. Download the appropriate pre-built binary from the releases URL.
-3. Install to `~/.deploysentry/bin/deploysentry`.
-4. Make executable (`chmod +x`).
-5. Check if `~/.deploysentry/bin` is in PATH. If not, print instructions for adding it (bash/zsh/fish).
-6. Print next steps:
+3. Verify checksum (SHA-256) against a published checksum file to ensure binary integrity.
+4. Install to `~/.deploysentry/bin/deploysentry`.
+5. Make executable (`chmod +x`).
+6. Check if `~/.deploysentry/bin` is in PATH. If not, print instructions for adding it (bash/zsh/fish).
+7. Print next steps:
    ```
    DeploySentry CLI installed successfully!
 
@@ -392,6 +465,8 @@ The Go CLI at `cmd/cli/` is compiled for target platforms via a Makefile target 
 - `linux/amd64`, `linux/arm64`
 
 Output binaries are named: `deploysentry-<os>-<arch>`
+
+A SHA-256 checksum file (`checksums.txt`) is generated alongside the binaries.
 
 ### 5.3 Version Management
 
@@ -426,7 +501,9 @@ deploysentry project list
 
 deploysentry app create <name> --project <slug>
 deploysentry app list --project <slug>
+deploysentry app delete <slug>
 deploysentry app add-env <env-name> --app <slug> [--production]
+deploysentry app list-env --app <slug>
 ```
 
 Active context stored in `~/.deploysentry/config.yml`:
@@ -473,8 +550,7 @@ deploysentry deploy resume <id>
 
 ```
 deploysentry release create --app <slug> --name "Enable checkout v2" \
-    --strategy percentage --traffic-percent 25 \
-    --session-sticky --sticky-header X-Session-ID
+    --traffic-percent 25 --session-sticky --sticky-header X-Session-ID
 
 deploysentry release add-flag <release-id> \
     --flag <key> --env <env> --enable --value "true"
@@ -484,6 +560,7 @@ deploysentry release promote <id>         # Bump traffic %
 deploysentry release pause <id>
 deploysentry release rollback <id>
 deploysentry release complete <id>
+deploysentry release delete <id>          # Only draft releases
 deploysentry release list --app <slug>
 deploysentry release get <id>
 ```
@@ -522,12 +599,14 @@ GET    /api/v1/applications/:id
 PUT    /api/v1/applications/:id
 DELETE /api/v1/applications/:id
 POST   /api/v1/applications/:id/environments    # Add env to app
+GET    /api/v1/applications/:id/environments     # List envs for app
 
 # Releases (redefined)
 POST   /api/v1/applications/:appId/releases
 GET    /api/v1/applications/:appId/releases
 GET    /api/v1/releases/:id
 PUT    /api/v1/releases/:id
+DELETE /api/v1/releases/:id                      # Only draft releases
 POST   /api/v1/releases/:id/flags               # Add flag change to release
 POST   /api/v1/releases/:id/start
 POST   /api/v1/releases/:id/promote
@@ -538,6 +617,10 @@ POST   /api/v1/releases/:id/complete
 # Flag environment state
 GET    /api/v1/flags/:id/environments            # All env states for a flag
 PUT    /api/v1/flags/:id/environments/:envId     # Set state for one env
+
+# Flag evaluation (updated for new hierarchy)
+POST   /api/v1/flags/evaluate                    # Accepts application_id in body
+# SDK evaluation context now includes application_id alongside project_id and environment
 
 # Settings
 GET    /api/v1/settings?scope=org&target=:id     # List settings at scope
@@ -557,6 +640,11 @@ POST   /api/v1/orgs/:id/members
 # Deployments — scoped to application instead of project
 POST   /api/v1/applications/:appId/deployments   (was /projects/:projectId/deployments)
 GET    /api/v1/applications/:appId/deployments
+GET    /api/v1/deployments/:id
+POST   /api/v1/deployments/:id/promote
+POST   /api/v1/deployments/:id/rollback
+POST   /api/v1/deployments/:id/pause
+POST   /api/v1/deployments/:id/resume
 
 # Flags — support application_id filter
 GET    /api/v1/flags?project_id=X                 # Project-level flags
@@ -574,6 +662,14 @@ When validating an API key, the auth middleware resolves the key's scope and che
 
 Example: An application-scoped key for `api-server` can access any environment under `api-server`, but not environments under `web-frontend`.
 
+### 7.4 Webhook Events
+
+New webhook event types for releases:
+- `release.created`, `release.started`, `release.promoted`
+- `release.paused`, `release.completed`, `release.rolled_back`
+
+Existing deployment events remain: `deploy.started`, `deploy.completed`, `deploy.failed`, `deploy.rolled_back`.
+
 ---
 
 ## 8. Migration Strategy
@@ -582,15 +678,17 @@ Since this redesign changes the hierarchy (adding Application between Project an
 
 1. Create `applications` table.
 2. For each existing project, create a default application (same name + slug as the project) to preserve existing data.
-3. Migrate `environments.project_id` → `environments.application_id` using the default application.
-4. Migrate `deployments.project_id` → `deployments.application_id`.
-5. Migrate `feature_flags` — add `application_id` column (nullable).
-6. Drop old `releases` and `release_environments` tables, create new `releases` and `release_flag_changes`.
-7. Create `flag_environment_state` table, seed from existing `feature_flags.enabled` state.
-8. Create `settings` table.
-9. Update `api_keys` with new scope columns.
+3. Drop the `environments` unique constraint `(project_id, slug)`, rename `project_id` → `application_id`, add new FK and unique constraint `(application_id, slug)`. Point existing environments at the default application for their project.
+4. Migrate `deployments`: drop legacy `pipeline_id`, `release_id`, TEXT `environment` columns. Rename `project_id` → `application_id`. Point at default application. Add `environment_id` FK.
+5. Drop `deploy_pipelines` table (no longer needed).
+6. Migrate `feature_flags` — add `application_id` column (nullable). Drop old `(project_id, key)` unique constraint, add partial indexes for project-level and app-level uniqueness. Deprecate `feature_flags.environment_id` (replaced by `flag_environment_state`).
+7. Drop old `releases` and `release_environments` tables, create new `releases` and `release_flag_changes`.
+8. Create `flag_environment_state` table. Seed from existing `feature_flags.enabled` — for each flag, create a state row for every environment in the flag's project (or application), using the flag's current `enabled` value as the initial state.
+9. Create `settings` table.
+10. Update `api_keys`: make `org_id` nullable, add `application_id` and `environment_id` columns, add `CHECK(num_nonnulls(...) = 1)` constraint. Migrate existing keys: keys with only `org_id` set stay as org-scoped, keys with `project_id` set become project-scoped (set `org_id` to null).
+11. Update Go models: change `APIKey.OrgID` from `uuid.UUID` to `*uuid.UUID` (pointer/nullable). Update `Validate()` methods across all affected models.
 
-This is a breaking migration — old release data is dropped. Acceptable for current state (no production data).
+This is a breaking migration — old release/pipeline data is dropped. Acceptable for current state (no production data).
 
 ---
 
@@ -599,7 +697,7 @@ This is a breaking migration — old release data is dropped. Acceptable for cur
 - **GitHub Webhook Integration** — receive deploy status events from GitHub Actions, link results to deployments on the dashboard. Stub the receiver endpoint in this work.
 - **OAuth/SSO** — add GitHub/Google OAuth login alongside email/password.
 - **Mobile App** — Flutter app updates to match new hierarchy.
-- **SDK Updates** — update all SDKs to support session-sticky header, application-scoped evaluation.
+- **SDK Updates** — update all SDKs to support session-sticky header, application-scoped evaluation. The flag evaluation endpoint now accepts `application_id` in the request body; SDKs must be updated to pass this. During transition, omitting `application_id` evaluates only project-level flags (backward compatible).
 
 ---
 
@@ -607,7 +705,7 @@ This is a breaking migration — old release data is dropped. Acceptable for cur
 
 1. A user can `curl | sh` to install the CLI, authenticate, create an org, project, application, and environments.
 2. Deployments track code shipping with version/commit/artifact and rollout strategy.
-3. Releases track flag change bundles with percentage/canary strategy and session stickiness.
+3. Releases track flag change bundles with percentage rollout and session stickiness.
 4. The web UI shows org switcher, project/app accordion sidebar, and flag detail with per-environment state.
 5. API keys and settings cascade correctly through the hierarchy.
 6. Session-sticky releases produce deterministic bucketing for the same session header value.

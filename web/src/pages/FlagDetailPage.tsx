@@ -1,24 +1,26 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import type { Flag, TargetingRule } from '@/types';
+import type { Flag, TargetingRule, FlagEnvState } from '@/types';
+import { MOCK_FLAG_ENV_STATE, MOCK_APPLICATIONS } from '@/mocks/hierarchy';
 
 const MOCK_FLAG: Flag = {
   id: 'flag-001',
   project_id: 'proj-1',
+  application_id: 'app-1',
   environment_id: 'env-prod',
-  key: 'enable-dark-mode',
-  name: 'Dark Mode',
-  description: 'Enable dark mode across the entire application UI. Supports system preference detection and manual override.',
+  key: 'checkout-v2-rollout',
+  name: 'Checkout V2 Rollout',
+  description: 'Gradually roll out the new checkout flow to all users. Includes updated payment form, address validation, and order summary redesign.',
   flag_type: 'boolean',
-  category: 'feature',
-  purpose: 'Allow users to switch to a dark color scheme for reduced eye strain and improved accessibility.',
-  owners: ['frontend-team', 'design-team'],
-  is_permanent: true,
-  expires_at: null,
+  category: 'release',
+  purpose: 'Migrate all users from legacy checkout to the redesigned V2 checkout experience.',
+  owners: ['checkout-team', 'payments-team'],
+  is_permanent: false,
+  expires_at: '2026-06-01T00:00:00Z',
   enabled: true,
   default_value: 'false',
   archived: false,
-  tags: ['ui', 'theme', 'accessibility'],
+  tags: ['checkout', 'migration', 'revenue'],
   created_by: 'alice',
   created_at: '2025-11-01T10:00:00Z',
   updated_at: '2026-03-18T14:30:00Z',
@@ -85,16 +87,20 @@ function describeConditions(rule: TargetingRule): string {
     case 'percentage':
       return `${rule.percentage}% of users`;
     case 'user_target':
-      return `Users: ${rule.target_values?.join(', ') ?? '—'}`;
+      return `Users: ${rule.target_values?.join(', ') ?? '\u2014'}`;
     case 'attribute':
-      return `${rule.attribute} ${rule.operator} ${rule.target_values?.join(', ') ?? '—'}`;
+      return `${rule.attribute} ${rule.operator} ${rule.target_values?.join(', ') ?? '\u2014'}`;
     case 'segment':
-      return `Segment: ${rule.segment_id ?? '—'}`;
+      return `Segment: ${rule.segment_id ?? '\u2014'}`;
     case 'schedule':
-      return `${rule.start_time ? formatDateTime(rule.start_time) : '—'} to ${rule.end_time ? formatDateTime(rule.end_time) : '—'}`;
+      return `${rule.start_time ? formatDateTime(rule.start_time) : '\u2014'} to ${rule.end_time ? formatDateTime(rule.end_time) : '\u2014'}`;
     default:
-      return '—';
+      return '\u2014';
   }
+}
+
+function getAppNameById(appId: string): string {
+  return MOCK_APPLICATIONS.find((a) => a.id === appId)?.name ?? appId;
 }
 
 export default function FlagDetailPage() {
@@ -104,6 +110,10 @@ export default function FlagDetailPage() {
     : `/orgs/${orgSlug}/projects/${projectSlug}/flags`;
 
   const [flag, setFlag] = useState<Flag>(MOCK_FLAG);
+  const [activeTab, setActiveTab] = useState<'rules' | 'environments'>('rules');
+  const [envState, setEnvState] = useState<FlagEnvState[]>([...MOCK_FLAG_ENV_STATE]);
+  const [editingEnvId, setEditingEnvId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
   const rules = MOCK_RULES;
 
   // Use id to look up the flag in a real app
@@ -117,118 +127,209 @@ export default function FlagDetailPage() {
     setFlag((prev) => ({ ...prev, archived: true }));
   };
 
+  const handleEnvToggle = (envId: string) => {
+    setEnvState((prev) =>
+      prev.map((e) =>
+        e.environment_id === envId ? { ...e, enabled: !e.enabled } : e
+      )
+    );
+  };
+
+  const startEditValue = (envId: string, currentValue: string) => {
+    setEditingEnvId(envId);
+    setEditValue(currentValue);
+  };
+
+  const saveEditValue = () => {
+    if (editingEnvId) {
+      setEnvState((prev) =>
+        prev.map((e) =>
+          e.environment_id === editingEnvId ? { ...e, value: editValue } : e
+        )
+      );
+      setEditingEnvId(null);
+      setEditValue('');
+    }
+  };
+
+  const cancelEditValue = () => {
+    setEditingEnvId(null);
+    setEditValue('');
+  };
+
   return (
     <div>
-      <div className="page-header-row">
-        <div>
-          <h1 className="page-header">{flag.name}</h1>
-          <span className="font-mono text-muted">{flag.key}</span>
+      {/* Header Section */}
+      <div className="detail-header">
+        <Link to={backPath}>&larr; Back to Flags</Link>
+
+        <div className="detail-header-top">
+          <div>
+            <h1 className="detail-header-title">{flag.name}</h1>
+            <span className="detail-header-subtitle">{flag.key}</span>
+          </div>
+          <div className="detail-header-badges">
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={flag.enabled}
+                onChange={handleToggle}
+              />
+              <span>{flag.enabled ? 'Enabled' : 'Disabled'}</span>
+            </label>
+            <span className={`badge badge-${flag.category}`}>{flag.category}</span>
+            <button className="btn btn-secondary">Edit</button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <button className="btn btn-secondary">Edit</button>
-          <label className="toggle">
-            <input
-              type="checkbox"
-              checked={flag.enabled}
-              onChange={handleToggle}
-            />
-            <span>{flag.enabled ? 'Enabled' : 'Disabled'}</span>
-          </label>
+
+        <div className="detail-chips">
+          <span>Type: {flag.flag_type}</span>
+          <span>Owners: {flag.owners.join(', ')}</span>
+          <span>Expires: {flag.is_permanent ? 'Permanent' : flag.expires_at ? formatDate(flag.expires_at) : '\u2014'}</span>
+          <span>Default Value: <span className="font-mono">{flag.default_value}</span></span>
+          <span>Scope: {flag.application_id ? getAppNameById(flag.application_id) : 'Project-wide'}</span>
+          {flag.purpose && <span>Purpose: {flag.purpose}</span>}
+          {flag.tags.length > 0 && <span>Tags: {flag.tags.join(', ')}</span>}
         </div>
+
+        <div className="detail-secondary">
+          <span>Created by {flag.created_by}</span>
+          <span>Created {formatDateTime(flag.created_at)}</span>
+          <span>Updated {formatDateTime(flag.updated_at)}</span>
+        </div>
+
+        {flag.description && (
+          <div className="detail-description">{flag.description}</div>
+        )}
       </div>
 
-      <div className="card">
-        <h2>Details</h2>
-        <table>
-          <tbody>
-            <tr>
-              <th>Category</th>
-              <td>
-                <span className={`badge badge-${flag.category}`}>
-                  {flag.category}
-                </span>
-              </td>
-            </tr>
-            <tr>
-              <th>Type</th>
-              <td>{flag.flag_type}</td>
-            </tr>
-            <tr>
-              <th>Description</th>
-              <td>{flag.description}</td>
-            </tr>
-            <tr>
-              <th>Purpose</th>
-              <td>{flag.purpose}</td>
-            </tr>
-            <tr>
-              <th>Owners</th>
-              <td>{flag.owners.join(', ')}</td>
-            </tr>
-            <tr>
-              <th>Default Value</th>
-              <td className="font-mono">{flag.default_value}</td>
-            </tr>
-            <tr>
-              <th>Tags</th>
-              <td>{flag.tags.map((tag) => (
-                <span key={tag} className="badge" style={{ marginRight: '0.25rem' }}>{tag}</span>
-              ))}</td>
-            </tr>
-            <tr>
-              <th>Expires</th>
-              <td>{flag.is_permanent ? 'Permanent' : flag.expires_at ? formatDate(flag.expires_at) : '\u2014'}</td>
-            </tr>
-            <tr>
-              <th>Created</th>
-              <td>{formatDateTime(flag.created_at)} by {flag.created_by}</td>
-            </tr>
-            <tr>
-              <th>Updated</th>
-              <td>{formatDateTime(flag.updated_at)}</td>
-            </tr>
-          </tbody>
-        </table>
+      {/* Tabs */}
+      <div className="detail-tabs">
+        <button
+          className={`detail-tab${activeTab === 'rules' ? ' active' : ''}`}
+          onClick={() => setActiveTab('rules')}
+        >
+          Targeting Rules
+        </button>
+        <button
+          className={`detail-tab${activeTab === 'environments' ? ' active' : ''}`}
+          onClick={() => setActiveTab('environments')}
+        >
+          Environments
+        </button>
       </div>
 
-      <div className="card">
-        <h2>Targeting Rules</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Priority</th>
-              <th>Type</th>
-              <th>Value</th>
-              <th>Conditions</th>
-              <th>Enabled</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rules.map((rule) => (
-              <tr key={rule.id}>
-                <td>{rule.priority}</td>
-                <td>{rule.rule_type}</td>
-                <td className="font-mono">{rule.value}</td>
-                <td>{describeConditions(rule)}</td>
-                <td>
-                  <span className={`badge ${rule.enabled ? 'badge-enabled' : 'badge-disabled'}`}>
-                    {rule.enabled ? 'enabled' : 'disabled'}
-                  </span>
-                </td>
-              </tr>
-            ))}
-            {rules.length === 0 && (
+      {/* Tab: Targeting Rules */}
+      {activeTab === 'rules' && (
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <span>{rules.length} rule{rules.length !== 1 ? 's' : ''}</span>
+            <button className="btn btn-secondary">Add Rule</button>
+          </div>
+          <table>
+            <thead>
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center' }}>
-                  No targeting rules defined.
-                </td>
+                <th>Priority</th>
+                <th>Type</th>
+                <th>Condition</th>
+                <th>Value</th>
+                <th>Enabled</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {rules.map((rule) => (
+                <tr key={rule.id}>
+                  <td>{rule.priority}</td>
+                  <td>{rule.rule_type}</td>
+                  <td>{describeConditions(rule)}</td>
+                  <td className="font-mono">{rule.value}</td>
+                  <td>
+                    <span className={`badge ${rule.enabled ? 'badge-enabled' : 'badge-disabled'}`}>
+                      {rule.enabled ? 'enabled' : 'disabled'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {rules.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center' }}>
+                    No targeting rules defined.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      <div className="card">
+      {/* Tab: Environments */}
+      {activeTab === 'environments' && (
+        <div className="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Environment</th>
+                <th>Enabled</th>
+                <th>Value</th>
+                <th>Last Updated</th>
+                <th>Updated By</th>
+              </tr>
+            </thead>
+            <tbody>
+              {envState.map((env) => (
+                <tr key={env.environment_id}>
+                  <td>{env.environment_name}</td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      className="env-toggle"
+                      checked={env.enabled}
+                      onChange={() => handleEnvToggle(env.environment_id)}
+                    />
+                  </td>
+                  <td
+                    className="env-value-cell"
+                    onClick={() => {
+                      if (editingEnvId !== env.environment_id) {
+                        startEditValue(env.environment_id, env.value);
+                      }
+                    }}
+                  >
+                    {editingEnvId === env.environment_id ? (
+                      <input
+                        type="text"
+                        className="env-value-input"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveEditValue();
+                          if (e.key === 'Escape') cancelEditValue();
+                        }}
+                        onBlur={saveEditValue}
+                        autoFocus
+                      />
+                    ) : (
+                      <span className="font-mono">{env.value}</span>
+                    )}
+                  </td>
+                  <td>{formatDateTime(env.updated_at)}</td>
+                  <td>{env.updated_by}</td>
+                </tr>
+              ))}
+              {envState.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center' }}>
+                    No environment overrides configured.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Danger Zone */}
+      <div className="danger-zone">
         <h2>Danger Zone</h2>
         <p className="text-muted">
           Archiving a flag disables it permanently and removes it from active use.
@@ -241,12 +342,6 @@ export default function FlagDetailPage() {
         >
           {flag.archived ? 'Archived' : 'Archive Flag'}
         </button>
-      </div>
-
-      <div style={{ marginTop: '1rem' }}>
-        <Link to={backPath} className="btn btn-secondary">
-          &larr; Back to Flags
-        </Link>
       </div>
     </div>
   );

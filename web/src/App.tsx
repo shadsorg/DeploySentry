@@ -12,6 +12,8 @@ import FlagDetailPage from './pages/FlagDetailPage';
 import FlagCreatePage from './pages/FlagCreatePage';
 import DeploymentsPage from './pages/DeploymentsPage';
 import ReleasesPage from './pages/ReleasesPage';
+import DeploymentDetailPage from './pages/DeploymentDetailPage';
+import ReleaseDetailPage from './pages/ReleaseDetailPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SDKsPage from './pages/SDKsPage';
 import SettingsPage from './pages/SettingsPage';
@@ -54,9 +56,9 @@ export default function App() {
               {/* App-level */}
               <Route path="apps/:appSlug">
                 <Route path="deployments" element={<DeploymentsPage />} />
-                <Route path="deployments/:id" element={<DeploymentsPage />} /> {/* Detail page in Phase 2 */}
+                <Route path="deployments/:id" element={<DeploymentDetailPage />} />
                 <Route path="releases" element={<ReleasesPage />} />
-                <Route path="releases/:id" element={<ReleasesPage />} /> {/* Detail page in Phase 2 */}
+                <Route path="releases/:id" element={<ReleaseDetailPage />} />
                 <Route path="flags" element={<FlagListPage />} />
                 <Route path="flags/new" element={<FlagCreatePage />} />
                 <Route path="flags/:id" element={<FlagDetailPage />} />

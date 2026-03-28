@@ -241,7 +241,12 @@ func run() error {
 	// -------------------------------------------------------------------------
 	apiKeyValidator := &apiKeyValidatorAdapter{service: apiKeyService}
 	authMiddleware := auth.NewAuthMiddleware(cfg.Auth.JWTSecret, apiKeyValidator)
-	corsMiddleware := middleware.CORS(middleware.DefaultCORSConfig())
+	corsMiddleware := middleware.CORS(middleware.ProductionCORSConfig([]string{
+		"https://www.dr-sentry.com",
+		"https://dr-sentry.com",
+		"http://localhost:3001",
+		"http://localhost:8080",
+	}))
 	rateLimiter := middleware.NewRateLimiter(rdb.Client, middleware.DefaultRateLimitConfig())
 
 	// -------------------------------------------------------------------------

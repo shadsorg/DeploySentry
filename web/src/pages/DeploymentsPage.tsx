@@ -10,12 +10,14 @@ import type { Deployment, DeployStrategy, DeployStatus } from '@/types';
 const MOCK_DEPLOYMENTS: Deployment[] = [
   {
     id: 'dep-1',
-    project_id: 'proj-1',
+    application_id: 'app-1',
     environment_id: 'env-prod',
     version: 'v2.4.1',
+    commit_sha: 'a3f8c1d9e27b',
+    artifact: 'ghcr.io/acme/api:v2.4.1',
     strategy: 'canary',
     status: 'running',
-    traffic_percentage: 25,
+    traffic_percent: 25,
     health_score: 99.8,
     created_by: 'alice@example.com',
     created_at: '2026-03-21T09:15:00Z',
@@ -24,12 +26,14 @@ const MOCK_DEPLOYMENTS: Deployment[] = [
   },
   {
     id: 'dep-2',
-    project_id: 'proj-1',
+    application_id: 'app-1',
     environment_id: 'env-prod',
     version: 'v2.4.0',
+    commit_sha: 'b7e2f4a01c93',
+    artifact: 'ghcr.io/acme/api:v2.4.0',
     strategy: 'blue-green',
     status: 'completed',
-    traffic_percentage: 100,
+    traffic_percent: 100,
     health_score: 98.5,
     created_by: 'ci/deploy-bot',
     created_at: '2026-03-21T06:00:00Z',
@@ -38,12 +42,13 @@ const MOCK_DEPLOYMENTS: Deployment[] = [
   },
   {
     id: 'dep-3',
-    project_id: 'proj-1',
+    application_id: 'app-1',
     environment_id: 'env-staging',
     version: 'v2.5.0-rc1',
+    commit_sha: 'c4d91e5f738a',
     strategy: 'rolling',
     status: 'running',
-    traffic_percentage: 60,
+    traffic_percent: 60,
     health_score: 97.2,
     created_by: 'bob@example.com',
     created_at: '2026-03-21T11:00:00Z',
@@ -52,12 +57,12 @@ const MOCK_DEPLOYMENTS: Deployment[] = [
   },
   {
     id: 'dep-4',
-    project_id: 'proj-2',
+    application_id: 'app-2',
     environment_id: 'env-prod',
     version: 'v1.12.3',
     strategy: 'canary',
     status: 'failed',
-    traffic_percentage: 10,
+    traffic_percent: 10,
     health_score: 72.1,
     created_by: 'ci/deploy-bot',
     created_at: '2026-03-21T04:30:00Z',
@@ -66,12 +71,12 @@ const MOCK_DEPLOYMENTS: Deployment[] = [
   },
   {
     id: 'dep-5',
-    project_id: 'proj-1',
+    application_id: 'app-1',
     environment_id: 'env-prod',
     version: 'v2.3.9',
     strategy: 'blue-green',
     status: 'completed',
-    traffic_percentage: 100,
+    traffic_percent: 100,
     health_score: 99.9,
     created_by: 'alice@example.com',
     created_at: '2026-03-20T14:00:00Z',
@@ -80,12 +85,12 @@ const MOCK_DEPLOYMENTS: Deployment[] = [
   },
   {
     id: 'dep-6',
-    project_id: 'proj-2',
+    application_id: 'app-2',
     environment_id: 'env-prod',
     version: 'v1.12.2',
     strategy: 'rolling',
     status: 'rolled_back',
-    traffic_percentage: 0,
+    traffic_percent: 0,
     health_score: 65.3,
     created_by: 'bob@example.com',
     created_at: '2026-03-21T01:00:00Z',
@@ -94,12 +99,12 @@ const MOCK_DEPLOYMENTS: Deployment[] = [
   },
   {
     id: 'dep-7',
-    project_id: 'proj-1',
+    application_id: 'app-1',
     environment_id: 'env-prod',
     version: 'v2.4.1-hotfix',
     strategy: 'canary',
-    status: 'running',
-    traffic_percentage: 5,
+    status: 'promoting',
+    traffic_percent: 5,
     health_score: 100,
     created_by: 'ci/deploy-bot',
     created_at: '2026-03-21T12:00:00Z',
@@ -108,12 +113,12 @@ const MOCK_DEPLOYMENTS: Deployment[] = [
   },
   {
     id: 'dep-8',
-    project_id: 'proj-3',
+    application_id: 'app-3',
     environment_id: 'env-prod',
     version: 'v3.0.0',
     strategy: 'blue-green',
     status: 'completed',
-    traffic_percentage: 100,
+    traffic_percent: 100,
     health_score: 96.4,
     created_by: 'alice@example.com',
     created_at: '2026-03-21T08:00:00Z',
@@ -141,6 +146,8 @@ function statusBadgeClass(status: DeployStatus): string {
   switch (status) {
     case 'running':
       return 'badge badge-active';
+    case 'promoting':
+      return 'badge badge-active';
     case 'completed':
       return 'badge badge-completed';
     case 'failed':
@@ -151,6 +158,8 @@ function statusBadgeClass(status: DeployStatus): string {
       return 'badge badge-pending';
     case 'pending':
       return 'badge badge-pending';
+    case 'cancelled':
+      return 'badge badge-disabled';
     default:
       return 'badge';
   }
@@ -160,6 +169,10 @@ function statusLabel(status: DeployStatus): string {
   switch (status) {
     case 'rolled_back':
       return 'Rolled Back';
+    case 'promoting':
+      return 'Promoting';
+    case 'cancelled':
+      return 'Cancelled';
     default:
       return status.charAt(0).toUpperCase() + status.slice(1);
   }
@@ -279,10 +292,14 @@ const DeploymentsPage: React.FC = () => {
           onChange={(e) => setStatusFilter(e.target.value)}
         >
           <option value="all">All Statuses</option>
+          <option value="pending">Pending</option>
           <option value="running">Running</option>
+          <option value="promoting">Promoting</option>
+          <option value="paused">Paused</option>
           <option value="completed">Completed</option>
           <option value="failed">Failed</option>
           <option value="rolled_back">Rolled Back</option>
+          <option value="cancelled">Cancelled</option>
         </select>
       </div>
 
@@ -340,7 +357,7 @@ const DeploymentsPage: React.FC = () => {
                         >
                           <div
                             style={{
-                              width: `${dep.traffic_percentage}%`,
+                              width: `${dep.traffic_percent}%`,
                               height: '100%',
                               borderRadius: 3,
                               background: trafficBarColor(dep.health_score),
@@ -348,7 +365,7 @@ const DeploymentsPage: React.FC = () => {
                             }}
                           />
                         </div>
-                        <span className="text-sm">{dep.traffic_percentage}%</span>
+                        <span className="text-sm">{dep.traffic_percent}%</span>
                       </div>
                     </td>
                     <td>

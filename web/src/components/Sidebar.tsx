@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth';
 
 const navItems = [
   { to: '/', label: 'Dashboard', icon: '~' },
@@ -13,6 +14,14 @@ const secondaryItems = [
 ];
 
 export default function Sidebar() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    logout();
+    navigate('/login');
+  }
+
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
@@ -48,6 +57,14 @@ export default function Sidebar() {
       </nav>
 
       <div className="sidebar-footer">
+        {user && (
+          <div className="sidebar-user">
+            <span className="text-sm">{user.name || user.email}</span>
+            <button className="btn-link text-xs text-muted" onClick={handleLogout}>
+              Sign out
+            </button>
+          </div>
+        )}
         <div className="nav-item text-xs text-muted">v1.0.0</div>
       </div>
     </aside>

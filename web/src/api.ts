@@ -96,6 +96,48 @@ export const apiKeysApi = {
     request<void>(`/api-keys/${id}`, { method: 'DELETE' }),
 };
 
+// Auth (public - no token required)
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  avatar_url?: string;
+}
+
+export const authApi = {
+  register: (data: { email: string; password: string; name: string }) =>
+    fetch(`${BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then(async (res) => {
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Registration failed');
+      }
+      return res.json() as Promise<{ token: string; user: AuthUser }>;
+    }),
+
+  login: (data: { email: string; password: string }) =>
+    fetch(`${BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }).then(async (res) => {
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Login failed');
+      }
+      return res.json() as Promise<{ token: string; user: AuthUser }>;
+    }),
+
+  me: () => request<AuthUser>('/users/me'),
+
+  logout: () => {
+    localStorage.removeItem('ds_token');
+  },
+};
+
 // Health
 export const healthApi = {
   check: () => fetch('/health').then((r) => r.json()),

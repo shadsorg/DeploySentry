@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useParams } from 'react-router-dom';
+import { getProjectName } from '@/mocks/hierarchy';
 import AnalyticsSummary from '../components/analytics/AnalyticsSummary';
 import FlagAnalytics from '../components/analytics/FlagAnalytics';
 import DeploymentAnalytics from '../components/analytics/DeploymentAnalytics';
@@ -9,6 +10,9 @@ type TimeRange = '24h' | '7d' | '30d';
 type TabType = 'overview' | 'flags' | 'deployments' | 'system';
 
 export default function AnalyticsPage() {
+  const { projectSlug } = useParams();
+  const projectName = projectSlug ? getProjectName(projectSlug) : '';
+
   const [searchParams, setSearchParams] = useSearchParams();
   const [timeRange, setTimeRange] = useState<TimeRange>(
     (searchParams.get('time_range') as TimeRange) || '24h'
@@ -39,7 +43,7 @@ export default function AnalyticsPage() {
   return (
     <div className="analytics-page">
       <div className="page-header-row">
-        <h1 className="page-header">Analytics</h1>
+        <h1 className="page-header">{projectName ? `${projectName} — Analytics` : 'Analytics'}</h1>
 
         <div className="time-range-selector">
           <label htmlFor="time-range">Time Range:</label>

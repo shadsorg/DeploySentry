@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
+import { getAppName } from '@/mocks/hierarchy';
 import type { Release, ReleaseStatus } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -152,6 +154,9 @@ function formatDate(iso: string): string {
 // ---------------------------------------------------------------------------
 
 const ReleasesPage: React.FC = () => {
+  const { appSlug } = useParams();
+  const appName = appSlug ? getAppName(appSlug) : '';
+
   const [activeTab, setActiveTab] = useState<TabKey>('all');
 
   const filtered = useMemo(() => {
@@ -164,7 +169,7 @@ const ReleasesPage: React.FC = () => {
       {/* Page header */}
       <div className="page-header-row">
         <div className="page-header" style={{ marginBottom: 0 }}>
-          <h1>Releases</h1>
+          <h1>{appName ? `${appName} — Releases` : 'Releases'}</h1>
           <p>Track release versions from draft through production</p>
         </div>
         <button className="btn btn-primary">+ Create Release</button>

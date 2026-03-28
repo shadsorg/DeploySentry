@@ -98,7 +98,11 @@ function describeConditions(rule: TargetingRule): string {
 }
 
 export default function FlagDetailPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id, orgSlug, projectSlug, appSlug } = useParams();
+  const backPath = appSlug
+    ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags`
+    : `/orgs/${orgSlug}/projects/${projectSlug}/flags`;
+
   const [flag, setFlag] = useState<Flag>(MOCK_FLAG);
   const rules = MOCK_RULES;
 
@@ -240,7 +244,7 @@ export default function FlagDetailPage() {
       </div>
 
       <div style={{ marginTop: '1rem' }}>
-        <Link to="/flags" className="btn btn-secondary">
+        <Link to={backPath} className="btn btn-secondary">
           &larr; Back to Flags
         </Link>
       </div>

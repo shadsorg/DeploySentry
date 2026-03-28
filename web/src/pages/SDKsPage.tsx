@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { getProjectName } from '@/mocks/hierarchy';
 
 // ---------------------------------------------------------------------------
 // SDK data
@@ -314,6 +316,9 @@ const FLAG_CATEGORIES = [
 // ---------------------------------------------------------------------------
 
 const SDKsPage: React.FC = () => {
+  const { projectSlug } = useParams();
+  const projectName = projectSlug ? getProjectName(projectSlug) : '';
+
   const [activeLanguage, setActiveLanguage] = useState<Language>('go');
 
   const handleCopy = (text: string) => {
@@ -324,7 +329,7 @@ const SDKsPage: React.FC = () => {
     <div>
       {/* Page header */}
       <div className="page-header">
-        <h1>SDKs &amp; Integration</h1>
+        <h1>{projectName ? `${projectName} — SDKs & Docs` : 'SDKs & Integration'}</h1>
         <p>Install a DeploySentry SDK to evaluate feature flags in your application</p>
       </div>
 

@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
+import { getAppName } from '@/mocks/hierarchy';
 import type { Deployment, DeployStrategy, DeployStatus } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -200,6 +202,9 @@ function computeDuration(start: string, end: string | null): string {
 // ---------------------------------------------------------------------------
 
 const DeploymentsPage: React.FC = () => {
+  const { appSlug } = useParams();
+  const appName = appSlug ? getAppName(appSlug) : '';
+
   const [search, setSearch] = useState('');
   const [strategyFilter, setStrategyFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -224,7 +229,7 @@ const DeploymentsPage: React.FC = () => {
       {/* Page header */}
       <div className="page-header-row">
         <div className="page-header" style={{ marginBottom: 0 }}>
-          <h1>Deployments</h1>
+          <h1>{appName ? `${appName} — Deployments` : 'Deployments'}</h1>
           <p>Monitor and manage application deployments across environments</p>
         </div>
         <button className="btn btn-primary">+ New Deployment</button>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
+import { getProjectName, getAppName } from '@/mocks/hierarchy';
 import type { Flag, FlagCategory } from '@/types';
 
 const MOCK_FLAGS: Flag[] = [
@@ -226,6 +227,18 @@ function formatDate(iso: string): string {
 }
 
 export default function FlagListPage() {
+  const { orgSlug, projectSlug, appSlug } = useParams();
+  const contextName = appSlug ? getAppName(appSlug) : projectSlug ? getProjectName(projectSlug) : '';
+  const heading = appSlug ? `${contextName} — Flags` : 'Feature Flags';
+
+  const createPath = appSlug
+    ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags/new`
+    : `/orgs/${orgSlug}/projects/${projectSlug}/flags/new`;
+
+  const flagDetailPath = (flagId: string) => appSlug
+    ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags/${flagId}`
+    : `/orgs/${orgSlug}/projects/${projectSlug}/flags/${flagId}`;
+
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | FlagCategory>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -252,8 +265,8 @@ export default function FlagListPage() {
   return (
     <div>
       <div className="page-header-row">
-        <h1 className="page-header">Feature Flags</h1>
-        <Link to="/flags/new" className="btn btn-primary">
+        <h1 className="page-header">{heading}</h1>
+        <Link to={createPath} className="btn btn-primary">
           Create Flag
         </Link>
       </div>
@@ -306,7 +319,7 @@ export default function FlagListPage() {
             {filtered.map((flag) => (
               <tr key={flag.id}>
                 <td>
-                  <Link to={`/flags/${flag.id}`}>{flag.name}</Link>
+                  <Link to={flagDetailPath(flag.id)}>{flag.name}</Link>
                   <div className="font-mono text-muted">{flag.key}</div>
                 </td>
                 <td>

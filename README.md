@@ -48,6 +48,16 @@ make run-api
 
 **Stack:** Go 1.22+, PostgreSQL 16, Redis 7, NATS JetStream, React + TypeScript (web), Flutter (mobile).
 
+## Applications
+
+DeploySentry provides multiple client applications:
+
+- **Web Dashboard** (`/web`) - Full-featured React + TypeScript web application
+- **Mobile App** (`/mobile`) - Native Flutter mobile application for iOS/Android
+- **CLI Tool** (`/cmd/cli`) - Command-line interface for CI/CD integration
+
+> **Note:** The web dashboard and mobile app maintain full feature parity. All functionality available in the web interface is also available in the mobile app, ensuring a consistent experience across platforms.
+
 ---
 
 ## Feature Flags

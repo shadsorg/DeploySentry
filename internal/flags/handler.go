@@ -3,29 +3,36 @@ package flags
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/deploysentry/deploysentry/internal/analytics"
 	"github.com/deploysentry/deploysentry/internal/auth"
 	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/deploysentry/deploysentry/internal/webhooks"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 // Handler provides HTTP endpoints for managing feature flags.
 type Handler struct {
-	service FlagService
-	rbac    *auth.RBACChecker
-	sse     *SSEBroker
+	service      FlagService
+	rbac         *auth.RBACChecker
+	sse          *SSEBroker
+	webhookSvc   *webhooks.Service
+	analyticsSvc *analytics.Service
 }
 
 // NewHandler creates a new feature flag HTTP handler.
-func NewHandler(service FlagService, rbac *auth.RBACChecker) *Handler {
+func NewHandler(service FlagService, rbac *auth.RBACChecker, webhookSvc *webhooks.Service, analyticsSvc *analytics.Service) *Handler {
 	return &Handler{
-		service: service,
-		rbac:    rbac,
-		sse:     NewSSEBroker(),
+		service:      service,
+		rbac:         rbac,
+		sse:          NewSSEBroker(),
+		webhookSvc:   webhookSvc,
+		analyticsSvc: analyticsSvc,
 	}
 }
 
@@ -107,6 +114,31 @@ func (h *Handler) createFlag(c *gin.Context) {
 	if err := h.service.CreateFlag(c.Request.Context(), flag); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Trigger webhook event for flag creation
+	if h.webhookSvc != nil {
+		webhookData := map[string]interface{}{
+			"flag_id":      flag.ID,
+			"flag_key":     flag.Key,
+			"flag_name":    flag.Name,
+			"project_id":   flag.ProjectID,
+			"environment_id": flag.EnvironmentID,
+			"category":     string(flag.Category),
+			"flag_type":    string(flag.FlagType),
+			"enabled":      flag.Enabled,
+		}
+
+		// Get org ID from context (assuming it's set by middleware)
+		var orgID uuid.UUID
+		if orgIDVal, exists := c.Get("org_id"); exists {
+			orgID, _ = orgIDVal.(uuid.UUID)
+		}
+
+		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventFlagCreated, orgID, &flag.ProjectID, webhookData, &createdBy); err != nil {
+			// Log error but don't fail the request
+			// TODO: Add proper logging
+		}
 	}
 
 	c.JSON(http.StatusCreated, flag)
@@ -213,6 +245,34 @@ func (h *Handler) updateFlag(c *gin.Context) {
 		return
 	}
 
+	// Trigger webhook event for flag update
+	if h.webhookSvc != nil {
+		userID, _ := c.Get("user_id")
+		updatedBy, ok := userID.(uuid.UUID)
+		if !ok {
+			updatedBy = uuid.Nil
+		}
+
+		webhookData := map[string]interface{}{
+			"flag_id":        flag.ID,
+			"flag_key":       flag.Key,
+			"flag_name":      flag.Name,
+			"project_id":     flag.ProjectID,
+			"environment_id": flag.EnvironmentID,
+			"category":       string(flag.Category),
+			"enabled":        flag.Enabled,
+		}
+
+		var orgID uuid.UUID
+		if orgIDVal, exists := c.Get("org_id"); exists {
+			orgID, _ = orgIDVal.(uuid.UUID)
+		}
+
+		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventFlagUpdated, orgID, &flag.ProjectID, webhookData, &updatedBy); err != nil {
+			// Log error but don't fail the request
+		}
+	}
+
 	c.JSON(http.StatusOK, flag)
 }
 
@@ -223,9 +283,43 @@ func (h *Handler) archiveFlag(c *gin.Context) {
 		return
 	}
 
+	// Get flag details before archiving for webhook
+	flag, err := h.service.GetFlag(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "flag not found"})
+		return
+	}
+
 	if err := h.service.ArchiveFlag(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Trigger webhook event for flag archive
+	if h.webhookSvc != nil {
+		userID, _ := c.Get("user_id")
+		archivedBy, ok := userID.(uuid.UUID)
+		if !ok {
+			archivedBy = uuid.Nil
+		}
+
+		webhookData := map[string]interface{}{
+			"flag_id":        flag.ID,
+			"flag_key":       flag.Key,
+			"flag_name":      flag.Name,
+			"project_id":     flag.ProjectID,
+			"environment_id": flag.EnvironmentID,
+			"category":       string(flag.Category),
+		}
+
+		var orgID uuid.UUID
+		if orgIDVal, exists := c.Get("org_id"); exists {
+			orgID, _ = orgIDVal.(uuid.UUID)
+		}
+
+		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventFlagArchived, orgID, &flag.ProjectID, webhookData, &archivedBy); err != nil {
+			// Log error but don't fail the request
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "archived"})
@@ -249,6 +343,13 @@ func (h *Handler) toggleFlag(c *gin.Context) {
 		return
 	}
 
+	// Get flag details for webhook
+	flag, err := h.service.GetFlag(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "flag not found"})
+		return
+	}
+
 	if err := h.service.ToggleFlag(c.Request.Context(), id, req.Enabled); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
@@ -256,6 +357,34 @@ func (h *Handler) toggleFlag(c *gin.Context) {
 
 	// Broadcast toggle event to SSE clients.
 	h.sse.Broadcast(fmt.Sprintf(`{"event":"flag.toggled","flag_id":"%s","enabled":%t}`, id, req.Enabled))
+
+	// Trigger webhook event for flag toggle
+	if h.webhookSvc != nil {
+		userID, _ := c.Get("user_id")
+		toggledBy, ok := userID.(uuid.UUID)
+		if !ok {
+			toggledBy = uuid.Nil
+		}
+
+		webhookData := map[string]interface{}{
+			"flag_id":        flag.ID,
+			"flag_key":       flag.Key,
+			"flag_name":      flag.Name,
+			"project_id":     flag.ProjectID,
+			"environment_id": flag.EnvironmentID,
+			"enabled":        req.Enabled,
+			"previous_state": flag.Enabled,
+		}
+
+		var orgID uuid.UUID
+		if orgIDVal, exists := c.Get("org_id"); exists {
+			orgID, _ = orgIDVal.(uuid.UUID)
+		}
+
+		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventFlagToggled, orgID, &flag.ProjectID, webhookData, &toggledBy); err != nil {
+			// Log error but don't fail the request
+		}
+	}
 
 	c.JSON(http.StatusOK, gin.H{"enabled": req.Enabled})
 }
@@ -301,10 +430,83 @@ func (h *Handler) evaluate(c *gin.Context) {
 		return
 	}
 
+	startTime := time.Now()
 	result, err := h.service.Evaluate(c.Request.Context(), req.ProjectID, req.EnvironmentID, req.FlagKey, req.Context)
+	latencyMs := float64(time.Since(startTime).Nanoseconds()) / 1e6
+
 	if err != nil {
+		// Record failed evaluation
+		if h.analyticsSvc != nil {
+			errMsg := err.Error()
+			ip := net.ParseIP(c.ClientIP())
+			contextAttrs := make(map[string]interface{}, len(req.Context.Attributes))
+			for k, v := range req.Context.Attributes {
+				contextAttrs[k] = v
+			}
+
+			event := &models.FlagEvaluationEvent{
+				ProjectID:     req.ProjectID,
+				EnvironmentID: req.EnvironmentID,
+				FlagKey:       req.FlagKey,
+				UserID:        req.Context.UserID,
+				ResultValue:   "",
+				LatencyMs:     int(latencyMs),
+				CacheHit:      false,
+				ErrorMessage:  errMsg,
+				IPAddress:     &ip,
+				UserAgent:     c.GetHeader("User-Agent"),
+				ContextAttrs:  contextAttrs,
+				EvaluatedAt:   time.Now(),
+				SDKVersion:    c.GetHeader("X-DeploySentry-SDK-Version"),
+			}
+
+			go func() {
+				if recordErr := h.analyticsSvc.RecordFlagEvaluation(c.Request.Context(), event); recordErr != nil {
+					// Log error but don't fail the request
+				}
+			}()
+		}
+
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Record successful evaluation
+	if h.analyticsSvc != nil {
+		ip := net.ParseIP(c.ClientIP())
+		contextAttrs := make(map[string]interface{}, len(req.Context.Attributes))
+		for k, v := range req.Context.Attributes {
+			contextAttrs[k] = v
+		}
+
+		var ruleID *uuid.UUID
+		if result.RuleID != "" {
+			if parsed, parseErr := uuid.Parse(result.RuleID); parseErr == nil {
+				ruleID = &parsed
+			}
+		}
+
+		event := &models.FlagEvaluationEvent{
+			ProjectID:     req.ProjectID,
+			EnvironmentID: req.EnvironmentID,
+			FlagKey:       req.FlagKey,
+			UserID:        req.Context.UserID,
+			ResultValue:   result.Value,
+			RuleID:        ruleID,
+			LatencyMs:     int(latencyMs),
+			CacheHit:      false,
+			IPAddress:     &ip,
+			UserAgent:     c.GetHeader("User-Agent"),
+			ContextAttrs:  contextAttrs,
+			EvaluatedAt:   time.Now(),
+			SDKVersion:    c.GetHeader("X-DeploySentry-SDK-Version"),
+		}
+
+		go func() {
+			if recordErr := h.analyticsSvc.RecordFlagEvaluation(c.Request.Context(), event); recordErr != nil {
+				// Log error but don't fail the request
+			}
+		}()
 	}
 
 	c.JSON(http.StatusOK, result)
@@ -330,10 +532,52 @@ func (h *Handler) batchEvaluate(c *gin.Context) {
 		return
 	}
 
+	startTime := time.Now()
 	results, err := h.service.BatchEvaluate(c.Request.Context(), req.ProjectID, req.EnvironmentID, req.FlagKeys, req.Context)
+	latencyMs := float64(time.Since(startTime).Nanoseconds()) / 1e6
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Record analytics for each flag evaluation in batch
+	if h.analyticsSvc != nil && len(results) > 0 {
+		ip := net.ParseIP(c.ClientIP())
+		contextAttrs := make(map[string]interface{}, len(req.Context.Attributes))
+		for k, v := range req.Context.Attributes {
+			contextAttrs[k] = v
+		}
+		avgLatency := int(latencyMs / float64(len(results)))
+
+		baseEvent := models.FlagEvaluationEvent{
+			ProjectID:     req.ProjectID,
+			EnvironmentID: req.EnvironmentID,
+			UserID:        req.Context.UserID,
+			LatencyMs:     avgLatency,
+			IPAddress:     &ip,
+			UserAgent:     c.GetHeader("User-Agent"),
+			ContextAttrs:  contextAttrs,
+			EvaluatedAt:   time.Now(),
+			SDKVersion:    c.GetHeader("X-DeploySentry-SDK-Version"),
+		}
+
+		go func() {
+			for _, result := range results {
+				event := baseEvent
+				event.FlagKey = result.FlagKey
+				event.ResultValue = result.Value
+				if result.RuleID != "" {
+					if parsed, parseErr := uuid.Parse(result.RuleID); parseErr == nil {
+						event.RuleID = &parsed
+					}
+				}
+
+				if recordErr := h.analyticsSvc.RecordFlagEvaluation(c.Request.Context(), &event); recordErr != nil {
+					// Log error but continue with other events
+				}
+			}
+		}()
 	}
 
 	c.JSON(http.StatusOK, gin.H{"results": results})

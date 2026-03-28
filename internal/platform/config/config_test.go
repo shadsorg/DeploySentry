@@ -23,7 +23,7 @@ func TestDatabaseConfig_DSN_ReturnsCorrectFormat(t *testing.T) {
 	}
 
 	dsn := cfg.DSN()
-	expected := "postgres://admin:secret@db.example.com:5432/mydb?sslmode=require"
+	expected := "postgres://admin:secret@db.example.com:5432/mydb?sslmode=require&search_path=deploy"
 	assert.Equal(t, expected, dsn)
 }
 
@@ -38,7 +38,7 @@ func TestDatabaseConfig_DSN_WithDifferentValues(t *testing.T) {
 	}
 
 	dsn := cfg.DSN()
-	expected := "postgres://deploysentry:deploysentry@localhost:5433/deploysentry?sslmode=disable"
+	expected := "postgres://deploysentry:deploysentry@localhost:5433/deploysentry?sslmode=disable&search_path=deploy"
 	assert.Equal(t, expected, dsn)
 }
 

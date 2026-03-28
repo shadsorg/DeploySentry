@@ -101,3 +101,29 @@ export const healthApi = {
   check: () => fetch('/health').then((r) => r.json()),
   ready: () => fetch('/ready').then((r) => r.json()),
 };
+
+// Analytics
+export const analyticsApi = {
+  getSummary: (projectId: string, environmentId: string, timeRange: string) =>
+    request<any>(`/analytics/summary?project_id=${projectId}&environment_id=${environmentId}&time_range=${timeRange}`),
+  getFlagStats: (projectId: string, environmentId: string, timeRange: string, limit?: number) => {
+    const qs = new URLSearchParams({ project_id: projectId, environment_id: environmentId, time_range: timeRange });
+    if (limit) qs.set('limit', String(limit));
+    return request<any>(`/analytics/flags/stats?${qs}`);
+  },
+  getFlagUsage: (projectId: string, environmentId: string, flagKey: string, timeRange: string) =>
+    request<any>(`/analytics/flags/${flagKey}/usage?project_id=${projectId}&environment_id=${environmentId}&time_range=${timeRange}`),
+  getDeploymentStats: (projectId: string, timeRange: string, environmentId?: string) => {
+    const qs = new URLSearchParams({ project_id: projectId, time_range: timeRange });
+    if (environmentId) qs.set('environment_id', environmentId);
+    return request<any>(`/analytics/deployments/stats?${qs}`);
+  },
+  getSystemHealth: () => request<any>('/analytics/health'),
+  streamMetrics: () => new EventSource('/api/v1/analytics/metrics/stream'),
+  refreshAggregations: () =>
+    request<{ message: string; timestamp: string }>('/analytics/admin/refresh', { method: 'POST' }),
+  exportAnalytics: (projectId: string, startDate: string, endDate: string, format: string = 'json') => {
+    const qs = new URLSearchParams({ project_id: projectId, start_date: startDate, end_date: endDate, format });
+    return request<any>(`/analytics/admin/export?${qs}`);
+  },
+};

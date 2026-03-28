@@ -10,6 +10,60 @@ import (
 	"github.com/google/uuid"
 )
 
+// Context keys for authentication information
+const (
+	ContextKeyOrgID   = "org_id"
+	ContextKeyUserID  = "user_id"
+	ContextKeyProjectID = "project_id"
+)
+
+// AuthInfo contains the authentication context information
+type AuthInfo struct {
+	OrgID     string
+	UserID    string
+	ProjectID string
+	Email     string
+	Method    string
+}
+
+// GetAuthInfo extracts authentication information from the Gin context
+func GetAuthInfo(c *gin.Context) (*AuthInfo, bool) {
+	info := &AuthInfo{}
+
+	if orgID, exists := c.Get(ContextKeyOrgID); exists {
+		if orgIDStr, ok := orgID.(string); ok {
+			info.OrgID = orgIDStr
+		}
+	}
+
+	if userID, exists := c.Get(ContextKeyUserID); exists {
+		if userIDStr, ok := userID.(string); ok {
+			info.UserID = userIDStr
+		}
+	}
+
+	if projectID, exists := c.Get(ContextKeyProjectID); exists {
+		if projectIDStr, ok := projectID.(string); ok {
+			info.ProjectID = projectIDStr
+		}
+	}
+
+	if email, exists := c.Get("email"); exists {
+		if emailStr, ok := email.(string); ok {
+			info.Email = emailStr
+		}
+	}
+
+	if method, exists := c.Get("auth_method"); exists {
+		if methodStr, ok := method.(string); ok {
+			info.Method = methodStr
+		}
+	}
+
+	// At minimum we need either org_id or user_id to consider authenticated
+	return info, info.OrgID != "" || info.UserID != ""
+}
+
 // APIKeyValidator defines the interface for validating API keys.
 type APIKeyValidator interface {
 	// ValidateAPIKey checks the key and returns the associated org/project info.
@@ -120,11 +174,11 @@ func (m *AuthMiddleware) authenticateJWT(c *gin.Context, tokenStr string) bool {
 		return false
 	}
 
-	c.Set("user_id", claims.UserID)
+	c.Set(ContextKeyUserID, claims.UserID)
 	c.Set("email", claims.Email)
 	c.Set("auth_method", "jwt")
 	if claims.OrgID != "" {
-		c.Set("org_id", claims.OrgID)
+		c.Set(ContextKeyOrgID, claims.OrgID)
 	}
 
 	return true

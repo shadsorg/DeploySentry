@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -104,13 +105,14 @@ func validAPIKey() APIKey {
 	}
 }
 
-func validWebhookEndpoint() WebhookEndpoint {
-	return WebhookEndpoint{
-		ID:         uuid.New(),
-		OrgID:      uuid.New(),
-		ProjectID:  uuid.New(),
-		URL:        "https://example.com/webhook",
-		EventTypes: []string{"deployment.completed"},
+func validWebhook() Webhook {
+	pid := uuid.New()
+	return Webhook{
+		ID:        uuid.New(),
+		OrgID:     uuid.New(),
+		ProjectID: &pid,
+		URL:       "https://example.com/webhook",
+		Events:    pq.StringArray{"deployment.completed"},
 	}
 }
 
@@ -1244,50 +1246,50 @@ func TestAPIKeyHasScope(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// 19. WebhookEndpoint.Validate()
+// 19. Webhook.Validate()
 // ---------------------------------------------------------------------------
 
-func TestWebhookEndpointValidate(t *testing.T) {
+func TestWebhookValidate(t *testing.T) {
 	tests := []struct {
 		name    string
-		modify  func(*WebhookEndpoint)
+		modify  func(*Webhook)
 		wantErr string
 	}{
 		{
 			name:    "valid webhook",
-			modify:  func(w *WebhookEndpoint) {},
+			modify:  func(w *Webhook) {},
 			wantErr: "",
 		},
 		{
 			name:    "missing org_id",
-			modify:  func(w *WebhookEndpoint) { w.OrgID = uuid.Nil },
+			modify:  func(w *Webhook) { w.OrgID = uuid.Nil },
 			wantErr: "org_id is required",
 		},
 		{
-			name:    "missing project_id",
-			modify:  func(w *WebhookEndpoint) { w.ProjectID = uuid.Nil },
+			name:   "missing project_id",
+			modify: func(w *Webhook) { nilID := uuid.Nil; w.ProjectID = &nilID },
 			wantErr: "project_id is required",
 		},
 		{
 			name:    "empty url",
-			modify:  func(w *WebhookEndpoint) { w.URL = "" },
+			modify:  func(w *Webhook) { w.URL = "" },
 			wantErr: "url is required",
 		},
 		{
 			name:    "no event types",
-			modify:  func(w *WebhookEndpoint) { w.EventTypes = nil },
+			modify:  func(w *Webhook) { w.Events = nil },
 			wantErr: "at least one event type is required",
 		},
 		{
 			name:    "empty event types slice",
-			modify:  func(w *WebhookEndpoint) { w.EventTypes = []string{} },
+			modify:  func(w *Webhook) { w.Events = pq.StringArray{} },
 			wantErr: "at least one event type is required",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			w := validWebhookEndpoint()
+			w := validWebhook()
 			tc.modify(&w)
 			err := w.Validate()
 			if tc.wantErr == "" {

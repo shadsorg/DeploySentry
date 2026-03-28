@@ -2,21 +2,30 @@ package deploy
 
 import (
 	"net/http"
+	"time"
 
+	"github.com/deploysentry/deploysentry/internal/analytics"
 	"github.com/deploysentry/deploysentry/internal/auth"
 	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/deploysentry/deploysentry/internal/webhooks"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 // Handler provides HTTP endpoints for managing deployments.
 type Handler struct {
-	service DeployService
+	service      DeployService
+	webhookSvc   *webhooks.Service
+	analyticsSvc *analytics.Service
 }
 
 // NewHandler creates a new deployment HTTP handler.
-func NewHandler(service DeployService) *Handler {
-	return &Handler{service: service}
+func NewHandler(service DeployService, webhookSvc *webhooks.Service, analyticsSvc *analytics.Service) *Handler {
+	return &Handler{
+		service:      service,
+		webhookSvc:   webhookSvc,
+		analyticsSvc: analyticsSvc,
+	}
 }
 
 // RegisterRoutes mounts all deployment API routes on the given router group.
@@ -38,7 +47,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, rbac *auth.RBACChecker) {
 	// Project-scoped routes.
 	projects := rg.Group("/projects")
 	{
-		projects.GET("/:id/deployments/active", mw(rbac, auth.PermDeployRead), h.getActiveDeployments)
+		projects.GET("/:project_id/deployments/active", mw(rbac, auth.PermDeployRead), h.getActiveDeployments)
 	}
 }
 
@@ -88,6 +97,46 @@ func (h *Handler) createDeployment(c *gin.Context) {
 	if err := h.service.CreateDeployment(c.Request.Context(), d); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Record deployment analytics event
+	if h.analyticsSvc != nil {
+		event := &models.DeploymentEvent{
+			DeploymentID: d.ID,
+			EventType:    models.DeploymentEventCreated,
+			PhaseName:    "creation",
+			TriggeredBy:  &createdBy,
+			OccurredAt:   time.Now(),
+		}
+
+		go func() {
+			if err := h.analyticsSvc.RecordDeploymentEvent(c.Request.Context(), event); err != nil {
+				// Log error but don't fail the request
+			}
+		}()
+	}
+
+	// Trigger webhook event for deployment creation
+	if h.webhookSvc != nil {
+		webhookData := map[string]interface{}{
+			"deployment_id":  d.ID,
+			"project_id":     d.ProjectID,
+			"environment_id": d.EnvironmentID,
+			"version":        d.Version,
+			"strategy":       string(d.Strategy),
+			"artifact":       d.Artifact,
+			"commit_sha":     d.CommitSHA,
+			"status":         string(d.Status),
+		}
+
+		var orgID uuid.UUID
+		if orgIDVal, exists := c.Get("org_id"); exists {
+			orgID, _ = orgIDVal.(uuid.UUID)
+		}
+
+		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentCreated, orgID, &d.ProjectID, webhookData, &createdBy); err != nil {
+			// Log error but don't fail the request
+		}
 	}
 
 	c.JSON(http.StatusCreated, d)
@@ -158,9 +207,65 @@ func (h *Handler) rollbackDeployment(c *gin.Context) {
 		return
 	}
 
+	// Get deployment details for webhook
+	deployment, err := h.service.GetDeployment(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "deployment not found"})
+		return
+	}
+
 	if err := h.service.RollbackDeployment(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Record deployment analytics event
+	if h.analyticsSvc != nil {
+		userID, _ := c.Get("user_id")
+		rolledBackBy, ok := userID.(uuid.UUID)
+		if !ok {
+			rolledBackBy = uuid.Nil
+		}
+
+		event := &models.DeploymentEvent{
+			DeploymentID: deployment.ID,
+			EventType:    models.DeploymentEventRolledBack,
+			PhaseName:    "rollback",
+			TriggeredBy:  &rolledBackBy,
+			OccurredAt:   time.Now(),
+		}
+
+		go func() {
+			if err := h.analyticsSvc.RecordDeploymentEvent(c.Request.Context(), event); err != nil {
+				// Log error but don't fail the request
+			}
+		}()
+	}
+
+	// Trigger webhook event for deployment rollback
+	if h.webhookSvc != nil {
+		userID, _ := c.Get("user_id")
+		rolledBackBy, ok := userID.(uuid.UUID)
+		if !ok {
+			rolledBackBy = uuid.Nil
+		}
+
+		webhookData := map[string]interface{}{
+			"deployment_id":  deployment.ID,
+			"project_id":     deployment.ProjectID,
+			"environment_id": deployment.EnvironmentID,
+			"version":        deployment.Version,
+			"strategy":       string(deployment.Strategy),
+		}
+
+		var orgID uuid.UUID
+		if orgIDVal, exists := c.Get("org_id"); exists {
+			orgID, _ = orgIDVal.(uuid.UUID)
+		}
+
+		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentRolledback, orgID, &deployment.ProjectID, webhookData, &rolledBackBy); err != nil {
+			// Log error but don't fail the request
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "rolled_back"})
@@ -173,9 +278,65 @@ func (h *Handler) pauseDeployment(c *gin.Context) {
 		return
 	}
 
+	// Get deployment details for webhook
+	deployment, err := h.service.GetDeployment(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "deployment not found"})
+		return
+	}
+
 	if err := h.service.PauseDeployment(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Record deployment analytics event
+	if h.analyticsSvc != nil {
+		userID, _ := c.Get("user_id")
+		pausedBy, ok := userID.(uuid.UUID)
+		if !ok {
+			pausedBy = uuid.Nil
+		}
+
+		event := &models.DeploymentEvent{
+			DeploymentID: deployment.ID,
+			EventType:    models.DeploymentEventPaused,
+			PhaseName:    "pause",
+			TriggeredBy:  &pausedBy,
+			OccurredAt:   time.Now(),
+		}
+
+		go func() {
+			if err := h.analyticsSvc.RecordDeploymentEvent(c.Request.Context(), event); err != nil {
+				// Log error but don't fail the request
+			}
+		}()
+	}
+
+	// Trigger webhook event for deployment pause
+	if h.webhookSvc != nil {
+		userID, _ := c.Get("user_id")
+		pausedBy, ok := userID.(uuid.UUID)
+		if !ok {
+			pausedBy = uuid.Nil
+		}
+
+		webhookData := map[string]interface{}{
+			"deployment_id":  deployment.ID,
+			"project_id":     deployment.ProjectID,
+			"environment_id": deployment.EnvironmentID,
+			"version":        deployment.Version,
+			"strategy":       string(deployment.Strategy),
+		}
+
+		var orgID uuid.UUID
+		if orgIDVal, exists := c.Get("org_id"); exists {
+			orgID, _ = orgIDVal.(uuid.UUID)
+		}
+
+		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentPaused, orgID, &deployment.ProjectID, webhookData, &pausedBy); err != nil {
+			// Log error but don't fail the request
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "paused"})
@@ -188,9 +349,65 @@ func (h *Handler) resumeDeployment(c *gin.Context) {
 		return
 	}
 
+	// Get deployment details for webhook
+	deployment, err := h.service.GetDeployment(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "deployment not found"})
+		return
+	}
+
 	if err := h.service.ResumeDeployment(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
+	}
+
+	// Record deployment analytics event
+	if h.analyticsSvc != nil {
+		userID, _ := c.Get("user_id")
+		resumedBy, ok := userID.(uuid.UUID)
+		if !ok {
+			resumedBy = uuid.Nil
+		}
+
+		event := &models.DeploymentEvent{
+			DeploymentID: deployment.ID,
+			EventType:    models.DeploymentEventResumed,
+			PhaseName:    "resume",
+			TriggeredBy:  &resumedBy,
+			OccurredAt:   time.Now(),
+		}
+
+		go func() {
+			if err := h.analyticsSvc.RecordDeploymentEvent(c.Request.Context(), event); err != nil {
+				// Log error but don't fail the request
+			}
+		}()
+	}
+
+	// Trigger webhook event for deployment resume
+	if h.webhookSvc != nil {
+		userID, _ := c.Get("user_id")
+		resumedBy, ok := userID.(uuid.UUID)
+		if !ok {
+			resumedBy = uuid.Nil
+		}
+
+		webhookData := map[string]interface{}{
+			"deployment_id":  deployment.ID,
+			"project_id":     deployment.ProjectID,
+			"environment_id": deployment.EnvironmentID,
+			"version":        deployment.Version,
+			"strategy":       string(deployment.Strategy),
+		}
+
+		var orgID uuid.UUID
+		if orgIDVal, exists := c.Get("org_id"); exists {
+			orgID, _ = orgIDVal.(uuid.UUID)
+		}
+
+		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentResumed, orgID, &deployment.ProjectID, webhookData, &resumedBy); err != nil {
+			// Log error but don't fail the request
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "running"})

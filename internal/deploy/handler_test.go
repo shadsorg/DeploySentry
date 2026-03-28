@@ -93,7 +93,7 @@ func (m *mockDeployService) GetActiveDeployments(ctx context.Context, projectID 
 func setupDeployRouter(svc DeployService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	handler := NewHandler(svc)
+	handler := NewHandler(svc, nil, nil)
 	// Pass nil for RBAC to disable permission checks in unit tests.
 	handler.RegisterRoutes(router.Group("/api"), nil)
 	return router

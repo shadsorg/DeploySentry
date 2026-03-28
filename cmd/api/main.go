@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/deploysentry/deploysentry/internal/analytics"
 	"github.com/deploysentry/deploysentry/internal/auth"
 	"github.com/deploysentry/deploysentry/internal/deploy"
 	"github.com/deploysentry/deploysentry/internal/flags"
@@ -27,6 +28,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/platform/middleware"
 	"github.com/deploysentry/deploysentry/internal/platform/metrics"
 	"github.com/deploysentry/deploysentry/internal/releases"
+	"github.com/deploysentry/deploysentry/internal/webhooks"
 )
 
 func main() {
@@ -104,11 +106,20 @@ func run() error {
 	}
 
 	router := gin.New()
-	router.Use(gin.Recovery())
-	router.Use(gin.Logger())
 
-	// Production readiness middleware
+	// Core middleware for production readiness
 	router.Use(middleware.RequestID())
+
+	// Error handling and logging (replaces gin.Recovery() and gin.Logger())
+	errorConfig := middleware.DefaultErrorHandlingConfig()
+	if cfg.Log.Level == "debug" {
+		errorConfig = middleware.DevelopmentErrorHandlingConfig()
+	}
+	router.Use(middleware.ErrorHandler(errorConfig))
+	router.Use(middleware.StructuredLogger(middleware.DefaultLoggingConfig()))
+
+	// Security and performance middleware
+	router.Use(middleware.RequestSizeLimit(middleware.DefaultRequestSizeConfig()))
 	router.Use(middleware.SecurityHeaders(middleware.DefaultSecurityConfig()))
 	router.Use(metrics.InstrumentHandler())
 
@@ -164,6 +175,7 @@ func run() error {
 	flagRepo := postgres.NewFlagRepository(db.Pool)
 	deployRepo := postgres.NewDeployRepository(db.Pool)
 	releaseRepo := postgres.NewReleaseRepository(db.Pool)
+	webhookRepo := postgres.NewWebhookRepository(db.Pool)
 
 	// -------------------------------------------------------------------------
 	// Services
@@ -174,6 +186,8 @@ func run() error {
 	releaseService := releases.NewReleaseServiceWithPublisher(releaseRepo, nc)
 	apiKeyService := auth.NewAPIKeyService(apiKeyRepo)
 	rbacChecker := auth.NewRBACChecker()
+	analyticsService := analytics.NewService(db.Pool, rdb.Client)
+	webhookService := webhooks.NewService(webhookRepo, nc)
 
 	// -------------------------------------------------------------------------
 	// Middleware
@@ -193,9 +207,11 @@ func run() error {
 	api.Use(rateLimiter.Middleware())
 	api.Use(authMiddleware.RequireAuth())
 
-	flags.NewHandler(flagService, rbacChecker).RegisterRoutes(api)
-	deploy.NewHandler(deployService).RegisterRoutes(api, rbacChecker)
+	flags.NewHandler(flagService, rbacChecker, webhookService, analyticsService).RegisterRoutes(api)
+	deploy.NewHandler(deployService, webhookService, analyticsService).RegisterRoutes(api, rbacChecker)
 	releases.NewHandler(releaseService).RegisterRoutes(api)
+	analytics.NewHandler(analyticsService).RegisterRoutes(api)
+	webhooks.NewHandler(webhookService).RegisterRoutes(api)
 	auth.NewUserHandler(userRepo).RegisterRoutes(api)
 	auth.NewAPIKeyHandler(apiKeyService).RegisterRoutes(api)
 	auth.NewAuditHandler(auditRepo).RegisterRoutes(api)

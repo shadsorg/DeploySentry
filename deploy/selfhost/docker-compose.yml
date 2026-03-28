@@ -1,28 +1,45 @@
 # DeploySentry Self-Hosted — All-in-one Docker Compose
 #
-# Usage:
-#   cd deploy/selfhost
-#   docker compose up -d
+# Setup:
+#   1. Create a Cloudflare Tunnel at https://one.dash.cloudflare.com
+#      → Networks → Tunnels → Create → name it "deploysentry"
+#      → Copy the tunnel token
+#      → Add public hostname: deploysentry.yourdomain.com → http://web:80
 #
-# Port mapping:
-#   80  → Web dashboard + API (the only port you need to expose)
+#   2. Create .env file:
+#      echo "JWT_SECRET=$(openssl rand -base64 32)" > .env
+#      echo "CLOUDFLARE_TUNNEL_TOKEN=your-token-here" >> .env
 #
-# First run:
-#   docker compose up -d postgres redis nats
-#   sleep 5
-#   docker compose run --rm migrate
-#   docker compose up -d
+#   3. Run migrations (one-time):
+#      docker compose --profile setup run --rm migrate
+#
+#   4. Start everything:
+#      docker compose up -d
+#
+# No port forwarding required. Cloudflare Tunnel handles everything.
 
 services:
   # -----------------------------------------------------------------------
-  # Reverse Proxy + Web Dashboard (port 80)
+  # Cloudflare Tunnel (HTTPS ingress, no ports needed)
+  # -----------------------------------------------------------------------
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      web:
+        condition: service_started
+    restart: unless-stopped
+
+  # -----------------------------------------------------------------------
+  # Reverse Proxy + Web Dashboard
   # -----------------------------------------------------------------------
   web:
     build:
       context: ../..
       dockerfile: deploy/selfhost/Dockerfile.web
-    ports:
-      - "80:80"
+    # No ports exposed — tunnel routes traffic in
     depends_on:
       api:
         condition: service_healthy

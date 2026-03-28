@@ -1,10 +1,6 @@
-databases:
-  - name: deploysentry-db
-    plan: starter
-    databaseName: deploysentry
-    user: deploysentry
-    postgresMajorVersion: "16"
-    ipAllowList: []
+# DeploySentry Development Blueprint
+# Uses existing Crowdsoft Postgres (crowdsoft-all-dev) and Redis (crowdsoft-redis-dev)
+# Region: Ohio
 
 services:
   # -----------------------------------------------------------------------
@@ -14,6 +10,7 @@ services:
     name: deploysentry-api
     runtime: go
     plan: starter
+    region: ohio
     repo: https://github.com/shadsorg/DeploySentry.git
     branch: main
     buildCommand: go build -ldflags "-s -w" -o bin/api ./cmd/api
@@ -24,40 +21,43 @@ services:
         value: 0.0.0.0
       - key: DS_SERVER_PORT
         value: "8080"
+      # Existing Postgres: crowdsoft-all-dev (dpg-d6is3hea2pns73aqj1c0-a)
       - key: DS_DATABASE_HOST
         fromDatabase:
-          name: deploysentry-db
+          name: crowdsoft-all-dev
           property: host
       - key: DS_DATABASE_PORT
         fromDatabase:
-          name: deploysentry-db
+          name: crowdsoft-all-dev
           property: port
       - key: DS_DATABASE_USER
         fromDatabase:
-          name: deploysentry-db
+          name: crowdsoft-all-dev
           property: user
       - key: DS_DATABASE_PASSWORD
         fromDatabase:
-          name: deploysentry-db
+          name: crowdsoft-all-dev
           property: password
       - key: DS_DATABASE_NAME
         fromDatabase:
-          name: deploysentry-db
+          name: crowdsoft-all-dev
           property: database
       - key: DS_DATABASE_SSL_MODE
         value: require
       - key: DS_DATABASE_SCHEMA
         value: deploy
+      # Existing Redis: crowdsoft-redis-dev (red-d6kfq4vtskes73amsl5g)
       - key: DS_REDIS_HOST
         fromService:
-          name: deploysentry-redis
+          name: crowdsoft-redis-dev
           type: redis
           property: host
       - key: DS_REDIS_PORT
         fromService:
-          name: deploysentry-redis
+          name: crowdsoft-redis-dev
           type: redis
           property: port
+      # NATS (internal service)
       - key: DS_NATS_URL
         fromService:
           name: deploysentry-nats
@@ -67,8 +67,6 @@ services:
         generateValue: true
       - key: DS_LOG_LEVEL
         value: info
-      - key: DS_ENVIRONMENT
-        value: production
 
   # -----------------------------------------------------------------------
   # Web Dashboard (React Static Site)
@@ -77,6 +75,7 @@ services:
     name: deploysentry-web
     runtime: static
     plan: starter
+    region: ohio
     repo: https://github.com/shadsorg/DeploySentry.git
     branch: main
     buildCommand: cd web && npm ci && npm run build
@@ -97,12 +96,13 @@ services:
           property: url
 
   # -----------------------------------------------------------------------
-  # NATS (Background Worker)
+  # NATS (Private Service)
   # -----------------------------------------------------------------------
   - type: pserv
     name: deploysentry-nats
     runtime: docker
     plan: starter
+    region: ohio
     repo: https://github.com/shadsorg/DeploySentry.git
     branch: main
     dockerfilePath: deploy/nats/Dockerfile
@@ -113,27 +113,3 @@ services:
     envVars:
       - key: NATS_URL
         value: nats://localhost:4222
-
-  # -----------------------------------------------------------------------
-  # Database Migrations (Run Once)
-  # -----------------------------------------------------------------------
-  - type: job
-    name: deploysentry-migrate
-    runtime: docker
-    plan: starter
-    repo: https://github.com/shadsorg/DeploySentry.git
-    branch: main
-    dockerfilePath: deploy/migrate/Dockerfile
-    schedule: ""  # Manual trigger only
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: deploysentry-db
-          property: connectionString
-
-# Redis
-  - type: redis
-    name: deploysentry-redis
-    plan: starter
-    ipAllowList: []
-    maxmemoryPolicy: allkeys-lru

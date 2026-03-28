@@ -442,6 +442,8 @@ func (s *releaseService) publishEvent(ctx context.Context, subject string, relea
 		return
 	}
 
+	// Normalize to plural "releases." prefix for NATS subscriber compatibility
+	natsSubject := "releases." + subject
 	// Best-effort publish; errors are non-fatal for the calling operation.
-	_ = s.publisher.Publish(ctx, subject, payload)
+	_ = s.publisher.Publish(ctx, natsSubject, payload)
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/auth"
 	"github.com/deploysentry/deploysentry/internal/deploy"
 	"github.com/deploysentry/deploysentry/internal/flags"
+	"github.com/deploysentry/deploysentry/internal/notifications"
 	"github.com/deploysentry/deploysentry/internal/platform/cache"
 	"github.com/deploysentry/deploysentry/internal/platform/cache/flagcache"
 	"github.com/deploysentry/deploysentry/internal/platform/config"
@@ -188,6 +189,51 @@ func run() error {
 	rbacChecker := auth.NewRBACChecker()
 	analyticsService := analytics.NewService(db.Pool, rdb.Client)
 	webhookService := webhooks.NewService(webhookRepo, nc)
+
+	// -------------------------------------------------------------------------
+	// Notifications
+	// -------------------------------------------------------------------------
+	notificationService := notifications.NewNotificationService()
+
+	if cfg.Notifications.Slack.Enabled {
+		slackChannel := notifications.NewSlackChannel(notifications.SlackConfig{
+			WebhookURL: cfg.Notifications.Slack.WebhookURL,
+			Channel:    cfg.Notifications.Slack.Channel,
+			Username:   cfg.Notifications.Slack.Username,
+		})
+		notificationService.RegisterChannel(slackChannel)
+		log.Println("slack notification channel enabled")
+	}
+
+	if cfg.Notifications.Email.Enabled {
+		emailChannel := notifications.NewEmailChannel(notifications.EmailConfig{
+			SMTPHost:    cfg.Notifications.Email.SMTPHost,
+			SMTPPort:    cfg.Notifications.Email.SMTPPort,
+			Username:    cfg.Notifications.Email.Username,
+			Password:    cfg.Notifications.Email.Password,
+			FromAddress: cfg.Notifications.Email.FromEmail,
+			FromName:    cfg.Notifications.Email.FromName,
+			UseHTML:     true,
+		})
+		notificationService.RegisterChannel(emailChannel)
+		log.Println("email notification channel enabled")
+	}
+
+	if cfg.Notifications.PagerDuty.Enabled {
+		pdChannel := notifications.NewPagerDutyChannel(notifications.PagerDutyConfig{
+			RoutingKey: cfg.Notifications.PagerDuty.RoutingKey,
+		})
+		notificationService.RegisterChannel(pdChannel)
+		log.Println("pagerduty notification channel enabled")
+	}
+
+	// Start event subscriber to bridge NATS events to notifications
+	eventSubscriber := notifications.NewEventSubscriber(nc, notificationService)
+	go func() {
+		if err := eventSubscriber.Start(ctx, notifications.DefaultSubscriberConfig()); err != nil {
+			log.Printf("warning: notification subscriber failed to start: %v", err)
+		}
+	}()
 
 	// -------------------------------------------------------------------------
 	// Middleware

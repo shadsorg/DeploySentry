@@ -99,6 +99,16 @@ const SettingsPage: React.FC = () => {
 
   // Notifications form state
   const [slackUrl, setSlackUrl] = useState('');
+  const [slackChannel, setSlackChannel] = useState('');
+  const [slackEnabled, setSlackEnabled] = useState(false);
+  const [emailEnabled, setEmailEnabled] = useState(false);
+  const [emailSmtpHost, setEmailSmtpHost] = useState('');
+  const [emailSmtpPort, setEmailSmtpPort] = useState('587');
+  const [emailUsername, setEmailUsername] = useState('');
+  const [emailPassword, setEmailPassword] = useState('');
+  const [emailFrom, setEmailFrom] = useState('');
+  const [pagerdutyEnabled, setPagerdutyEnabled] = useState(false);
+  const [pagerdutyKey, setPagerdutyKey] = useState('');
   const [enabledEvents, setEnabledEvents] = useState<Set<string>>(
     new Set(['deploy.completed', 'deploy.failed']),
   );
@@ -247,45 +257,103 @@ const SettingsPage: React.FC = () => {
 
       {/* Notifications tab */}
       {activeTab === 'notifications' && (
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">Notification Preferences</span>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Slack Webhook URL</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="https://hooks.slack.com/services/..."
-              value={slackUrl}
-              onChange={(e) => setSlackUrl(e.target.value)}
-            />
-            <div className="form-hint">
-              Notifications will be sent to this Slack channel via incoming webhook.
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Slack */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">Slack</span>
+              <label className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
+                <input type="checkbox" checked={slackEnabled} onChange={(e) => setSlackEnabled(e.target.checked)} />
+                <span className="text-sm">Enabled</span>
+              </label>
             </div>
+            {slackEnabled && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Webhook URL</label>
+                  <input type="text" className="form-input" placeholder="https://hooks.slack.com/services/..." value={slackUrl} onChange={(e) => setSlackUrl(e.target.value)} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Channel (optional)</label>
+                  <input type="text" className="form-input" placeholder="#deployments" value={slackChannel} onChange={(e) => setSlackChannel(e.target.value)} />
+                </div>
+              </>
+            )}
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Notification Events</label>
+          {/* Email */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">Email (SMTP)</span>
+              <label className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
+                <input type="checkbox" checked={emailEnabled} onChange={(e) => setEmailEnabled(e.target.checked)} />
+                <span className="text-sm">Enabled</span>
+              </label>
+            </div>
+            {emailEnabled && (
+              <>
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label className="form-label">SMTP Host</label>
+                    <input type="text" className="form-input" placeholder="smtp.gmail.com" value={emailSmtpHost} onChange={(e) => setEmailSmtpHost(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">SMTP Port</label>
+                    <input type="number" className="form-input" placeholder="587" value={emailSmtpPort} onChange={(e) => setEmailSmtpPort(e.target.value)} />
+                  </div>
+                </div>
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Username</label>
+                    <input type="text" className="form-input" placeholder="user@example.com" value={emailUsername} onChange={(e) => setEmailUsername(e.target.value)} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Password</label>
+                    <input type="password" className="form-input" placeholder="App password" value={emailPassword} onChange={(e) => setEmailPassword(e.target.value)} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">From Address</label>
+                  <input type="email" className="form-input" placeholder="noreply@deploysentry.com" value={emailFrom} onChange={(e) => setEmailFrom(e.target.value)} />
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* PagerDuty */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">PagerDuty</span>
+              <label className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
+                <input type="checkbox" checked={pagerdutyEnabled} onChange={(e) => setPagerdutyEnabled(e.target.checked)} />
+                <span className="text-sm">Enabled</span>
+              </label>
+            </div>
+            {pagerdutyEnabled && (
+              <div className="form-group">
+                <label className="form-label">Integration/Routing Key</label>
+                <input type="text" className="form-input" placeholder="Events API v2 routing key" value={pagerdutyKey} onChange={(e) => setPagerdutyKey(e.target.value)} />
+                <div className="form-hint">PagerDuty incidents are auto-created for deployment failures and health alerts.</div>
+              </div>
+            )}
+          </div>
+
+          {/* Event Types */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">Event Types</span>
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {NOTIFICATION_EVENTS.map((event) => (
-                <label
-                  key={event}
-                  className="flex items-center gap-3"
-                  style={{ cursor: 'pointer' }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={enabledEvents.has(event)}
-                    onChange={() => toggleEvent(event)}
-                  />
+                <label key={event} className="flex items-center gap-3" style={{ cursor: 'pointer' }}>
+                  <input type="checkbox" checked={enabledEvents.has(event)} onChange={() => toggleEvent(event)} />
                   <code className="font-mono text-sm">{event}</code>
                 </label>
               ))}
             </div>
           </div>
 
-          <button className="btn btn-primary">Save</button>
+          <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>Save Notification Settings</button>
         </div>
       )}
 

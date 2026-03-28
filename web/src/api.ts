@@ -138,6 +138,15 @@ export const authApi = {
   },
 };
 
+// Notifications
+export const notificationsApi = {
+  getSettings: () => request<any>('/notifications/settings'),
+  updateSettings: (data: any) =>
+    request<any>('/notifications/settings', { method: 'PUT', body: JSON.stringify(data) }),
+  testChannel: (channel: string) =>
+    request<{ status: string }>(`/notifications/test/${channel}`, { method: 'POST' }),
+};
+
 // Health
 export const healthApi = {
   check: () => fetch('/health').then((r) => r.json()),

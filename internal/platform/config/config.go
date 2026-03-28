@@ -12,12 +12,45 @@ import (
 
 // Config holds all configuration for the application.
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	Redis    RedisConfig
-	NATS     NATSConfig
-	Auth     AuthConfig
-	Log      LogConfig
+	Server        ServerConfig
+	Database      DatabaseConfig
+	Redis         RedisConfig
+	NATS          NATSConfig
+	Auth          AuthConfig
+	Log           LogConfig
+	Notifications NotificationsConfig
+}
+
+// NotificationsConfig holds configuration for all notification channels.
+type NotificationsConfig struct {
+	Slack    SlackNotificationConfig    `mapstructure:"slack"`
+	Email    EmailNotificationConfig    `mapstructure:"email"`
+	PagerDuty PagerDutyNotificationConfig `mapstructure:"pagerduty"`
+}
+
+// SlackNotificationConfig holds Slack webhook configuration.
+type SlackNotificationConfig struct {
+	Enabled    bool   `mapstructure:"enabled"`
+	WebhookURL string `mapstructure:"webhook_url"`
+	Channel    string `mapstructure:"channel"`
+	Username   string `mapstructure:"username"`
+}
+
+// EmailNotificationConfig holds SMTP configuration.
+type EmailNotificationConfig struct {
+	Enabled    bool   `mapstructure:"enabled"`
+	SMTPHost   string `mapstructure:"smtp_host"`
+	SMTPPort   int    `mapstructure:"smtp_port"`
+	Username   string `mapstructure:"username"`
+	Password   string `mapstructure:"password"`
+	FromName   string `mapstructure:"from_name"`
+	FromEmail  string `mapstructure:"from_email"`
+}
+
+// PagerDutyNotificationConfig holds PagerDuty configuration.
+type PagerDutyNotificationConfig struct {
+	Enabled    bool   `mapstructure:"enabled"`
+	RoutingKey string `mapstructure:"routing_key"`
 }
 
 // ServerConfig holds HTTP server configuration.
@@ -216,4 +249,12 @@ func setDefaults(v *viper.Viper) {
 	// Log defaults.
 	v.SetDefault("log.level", "info")
 	v.SetDefault("log.format", "json")
+
+	// Notification defaults (all disabled by default).
+	v.SetDefault("notifications.slack.enabled", false)
+	v.SetDefault("notifications.slack.username", "DeploySentry")
+	v.SetDefault("notifications.email.enabled", false)
+	v.SetDefault("notifications.email.smtp_port", 587)
+	v.SetDefault("notifications.email.from_name", "DeploySentry")
+	v.SetDefault("notifications.pagerduty.enabled", false)
 }

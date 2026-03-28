@@ -211,7 +211,7 @@ func TestCreateDeployment_PublishesEvent(t *testing.T) {
 	assert.NoError(t, err)
 
 	events := pub.events()
-	assert.Contains(t, events, "deployment.created")
+	assert.Contains(t, events, "deployments.deployment.created")
 }
 
 // ---------------------------------------------------------------------------
@@ -352,7 +352,7 @@ func TestPromoteDeployment_PublishesEvent(t *testing.T) {
 	assert.NoError(t, err)
 
 	events := pub.events()
-	assert.Contains(t, events, "deployment.promoted")
+	assert.Contains(t, events, "deployments.deployment.promoted")
 }
 
 // ---------------------------------------------------------------------------
@@ -406,7 +406,7 @@ func TestRollbackDeployment_PublishesEvent(t *testing.T) {
 	assert.NoError(t, err)
 
 	events := pub.events()
-	assert.Contains(t, events, "deployment.rolled_back")
+	assert.Contains(t, events, "deployments.deployment.rolled_back")
 }
 
 // ---------------------------------------------------------------------------
@@ -458,7 +458,7 @@ func TestPauseDeployment_PublishesEvent(t *testing.T) {
 	assert.NoError(t, err)
 
 	events := pub.events()
-	assert.Contains(t, events, "deployment.paused")
+	assert.Contains(t, events, "deployments.deployment.paused")
 }
 
 // ---------------------------------------------------------------------------
@@ -511,5 +511,5 @@ func TestResumeDeployment_PublishesEvent(t *testing.T) {
 	assert.NoError(t, err)
 
 	events := pub.events()
-	assert.Contains(t, events, "deployment.resumed")
+	assert.Contains(t, events, "deployments.deployment.resumed")
 }

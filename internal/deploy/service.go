@@ -217,7 +217,9 @@ func (s *deployService) GetActiveDeployments(ctx context.Context, projectID uuid
 // publishEvent is a fire-and-forget helper that publishes a domain event.
 // Errors are logged but do not fail the calling operation.
 func (s *deployService) publishEvent(ctx context.Context, subject string, deploymentID uuid.UUID) {
+	// Normalize subject to use plural "deployments." prefix for NATS subscriber compatibility
+	natsSubject := "deployments." + subject
 	payload := []byte(`{"deployment_id":"` + deploymentID.String() + `"}`)
 	// Best-effort publish; errors are non-fatal for the calling operation.
-	_ = s.messaging.Publish(ctx, subject, payload)
+	_ = s.messaging.Publish(ctx, natsSubject, payload)
 }

@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import { authApi, type AuthUser } from './api';
 
 interface AuthContextValue {
@@ -12,7 +12,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -62,7 +62,7 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
-export function RequireAuth({ children }: { children: ReactNode }) {
+export function RequireAuth() {
   const { user, loading } = useAuth();
   const location = useLocation();
 
@@ -74,10 +74,10 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  return <>{children}</>;
+  return <Outlet />;
 }
 
-export function RedirectIfAuth({ children }: { children: ReactNode }) {
+export function RedirectIfAuth() {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -88,5 +88,5 @@ export function RedirectIfAuth({ children }: { children: ReactNode }) {
     return <Navigate to="/" replace />;
   }
 
-  return <>{children}</>;
+  return <Outlet />;
 }

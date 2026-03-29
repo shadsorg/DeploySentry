@@ -17,11 +17,13 @@ A marketplace-style ratings and error tracking system for shared feature flags. 
 |----------|--------|-----------|
 | Data storage | Dedicated tables (`flag_ratings`, `flag_error_stats`) | Clean relational model, proper constraints, follows existing codebase patterns |
 | Rating scope | Global across all subscribers | Marketplace-style aggregate quality signal |
-| Rating cardinality | One per user per flag | Individual members rate; enforced via unique constraint |
+| Rating cardinality | One per user per flag (globally) | Individual org members rate; `UNIQUE(flag_id, user_id)` means one rating regardless of org membership. `org_id` records which org context the rating was submitted from. |
 | Error signal source | SDK-reported (wrapper function) | Most accurate per-flag attribution |
 | Error detail level | Counts only (evaluations + errors) | Sufficient for error % computation without telemetry overhead |
 | Error attribution | Per-org tracking (admin-visible) | Admins can drill down; public view shows aggregate only |
 | Ratings vs. error tracking | Independent concerns | Ratings are social (opt-in); error stats are operational (always collected when `track()` is used) |
+| Flag-to-org resolution | Join through projects table | `feature_flags.project_id -> projects.org_id`; no direct `org_id` on feature_flags |
+| Comment length | Max 2000 characters | Prevents abuse; consistent with typical review systems |
 
 ## Data Model
 
@@ -34,7 +36,7 @@ CREATE TABLE flag_ratings (
     user_id    UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     org_id     UUID        NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     rating     SMALLINT    NOT NULL CHECK (rating >= 1 AND rating <= 5),
-    comment    TEXT,
+    comment    TEXT        CHECK (length(comment) <= 2000),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (flag_id, user_id)
@@ -63,7 +65,7 @@ CREATE TABLE flag_error_stats (
 
 Error percentage computed as: `error_count / total_evaluations * 100`
 
-Hourly bucketing keeps table size manageable while providing enough granularity for trend analysis.
+Hourly bucketing keeps table size manageable while providing enough granularity for trend analysis. The API server truncates the current time to the hour (`date_trunc('hour', now())`) when ingesting error reports — the SDK does not send timestamps. Upsert on the unique constraint increments counters for the current bucket.
 
 ### Org setting
 
@@ -88,10 +90,10 @@ Rating endpoints check `flag_ratings_enabled` org setting — return 403 if disa
 
 | Method | Endpoint | Description | Permission |
 |--------|----------|-------------|------------|
-| `POST` | `/flags/:id/ratings` | Submit or update rating (upsert on user+flag) | `flags:write` |
-| `GET` | `/flags/:id/ratings` | List individual ratings (paginated) | `flags:read` |
-| `GET` | `/flags/:id/ratings/summary` | Aggregate: avg, count, 1-5 histogram | `flags:read` |
-| `DELETE` | `/flags/:id/ratings` | Delete calling user's rating | `flags:write` |
+| `POST` | `/flags/:id/ratings` | Submit or update rating (upsert on user+flag) | `flag:update` (`PermFlagUpdate`) |
+| `GET` | `/flags/:id/ratings` | List individual ratings (paginated) | `flag:read` (`PermFlagRead`) |
+| `GET` | `/flags/:id/ratings/summary` | Aggregate: avg, count, 1-5 histogram | `flag:read` (`PermFlagRead`) |
+| `DELETE` | `/flags/:id/ratings` | Delete calling user's rating (returns 204; returns 204 even if no rating exists — idempotent) | `flag:update` (`PermFlagUpdate`) |
 
 ### Error Reporting
 
@@ -99,14 +101,15 @@ Error endpoints are always available (not gated by ratings toggle).
 
 | Method | Endpoint | Description | Permission |
 |--------|----------|-------------|------------|
-| `POST` | `/flags/errors/report` | SDK batch reports error counts | `flags:write` |
-| `GET` | `/flags/:id/errors/summary` | Error % and trend (24h, 7d, 30d) | `flags:read` |
-| `GET` | `/flags/:id/errors/by-org` | Per-org error breakdown | `admin` |
+| `POST` | `/flags/errors/report` | SDK batch reports error counts | `flag:update` (`PermFlagUpdate`) |
+| `GET` | `/flags/:id/errors/summary` | Error % and trend (24h, 7d, 30d) | `flag:read` (`PermFlagRead`) |
+| `GET` | `/flags/:id/errors/by-org` | Per-org error breakdown | `org:manage` (`PermOrgManage`) |
 
 ### Batch report payload
 
 ```json
 {
+  "project_id": "<uuid>",
   "environment_id": "<uuid>",
   "org_id": "<uuid>",
   "stats": [
@@ -115,6 +118,8 @@ Error endpoints are always available (not gated by ratings toggle).
   ]
 }
 ```
+
+The handler resolves `flag_key` to `flag_id` using the `(project_id, key)` unique constraint on `feature_flags`. The `project_id` is required to disambiguate keys across projects.
 
 ### Augmented flag responses
 
@@ -190,3 +195,9 @@ When `flag_ratings_enabled` is **off** (or absent) for an org:
 
 - SDK implementations across all 7 languages (separate per-SDK work)
 - Dashboard UI components (frontend phase)
+
+## Future Considerations
+
+- **Data retention:** `flag_error_stats` will grow continuously with hourly bucketing. A future migration should add a retention policy (e.g., roll up to daily after 30 days, purge raw hourly data after 90 days).
+- **Query parameter opt-in:** If `rating_summary` / `error_rate` on `GET /flags` causes performance issues, add `?include=ratings,errors` query parameter to make them opt-in. Start with always-included and measure.
+- **Rate limiting:** The `POST /flags/errors/report` endpoint may need dedicated rate limiting beyond the global middleware if SDK flush volume is high.

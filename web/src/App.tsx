@@ -17,6 +17,9 @@ import ReleaseDetailPage from './pages/ReleaseDetailPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import SDKsPage from './pages/SDKsPage';
 import SettingsPage from './pages/SettingsPage';
+import MembersPage from './pages/MembersPage';
+import APIKeysPage from './pages/APIKeysPage';
+import CreateAppPage from './pages/CreateAppPage';
 
 export default function App() {
   return (
@@ -40,8 +43,8 @@ export default function App() {
           <Route path="/orgs/:orgSlug" element={<HierarchyLayout />}>
             {/* Org-level */}
             <Route path="projects" element={<ProjectListPage />} />
-            <Route path="members" element={<SettingsPage level="org" tab="members" />} />
-            <Route path="api-keys" element={<SettingsPage level="org" tab="api-keys" />} />
+            <Route path="members" element={<MembersPage />} />
+            <Route path="api-keys" element={<APIKeysPage />} />
             <Route path="settings" element={<SettingsPage level="org" />} />
 
             {/* Project-level */}
@@ -54,6 +57,7 @@ export default function App() {
               <Route path="settings" element={<SettingsPage level="project" />} />
 
               {/* App-level */}
+              <Route path="apps/new" element={<CreateAppPage />} />
               <Route path="apps/:appSlug">
                 <Route path="deployments" element={<DeploymentsPage />} />
                 <Route path="deployments/:id" element={<DeploymentDetailPage />} />

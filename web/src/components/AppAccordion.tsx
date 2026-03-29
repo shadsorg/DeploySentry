@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { NavLink, useParams } from 'react-router-dom';
+import { NavLink, Link, useParams } from 'react-router-dom';
 import { getMockApps } from '@/mocks/hierarchy';
 
 export default function AppAccordion() {
@@ -60,6 +60,12 @@ export default function AppAccordion() {
           </div>
         );
       })}
+      <Link
+        to={`/orgs/${orgSlug}/projects/${projectSlug}/apps/new`}
+        className="add-app-link"
+      >
+        + Add App
+      </Link>
     </div>
   );
 }

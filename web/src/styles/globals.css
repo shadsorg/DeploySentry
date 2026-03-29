@@ -1420,3 +1420,177 @@ tbody tr:last-child td {
   color: var(--color-text-secondary);
   margin-bottom: 12px;
 }
+
+/* ------------------------------------------------------------------ */
+/* Multi-select checkbox group                                         */
+/* ------------------------------------------------------------------ */
+.checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: background 0.1s;
+}
+
+.checkbox-group label:hover {
+  background: var(--color-bg-hover);
+}
+
+/* ------------------------------------------------------------------ */
+/* Inline form (expandable create forms)                               */
+/* ------------------------------------------------------------------ */
+.inline-form {
+  padding: 16px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 16px;
+}
+
+.inline-form-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.inline-form-row .form-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Key reveal box                                                      */
+/* ------------------------------------------------------------------ */
+.key-reveal {
+  padding: 12px 16px;
+  background: var(--color-success-bg);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: var(--radius-md);
+  margin: 12px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.key-reveal code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--color-success);
+  word-break: break-all;
+}
+
+.key-reveal .btn {
+  flex-shrink: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Group/role badges                                                   */
+/* ------------------------------------------------------------------ */
+.badge-viewer {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+}
+
+.badge-editor {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.badge-admin {
+  background: var(--color-purple-bg);
+  color: var(--color-purple);
+}
+
+.badge-owner {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.badge-member {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+}
+
+.badge-production {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+/* ------------------------------------------------------------------ */
+/* Inline confirm                                                      */
+/* ------------------------------------------------------------------ */
+.inline-confirm {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.inline-confirm span {
+  color: var(--color-danger);
+}
+
+/* ------------------------------------------------------------------ */
+/* Group manage popover                                                */
+/* ------------------------------------------------------------------ */
+.group-manage {
+  position: relative;
+}
+
+.group-manage-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 220px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 8px;
+  z-index: 200;
+  box-shadow: var(--shadow-md);
+}
+
+.group-manage-dropdown label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.group-manage-dropdown label:hover {
+  background: var(--color-bg-hover);
+}
+
+/* ------------------------------------------------------------------ */
+/* Add app link in sidebar                                             */
+/* ------------------------------------------------------------------ */
+.add-app-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--color-primary);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: all 0.15s;
+  text-decoration: none;
+}
+
+.add-app-link:hover {
+  background: var(--color-primary-bg);
+  color: var(--color-primary-hover);
+}

@@ -187,6 +187,8 @@ func TestDeleteRating(t *testing.T) {
 }
 
 func TestReportErrors_Handler(t *testing.T) {
+	// Use a fixed org_id so request body matches the authenticated context.
+	fixedOrgID := uuid.New()
 	var capturedEntries []ErrorReportEntry
 	svc := &mockRatingService{
 		reportErrorsFn: func(_ context.Context, _ uuid.UUID, entries []ErrorReportEntry, _, _ uuid.UUID) error {
@@ -194,12 +196,23 @@ func TestReportErrors_Handler(t *testing.T) {
 			return nil
 		},
 	}
-	router := setupRatingRouter(svc)
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set("user_id", uuid.New())
+		c.Set("org_id", fixedOrgID.String())
+		c.Set("role", auth.RoleOwner)
+		c.Next()
+	})
+	rbac := auth.NewRBACChecker()
+	handler := NewHandler(svc, rbac)
+	handler.RegisterRoutes(router.Group("/api"))
 
 	body := map[string]interface{}{
 		"project_id":     uuid.New().String(),
 		"environment_id": uuid.New().String(),
-		"org_id":         uuid.New().String(),
+		"org_id":         fixedOrgID.String(),
 		"stats": []map[string]interface{}{
 			{"flag_key": "test-flag", "evaluations": 100, "errors": 2},
 		},
@@ -211,6 +224,26 @@ func TestReportErrors_Handler(t *testing.T) {
 
 	assert.Equal(t, http.StatusAccepted, w.Code)
 	assert.Len(t, capturedEntries, 1)
+}
+
+func TestReportErrors_OrgMismatch(t *testing.T) {
+	svc := &mockRatingService{}
+	router := setupRatingRouter(svc) // random org_id in context
+
+	body := map[string]interface{}{
+		"project_id":     uuid.New().String(),
+		"environment_id": uuid.New().String(),
+		"org_id":         uuid.New().String(), // different org_id
+		"stats": []map[string]interface{}{
+			{"flag_key": "test-flag", "evaluations": 100, "errors": 2},
+		},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/flags/errors/report", marshalJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
 }
 
 func TestGetErrorsByOrg_RequiresAdmin(t *testing.T) {

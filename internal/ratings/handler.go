@@ -215,6 +215,17 @@ func (h *Handler) reportErrors(c *gin.Context) {
 		return
 	}
 
+	// Validate that the request org_id matches the authenticated caller's org.
+	_, authedOrgID, ok := getContextIDs(c)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing user/org context"})
+		return
+	}
+	if req.OrgID != authedOrgID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "org_id does not match authenticated organization"})
+		return
+	}
+
 	entries := make([]ErrorReportEntry, len(req.Stats))
 	for i, s := range req.Stats {
 		entries[i] = ErrorReportEntry{FlagKey: s.FlagKey, Evaluations: s.Evaluations, Errors: s.Errors}

@@ -225,6 +225,30 @@ func (h *Handler) listFlags(c *gin.Context) {
 		return
 	}
 
+	if h.ratingSvc != nil {
+		enriched := make([]*flagWithRatings, len(flags))
+		orgIDStr := c.GetString("org_id")
+		orgID, _ := uuid.Parse(orgIDStr)
+		ratingsEnabled := false
+		if orgID != uuid.Nil {
+			ratingsEnabled, _ = h.ratingSvc.IsRatingsEnabled(c.Request.Context(), orgID)
+		}
+		for i, f := range flags {
+			resp := &flagWithRatings{FeatureFlag: f}
+			if errSummary, sErr := h.ratingSvc.GetErrorSummary(c.Request.Context(), f.ID, 7*24*time.Hour); sErr == nil {
+				resp.ErrorRate = errSummary
+			}
+			if ratingsEnabled {
+				if ratingSummary, rErr := h.ratingSvc.GetRatingSummary(c.Request.Context(), f.ID); rErr == nil {
+					resp.RatingSummary = ratingSummary
+				}
+			}
+			enriched[i] = resp
+		}
+		c.JSON(http.StatusOK, gin.H{"flags": enriched})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{"flags": flags})
 }
 

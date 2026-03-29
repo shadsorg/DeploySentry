@@ -94,6 +94,7 @@ export interface ApiKey {
   name: string;
   prefix: string;
   scopes: string[];
+  environment_targets: string[];
   created_at: string;
   last_used_at: string | null;
   expires_at: string | null;
@@ -183,4 +184,33 @@ export interface ReleaseFlagChange {
   previous_value: string;
   new_value: string;
   applied_at: string | null;
+}
+
+export type GroupRole = 'viewer' | 'editor' | 'admin';
+
+export interface Member {
+  id: string;
+  name: string;
+  email: string;
+  role: 'owner' | 'member';
+  group_ids: string[];
+  joined_at: string;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  role: GroupRole;
+  environment_ids: string[];
+  application_ids: string[];
+  member_ids: string[];
+  created_at: string;
+}
+
+export interface OrgEnvironment {
+  id: string;
+  name: string;
+  slug: string;
+  is_production: boolean;
+  created_at: string;
 }

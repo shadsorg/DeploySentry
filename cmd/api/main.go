@@ -29,6 +29,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/platform/messaging"
 	"github.com/deploysentry/deploysentry/internal/platform/middleware"
 	"github.com/deploysentry/deploysentry/internal/platform/metrics"
+	"github.com/deploysentry/deploysentry/internal/ratings"
 	"github.com/deploysentry/deploysentry/internal/releases"
 	"github.com/deploysentry/deploysentry/internal/webhooks"
 )
@@ -178,6 +179,7 @@ func run() error {
 	deployRepo := postgres.NewDeployRepository(db.Pool)
 	releaseRepo := postgres.NewReleaseRepository(db.Pool)
 	webhookRepo := postgres.NewWebhookRepository(db.Pool)
+	ratingRepo := postgres.NewRatingRepository(db.Pool)
 
 	// -------------------------------------------------------------------------
 	// Services
@@ -190,6 +192,7 @@ func run() error {
 	rbacChecker := auth.NewRBACChecker()
 	analyticsService := analytics.NewService(db.Pool, rdb.Client)
 	webhookService := webhooks.NewService(webhookRepo, nc)
+	ratingService := ratings.NewRatingService(ratingRepo)
 
 	// -------------------------------------------------------------------------
 	// Notifications
@@ -264,6 +267,7 @@ func run() error {
 	releases.NewHandler(releaseService).RegisterRoutes(api)
 	analytics.NewHandler(analyticsService).RegisterRoutes(api)
 	webhooks.NewHandler(webhookService).RegisterRoutes(api)
+	ratings.NewHandler(ratingService, rbacChecker).RegisterRoutes(api)
 	auth.NewUserHandler(userRepo).RegisterRoutes(api)
 	auth.NewAPIKeyHandler(apiKeyService).RegisterRoutes(api)
 	auth.NewAuditHandler(auditRepo).RegisterRoutes(api)

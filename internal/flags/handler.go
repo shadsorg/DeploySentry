@@ -1,6 +1,7 @@
 package flags
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -16,6 +17,21 @@ import (
 	"github.com/google/uuid"
 )
 
+// FlagRatingSvc is the subset of ratings.RatingService needed by the flags handler.
+// Defined as a local interface to avoid a circular import.
+type FlagRatingSvc interface {
+	GetRatingSummary(ctx context.Context, flagID uuid.UUID) (*models.RatingSummary, error)
+	GetErrorSummary(ctx context.Context, flagID uuid.UUID, period time.Duration) (*models.ErrorSummary, error)
+	IsRatingsEnabled(ctx context.Context, orgID uuid.UUID) (bool, error)
+}
+
+// flagWithRatings wraps a FeatureFlag with optional rating and error data.
+type flagWithRatings struct {
+	*models.FeatureFlag
+	RatingSummary *models.RatingSummary `json:"rating_summary,omitempty"`
+	ErrorRate     *models.ErrorSummary  `json:"error_rate,omitempty"`
+}
+
 // Handler provides HTTP endpoints for managing feature flags.
 type Handler struct {
 	service      FlagService
@@ -23,6 +39,7 @@ type Handler struct {
 	sse          *SSEBroker
 	webhookSvc   *webhooks.Service
 	analyticsSvc *analytics.Service
+	ratingSvc    FlagRatingSvc
 }
 
 // NewHandler creates a new feature flag HTTP handler.
@@ -35,6 +52,9 @@ func NewHandler(service FlagService, rbac *auth.RBACChecker, webhookSvc *webhook
 		analyticsSvc: analyticsSvc,
 	}
 }
+
+// SetRatingService wires up an optional rating service for augmented flag responses.
+func (h *Handler) SetRatingService(svc FlagRatingSvc) { h.ratingSvc = svc }
 
 // RegisterRoutes mounts all feature flag API routes on the given router group.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
@@ -154,6 +174,30 @@ func (h *Handler) getFlag(c *gin.Context) {
 	flag, err := h.service.GetFlag(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "flag not found"})
+		return
+	}
+
+	if h.ratingSvc != nil {
+		resp := &flagWithRatings{FeatureFlag: flag}
+
+		// Always attach error summary for the trailing 7-day window.
+		if errSummary, err := h.ratingSvc.GetErrorSummary(c.Request.Context(), id, 7*24*time.Hour); err == nil {
+			resp.ErrorRate = errSummary
+		}
+
+		// Attach rating summary only when ratings are enabled for this org.
+		orgIDStr := c.GetString("org_id")
+		if orgIDStr != "" {
+			if orgID, parseErr := uuid.Parse(orgIDStr); parseErr == nil {
+				if enabled, checkErr := h.ratingSvc.IsRatingsEnabled(c.Request.Context(), orgID); checkErr == nil && enabled {
+					if ratingSummary, rErr := h.ratingSvc.GetRatingSummary(c.Request.Context(), id); rErr == nil {
+						resp.RatingSummary = ratingSummary
+					}
+				}
+			}
+		}
+
+		c.JSON(http.StatusOK, resp)
 		return
 	}
 

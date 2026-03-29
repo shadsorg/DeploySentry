@@ -262,7 +262,9 @@ func run() error {
 	api.Use(rateLimiter.Middleware())
 	api.Use(authMiddleware.RequireAuth())
 
-	flags.NewHandler(flagService, rbacChecker, webhookService, analyticsService).RegisterRoutes(api)
+	flagHandler := flags.NewHandler(flagService, rbacChecker, webhookService, analyticsService)
+	flagHandler.SetRatingService(ratingService)
+	flagHandler.RegisterRoutes(api)
 	deploy.NewHandler(deployService, webhookService, analyticsService).RegisterRoutes(api, rbacChecker)
 	releases.NewHandler(releaseService).RegisterRoutes(api)
 	analytics.NewHandler(analyticsService).RegisterRoutes(api)

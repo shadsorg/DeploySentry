@@ -2,6 +2,38 @@
 
 Deploy release and feature flag management platform. DeploySentry gives engineering teams full visibility and control over their deployment lifecycle — safe rollouts, feature flags with granular targeting, release tracking, and automated rollbacks.
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Architecture](#architecture)
+- [Applications](#applications)
+- [Feature Flags](#feature-flags)
+  - [Flag Categories](#flag-categories)
+  - [Flag Metadata](#flag-metadata)
+  - [How Flags Work](#how-flags-work)
+  - [Creating Flags](#creating-flags)
+  - [Targeting Rules](#targeting-rules)
+- [Integrating Into Your Project](#integrating-into-your-project)
+  - [Install the CLI](#1-install-the-cli)
+  - [Get an API Key](#2-get-an-api-key)
+  - [Install the SDK](#3-install-the-sdk)
+  - [Initialize and Evaluate](#4-initialize-and-evaluate) (Go, Node, Python, Java, React, Flutter, Ruby)
+  - [Best Practices for SDK Integration](#7-best-practices-for-sdk-integration)
+- [Monitoring Flags](#monitoring-flags)
+  - [Flag Lifecycle Management](#flag-lifecycle-management)
+  - [Flag Health Dashboard](#flag-health-dashboard)
+  - [API Endpoints](#api-endpoints-for-monitoring)
+  - [Member Management API](#member-management-api)
+  - [Observability Integration](#observability-integration)
+  - [Webhooks & Slack](#webhook-notifications)
+- [Deployments](#deployments)
+  - [CLI Commands](#cli-commands)
+  - [Automated Rollbacks](#automated-rollbacks)
+- [Authentication](#authentication)
+- [Database](#database)
+- [Development](#development)
+- [Project Status](#project-status)
+
 ## Quick Start
 
 ```bash
@@ -44,7 +76,7 @@ make run-api
             SDK clients (Go, Node, Python, etc.)
 ```
 
-**Core services:** Deploy Service, Feature Flag Service, Release Tracker, Health Monitor, Rollback Controller, Notification Service.
+**Core services:** Deploy Service, Feature Flag Service, Release Tracker, Health Monitor, Rollback Controller, Notification Service, Member Management, Settings Management, Entity Management (Orgs/Projects/Apps), Analytics, Ratings.
 
 **Stack:** Go 1.22+, PostgreSQL 16, Redis 7, NATS JetStream, React + TypeScript (web), Flutter (mobile).
 
@@ -180,15 +212,25 @@ Rules are evaluated in priority order (lower number = higher precedence). First 
 
 ## Integrating Into Your Project
 
-### 1. Get an API Key
+### 1. Install the CLI
+
+```bash
+# One-line install (Linux / macOS)
+curl -fsSL https://raw.githubusercontent.com/shadsorg/DeploySentry/main/scripts/install.sh | sh
+
+# Or build from source
+go install ./cmd/cli
+```
+
+### 2. Get an API Key
 
 Create an API key with at minimum `flags:read` scope. If reporting evaluation telemetry, also add `flags:write`.
 
 ```bash
-deploysentry apikey create --name "my-service" --scopes flags:read
+deploysentry apikeys create --name "my-service" --scopes flags:read
 ```
 
-### 2. Install the SDK
+### 3. Install the SDK
 
 | Language | Package | Install |
 |----------|---------|---------|
@@ -200,7 +242,7 @@ deploysentry apikey create --name "my-service" --scopes flags:read
 | Flutter | `deploysentry_flutter` | `flutter pub add deploysentry_flutter` |
 | Ruby | `deploysentry` | `gem install deploysentry` |
 
-### 3. Initialize and Evaluate
+### 4. Initialize and Evaluate
 
 All SDKs follow the same pattern: initialize with your API key, evaluate flags with user context, and access rich metadata.
 
@@ -434,7 +476,7 @@ expired_flags = client.expired_flags
 client.close
 ```
 
-### 4. Add Project Config
+### 5. Add Project Config
 
 Drop a `.deploysentry.yml` in your project root to set defaults for CLI and SDK:
 
@@ -451,7 +493,7 @@ flags:
   stale_threshold: "30d"
 ```
 
-### 5. SDK Behavior
+### 6. SDK Behavior
 
 All SDKs follow the same pattern:
 
@@ -461,6 +503,90 @@ All SDKs follow the same pattern:
 - **Offline mode:** If the API is unreachable, the SDK continues serving stale cached values and reconnects with exponential backoff.
 - **Metadata:** All evaluation results include flag metadata (category, purpose, owners, expiration) for logging and observability.
 - **Cleanup:** Call `close()` on shutdown to release the streaming connection.
+
+### 7. Best Practices for SDK Integration
+
+**Initialize once, evaluate many.** Create a single client instance at application startup and reuse it throughout the process. The client maintains a local cache and SSE connection — creating multiple instances wastes memory and connections.
+
+```go
+// GOOD — singleton client
+var flagClient *deploysentry.Client
+
+func main() {
+    flagClient, _ = deploysentry.NewClient(
+        deploysentry.WithAPIKey(os.Getenv("DEPLOYSENTRY_API_KEY")),
+        deploysentry.WithEnvironment("production"),
+        deploysentry.WithProject("my-project"),
+    )
+    defer flagClient.Close()
+    flagClient.Initialize()
+    // pass flagClient to your handlers/services
+}
+```
+
+**Use evaluation context consistently.** Always pass user context when evaluating flags so targeting rules work correctly. Build a helper that extracts context from your request:
+
+```go
+func evalCtxFromRequest(r *http.Request) deploysentry.EvaluationContext {
+    user := auth.UserFromContext(r.Context())
+    return deploysentry.NewEvaluationContext().
+        UserID(user.ID).
+        Set("plan", user.Plan).
+        Set("org_id", user.OrgID).
+        Build()
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+    ctx := evalCtxFromRequest(r)
+    if flagClient.BoolValue(r.Context(), "new-checkout-flow", false, ctx) {
+        serveNewCheckout(w, r)
+    } else {
+        serveOldCheckout(w, r)
+    }
+}
+```
+
+**Log flag evaluations for observability.** Use `Detail()` instead of `BoolValue()` when you need to correlate flag state with application behavior:
+
+```go
+result := flagClient.Detail(ctx, "new-checkout-flow", evalCtx)
+logger.Info("flag evaluated",
+    "flag", "new-checkout-flow",
+    "value", result.Value,
+    "category", result.Metadata.Category,
+    "user", evalCtx.UserID,
+)
+```
+
+**Handle the offline case.** SDKs serve stale cached values when the API is unreachable. Choose sensible defaults for each flag — the default is what users see during an outage:
+
+```go
+// Safe default: false means the old (stable) code path runs during outages
+enabled := flagClient.BoolValue(ctx, "experimental-feature", false, evalCtx)
+
+// Dangerous default: true means the new (untested) path runs during outages
+enabled := flagClient.BoolValue(ctx, "experimental-feature", true, evalCtx)  // avoid
+```
+
+**Clean up flags proactively.** Use the lifecycle management commands to prevent flag debt:
+
+```bash
+# Add to your CI pipeline or run weekly
+deploysentry flags list --category release --expired   # Find stale release flags
+deploysentry flags list --stale                         # Flags not evaluated in 30+ days
+```
+
+**Scope flags to environments.** Use per-environment flag states to test in staging before enabling in production:
+
+```bash
+# Enable in staging first
+curl -X PUT /api/v1/flags/<id>/environments/<staging-env-id> \
+  -d '{"enabled": true}'
+
+# After validation, enable in production
+curl -X PUT /api/v1/flags/<id>/environments/<prod-env-id> \
+  -d '{"enabled": true}'
+```
 
 ---
 
@@ -513,6 +639,24 @@ The web dashboard provides real-time visibility into flag state:
 | `GET` | `/api/v1/flags/:id` | Flag details including rules and metadata |
 | `GET` | `/health` | Full health check (DB, Redis, NATS) |
 | `GET` | `/ready` | Lightweight readiness probe |
+
+### Member Management API
+
+Manage organization and project membership. Requires `org:manage` or `project:manage` permission.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v1/orgs/:orgSlug/members` | List org members (with user profile) |
+| `POST` | `/api/v1/orgs/:orgSlug/members` | Add member by email (`{ "email", "role" }`) |
+| `PUT` | `/api/v1/orgs/:orgSlug/members/:userId` | Update member role (`{ "role" }`) |
+| `DELETE` | `/api/v1/orgs/:orgSlug/members/:userId` | Remove member |
+| `GET` | `/api/v1/orgs/:orgSlug/projects/:projectSlug/members` | List project members |
+| `POST` | `/api/v1/orgs/:orgSlug/projects/:projectSlug/members` | Add project member |
+| `PUT` | `/api/v1/orgs/:orgSlug/projects/:projectSlug/members/:userId` | Update project role |
+| `DELETE` | `/api/v1/orgs/:orgSlug/projects/:projectSlug/members/:userId` | Remove project member |
+
+**Org roles:** `owner`, `admin`, `member`, `viewer`
+**Project roles:** `admin`, `developer`, `viewer`
 
 ### Observability Integration
 
@@ -582,6 +726,32 @@ deploysentry deploy promote <deploy-id>
 
 # Rollback if something goes wrong
 deploysentry deploy rollback <deploy-id>
+```
+
+### CLI Commands
+
+The CLI covers the full platform — flags, deployments, releases, and now organization and application management:
+
+```bash
+# Organization management
+deploysentry orgs list                          # List your organizations
+deploysentry orgs create --name "Acme" --slug acme  # Create an org
+deploysentry orgs set acme                      # Set active org in config
+
+# Application management
+deploysentry apps list                          # List apps in current project
+deploysentry apps create --name "Web App" --slug web-app
+deploysentry apps get web-app                   # Get app details
+
+# Settings management
+deploysentry settings list --scope org --target <org-id>
+deploysentry settings set --scope org --target <org-id> --key theme --value '"dark"'
+deploysentry settings delete <setting-id>
+
+# API key management
+deploysentry apikeys list                       # List API keys
+deploysentry apikeys create --name "ci" --scopes "flags:read,deploys:write"
+deploysentry apikeys revoke <key-id>
 ```
 
 ### Automated Rollbacks
@@ -737,10 +907,12 @@ The backend services, database layer, CLI tool, client SDKs, and core business l
 | Notification Service | Complete |
 | CLI Tool | Complete |
 | Client SDKs (Go, Node, Python, Java, React, Flutter, Ruby) | Complete |
-| Web Dashboard | In Progress |
+| Web Dashboard | Complete |
+| Member Management | Complete |
+| Settings Management | Complete |
 | Infrastructure & Ops | In Progress |
 | Testing & Quality | In Progress |
-| Mobile App | Planned |
+| Mobile App | In Progress |
 
 ## License
 

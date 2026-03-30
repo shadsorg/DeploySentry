@@ -65,6 +65,9 @@ type FlagService interface {
 	// DeleteRule removes a targeting rule.
 	DeleteRule(ctx context.Context, ruleID uuid.UUID) error
 
+	// ListRules returns all targeting rules for a flag.
+	ListRules(ctx context.Context, flagID uuid.UUID) ([]*models.TargetingRule, error)
+
 	// DetectStaleFlags returns flags that have not been evaluated within the
 	// given threshold duration for the specified project.
 	DetectStaleFlags(ctx context.Context, projectID uuid.UUID, threshold time.Duration) ([]*models.FeatureFlag, error)
@@ -308,6 +311,15 @@ func (s *flagService) DeleteRule(ctx context.Context, ruleID uuid.UUID) error {
 		return fmt.Errorf("deleting rule: %w", err)
 	}
 	return nil
+}
+
+// ListRules returns all targeting rules for a given flag.
+func (s *flagService) ListRules(ctx context.Context, flagID uuid.UUID) ([]*models.TargetingRule, error) {
+	rules, err := s.repo.ListRules(ctx, flagID)
+	if err != nil {
+		return nil, fmt.Errorf("listing rules: %w", err)
+	}
+	return rules, nil
 }
 
 // DetectStaleFlags returns feature flags that have not been evaluated within

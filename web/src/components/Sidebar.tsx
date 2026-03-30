@@ -33,6 +33,13 @@ export default function Sidebar() {
         {/* Project-level nav */}
         {projectSlug && orgSlug && (
           <>
+            <NavLink
+              to={`/orgs/${orgSlug}/projects/${projectSlug}/apps`}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <span className="nav-icon">□</span>
+              Applications
+            </NavLink>
             <div className="sidebar-section">Project</div>
             <NavLink
               to={`/orgs/${orgSlug}/projects/${projectSlug}/flags`}

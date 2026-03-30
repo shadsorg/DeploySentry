@@ -109,8 +109,14 @@ export interface Project {
 
 export interface Environment {
   id: string;
+  application_id: string;
   name: string;
-  project_id: string;
+  slug: string;
+  description?: string;
+  is_production: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CreateFlagRequest {
@@ -168,6 +174,28 @@ export interface FlagEnvState {
   updated_at: string;
 }
 
+export interface FlagEnvironmentState {
+  id: string;
+  flag_id: string;
+  environment_id: string;
+  enabled: boolean;
+  value?: any;
+  updated_by?: string;
+  updated_at: string;
+}
+
+export interface Setting {
+  id: string;
+  org_id?: string;
+  project_id?: string;
+  application_id?: string;
+  environment_id?: string;
+  key: string;
+  value: any;
+  updated_by?: string;
+  updated_at: string;
+}
+
 export interface DeploymentEvent {
   status: DeployStatus;
   timestamp: string;
@@ -184,6 +212,19 @@ export interface ReleaseFlagChange {
   previous_value: string;
   new_value: string;
   applied_at: string | null;
+}
+
+export interface ReleaseFlagChangeAPI {
+  id: string;
+  release_id: string;
+  flag_id: string;
+  environment_id: string;
+  previous_value?: any;
+  new_value?: any;
+  previous_enabled?: boolean;
+  new_enabled?: boolean;
+  applied_at: string | null;
+  created_at: string;
 }
 
 export type GroupRole = 'viewer' | 'editor' | 'admin';

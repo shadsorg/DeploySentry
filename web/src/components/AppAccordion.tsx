@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Link, useParams } from 'react-router-dom';
-import { getMockApps } from '@/mocks/hierarchy';
+import { useApps } from '@/hooks/useEntities';
 
 export default function AppAccordion() {
   const { orgSlug, projectSlug, appSlug } = useParams();
@@ -11,9 +11,9 @@ export default function AppAccordion() {
     if (appSlug) setExpandedApp(appSlug);
   }, [appSlug]);
 
-  if (!orgSlug || !projectSlug) return null;
+  const { apps } = useApps(orgSlug, projectSlug);
 
-  const apps = getMockApps(projectSlug);
+  if (!orgSlug || !projectSlug) return null;
 
   if (apps.length === 0) return null;
 

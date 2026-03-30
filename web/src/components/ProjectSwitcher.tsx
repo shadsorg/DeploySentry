@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getMockProjects, getProjectName } from '@/mocks/hierarchy';
+import { useProjects } from '@/hooks/useEntities';
 
 export default function ProjectSwitcher() {
   const { orgSlug, projectSlug } = useParams();
@@ -8,7 +8,7 @@ export default function ProjectSwitcher() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const projects = useMemo(() => orgSlug ? getMockProjects(orgSlug) : [], [orgSlug]);
+  const { projects } = useProjects(orgSlug);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function ProjectSwitcher() {
   return (
     <div className="switcher" ref={ref}>
       <button className="switcher-btn" onClick={() => setOpen(!open)}>
-        <span className="switcher-label">{projectSlug ? getProjectName(projectSlug) : 'Select Project'}</span>
+        <span className="switcher-label">{projectSlug ? projects.find(p => p.slug === projectSlug)?.name ?? projectSlug : 'Select Project'}</span>
         <span className="switcher-arrow">{open ? '\u25B4' : '\u25BE'}</span>
       </button>
       {open && (

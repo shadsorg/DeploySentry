@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getMockOrgs, getOrgName } from '@/mocks/hierarchy';
+import { useOrgs } from '@/hooks/useEntities';
 
 export default function OrgSwitcher() {
   const { orgSlug } = useParams();
@@ -8,7 +8,7 @@ export default function OrgSwitcher() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const orgs = getMockOrgs();
+  const { orgs } = useOrgs();
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -32,7 +32,7 @@ export default function OrgSwitcher() {
   return (
     <div className="switcher" ref={ref}>
       <button className="switcher-btn" onClick={() => setOpen(!open)}>
-        <span className="switcher-label">{orgSlug ? getOrgName(orgSlug) : 'Select Org'}</span>
+        <span className="switcher-label">{orgSlug ? orgs.find(o => o.slug === orgSlug)?.name ?? orgSlug : 'Select Org'}</span>
         <span className="switcher-arrow">{open ? '\u25B4' : '\u25BE'}</span>
       </button>
       {open && (

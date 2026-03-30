@@ -1,5 +1,4 @@
 import { Link, useParams, useLocation } from 'react-router-dom';
-import { getOrgName, getProjectName, getAppName } from '@/mocks/hierarchy';
 
 /** Map the last URL segment to a human-readable page name.
  *  For detail routes like /flags/:id, the last segment is an ID —
@@ -42,14 +41,14 @@ export default function Breadcrumb() {
 
   // Org
   segments.push({
-    label: getOrgName(orgSlug),
+    label: orgSlug,
     to: `/orgs/${orgSlug}/projects`,
   });
 
   // Project
   if (projectSlug) {
     segments.push({
-      label: getProjectName(projectSlug),
+      label: projectSlug,
       to: `/orgs/${orgSlug}/projects/${projectSlug}/flags`,
     });
   }
@@ -57,7 +56,7 @@ export default function Breadcrumb() {
   // App
   if (appSlug) {
     segments.push({
-      label: getAppName(appSlug),
+      label: appSlug,
       to: `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/deployments`,
     });
   }

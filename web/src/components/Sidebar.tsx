@@ -70,6 +70,13 @@ export default function Sidebar() {
           <>
             <div className="sidebar-section">Organization</div>
             <NavLink
+              to={`/orgs/${orgSlug}/projects`}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <span className="nav-icon">□</span>
+              Projects
+            </NavLink>
+            <NavLink
               to={`/orgs/${orgSlug}/members`}
               className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
             >

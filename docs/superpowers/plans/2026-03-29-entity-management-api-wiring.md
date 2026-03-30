@@ -189,11 +189,8 @@ func (s *entityService) CreateApp(ctx context.Context, app *models.Application) 
 	now := time.Now().UTC()
 	app.CreatedAt = now
 	app.UpdatedAt = now
-	if app.Name == "" {
-		return errors.New("application name is required")
-	}
-	if app.Slug == "" {
-		return errors.New("application slug is required")
+	if err := app.Validate(); err != nil {
+		return err
 	}
 	return s.repo.CreateApp(ctx, app)
 }

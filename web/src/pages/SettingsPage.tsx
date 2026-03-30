@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import type { OrgEnvironment } from '@/types';
-import { MOCK_ENVIRONMENTS } from '@/mocks/hierarchy';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -96,7 +95,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>(defaultTab(level, tab));
 
   // Environments state (org level)
-  const [environments, setEnvironments] = useState<OrgEnvironment[]>([...MOCK_ENVIRONMENTS]);
+  const [environments, setEnvironments] = useState<OrgEnvironment[]>([]);
   const [newEnvName, setNewEnvName] = useState('');
   const [newEnvSlug, setNewEnvSlug] = useState('');
   const [newEnvIsProd, setNewEnvIsProd] = useState(false);
@@ -196,6 +195,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
       {/* Environments tab (org level) */}
       {activeTab === 'environments' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <p className="text-muted text-sm">Note: Environment changes are local to this session. Backend persistence coming soon.</p>
           {/* Add environment form */}
           <div className="card">
             <div className="card-header">

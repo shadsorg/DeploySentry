@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ApiKey } from '@/types';
-import { MOCK_API_KEYS, MOCK_ENVIRONMENTS, getEnvironmentName } from '@/mocks/hierarchy';
+import { apiKeysApi } from '@/api';
 
 const AVAILABLE_SCOPES = ['flags:read', 'flags:write', 'deploys:read', 'deploys:write', 'admin'];
 
@@ -16,39 +16,46 @@ function formatDate(iso: string): string {
 }
 
 export default function APIKeysPage() {
-  const [keys, setKeys] = useState<ApiKey[]>([...MOCK_API_KEYS]);
+  const [keys, setKeys] = useState<ApiKey[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [revealedKey, setRevealedKey] = useState<string | null>(null);
   // Create form
   const [newName, setNewName] = useState('');
   const [newScopes, setNewScopes] = useState<string[]>([]);
-  const [newEnvTargets, setNewEnvTargets] = useState<string[]>([]);
   // Revoke confirm
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
 
-  function handleCreate() {
+  async function fetchKeys() {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await apiKeysApi.list();
+      setKeys(result.api_keys);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load API keys');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchKeys();
+  }, []);
+
+  async function handleCreate() {
     if (!newName.trim() || newScopes.length === 0) return;
-
-    const fullKey = 'ds_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-    const prefix = fullKey.slice(0, 12) + '****';
-
-    const newKey: ApiKey = {
-      id: 'key-' + Date.now(),
-      name: newName.trim(),
-      prefix,
-      scopes: [...newScopes],
-      environment_targets: [...newEnvTargets],
-      created_at: new Date().toISOString(),
-      last_used_at: null,
-      expires_at: null,
-    };
-
-    setKeys((prev) => [newKey, ...prev]);
-    setRevealedKey(fullKey);
-    setNewName('');
-    setNewScopes([]);
-    setNewEnvTargets([]);
-    setShowCreate(false);
+    try {
+      const result = await apiKeysApi.create({ name: newName.trim(), scopes: newScopes });
+      setRevealedKey(result.token);
+      setNewName('');
+      setNewScopes([]);
+      setShowCreate(false);
+      await fetchKeys();
+    } catch (err: any) {
+      setError(err.message || 'Failed to create API key');
+    }
   }
 
   function toggleScope(scope: string) {
@@ -57,15 +64,14 @@ export default function APIKeysPage() {
     );
   }
 
-  function toggleEnvTarget(envId: string) {
-    setNewEnvTargets((prev) =>
-      prev.includes(envId) ? prev.filter((e) => e !== envId) : [...prev, envId]
-    );
-  }
-
-  function handleRevoke(keyId: string) {
-    setKeys((prev) => prev.filter((k) => k.id !== keyId));
-    setConfirmRevoke(null);
+  async function handleRevoke(keyId: string) {
+    try {
+      await apiKeysApi.revoke(keyId);
+      setConfirmRevoke(null);
+      await fetchKeys();
+    } catch (err: any) {
+      setError(err.message || 'Failed to revoke API key');
+    }
   }
 
   return (
@@ -107,19 +113,8 @@ export default function APIKeysPage() {
           </div>
 
           <div className="form-group">
-            <label>Environment Restrictions (leave unchecked for all)</label>
-            <div className="checkbox-group">
-              {MOCK_ENVIRONMENTS.map((env) => (
-                <label key={env.id}>
-                  <input
-                    type="checkbox"
-                    checked={newEnvTargets.includes(env.id)}
-                    onChange={() => toggleEnvTarget(env.id)}
-                  />
-                  {env.name}
-                </label>
-              ))}
-            </div>
+            <label>Environment Restrictions</label>
+            <p className="text-muted text-sm">Environment restrictions coming soon</p>
           </div>
 
           <button className="btn btn-primary" onClick={handleCreate}>
@@ -145,7 +140,11 @@ export default function APIKeysPage() {
         </div>
       )}
 
-      {keys.length === 0 ? (
+      {error && <p className="form-error" style={{ marginBottom: 8 }}>{error}</p>}
+
+      {loading ? (
+        <p className="text-muted">Loading API keys...</p>
+      ) : keys.length === 0 ? (
         <p className="empty-state">No API keys. Create one to integrate with DeploySentry.</p>
       ) : (
         <table className="data-table">
@@ -176,7 +175,7 @@ export default function APIKeysPage() {
                   ) : (
                     key.environment_targets.map((envId) => (
                       <span key={envId} className="badge badge-feature">
-                        {getEnvironmentName(envId)}
+                        {envId}
                       </span>
                     ))
                   )}

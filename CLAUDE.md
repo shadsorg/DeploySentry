@@ -24,15 +24,44 @@ make test          # Run all Go tests
 ## Project Structure
 
 - `cmd/api/` — API server entrypoint
-- `cmd/cli/` — CLI tool entrypoint
-- `internal/` — All backend services (auth, deploy, flags, health, notifications, releases, rollback)
+- `cmd/cli/` — CLI tool (subcommands: auth, config, deploy, flags, projects, releases, webhooks, analytics, orgs, apps, settings, apikeys)
+- `internal/auth/` — Authentication, RBAC, middleware (includes ResolveOrgRole for org-scoped routes)
+- `internal/deploy/` — Deployment service and strategies
+- `internal/entities/` — Organization, project, and application CRUD
+- `internal/flags/` — Feature flag service, targeting rules, evaluation
+- `internal/health/` — Health monitoring and integrations
+- `internal/members/` — Org and project member management (repository, service, handler)
+- `internal/notifications/` — Slack, email, PagerDuty notification channels
+- `internal/ratings/` — Flag ratings
+- `internal/releases/` — Release tracking
+- `internal/rollback/` — Automated rollback controller
+- `internal/settings/` — Hierarchical settings (org > project > app > environment)
 - `internal/platform/` — Shared infra (database, cache, messaging, config, middleware)
-- `migrations/` — PostgreSQL migrations (deploy schema)
+- `migrations/` — PostgreSQL migrations (deploy schema, currently 032)
 - `sdk/` — Client SDKs (go, node, python, java, react, flutter, ruby)
-- `web/` — React + TypeScript dashboard
+- `web/` — React + TypeScript dashboard (19 pages)
+- `mobile/` — Flutter mobile app
 - `deploy/` — Docker, Kubernetes, docker-compose configs
+- `scripts/` — Install script and utilities
 
 ## Flag Categories
 
 Flags must have a `category`: release, feature, experiment, ops, or permission.
 Release flags require an `expires_at` date or `is_permanent = true`.
+
+## Member Management
+
+- Org members: `/api/v1/orgs/:orgSlug/members` (GET, POST, PUT, DELETE)
+- Project members: `/api/v1/orgs/:orgSlug/projects/:projectSlug/members`
+- Org roles: owner, admin, member, viewer
+- Project roles: admin, developer, viewer
+- `ResolveOrgRole` middleware resolves org role from `org_members` table and sets it in Gin context for `RequirePermission`
+
+## Web Dashboard Pages
+
+The dashboard is at `web/` (Vite + React + TypeScript, port 3001):
+- Login, Register, Create Org, Create Project, Create App
+- ProjectListPage, ApplicationsListPage, FlagListPage, FlagDetailPage, FlagCreatePage
+- DeploymentsPage, DeploymentDetailPage, ReleasesPage, ReleaseDetailPage
+- MembersPage, APIKeysPage, SettingsPage (org/project/app levels)
+- AnalyticsPage, SDKsPage

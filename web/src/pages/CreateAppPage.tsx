@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MOCK_ENVIRONMENTS } from '@/mocks/hierarchy';
 import { entitiesApi } from '@/api';
 
 export default function CreateAppPage() {
@@ -89,16 +88,7 @@ export default function CreateAppPage() {
           </div>
           <div className="form-group">
             <label className="form-label">Environments</label>
-            <div className="form-hint" style={{ marginBottom: 8 }}>
-              This application will inherit all org-level environments:
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {MOCK_ENVIRONMENTS.map((env) => (
-                <span key={env.id} className={`badge ${env.is_production ? 'badge-production' : 'badge-ops'}`}>
-                  {env.name}
-                </span>
-              ))}
-            </div>
+            <p className="text-muted text-sm">Environments will be inherited from the organization.</p>
           </div>
           {error && <div className="form-error" style={{ marginBottom: 8 }}>{error}</div>}
           <div style={{ display: 'flex', gap: 8 }}>

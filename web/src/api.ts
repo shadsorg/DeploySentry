@@ -103,6 +103,12 @@ export const releasesApi = {
     request<{ flag_changes: ReleaseFlagChangeAPI[] }>(`/releases/${releaseId}/flag-changes`),
 };
 
+// Members
+export const membersApi = {
+  listByOrg: (orgId: string) =>
+    request<{ members: any[] }>(`/orgs/${orgId}/members`),
+};
+
 // API Keys
 export const apiKeysApi = {
   list: () => request<{ api_keys: ApiKey[] }>('/api-keys'),

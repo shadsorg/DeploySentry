@@ -1,4 +1,4 @@
-import type { Flag, Deployment, Release, ApiKey, CreateFlagRequest, UpdateFlagRequest, TargetingRule, Organization, Project, Application } from './types';
+import type { Flag, Deployment, Release, ApiKey, CreateFlagRequest, UpdateFlagRequest, TargetingRule, Organization, Project, Application, FlagEnvironmentState, Setting, ReleaseFlagChangeAPI } from './types';
 
 const BASE = '/api/v1';
 
@@ -79,11 +79,34 @@ export const releasesApi = {
   get: (id: string) => request<Release>(`/releases/${id}`),
   create: (data: { project_id: string; version: string; description?: string; commit_sha?: string }) =>
     request<Release>('/releases', { method: 'POST', body: JSON.stringify(data) }),
-  promote: (id: string, environmentId: string) =>
-    request<Release>(`/releases/${id}/promote`, {
+  delete: (id: string) =>
+    request<void>(`/releases/${id}`, { method: 'DELETE' }),
+  start: (id: string) =>
+    request<{ status: string }>(`/releases/${id}/start`, { method: 'POST' }),
+  promote: (id: string, trafficPercent: number) =>
+    request<{ status: string }>(`/releases/${id}/promote`, {
       method: 'POST',
-      body: JSON.stringify({ environment_id: environmentId }),
+      body: JSON.stringify({ traffic_percent: trafficPercent }),
     }),
+  pause: (id: string) =>
+    request<{ status: string }>(`/releases/${id}/pause`, { method: 'POST' }),
+  rollback: (id: string) =>
+    request<{ status: string }>(`/releases/${id}/rollback`, { method: 'POST' }),
+  complete: (id: string) =>
+    request<{ status: string }>(`/releases/${id}/complete`, { method: 'POST' }),
+  addFlagChange: (releaseId: string, data: { flag_id: string; environment_id: string; new_enabled?: boolean }) =>
+    request<ReleaseFlagChangeAPI>(`/releases/${releaseId}/flag-changes`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  listFlagChanges: (releaseId: string) =>
+    request<{ flag_changes: ReleaseFlagChangeAPI[] }>(`/releases/${releaseId}/flag-changes`),
+};
+
+// Members
+export const membersApi = {
+  listByOrg: (orgId: string) =>
+    request<{ members: any[] }>(`/orgs/${orgId}/members`),
 };
 
 // API Keys
@@ -179,6 +202,45 @@ export const analyticsApi = {
     const qs = new URLSearchParams({ project_id: projectId, start_date: startDate, end_date: endDate, format });
     return request<any>(`/analytics/admin/export?${qs}`);
   },
+};
+
+// Applications (direct ID-based CRUD)
+export const applicationsApi = {
+  list: (projectId: string) =>
+    request<{ applications: Application[] }>(`/projects/${projectId}/applications`),
+  get: (id: string) => request<Application>(`/applications/${id}`),
+  create: (projectId: string, data: { name: string; slug: string; description?: string; repo_url?: string }) =>
+    request<Application>(`/projects/${projectId}/applications`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<Application>) =>
+    request<Application>(`/applications/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    request<void>(`/applications/${id}`, { method: 'DELETE' }),
+};
+
+// Flag Environment State
+export const flagEnvStateApi = {
+  list: (flagId: string) =>
+    request<{ environment_states: FlagEnvironmentState[] }>(`/flags/${flagId}/environments`),
+  set: (flagId: string, envId: string, data: { enabled: boolean; value?: any }) =>
+    request<FlagEnvironmentState>(`/flags/${flagId}/environments/${envId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+};
+
+// Settings
+export const settingsApi = {
+  list: (scope: string, targetId: string) =>
+    request<{ settings: Setting[] }>(`/settings?scope=${scope}&target=${targetId}`),
+  resolve: (key: string, params: { org_id?: string; project_id?: string; application_id?: string; environment_id?: string }) => {
+    const qs = new URLSearchParams({ key });
+    Object.entries(params).forEach(([k, v]) => { if (v) qs.set(k, v); });
+    return request<Setting>(`/settings/resolve?${qs}`);
+  },
+  set: (data: { scope: string; target_id: string; key: string; value: any }) =>
+    request<Setting>('/settings', { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) =>
+    request<void>(`/settings/${id}`, { method: 'DELETE' }),
 };
 
 // Entities (Orgs / Projects / Apps)

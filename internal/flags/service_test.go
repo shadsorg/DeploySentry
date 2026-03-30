@@ -148,6 +148,14 @@ func (m *mockFlagRepo) WriteEvaluationLog(ctx context.Context, logs []Evaluation
 	return nil
 }
 
+func (m *mockFlagRepo) ListFlagEnvStates(ctx context.Context, flagID uuid.UUID) ([]*models.FlagEnvironmentState, error) {
+	return []*models.FlagEnvironmentState{}, nil
+}
+
+func (m *mockFlagRepo) UpsertFlagEnvState(ctx context.Context, state *models.FlagEnvironmentState) error {
+	return nil
+}
+
 // mockCache is a test double for Cache.
 type mockCache struct {
 	flags map[string]*models.FeatureFlag   // key: "projectID:envID:key"

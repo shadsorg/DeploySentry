@@ -2,6 +2,7 @@ package flags
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -77,6 +78,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			rules.POST("", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.addRule)
 			rules.PUT("/:ruleId", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.updateRule)
 			rules.DELETE("/:ruleId", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.deleteRule)
+		}
+
+		envs := flags.Group("/:id/environments")
+		{
+			envs.GET("", auth.RequirePermission(h.rbac, auth.PermFlagRead), h.listFlagEnvStates)
+			envs.PUT("/:envId", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.setFlagEnvState)
 		}
 	}
 }
@@ -768,6 +775,66 @@ func (h *Handler) listRules(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"rules": rules})
+}
+
+// ---------------------------------------------------------------------------
+// FlagEnvironmentState handlers
+// ---------------------------------------------------------------------------
+
+func (h *Handler) listFlagEnvStates(c *gin.Context) {
+	flagID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid flag id"})
+		return
+	}
+	states, err := h.service.ListFlagEnvStates(c.Request.Context(), flagID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list environment states"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"environment_states": states})
+}
+
+type setFlagEnvStateRequest struct {
+	Enabled bool             `json:"enabled"`
+	Value   *json.RawMessage `json:"value,omitempty"`
+}
+
+func (h *Handler) setFlagEnvState(c *gin.Context) {
+	flagID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid flag id"})
+		return
+	}
+	envID, err := uuid.Parse(c.Param("envId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid environment id"})
+		return
+	}
+	var req setFlagEnvStateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	state := &models.FlagEnvironmentState{
+		FlagID:        flagID,
+		EnvironmentID: envID,
+		Enabled:       req.Enabled,
+		Value:         req.Value,
+	}
+
+	if uid, exists := c.Get("user_id"); exists {
+		if userID, ok := uid.(uuid.UUID); ok {
+			state.UpdatedBy = &userID
+		}
+	}
+
+	if err := h.service.SetFlagEnvState(c.Request.Context(), state); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, state)
 }
 
 // --- SSE (Server-Sent Events) support ---

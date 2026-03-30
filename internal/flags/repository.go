@@ -60,6 +60,12 @@ type FlagRepository interface {
 	// method is designed for batched, sampled writes to avoid overwhelming the
 	// database with high-volume evaluation data.
 	WriteEvaluationLog(ctx context.Context, logs []EvaluationLog) error
+
+	// ListFlagEnvStates returns all per-environment states for a given flag.
+	ListFlagEnvStates(ctx context.Context, flagID uuid.UUID) ([]*models.FlagEnvironmentState, error)
+
+	// UpsertFlagEnvState creates or updates a per-environment flag state.
+	UpsertFlagEnvState(ctx context.Context, state *models.FlagEnvironmentState) error
 }
 
 // ListOptions controls pagination and filtering for flag list queries.

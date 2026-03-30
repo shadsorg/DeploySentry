@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import type { Flag, TargetingRule } from '@/types';
-import { flagsApi } from '@/api';
-import { MOCK_APPLICATIONS } from '@/mocks/hierarchy';
+import { flagsApi, entitiesApi } from '@/api';
+import type { Application } from '@/types';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -39,8 +39,8 @@ function describeConditions(rule: TargetingRule): string {
   }
 }
 
-function getAppNameById(appId: string): string {
-  return MOCK_APPLICATIONS.find((a) => a.id === appId)?.name ?? appId;
+function getAppNameById(appId: string, apps: Application[]): string {
+  return apps.find((a) => a.id === appId)?.name ?? appId;
 }
 
 export default function FlagDetailPage() {
@@ -51,6 +51,7 @@ export default function FlagDetailPage() {
 
   const [flag, setFlag] = useState<Flag | null>(null);
   const [rules, setRules] = useState<TargetingRule[]>([]);
+  const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'rules' | 'environments'>('rules');
@@ -60,17 +61,23 @@ export default function FlagDetailPage() {
     setLoading(true);
     setError(null);
 
+    const fetchApps = orgSlug && projectSlug
+      ? entitiesApi.listApps(orgSlug, projectSlug).then((r) => r.applications)
+      : Promise.resolve([]);
+
     Promise.all([
       flagsApi.get(id),
       flagsApi.listRules(id).then((r) => r.rules),
+      fetchApps,
     ])
-      .then(([flagData, rulesData]) => {
+      .then(([flagData, rulesData, appsData]) => {
         setFlag(flagData);
         setRules(rulesData);
+        setApps(appsData);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, orgSlug, projectSlug]);
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
@@ -114,7 +121,7 @@ export default function FlagDetailPage() {
           <span>Owners: {flag.owners.join(', ')}</span>
           <span>Expires: {flag.is_permanent ? 'Permanent' : flag.expires_at ? formatDate(flag.expires_at) : '\u2014'}</span>
           <span>Default Value: <span className="font-mono">{flag.default_value}</span></span>
-          <span>Scope: {flag.application_id ? getAppNameById(flag.application_id) : 'Project-wide'}</span>
+          <span>Scope: {flag.application_id ? getAppNameById(flag.application_id, apps) : 'Project-wide'}</span>
           {flag.purpose && <span>Purpose: {flag.purpose}</span>}
           {flag.tags.length > 0 && <span>Tags: {flag.tags.join(', ')}</span>}
         </div>

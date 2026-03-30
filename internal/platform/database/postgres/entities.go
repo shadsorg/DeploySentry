@@ -260,7 +260,7 @@ func (r *EntityRepository) CreateApp(ctx context.Context, app *models.Applicatio
 // Returns nil, nil when no row is found.
 func (r *EntityRepository) GetAppBySlug(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error) {
 	const q = `
-		SELECT id, project_id, name, slug, description, repo_url, created_by, created_at, updated_at
+		SELECT id, project_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), created_by, created_at, updated_at
 		FROM applications WHERE project_id = $1 AND slug = $2`
 
 	var a models.Application
@@ -287,7 +287,7 @@ func (r *EntityRepository) GetAppBySlug(ctx context.Context, projectID uuid.UUID
 // ListAppsByProject returns all applications for a project, ordered by name.
 func (r *EntityRepository) ListAppsByProject(ctx context.Context, projectID uuid.UUID) ([]*models.Application, error) {
 	const q = `
-		SELECT id, project_id, name, slug, description, repo_url, created_by, created_at, updated_at
+		SELECT id, project_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), created_by, created_at, updated_at
 		FROM applications WHERE project_id = $1 ORDER BY name`
 
 	rows, err := r.pool.Query(ctx, q, projectID)

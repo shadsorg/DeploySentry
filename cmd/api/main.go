@@ -20,6 +20,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/deploy"
 	"github.com/deploysentry/deploysentry/internal/entities"
 	"github.com/deploysentry/deploysentry/internal/flags"
+	"github.com/deploysentry/deploysentry/internal/members"
 	githubint "github.com/deploysentry/deploysentry/internal/integrations/github"
 	"github.com/deploysentry/deploysentry/internal/notifications"
 	"github.com/deploysentry/deploysentry/internal/platform/cache"
@@ -184,6 +185,7 @@ func run() error {
 	ratingRepo := postgres.NewRatingRepository(db.Pool)
 	entityRepo := postgres.NewEntityRepository(db.Pool)
 	settingRepo := postgres.NewSettingRepository(db.Pool)
+	memberRepo := postgres.NewMemberRepository(db.Pool)
 
 	// -------------------------------------------------------------------------
 	// Services
@@ -199,6 +201,7 @@ func run() error {
 	ratingService := ratings.NewRatingService(ratingRepo)
 	entityService := entities.NewEntityService(entityRepo)
 	settingService := settings.NewSettingService(settingRepo)
+	memberService := members.NewService(memberRepo)
 
 	// -------------------------------------------------------------------------
 	// Notifications
@@ -281,6 +284,7 @@ func run() error {
 	auth.NewAuditHandler(auditRepo).RegisterRoutes(api)
 	entities.NewHandler(entityService, rbacChecker).RegisterRoutes(api)
 	settings.NewHandler(settingService, rbacChecker).RegisterRoutes(api)
+	members.NewHandler(memberService, entityService, rbacChecker).RegisterRoutes(api)
 
 	// Public routes (no auth required).
 	public := router.Group("/api/v1")

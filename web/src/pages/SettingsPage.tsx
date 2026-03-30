@@ -1,18 +1,54 @@
 import React, { useState } from 'react';
+import type { OrgEnvironment } from '@/types';
+import { MOCK_ENVIRONMENTS } from '@/mocks/hierarchy';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type SettingsTab = 'api-keys' | 'webhooks' | 'notifications' | 'project';
+type SettingsTab = 'environments' | 'webhooks' | 'notifications' | 'general' | 'danger';
 
-interface APIKey {
-  id: string;
-  name: string;
-  prefix: string;
-  scopes: string[];
-  created: string;
-  lastUsed: string;
+interface SettingsPageProps {
+  level?: 'org' | 'project' | 'app';
+  tab?: string;
+}
+
+function defaultTab(level: string, tab?: string): SettingsTab {
+  const validTabs: Record<string, SettingsTab[]> = {
+    org: ['environments', 'webhooks', 'notifications'],
+    project: ['general'],
+    app: ['general', 'danger'],
+  };
+  const levelTabs = validTabs[level] || [];
+  if (tab && levelTabs.includes(tab as SettingsTab)) return tab as SettingsTab;
+  switch (level) {
+    case 'org': return 'environments';
+    case 'project': return 'general';
+    case 'app': return 'general';
+    default: return 'environments';
+  }
+}
+
+function getTabsForLevel(level: string): { key: SettingsTab; label: string }[] {
+  switch (level) {
+    case 'org':
+      return [
+        { key: 'environments', label: 'Environments' },
+        { key: 'webhooks', label: 'Webhooks' },
+        { key: 'notifications', label: 'Notifications' },
+      ];
+    case 'project':
+      return [
+        { key: 'general', label: 'Project Settings' },
+      ];
+    case 'app':
+      return [
+        { key: 'general', label: 'General' },
+        { key: 'danger', label: 'Danger Zone' },
+      ];
+    default:
+      return [];
+  }
 }
 
 interface Webhook {
@@ -26,33 +62,6 @@ interface Webhook {
 // ---------------------------------------------------------------------------
 // Mock data
 // ---------------------------------------------------------------------------
-
-const MOCK_API_KEYS: APIKey[] = [
-  {
-    id: 'key-1',
-    name: 'Production Backend',
-    prefix: 'ds_prod_abc1****',
-    scopes: ['flags:read'],
-    created: '2025-11-15',
-    lastUsed: '2 minutes ago',
-  },
-  {
-    id: 'key-2',
-    name: 'CI/CD Pipeline',
-    prefix: 'ds_ci_def2****',
-    scopes: ['deploys:read', 'deploys:write'],
-    created: '2025-12-01',
-    lastUsed: '1 hour ago',
-  },
-  {
-    id: 'key-3',
-    name: 'Admin Dashboard',
-    prefix: 'ds_admin_ghi3****',
-    scopes: ['admin'],
-    created: '2026-01-10',
-    lastUsed: '3 days ago',
-  },
-];
 
 const MOCK_WEBHOOKS: Webhook[] = [
   {
@@ -80,22 +89,18 @@ const NOTIFICATION_EVENTS = [
 ];
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function scopeBadgeClass(scope: string): string {
-  if (scope === 'admin') return 'badge badge-experiment';
-  if (scope.startsWith('flags')) return 'badge badge-feature';
-  if (scope.startsWith('deploys')) return 'badge badge-release';
-  return 'badge badge-ops';
-}
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-const SettingsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('api-keys');
+const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
+  const [activeTab, setActiveTab] = useState<SettingsTab>(defaultTab(level, tab));
+
+  // Environments state (org level)
+  const [environments, setEnvironments] = useState<OrgEnvironment[]>([...MOCK_ENVIRONMENTS]);
+  const [newEnvName, setNewEnvName] = useState('');
+  const [newEnvSlug, setNewEnvSlug] = useState('');
+  const [newEnvIsProd, setNewEnvIsProd] = useState(false);
+  const [confirmDeleteEnv, setConfirmDeleteEnv] = useState<string | null>(null);
 
   // Notifications form state
   const [slackUrl, setSlackUrl] = useState('');
@@ -118,6 +123,11 @@ const SettingsPage: React.FC = () => {
   const [defaultEnv, setDefaultEnv] = useState('production');
   const [staleThreshold, setStaleThreshold] = useState('30d');
 
+  // App form state
+  const [appName, setAppName] = useState('API Server');
+  const [appDescription, setAppDescription] = useState('Core REST API');
+  const [appRepoUrl, setAppRepoUrl] = useState('https://github.com/acme/api-server');
+
   const toggleEvent = (event: string) => {
     setEnabledEvents((prev) => {
       const next = new Set(prev);
@@ -130,26 +140,52 @@ const SettingsPage: React.FC = () => {
     });
   };
 
-  const TABS: { key: SettingsTab; label: string }[] = [
-    { key: 'api-keys', label: 'API Keys' },
-    { key: 'webhooks', label: 'Webhooks' },
-    { key: 'notifications', label: 'Notifications' },
-    { key: 'project', label: 'Project' },
-  ];
+  const handleEnvNameChange = (value: string) => {
+    setNewEnvName(value);
+    setNewEnvSlug(value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+  };
+
+  const handleAddEnvironment = () => {
+    if (!newEnvName.trim() || !newEnvSlug.trim()) return;
+    const env: OrgEnvironment = {
+      id: `env-${Date.now()}`,
+      name: newEnvName.trim(),
+      slug: newEnvSlug.trim(),
+      is_production: newEnvIsProd,
+      created_at: new Date().toISOString(),
+    };
+    setEnvironments((prev) => [...prev, env]);
+    setNewEnvName('');
+    setNewEnvSlug('');
+    setNewEnvIsProd(false);
+  };
+
+  const handleDeleteEnvironment = (envId: string) => {
+    setEnvironments((prev) => prev.filter((e) => e.id !== envId));
+    setConfirmDeleteEnv(null);
+  };
+
+  const headingMap: Record<string, string> = {
+    org: 'Organization Settings',
+    project: 'Project Settings',
+    app: 'Application Settings',
+  };
+
+  const tabs = getTabsForLevel(level);
 
   return (
     <div>
       {/* Page header */}
       <div className="page-header">
-        <h1>Settings</h1>
+        <h1>{headingMap[level]}</h1>
       </div>
 
       {/* Tabs */}
       <div className="tabs">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.key}
-            className={`tab ${activeTab === t.key ? 'active' : ''}`}
+            className={`tab${activeTab === t.key ? ' active' : ''}`}
             onClick={() => setActiveTab(t.key)}
           >
             {t.label}
@@ -157,50 +193,118 @@ const SettingsPage: React.FC = () => {
         ))}
       </div>
 
-      {/* API Keys tab */}
-      {activeTab === 'api-keys' && (
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">API Keys</span>
-            <button className="btn btn-primary btn-sm">Create API Key</button>
+      {/* Environments tab (org level) */}
+      {activeTab === 'environments' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Add environment form */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">Add Environment</span>
+            </div>
+            <div className="grid-2">
+              <div className="form-group">
+                <label className="form-label">Name</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. QA"
+                  value={newEnvName}
+                  onChange={(e) => handleEnvNameChange(e.target.value)}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Slug</label>
+                <input
+                  type="text"
+                  className="form-input font-mono"
+                  value={newEnvSlug}
+                  readOnly
+                  style={{ opacity: 0.7 }}
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={newEnvIsProd}
+                  onChange={(e) => setNewEnvIsProd(e.target.checked)}
+                />
+                <span className="text-sm">Production environment</span>
+              </label>
+            </div>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={handleAddEnvironment}
+              disabled={!newEnvName.trim()}
+            >
+              Add Environment
+            </button>
           </div>
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Key Prefix</th>
-                  <th>Scopes</th>
-                  <th>Created</th>
-                  <th>Last Used</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {MOCK_API_KEYS.map((key) => (
-                  <tr key={key.id}>
-                    <td style={{ fontWeight: 500 }}>{key.name}</td>
-                    <td>
-                      <code className="font-mono text-sm">{key.prefix}</code>
-                    </td>
-                    <td>
-                      <div className="flex items-center gap-2">
-                        {key.scopes.map((scope) => (
-                          <span key={scope} className={scopeBadgeClass(scope)}>
-                            {scope}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="text-secondary text-sm">{key.created}</td>
-                    <td className="text-secondary text-sm">{key.lastUsed}</td>
-                    <td>
-                      <button className="btn btn-danger btn-sm">Revoke</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          {/* Environments table */}
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">Environments</span>
+            </div>
+            {environments.length === 0 ? (
+              <p className="text-muted">No environments defined. Add one to get started.</p>
+            ) : (
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Slug</th>
+                      <th>Production</th>
+                      <th>Created</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {environments.map((env) => (
+                      <tr key={env.id}>
+                        <td style={{ fontWeight: 500 }}>{env.name}</td>
+                        <td><code className="font-mono text-sm">{env.slug}</code></td>
+                        <td>
+                          {env.is_production && (
+                            <span className="badge badge-active">Production</span>
+                          )}
+                        </td>
+                        <td className="text-secondary text-sm">
+                          {new Date(env.created_at).toLocaleDateString()}
+                        </td>
+                        <td>
+                          {confirmDeleteEnv === env.id ? (
+                            <span className="flex items-center gap-2">
+                              <button
+                                className="btn btn-danger btn-sm"
+                                onClick={() => handleDeleteEnvironment(env.id)}
+                              >
+                                Confirm
+                              </button>
+                              <button
+                                className="btn btn-sm"
+                                onClick={() => setConfirmDeleteEnv(null)}
+                              >
+                                Cancel
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              className="btn btn-danger btn-sm"
+                              onClick={() => setConfirmDeleteEnv(env.id)}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -357,8 +461,8 @@ const SettingsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Project tab */}
-      {activeTab === 'project' && (
+      {/* General tab — project level */}
+      {activeTab === 'general' && level === 'project' && (
         <div className="card">
           <div className="card-header">
             <span className="card-title">Project Settings</span>
@@ -401,6 +505,67 @@ const SettingsPage: React.FC = () => {
           </div>
 
           <button className="btn btn-primary">Save</button>
+        </div>
+      )}
+
+      {/* General tab — app level */}
+      {activeTab === 'general' && level === 'app' && (
+        <div className="card">
+          <div className="card-header">
+            <span className="card-title">General</span>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Name</label>
+            <input
+              type="text"
+              className="form-input"
+              value={appName}
+              onChange={(e) => setAppName(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Slug</label>
+            <input
+              type="text"
+              className="form-input font-mono"
+              value="api-server"
+              readOnly
+              style={{ opacity: 0.7 }}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Description</label>
+            <textarea
+              className="form-input"
+              rows={3}
+              value={appDescription}
+              onChange={(e) => setAppDescription(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Repository URL</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="https://github.com/org/repo"
+              value={appRepoUrl}
+              onChange={(e) => setAppRepoUrl(e.target.value)}
+            />
+          </div>
+
+          <button className="btn btn-primary">Save</button>
+        </div>
+      )}
+
+      {/* Danger Zone tab (app level) */}
+      {activeTab === 'danger' && (
+        <div className="danger-zone">
+          <h3>Delete Application</h3>
+          <p>Deleting this application will remove all its deployments, releases, and flag configurations. This action cannot be undone.</p>
+          <button className="btn btn-danger">Delete Application</button>
         </div>
       )}
     </div>

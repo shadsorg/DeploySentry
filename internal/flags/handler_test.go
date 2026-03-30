@@ -673,3 +673,159 @@ func TestDeleteRule_InvalidRuleID(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
+
+// ---------------------------------------------------------------------------
+// mockRatingSvc
+// ---------------------------------------------------------------------------
+
+type mockRatingSvc struct {
+	getRatingSummaryFn func(ctx context.Context, flagID uuid.UUID) (*models.RatingSummary, error)
+	getErrorSummaryFn  func(ctx context.Context, flagID uuid.UUID, period time.Duration) (*models.ErrorSummary, error)
+	isRatingsEnabledFn func(ctx context.Context, orgID uuid.UUID) (bool, error)
+}
+
+func (m *mockRatingSvc) GetRatingSummary(ctx context.Context, flagID uuid.UUID) (*models.RatingSummary, error) {
+	if m.getRatingSummaryFn != nil {
+		return m.getRatingSummaryFn(ctx, flagID)
+	}
+	return nil, nil
+}
+
+func (m *mockRatingSvc) GetErrorSummary(ctx context.Context, flagID uuid.UUID, period time.Duration) (*models.ErrorSummary, error) {
+	if m.getErrorSummaryFn != nil {
+		return m.getErrorSummaryFn(ctx, flagID, period)
+	}
+	return nil, nil
+}
+
+func (m *mockRatingSvc) IsRatingsEnabled(ctx context.Context, orgID uuid.UUID) (bool, error) {
+	if m.isRatingsEnabledFn != nil {
+		return m.isRatingsEnabledFn(ctx, orgID)
+	}
+	return false, nil
+}
+
+// ---------------------------------------------------------------------------
+// GET /flags/:id with rating service (augmented response)
+// ---------------------------------------------------------------------------
+
+func setupFlagRouterWithRatings(svc FlagService, ratingSvc FlagRatingSvc) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	orgID := uuid.New()
+	router.Use(func(c *gin.Context) {
+		c.Set("role", auth.RoleOwner)
+		c.Set("org_id", orgID.String())
+		c.Next()
+	})
+	rbac := auth.NewRBACChecker()
+	handler := NewHandler(svc, rbac, nil, nil)
+	handler.SetRatingService(ratingSvc)
+	handler.RegisterRoutes(router.Group("/api"))
+	return router
+}
+
+func TestGetFlag_WithRatingService_IncludesRatingSummaryAndErrorRate(t *testing.T) {
+	flagID := uuid.New()
+	flagSvc := &mockFlagService{
+		getFlagFn: func(_ context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
+			return &models.FeatureFlag{ID: id, Key: "my-flag", Name: "My Flag"}, nil
+		},
+	}
+	ratingSvc := &mockRatingSvc{
+		isRatingsEnabledFn: func(_ context.Context, _ uuid.UUID) (bool, error) {
+			return true, nil
+		},
+		getRatingSummaryFn: func(_ context.Context, _ uuid.UUID) (*models.RatingSummary, error) {
+			return &models.RatingSummary{
+				Average:      4.2,
+				Count:        10,
+				Distribution: map[int16]int{5: 6, 4: 3, 3: 1},
+			}, nil
+		},
+		getErrorSummaryFn: func(_ context.Context, _ uuid.UUID, _ time.Duration) (*models.ErrorSummary, error) {
+			return &models.ErrorSummary{
+				Percentage: 1.5,
+				Period:     "7d",
+			}, nil
+		},
+	}
+
+	router := setupFlagRouterWithRatings(flagSvc, ratingSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/flags/"+flagID.String(), nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]json.RawMessage
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+
+	assert.Contains(t, resp, "rating_summary", "expected rating_summary in response")
+	assert.Contains(t, resp, "error_rate", "expected error_rate in response")
+
+	var ratingSummary models.RatingSummary
+	assert.NoError(t, json.Unmarshal(resp["rating_summary"], &ratingSummary))
+	assert.Equal(t, 4.2, ratingSummary.Average)
+	assert.Equal(t, 10, ratingSummary.Count)
+
+	var errorSummary models.ErrorSummary
+	assert.NoError(t, json.Unmarshal(resp["error_rate"], &errorSummary))
+	assert.Equal(t, 1.5, errorSummary.Percentage)
+	assert.Equal(t, "7d", errorSummary.Period)
+}
+
+func TestGetFlag_WithRatingService_RatingsDisabled_OmitsRatingSummary(t *testing.T) {
+	flagID := uuid.New()
+	flagSvc := &mockFlagService{
+		getFlagFn: func(_ context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
+			return &models.FeatureFlag{ID: id, Key: "my-flag"}, nil
+		},
+	}
+	ratingSvc := &mockRatingSvc{
+		isRatingsEnabledFn: func(_ context.Context, _ uuid.UUID) (bool, error) {
+			return false, nil // ratings disabled for this org
+		},
+		getErrorSummaryFn: func(_ context.Context, _ uuid.UUID, _ time.Duration) (*models.ErrorSummary, error) {
+			return &models.ErrorSummary{Percentage: 0.5, Period: "7d"}, nil
+		},
+	}
+
+	router := setupFlagRouterWithRatings(flagSvc, ratingSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/flags/"+flagID.String(), nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]json.RawMessage
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+
+	assert.NotContains(t, resp, "rating_summary", "rating_summary should be absent when ratings are disabled")
+	assert.Contains(t, resp, "error_rate", "error_rate should still be present")
+}
+
+func TestGetFlag_WithoutRatingService_PlainResponse(t *testing.T) {
+	flagID := uuid.New()
+	flagSvc := &mockFlagService{
+		getFlagFn: func(_ context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
+			return &models.FeatureFlag{ID: id, Key: "plain-flag"}, nil
+		},
+	}
+	// No rating service — use the plain router.
+	router := setupFlagRouter(flagSvc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/flags/"+flagID.String(), nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var resp map[string]json.RawMessage
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+
+	assert.NotContains(t, resp, "rating_summary")
+	assert.NotContains(t, resp, "error_rate")
+}

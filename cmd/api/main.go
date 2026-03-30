@@ -18,6 +18,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/analytics"
 	"github.com/deploysentry/deploysentry/internal/auth"
 	"github.com/deploysentry/deploysentry/internal/deploy"
+	"github.com/deploysentry/deploysentry/internal/entities"
 	"github.com/deploysentry/deploysentry/internal/flags"
 	githubint "github.com/deploysentry/deploysentry/internal/integrations/github"
 	"github.com/deploysentry/deploysentry/internal/notifications"
@@ -29,6 +30,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/platform/messaging"
 	"github.com/deploysentry/deploysentry/internal/platform/middleware"
 	"github.com/deploysentry/deploysentry/internal/platform/metrics"
+	"github.com/deploysentry/deploysentry/internal/ratings"
 	"github.com/deploysentry/deploysentry/internal/releases"
 	"github.com/deploysentry/deploysentry/internal/webhooks"
 )
@@ -178,6 +180,8 @@ func run() error {
 	deployRepo := postgres.NewDeployRepository(db.Pool)
 	releaseRepo := postgres.NewReleaseRepository(db.Pool)
 	webhookRepo := postgres.NewWebhookRepository(db.Pool)
+	ratingRepo := postgres.NewRatingRepository(db.Pool)
+	entityRepo := postgres.NewEntityRepository(db.Pool)
 
 	// -------------------------------------------------------------------------
 	// Services
@@ -190,6 +194,8 @@ func run() error {
 	rbacChecker := auth.NewRBACChecker()
 	analyticsService := analytics.NewService(db.Pool, rdb.Client)
 	webhookService := webhooks.NewService(webhookRepo, nc)
+	ratingService := ratings.NewRatingService(ratingRepo)
+	entityService := entities.NewEntityService(entityRepo)
 
 	// -------------------------------------------------------------------------
 	// Notifications
@@ -259,14 +265,18 @@ func run() error {
 	api.Use(rateLimiter.Middleware())
 	api.Use(authMiddleware.RequireAuth())
 
-	flags.NewHandler(flagService, rbacChecker, webhookService, analyticsService).RegisterRoutes(api)
+	flagHandler := flags.NewHandler(flagService, rbacChecker, webhookService, analyticsService)
+	flagHandler.SetRatingService(ratingService)
+	flagHandler.RegisterRoutes(api)
 	deploy.NewHandler(deployService, webhookService, analyticsService).RegisterRoutes(api, rbacChecker)
 	releases.NewHandler(releaseService).RegisterRoutes(api)
 	analytics.NewHandler(analyticsService).RegisterRoutes(api)
 	webhooks.NewHandler(webhookService).RegisterRoutes(api)
+	ratings.NewHandler(ratingService, rbacChecker).RegisterRoutes(api)
 	auth.NewUserHandler(userRepo).RegisterRoutes(api)
 	auth.NewAPIKeyHandler(apiKeyService).RegisterRoutes(api)
 	auth.NewAuditHandler(auditRepo).RegisterRoutes(api)
+	entities.NewHandler(entityService, rbacChecker).RegisterRoutes(api)
 
 	// Public routes (no auth required).
 	public := router.Group("/api/v1")

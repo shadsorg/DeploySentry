@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import type { FlagType, FlagCategory } from '@/types';
 
 interface FormState {
@@ -31,7 +31,12 @@ const INITIAL: FormState = {
 };
 
 export default function FlagCreatePage() {
-  const [form, setForm] = useState<FormState>(INITIAL);
+  const { orgSlug, projectSlug, appSlug } = useParams();
+  const backPath = appSlug
+    ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags`
+    : `/orgs/${orgSlug}/projects/${projectSlug}/flags`;
+
+  const [form, setForm] = useState<FormState>({ ...INITIAL, category: appSlug ? 'release' : 'feature' });
 
   const set = <K extends keyof FormState>(field: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -215,7 +220,7 @@ export default function FlagCreatePage() {
           <button type="submit" className="btn btn-primary">
             Create Flag
           </button>
-          <Link to="/flags" className="btn btn-secondary">
+          <Link to={backPath} className="btn btn-secondary">
             Cancel
           </Link>
         </div>

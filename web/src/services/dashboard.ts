@@ -99,7 +99,7 @@ class DashboardService {
     ).length;
 
     const activeDeployments = deployments.filter(dep =>
-      dep.status === 'active' || dep.status === 'pending'
+      dep.status === 'running' || dep.status === 'pending' || dep.status === 'promoting'
     ).length;
 
     const flagsByCategory = flags.reduce((acc, flag) => {
@@ -159,7 +159,7 @@ class DashboardService {
 
   private getActiveDeployments(deployments: Deployment[]): Deployment[] {
     return deployments
-      .filter(dep => dep.status === 'active' || dep.status === 'pending')
+      .filter(dep => dep.status === 'running' || dep.status === 'pending' || dep.status === 'promoting')
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }
 
@@ -203,7 +203,7 @@ class DashboardService {
           actor: deployment.created_by || 'ci/deploy-bot',
           timestamp: this.formatRelativeTime(createdAt),
           type: 'deployment',
-          warning: deployment.status === 'failed' || deployment.status === 'rolling-back'
+          warning: deployment.status === 'failed' || deployment.status === 'rolled_back'
         });
       }
     });

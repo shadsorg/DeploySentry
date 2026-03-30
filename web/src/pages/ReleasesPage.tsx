@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 import type { Release, ReleaseStatus } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -8,99 +9,70 @@ import type { Release, ReleaseStatus } from '@/types';
 const MOCK_RELEASES: Release[] = [
   {
     id: 'rel-1',
-    project_id: 'proj-1',
-    version: 'v2.5.0',
-    status: 'draft',
-    commit_sha: 'a3f8c1d9e27b04556f91ae3cdd8e4b7012c6f5a8',
-    description: 'New checkout flow with improved cart validation',
+    application_id: 'app-1',
+    name: 'Enable Checkout V2',
+    description: 'Gradual rollout of checkout v2 flags',
+    session_sticky: true,
+    sticky_header: 'X-Session-ID',
+    traffic_percent: 25,
+    status: 'rolling_out',
     created_by: 'alice@example.com',
-    created_at: '2026-03-21T10:00:00Z',
-    updated_at: '2026-03-21T10:00:00Z',
-    promoted_at: null,
+    started_at: '2026-03-21T10:00:00Z',
+    created_at: '2026-03-20T14:00:00Z',
+    updated_at: '2026-03-21T10:30:00Z',
   },
   {
     id: 'rel-2',
-    project_id: 'proj-1',
-    version: 'v2.4.1',
-    status: 'production',
-    commit_sha: 'b7e2f4a01c93d685e8ab12df0947c3e6a15b8d20',
-    description: 'Hotfix for payment processing timeout under high load',
-    created_by: 'ci/deploy-bot',
-    created_at: '2026-03-20T14:00:00Z',
-    updated_at: '2026-03-21T09:15:00Z',
-    promoted_at: '2026-03-21T09:15:00Z',
+    application_id: 'app-1',
+    name: 'Dark Mode Feature Flags',
+    description: 'Enable dark mode across all environments',
+    session_sticky: false,
+    traffic_percent: 100,
+    status: 'completed',
+    created_by: 'bob@example.com',
+    started_at: '2026-03-18T08:00:00Z',
+    completed_at: '2026-03-19T11:30:00Z',
+    created_at: '2026-03-17T10:00:00Z',
+    updated_at: '2026-03-19T11:30:00Z',
   },
   {
     id: 'rel-3',
-    project_id: 'proj-1',
-    version: 'v2.4.0',
-    status: 'archived',
-    commit_sha: 'c4d91e5f738a206b1c4e97da50f823b6e19a0c47',
-    description: 'Dashboard redesign with dark mode support',
-    created_by: 'bob@example.com',
-    created_at: '2026-03-18T08:00:00Z',
-    updated_at: '2026-03-20T16:00:00Z',
-    promoted_at: '2026-03-19T11:30:00Z',
+    application_id: 'app-1',
+    name: 'Search Experiment Rollout',
+    description: 'ML search ranking A/B test activation',
+    session_sticky: true,
+    sticky_header: 'X-User-ID',
+    traffic_percent: 0,
+    status: 'draft',
+    created_by: 'team-platform',
+    created_at: '2026-03-21T07:30:00Z',
+    updated_at: '2026-03-21T07:30:00Z',
   },
   {
     id: 'rel-4',
-    project_id: 'proj-2',
-    version: 'v1.13.0-rc1',
-    status: 'staging',
-    commit_sha: 'd82fa3b6c0154e9a7d31f68e52c0ab94d17e63f1',
-    description: 'Add webhook retry logic and dead letter queue',
+    application_id: 'app-1',
+    name: 'Payment Gateway Migration',
+    description: 'Switch payment flags to new gateway',
+    session_sticky: false,
+    traffic_percent: 50,
+    status: 'paused',
     created_by: 'alice@example.com',
-    created_at: '2026-03-21T07:30:00Z',
-    updated_at: '2026-03-21T08:00:00Z',
-    promoted_at: '2026-03-21T08:00:00Z',
+    started_at: '2026-03-20T16:00:00Z',
+    created_at: '2026-03-20T12:00:00Z',
+    updated_at: '2026-03-21T06:00:00Z',
   },
   {
     id: 'rel-5',
-    project_id: 'proj-1',
-    version: 'v2.5.0-beta.2',
-    status: 'canary',
-    commit_sha: 'e5f07a2d19b8c43e6a0d71fc284b9e53f06d12a7',
-    description: 'Feature flag evaluation engine v2 with segment support',
-    created_by: 'team-platform',
-    created_at: '2026-03-20T16:00:00Z',
-    updated_at: '2026-03-21T06:00:00Z',
-    promoted_at: '2026-03-21T06:00:00Z',
-  },
-  {
-    id: 'rel-6',
-    project_id: 'proj-3',
-    version: 'v3.0.0',
-    status: 'production',
-    commit_sha: 'f19c8e4d3a7b52061e9d04ca83f6a72b5d0e18c9',
-    description: 'Major version bump with breaking API changes',
+    application_id: 'app-1',
+    name: 'Legacy API Sunset',
+    description: 'Disable legacy API endpoint flags',
+    session_sticky: false,
+    traffic_percent: 100,
+    status: 'rolled_back',
     created_by: 'ci/deploy-bot',
-    created_at: '2026-03-19T10:00:00Z',
-    updated_at: '2026-03-21T08:25:00Z',
-    promoted_at: '2026-03-21T08:25:00Z',
-  },
-  {
-    id: 'rel-7',
-    project_id: 'proj-2',
-    version: 'v1.12.4',
-    status: 'archived',
-    commit_sha: '0ab3d7e8f1c94526b7e0da3f18c52e6a49d07b31',
-    description: 'Security patch for JWT validation bypass',
-    created_by: 'bob@example.com',
-    created_at: '2026-03-15T09:00:00Z',
-    updated_at: '2026-03-18T12:00:00Z',
-    promoted_at: '2026-03-16T14:00:00Z',
-  },
-  {
-    id: 'rel-8',
-    project_id: 'proj-1',
-    version: 'v2.5.1',
-    status: 'draft',
-    commit_sha: '1c4e82a5f93d076b2e8af10dc347b9e6a52f08d3',
-    description: 'Performance improvements for flag evaluation cache',
-    created_by: 'alice@example.com',
-    created_at: '2026-03-21T11:30:00Z',
-    updated_at: '2026-03-21T11:30:00Z',
-    promoted_at: null,
+    started_at: '2026-03-19T10:00:00Z',
+    created_at: '2026-03-19T08:00:00Z',
+    updated_at: '2026-03-19T14:00:00Z',
   },
 ];
 
@@ -108,33 +80,51 @@ const MOCK_RELEASES: Release[] = [
 // Helpers
 // ---------------------------------------------------------------------------
 
-type TabKey = 'all' | ReleaseStatus;
+const TABS = ['all', 'draft', 'rolling_out', 'paused', 'completed', 'rolled_back'] as const;
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'draft', label: 'Draft' },
-  { key: 'staging', label: 'Staging' },
-  { key: 'production', label: 'Production' },
-  { key: 'archived', label: 'Archived' },
-];
+type TabKey = (typeof TABS)[number];
+
+function tabLabel(tab: TabKey): string {
+  switch (tab) {
+    case 'all':
+      return 'All';
+    case 'draft':
+      return 'Draft';
+    case 'rolling_out':
+      return 'Rolling Out';
+    case 'paused':
+      return 'Paused';
+    case 'completed':
+      return 'Completed';
+    case 'rolled_back':
+      return 'Rolled Back';
+  }
+}
 
 function statusBadgeClass(status: ReleaseStatus): string {
   switch (status) {
     case 'draft':
       return 'badge badge-pending';
-    case 'staging':
-      return 'badge badge-ops';
-    case 'canary':
-      return 'badge badge-experiment';
-    case 'production':
+    case 'rolling_out':
       return 'badge badge-active';
-    case 'archived':
-      return 'badge badge-disabled';
+    case 'paused':
+      return 'badge badge-ops';
+    case 'completed':
+      return 'badge badge-completed';
+    case 'rolled_back':
+      return 'badge badge-danger';
   }
 }
 
 function statusLabel(status: ReleaseStatus): string {
-  return status.charAt(0).toUpperCase() + status.slice(1);
+  switch (status) {
+    case 'rolling_out':
+      return 'Rolling Out';
+    case 'rolled_back':
+      return 'Rolled Back';
+    default:
+      return status.charAt(0).toUpperCase() + status.slice(1);
+  }
 }
 
 function formatDate(iso: string): string {
@@ -152,6 +142,9 @@ function formatDate(iso: string): string {
 // ---------------------------------------------------------------------------
 
 const ReleasesPage: React.FC = () => {
+  const { appSlug } = useParams();
+  const appName = appSlug ?? '';
+
   const [activeTab, setActiveTab] = useState<TabKey>('all');
 
   const filtered = useMemo(() => {
@@ -164,8 +157,8 @@ const ReleasesPage: React.FC = () => {
       {/* Page header */}
       <div className="page-header-row">
         <div className="page-header" style={{ marginBottom: 0 }}>
-          <h1>Releases</h1>
-          <p>Track release versions from draft through production</p>
+          <h1>{appName ? `${appName} — Releases` : 'Releases'}</h1>
+          <p>Coordinate flag changes across environments with managed releases</p>
         </div>
         <button className="btn btn-primary">+ Create Release</button>
       </div>
@@ -174,11 +167,11 @@ const ReleasesPage: React.FC = () => {
       <div className="tabs">
         {TABS.map((tab) => (
           <button
-            key={tab.key}
-            className={`tab${activeTab === tab.key ? ' active' : ''}`}
-            onClick={() => setActiveTab(tab.key)}
+            key={tab}
+            className={`tab${activeTab === tab ? ' active' : ''}`}
+            onClick={() => setActiveTab(tab)}
           >
-            {tab.label}
+            {tabLabel(tab)}
           </button>
         ))}
       </div>
@@ -189,12 +182,12 @@ const ReleasesPage: React.FC = () => {
           <table>
             <thead>
               <tr>
-                <th>Version</th>
+                <th>Name</th>
                 <th>Status</th>
-                <th>Commit SHA</th>
+                <th>Traffic %</th>
                 <th>Description</th>
+                <th>Created By</th>
                 <th>Created</th>
-                <th>Promoted</th>
               </tr>
             </thead>
             <tbody>
@@ -210,29 +203,23 @@ const ReleasesPage: React.FC = () => {
               ) : (
                 filtered.map((rel) => (
                   <tr key={rel.id}>
-                    <td style={{ fontWeight: 500 }}>
-                      <code className="font-mono text-sm">{rel.version}</code>
-                    </td>
+                    <td style={{ fontWeight: 500 }}>{rel.name}</td>
                     <td>
                       <span className={statusBadgeClass(rel.status)}>
                         {statusLabel(rel.status)}
                       </span>
                     </td>
                     <td>
-                      <code className="font-mono text-sm text-secondary">
-                        {rel.commit_sha.slice(0, 7)}
-                      </code>
+                      <span className="text-sm">{rel.traffic_percent}%</span>
                     </td>
                     <td className="text-sm" style={{ maxWidth: 300 }}>
                       <span className="truncate" style={{ display: 'block' }}>
                         {rel.description}
                       </span>
                     </td>
+                    <td className="text-sm text-secondary">{rel.created_by}</td>
                     <td className="text-sm text-secondary" style={{ whiteSpace: 'nowrap' }}>
                       {formatDate(rel.created_at)}
-                    </td>
-                    <td className="text-sm text-muted" style={{ whiteSpace: 'nowrap' }}>
-                      {rel.promoted_at ? formatDate(rel.promoted_at) : '\u2014'}
                     </td>
                   </tr>
                 ))

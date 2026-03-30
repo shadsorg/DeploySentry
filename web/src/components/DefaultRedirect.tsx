@@ -1,17 +1,26 @@
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { MOCK_ORGS } from '@/mocks/hierarchy';
+import { entitiesApi } from '@/api';
 
 export default function DefaultRedirect() {
-  const lastOrg = localStorage.getItem('ds_last_org');
+  const [target, setTarget] = useState<string | null>(null);
 
-  if (lastOrg) {
-    return <Navigate to={`/orgs/${lastOrg}/projects`} replace />;
-  }
+  useEffect(() => {
+    const lastOrg = localStorage.getItem('ds_last_org');
+    if (lastOrg) {
+      setTarget(`/orgs/${lastOrg}/projects`);
+      return;
+    }
+    entitiesApi.listOrgs().then((res) => {
+      const orgs = res.organizations ?? [];
+      if (orgs.length > 0) {
+        setTarget(`/orgs/${orgs[0].slug}/projects`);
+      } else {
+        setTarget('/orgs/new');
+      }
+    }).catch(() => setTarget('/orgs/new'));
+  }, []);
 
-  // Fall back to first org or create new
-  if (MOCK_ORGS.length > 0) {
-    return <Navigate to={`/orgs/${MOCK_ORGS[0].slug}/projects`} replace />;
-  }
-
-  return <Navigate to="/orgs/new" replace />;
+  if (!target) return <div className="page-loading">Loading...</div>;
+  return <Navigate to={target} replace />;
 }

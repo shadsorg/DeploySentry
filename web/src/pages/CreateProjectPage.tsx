@@ -1,13 +1,16 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { entitiesApi } from '@/api';
 
-export default function CreateOrgPage() {
+export default function CreateProjectPage() {
+  const { orgSlug } = useParams();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  if (!orgSlug) return null;
 
   function handleNameChange(value: string) {
     setName(value);
@@ -20,11 +23,11 @@ export default function CreateOrgPage() {
     setSubmitting(true);
     setError('');
     try {
-      await entitiesApi.createOrg({ name, slug });
-      localStorage.setItem('ds_last_org', slug);
-      navigate(`/orgs/${slug}/projects`);
+      await entitiesApi.createProject(orgSlug!, { name, slug });
+      localStorage.setItem('ds_last_project', slug);
+      navigate(`/orgs/${orgSlug}/projects/${slug}/flags`);
     } catch (err: any) {
-      setError(err.message || 'Failed to create organization');
+      setError(err.message || 'Failed to create project');
     } finally {
       setSubmitting(false);
     }
@@ -33,22 +36,22 @@ export default function CreateOrgPage() {
   return (
     <div className="page-center">
       <div className="form-card">
-        <h1 className="page-header">Create Organization</h1>
+        <h1 className="page-header">Create Project</h1>
         {error && <div className="form-error">{error}</div>}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Organization Name</label>
+            <label className="form-label">Project Name</label>
             <input type="text" className="form-input" value={name}
-              onChange={(e) => handleNameChange(e.target.value)} placeholder="Acme Corp" required />
+              onChange={(e) => handleNameChange(e.target.value)} placeholder="My Project" required />
           </div>
           <div className="form-group">
             <label className="form-label">Slug</label>
             <input type="text" className="form-input" value={slug}
-              onChange={(e) => setSlug(e.target.value)} placeholder="acme-corp" required />
+              onChange={(e) => setSlug(e.target.value)} placeholder="my-project" required />
           </div>
           <button type="submit" className="btn btn-primary" style={{ width: '100%' }}
             disabled={submitting}>
-            {submitting ? 'Creating...' : 'Create Organization'}
+            {submitting ? 'Creating...' : 'Create Project'}
           </button>
         </form>
       </div>

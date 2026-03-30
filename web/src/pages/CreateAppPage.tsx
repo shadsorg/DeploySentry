@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MOCK_ENVIRONMENTS } from '@/mocks/hierarchy';
+import { entitiesApi } from '@/api';
 
 export default function CreateAppPage() {
   const { orgSlug, projectSlug } = useParams();
@@ -9,16 +10,28 @@ export default function CreateAppPage() {
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
   const [repoUrl, setRepoUrl] = useState('');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   function handleNameChange(value: string) {
     setName(value);
     setSlug(value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name || !slug) return;
-    navigate(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${slug}/deployments`);
+    if (!name || !slug || !orgSlug || !projectSlug) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await entitiesApi.createApp(orgSlug, projectSlug, { name, slug, description });
+      localStorage.setItem('ds_last_app', slug);
+      navigate(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${slug}/deployments`);
+    } catch (err: any) {
+      setError(err.message || 'Failed to create application');
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const backPath = `/orgs/${orgSlug}/projects/${projectSlug}/flags`;
@@ -87,8 +100,11 @@ export default function CreateAppPage() {
               ))}
             </div>
           </div>
+          {error && <div className="form-error" style={{ marginBottom: 8 }}>{error}</div>}
           <div style={{ display: 'flex', gap: 8 }}>
-            <button type="submit" className="btn btn-primary">Create Application</button>
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? 'Creating...' : 'Create Application'}
+            </button>
             <button type="button" className="btn btn-secondary" onClick={() => navigate(backPath)}>
               Cancel
             </button>

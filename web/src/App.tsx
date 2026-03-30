@@ -20,6 +20,7 @@ import SettingsPage from './pages/SettingsPage';
 import MembersPage from './pages/MembersPage';
 import APIKeysPage from './pages/APIKeysPage';
 import CreateAppPage from './pages/CreateAppPage';
+import CreateProjectPage from './pages/CreateProjectPage';
 
 export default function App() {
   return (
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/orgs/:orgSlug" element={<HierarchyLayout />}>
             {/* Org-level */}
             <Route path="projects" element={<ProjectListPage />} />
+            <Route path="projects/new" element={<CreateProjectPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="api-keys" element={<APIKeysPage />} />
             <Route path="settings" element={<SettingsPage level="org" />} />

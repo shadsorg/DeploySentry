@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import type { Member } from '@/types';
-import { entitiesApi, membersApi } from '@/api';
+import { membersApi } from '@/api';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -13,64 +13,68 @@ export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Add member form
   const [newEmail, setNewEmail] = useState('');
-  const [newRole, setNewRole] = useState<'owner' | 'member'>('member');
+  const [newRole, setNewRole] = useState<string>('member');
 
   // Delete confirm
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  useEffect(() => {
+  async function fetchMembers() {
     if (!orgSlug) return;
-    let cancelled = false;
-
-    async function fetchMembers() {
-      setLoading(true);
-      setError(null);
-      try {
-        const org = await entitiesApi.getOrg(orgSlug!);
-        const result = await membersApi.listByOrg(org.id);
-        if (!cancelled) {
-          setMembers(result.members as Member[]);
-        }
-      } catch (err: any) {
-        if (!cancelled) {
-          setError(err.message || 'Failed to load members');
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await membersApi.listByOrg(orgSlug);
+      setMembers(result.members);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load members');
+    } finally {
+      setLoading(false);
     }
+  }
 
+  useEffect(() => {
     fetchMembers();
-    return () => { cancelled = true; };
   }, [orgSlug]);
 
-  // --- Member actions (client-only) ---
-
-  function handleAddMember() {
-    if (!newEmail.trim()) return;
-    const member: Member = {
-      id: `user-${Date.now()}`,
-      name: newEmail.split('@')[0],
-      email: newEmail.trim(),
-      role: newRole,
-      group_ids: [],
-      joined_at: new Date().toISOString(),
-    };
-    setMembers((prev) => [...prev, member]);
-    setNewEmail('');
-    setNewRole('member');
+  async function handleAddMember() {
+    if (!newEmail.trim() || !orgSlug) return;
+    setActionError(null);
+    try {
+      const result = await membersApi.addToOrg(orgSlug, newEmail.trim(), newRole);
+      setMembers((prev) => [...prev, result.member]);
+      setNewEmail('');
+      setNewRole('member');
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to add member');
+    }
   }
 
-  function handleChangeRole(memberId: string, role: 'owner' | 'member') {
-    setMembers((prev) => prev.map((m) => (m.id === memberId ? { ...m, role } : m)));
+  async function handleChangeRole(userId: string, role: string) {
+    if (!orgSlug) return;
+    setActionError(null);
+    try {
+      await membersApi.updateOrgRole(orgSlug, userId, role);
+      setMembers((prev) => prev.map((m) => (m.user_id === userId ? { ...m, role: role as Member['role'] } : m)));
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to update role');
+    }
   }
 
-  function handleRemoveMember(memberId: string) {
-    setMembers((prev) => prev.filter((m) => m.id !== memberId));
-    setConfirmDelete(null);
+  async function handleRemoveMember(userId: string) {
+    if (!orgSlug) return;
+    setActionError(null);
+    try {
+      await membersApi.removeFromOrg(orgSlug, userId);
+      setMembers((prev) => prev.filter((m) => m.user_id !== userId));
+      setConfirmDelete(null);
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to remove member');
+      setConfirmDelete(null);
+    }
   }
 
   return (
@@ -102,9 +106,10 @@ export default function MembersPage() {
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
             />
-            <select value={newRole} onChange={(e) => setNewRole(e.target.value as 'owner' | 'member')}>
+            <select value={newRole} onChange={(e) => setNewRole(e.target.value)}>
               <option value="member">Member</option>
-              <option value="owner">Owner</option>
+              <option value="admin">Admin</option>
+              <option value="viewer">Viewer</option>
             </select>
             <button className="btn btn-primary" onClick={handleAddMember}>
               Add
@@ -112,6 +117,7 @@ export default function MembersPage() {
           </div>
 
           {error && <p className="form-error" style={{ marginBottom: 8 }}>{error}</p>}
+          {actionError && <p className="form-error" style={{ marginBottom: 8 }}>{actionError}</p>}
 
           {loading ? (
             <p className="text-muted">Loading members...</p>
@@ -139,18 +145,23 @@ export default function MembersPage() {
                     <td>{formatDate(m.joined_at)}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <select
-                          value={m.role}
-                          onChange={(e) => handleChangeRole(m.id, e.target.value as 'owner' | 'member')}
-                        >
-                          <option value="member">Member</option>
-                          <option value="owner">Owner</option>
-                        </select>
+                        {m.role === 'owner' ? (
+                          <span className="text-muted">Owner</span>
+                        ) : (
+                          <select
+                            value={m.role}
+                            onChange={(e) => handleChangeRole(m.user_id, e.target.value)}
+                          >
+                            <option value="admin">Admin</option>
+                            <option value="member">Member</option>
+                            <option value="viewer">Viewer</option>
+                          </select>
+                        )}
 
-                        {confirmDelete === m.id ? (
+                        {confirmDelete === m.user_id ? (
                           <span className="inline-confirm">
                             Are you sure?{' '}
-                            <button className="btn btn-sm btn-danger" onClick={() => handleRemoveMember(m.id)}>
+                            <button className="btn btn-sm btn-danger" onClick={() => handleRemoveMember(m.user_id)}>
                               Yes
                             </button>{' '}
                             <button className="btn btn-sm" onClick={() => setConfirmDelete(null)}>
@@ -158,7 +169,7 @@ export default function MembersPage() {
                             </button>
                           </span>
                         ) : (
-                          <button className="btn btn-sm btn-danger" onClick={() => setConfirmDelete(m.id)}>
+                          <button className="btn btn-sm btn-danger" onClick={() => setConfirmDelete(m.user_id)}>
                             Remove
                           </button>
                         )}

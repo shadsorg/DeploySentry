@@ -2,6 +2,38 @@
 
 Deploy release and feature flag management platform. DeploySentry gives engineering teams full visibility and control over their deployment lifecycle — safe rollouts, feature flags with granular targeting, release tracking, and automated rollbacks.
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Architecture](#architecture)
+- [Applications](#applications)
+- [Feature Flags](#feature-flags)
+  - [Flag Categories](#flag-categories)
+  - [Flag Metadata](#flag-metadata)
+  - [How Flags Work](#how-flags-work)
+  - [Creating Flags](#creating-flags)
+  - [Targeting Rules](#targeting-rules)
+- [Integrating Into Your Project](#integrating-into-your-project)
+  - [Install the CLI](#1-install-the-cli)
+  - [Get an API Key](#2-get-an-api-key)
+  - [Install the SDK](#3-install-the-sdk)
+  - [Initialize and Evaluate](#4-initialize-and-evaluate) (Go, Node, Python, Java, React, Flutter, Ruby)
+  - [Best Practices for SDK Integration](#7-best-practices-for-sdk-integration)
+- [Monitoring Flags](#monitoring-flags)
+  - [Flag Lifecycle Management](#flag-lifecycle-management)
+  - [Flag Health Dashboard](#flag-health-dashboard)
+  - [API Endpoints](#api-endpoints-for-monitoring)
+  - [Member Management API](#member-management-api)
+  - [Observability Integration](#observability-integration)
+  - [Webhooks & Slack](#webhook-notifications)
+- [Deployments](#deployments)
+  - [CLI Commands](#cli-commands)
+  - [Automated Rollbacks](#automated-rollbacks)
+- [Authentication](#authentication)
+- [Database](#database)
+- [Development](#development)
+- [Project Status](#project-status)
+
 ## Quick Start
 
 ```bash

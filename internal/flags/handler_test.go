@@ -32,6 +32,7 @@ type mockFlagService struct {
 	addRuleFn     func(ctx context.Context, rule *models.TargetingRule) error
 	updateRuleFn  func(ctx context.Context, rule *models.TargetingRule) error
 	deleteRuleFn  func(ctx context.Context, ruleID uuid.UUID) error
+	listRulesFn   func(ctx context.Context, flagID uuid.UUID) ([]*models.TargetingRule, error)
 }
 
 func (m *mockFlagService) CreateFlag(ctx context.Context, flag *models.FeatureFlag) error {
@@ -102,6 +103,13 @@ func (m *mockFlagService) DeleteRule(ctx context.Context, ruleID uuid.UUID) erro
 		return m.deleteRuleFn(ctx, ruleID)
 	}
 	return nil
+}
+
+func (m *mockFlagService) ListRules(ctx context.Context, flagID uuid.UUID) ([]*models.TargetingRule, error) {
+	if m.listRulesFn != nil {
+		return m.listRulesFn(ctx, flagID)
+	}
+	return []*models.TargetingRule{}, nil
 }
 
 func (m *mockFlagService) BatchEvaluate(ctx context.Context, projectID, environmentID uuid.UUID, keys []string, evalCtx models.EvaluationContext) ([]*models.FlagEvaluationResult, error) {
@@ -672,6 +680,75 @@ func TestDeleteRule_InvalidRuleID(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// GET /flags/:id/rules  (listRules)
+// ---------------------------------------------------------------------------
+
+func TestListRules_Valid(t *testing.T) {
+	flagID := uuid.New()
+	ruleID := uuid.New()
+	svc := &mockFlagService{
+		listRulesFn: func(_ context.Context, fID uuid.UUID) ([]*models.TargetingRule, error) {
+			assert.Equal(t, flagID, fID)
+			pct := 50
+			return []*models.TargetingRule{
+				{
+					ID:         ruleID,
+					FlagID:     fID,
+					RuleType:   "percentage",
+					Priority:   1,
+					Value:      "on",
+					Percentage: &pct,
+					Enabled:    true,
+				},
+			}, nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/flags/"+flagID.String()+"/rules", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]json.RawMessage
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Contains(t, resp, "rules")
+
+	var rules []models.TargetingRule
+	assert.NoError(t, json.Unmarshal(resp["rules"], &rules))
+	assert.Len(t, rules, 1)
+	assert.Equal(t, ruleID, rules[0].ID)
+}
+
+func TestListRules_InvalidFlagID(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/flags/bad-uuid/rules", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestListRules_ServiceError(t *testing.T) {
+	svc := &mockFlagService{
+		listRulesFn: func(_ context.Context, _ uuid.UUID) ([]*models.TargetingRule, error) {
+			return nil, errors.New("db down")
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/flags/"+uuid.New().String()+"/rules", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
 // ---------------------------------------------------------------------------

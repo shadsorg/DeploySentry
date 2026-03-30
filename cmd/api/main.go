@@ -18,6 +18,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/analytics"
 	"github.com/deploysentry/deploysentry/internal/auth"
 	"github.com/deploysentry/deploysentry/internal/deploy"
+	"github.com/deploysentry/deploysentry/internal/entities"
 	"github.com/deploysentry/deploysentry/internal/flags"
 	githubint "github.com/deploysentry/deploysentry/internal/integrations/github"
 	"github.com/deploysentry/deploysentry/internal/notifications"
@@ -180,6 +181,7 @@ func run() error {
 	releaseRepo := postgres.NewReleaseRepository(db.Pool)
 	webhookRepo := postgres.NewWebhookRepository(db.Pool)
 	ratingRepo := postgres.NewRatingRepository(db.Pool)
+	entityRepo := postgres.NewEntityRepository(db.Pool)
 
 	// -------------------------------------------------------------------------
 	// Services
@@ -193,6 +195,7 @@ func run() error {
 	analyticsService := analytics.NewService(db.Pool, rdb.Client)
 	webhookService := webhooks.NewService(webhookRepo, nc)
 	ratingService := ratings.NewRatingService(ratingRepo)
+	entityService := entities.NewEntityService(entityRepo)
 
 	// -------------------------------------------------------------------------
 	// Notifications
@@ -273,6 +276,7 @@ func run() error {
 	auth.NewUserHandler(userRepo).RegisterRoutes(api)
 	auth.NewAPIKeyHandler(apiKeyService).RegisterRoutes(api)
 	auth.NewAuditHandler(auditRepo).RegisterRoutes(api)
+	entities.NewHandler(entityService, rbacChecker).RegisterRoutes(api)
 
 	// Public routes (no auth required).
 	public := router.Group("/api/v1")

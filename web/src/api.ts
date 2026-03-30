@@ -51,6 +51,8 @@ export const flagsApi = {
     }),
   deleteRule: (flagId: string, ruleId: string) =>
     request<void>(`/flags/${flagId}/rules/${ruleId}`, { method: 'DELETE' }),
+  listRules: (flagId: string) =>
+    request<{ rules: TargetingRule[] }>(`/flags/${flagId}/rules`),
 };
 
 // Deployments

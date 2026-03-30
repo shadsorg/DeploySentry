@@ -1,68 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import type { Flag, TargetingRule, FlagEnvState } from '@/types';
-import { MOCK_FLAG_ENV_STATE, MOCK_APPLICATIONS } from '@/mocks/hierarchy';
-
-const MOCK_FLAG: Flag = {
-  id: 'flag-001',
-  project_id: 'proj-1',
-  application_id: 'app-1',
-  environment_id: 'env-prod',
-  key: 'checkout-v2-rollout',
-  name: 'Checkout V2 Rollout',
-  description: 'Gradually roll out the new checkout flow to all users. Includes updated payment form, address validation, and order summary redesign.',
-  flag_type: 'boolean',
-  category: 'release',
-  purpose: 'Migrate all users from legacy checkout to the redesigned V2 checkout experience.',
-  owners: ['checkout-team', 'payments-team'],
-  is_permanent: false,
-  expires_at: '2026-06-01T00:00:00Z',
-  enabled: true,
-  default_value: 'false',
-  archived: false,
-  tags: ['checkout', 'migration', 'revenue'],
-  created_by: 'alice',
-  created_at: '2025-11-01T10:00:00Z',
-  updated_at: '2026-03-18T14:30:00Z',
-};
-
-const MOCK_RULES: TargetingRule[] = [
-  {
-    id: 'rule-001',
-    flag_id: 'flag-001',
-    rule_type: 'percentage',
-    priority: 1,
-    value: 'true',
-    percentage: 25,
-    enabled: true,
-    created_at: '2025-12-01T10:00:00Z',
-    updated_at: '2026-03-10T08:00:00Z',
-  },
-  {
-    id: 'rule-002',
-    flag_id: 'flag-001',
-    rule_type: 'user_target',
-    priority: 2,
-    value: 'true',
-    target_values: ['user-101', 'user-202', 'user-303'],
-    enabled: true,
-    created_at: '2026-01-15T09:00:00Z',
-    updated_at: '2026-02-20T11:00:00Z',
-  },
-  {
-    id: 'rule-003',
-    flag_id: 'flag-001',
-    rule_type: 'attribute',
-    priority: 3,
-    value: 'true',
-    attribute: 'plan',
-    operator: 'equals',
-    target_values: ['premium', 'enterprise'],
-    enabled: false,
-    created_at: '2026-02-10T14:00:00Z',
-    updated_at: '2026-03-01T16:00:00Z',
-  },
-];
+import type { Flag, TargetingRule } from '@/types';
+import { flagsApi } from '@/api';
+import { MOCK_APPLICATIONS } from '@/mocks/hierarchy';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -109,52 +49,39 @@ export default function FlagDetailPage() {
     ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags`
     : `/orgs/${orgSlug}/projects/${projectSlug}/flags`;
 
-  const [flag, setFlag] = useState<Flag>(MOCK_FLAG);
+  const [flag, setFlag] = useState<Flag | null>(null);
+  const [rules, setRules] = useState<TargetingRule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'rules' | 'environments'>('rules');
-  const [envState, setEnvState] = useState<FlagEnvState[]>([...MOCK_FLAG_ENV_STATE]);
-  const [editingEnvId, setEditingEnvId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState('');
-  const rules = MOCK_RULES;
 
-  // Use id to look up the flag in a real app
-  void id;
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+
+    Promise.all([
+      flagsApi.get(id),
+      flagsApi.listRules(id).then((r) => r.rules),
+    ])
+      .then(([flagData, rulesData]) => {
+        setFlag(flagData);
+        setRules(rulesData);
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+  if (!flag) return <div>Flag not found.</div>;
 
   const handleToggle = () => {
-    setFlag((prev) => ({ ...prev, enabled: !prev.enabled }));
+    setFlag((prev) => prev ? { ...prev, enabled: !prev.enabled } : prev);
   };
 
   const handleArchive = () => {
-    setFlag((prev) => ({ ...prev, archived: true }));
-  };
-
-  const handleEnvToggle = (envId: string) => {
-    setEnvState((prev) =>
-      prev.map((e) =>
-        e.environment_id === envId ? { ...e, enabled: !e.enabled } : e
-      )
-    );
-  };
-
-  const startEditValue = (envId: string, currentValue: string) => {
-    setEditingEnvId(envId);
-    setEditValue(currentValue);
-  };
-
-  const saveEditValue = () => {
-    if (editingEnvId) {
-      setEnvState((prev) =>
-        prev.map((e) =>
-          e.environment_id === editingEnvId ? { ...e, value: editValue } : e
-        )
-      );
-      setEditingEnvId(null);
-      setEditValue('');
-    }
-  };
-
-  const cancelEditValue = () => {
-    setEditingEnvId(null);
-    setEditValue('');
+    setFlag((prev) => prev ? { ...prev, archived: true } : prev);
   };
 
   return (
@@ -265,66 +192,9 @@ export default function FlagDetailPage() {
       {/* Tab: Environments */}
       {activeTab === 'environments' && (
         <div className="card">
-          <table>
-            <thead>
-              <tr>
-                <th>Environment</th>
-                <th>Enabled</th>
-                <th>Value</th>
-                <th>Last Updated</th>
-                <th>Updated By</th>
-              </tr>
-            </thead>
-            <tbody>
-              {envState.map((env) => (
-                <tr key={env.environment_id}>
-                  <td>{env.environment_name}</td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      className="env-toggle"
-                      checked={env.enabled}
-                      onChange={() => handleEnvToggle(env.environment_id)}
-                    />
-                  </td>
-                  <td
-                    className="env-value-cell"
-                    onClick={() => {
-                      if (editingEnvId !== env.environment_id) {
-                        startEditValue(env.environment_id, env.value);
-                      }
-                    }}
-                  >
-                    {editingEnvId === env.environment_id ? (
-                      <input
-                        type="text"
-                        className="env-value-input"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') saveEditValue();
-                          if (e.key === 'Escape') cancelEditValue();
-                        }}
-                        onBlur={saveEditValue}
-                        autoFocus
-                      />
-                    ) : (
-                      <span className="font-mono">{env.value}</span>
-                    )}
-                  </td>
-                  <td>{formatDateTime(env.updated_at)}</td>
-                  <td>{env.updated_by}</td>
-                </tr>
-              ))}
-              {envState.length === 0 && (
-                <tr>
-                  <td colSpan={5} style={{ textAlign: 'center' }}>
-                    No environment overrides configured.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+          <p style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--color-text-muted)' }}>
+            No environment data available
+          </p>
         </div>
       )}
 

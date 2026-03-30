@@ -45,6 +45,7 @@ export default function FlagCreatePage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [appId, setAppId] = useState<string | null>(null);
 
   // Load environments: if appSlug is present, load from that app; otherwise load from first app
   const { apps } = useApps(orgSlug, projectSlug);
@@ -62,6 +63,11 @@ export default function FlagCreatePage() {
     if (!orgSlug || !projectSlug) return;
     const targetAppSlug = appSlug || (apps.length > 0 ? apps[0].slug : null);
     if (!targetAppSlug) return;
+
+    // Get app ID
+    entitiesApi.getApp(orgSlug, projectSlug, targetAppSlug)
+      .then((a) => setAppId(a.id))
+      .catch(() => {});
 
     entitiesApi.listEnvironments(orgSlug, projectSlug, targetAppSlug)
       .then((res) => {
@@ -93,6 +99,7 @@ export default function FlagCreatePage() {
       await flagsApi.create({
         project_id: projectId,
         environment_id: form.environment_id,
+        application_id: appId || undefined,
         key: form.key,
         name: form.name,
         description: form.description,

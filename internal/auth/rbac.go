@@ -362,50 +362,59 @@ func RequireEnvironmentPermission(rbac *RBACChecker, resolver RoleResolver, perm
 	}
 }
 
-// OrgRoleLookup resolves a user's org role by org slug.
+// OrgRoleLookup resolves a user's org role by org slug or by user's default org.
 type OrgRoleLookup interface {
 	GetOrgIDBySlug(ctx context.Context, slug string) (uuid.UUID, error)
 	GetOrgMemberRole(ctx context.Context, orgID, userID uuid.UUID) (string, error)
+	GetUserDefaultOrgRole(ctx context.Context, userID uuid.UUID) (string, error)
 }
 
 // ResolveOrgRole returns a Gin middleware that looks up the user's org role
-// from the :orgSlug URL parameter and sets "role" on the Gin context.
-// This must run before RequirePermission on org-scoped routes.
+// and sets "role" on the Gin context. When :orgSlug is in the URL, it resolves
+// by slug. Otherwise, it falls back to the user's highest org role.
+// This must run before RequirePermission on all authenticated routes.
 func ResolveOrgRole(lookup OrgRoleLookup) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		orgSlug := c.Param("orgSlug")
-		if orgSlug == "" {
-			c.Next()
-			return
-		}
-
 		userIDValue, exists := c.Get("user_id")
 		if !exists {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+			c.Next()
 			return
 		}
 
 		userID, ok := userIDValue.(uuid.UUID)
 		if !ok {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid user identity"})
+			c.Next()
 			return
 		}
 
-		orgID, err := lookup.GetOrgIDBySlug(c.Request.Context(), orgSlug)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		orgSlug := c.Param("orgSlug")
+		if orgSlug != "" {
+			orgID, err := lookup.GetOrgIDBySlug(c.Request.Context(), orgSlug)
+			if err != nil {
+				c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+				return
+			}
+
+			role, err := lookup.GetOrgMemberRole(c.Request.Context(), orgID, userID)
+			if err != nil {
+				c.Next()
+				return
+			}
+
+			c.Set("role", Role(role))
+			c.Set("org_id", orgID.String())
+			c.Next()
 			return
 		}
 
-		role, err := lookup.GetOrgMemberRole(c.Request.Context(), orgID, userID)
+		// No orgSlug in URL — resolve user's default (highest) org role
+		role, err := lookup.GetUserDefaultOrgRole(c.Request.Context(), userID)
 		if err != nil {
-			// User is not a member — let RequirePermission handle the 403
 			c.Next()
 			return
 		}
 
 		c.Set("role", Role(role))
-		c.Set("org_id", orgID.String())
 		c.Next()
 	}
 }

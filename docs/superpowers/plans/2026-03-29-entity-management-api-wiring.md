@@ -165,14 +165,8 @@ func (s *entityService) CreateProject(ctx context.Context, project *models.Proje
 	now := time.Now().UTC()
 	project.CreatedAt = now
 	project.UpdatedAt = now
-	if project.Name == "" {
-		return errors.New("project name is required")
-	}
-	if project.Slug == "" {
-		return errors.New("project slug is required")
-	}
-	if project.OrgID == uuid.Nil {
-		return errors.New("org_id is required")
+	if err := project.Validate(); err != nil {
+		return err
 	}
 	return s.repo.CreateProject(ctx, project)
 }
@@ -200,9 +194,6 @@ func (s *entityService) CreateApp(ctx context.Context, app *models.Application) 
 	}
 	if app.Slug == "" {
 		return errors.New("application slug is required")
-	}
-	if app.ProjectID == uuid.Nil {
-		return errors.New("project_id is required")
 	}
 	return s.repo.CreateApp(ctx, app)
 }
@@ -293,24 +284,24 @@ func NewHandler(service EntityService, rbac *auth.RBACChecker) *Handler {
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	orgs := rg.Group("/orgs")
 	{
-		orgs.POST("", h.createOrg)
-		orgs.GET("", h.listOrgs)
+		orgs.POST("", h.createOrg)   // any authenticated user
+		orgs.GET("", h.listOrgs)     // any authenticated user
 		orgs.GET("/:orgSlug", h.getOrg)
-		orgs.PUT("/:orgSlug", h.updateOrg)
+		orgs.PUT("/:orgSlug", auth.RequirePermission(h.rbac, auth.PermOrgManage), h.updateOrg)
 
 		projects := orgs.Group("/:orgSlug/projects")
 		{
-			projects.POST("", h.createProject)
+			projects.POST("", auth.RequirePermission(h.rbac, auth.PermOrgManage), h.createProject)
 			projects.GET("", h.listProjects)
 			projects.GET("/:projectSlug", h.getProject)
-			projects.PUT("/:projectSlug", h.updateProject)
+			projects.PUT("/:projectSlug", auth.RequirePermission(h.rbac, auth.PermProjectManage), h.updateProject)
 
 			apps := projects.Group("/:projectSlug/apps")
 			{
-				apps.POST("", h.createApp)
+				apps.POST("", auth.RequirePermission(h.rbac, auth.PermProjectManage), h.createApp)
 				apps.GET("", h.listApps)
 				apps.GET("/:appSlug", h.getApp)
-				apps.PUT("/:appSlug", h.updateApp)
+				apps.PUT("/:appSlug", auth.RequirePermission(h.rbac, auth.PermProjectManage), h.updateApp)
 			}
 		}
 	}
@@ -354,7 +345,7 @@ git commit -m "feat: add entity management HTTP handler with tests"
 
 Create `internal/platform/database/postgres/entities.go` implementing all `EntityRepository` methods. Key implementation details:
 
-- `CreateOrg`: INSERT with `gen_random_uuid()` fallback, ON CONFLICT (slug) return error
+- `CreateOrg`: INSERT with service-provided UUID (org.ID set by service layer), unique constraint on slug returns error
 - `GetOrgBySlug`: SELECT WHERE slug = $1, return nil error on pgx.ErrNoRows → handler returns 404
 - `ListOrgsByUser`: SELECT orgs JOIN org_members WHERE org_members.user_id = $1
 - `CreateProject`: INSERT, unique constraint on (org_id, slug) handles duplicates
@@ -423,6 +414,8 @@ export const entitiesApi = {
     request<Project>(`/orgs/${orgSlug}/projects/${projectSlug}`),
   createProject: (orgSlug: string, data: { name: string; slug: string }) =>
     request<Project>(`/orgs/${orgSlug}/projects`, { method: 'POST', body: JSON.stringify(data) }),
+  updateProject: (orgSlug: string, projectSlug: string, data: { name: string }) =>
+    request<Project>(`/orgs/${orgSlug}/projects/${projectSlug}`, { method: 'PUT', body: JSON.stringify(data) }),
 
   // Apps
   listApps: (orgSlug: string, projectSlug: string) =>
@@ -431,6 +424,8 @@ export const entitiesApi = {
     request<Application>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}`),
   createApp: (orgSlug: string, projectSlug: string, data: { name: string; slug: string; description?: string }) =>
     request<Application>(`/orgs/${orgSlug}/projects/${projectSlug}/apps`, { method: 'POST', body: JSON.stringify(data) }),
+  updateApp: (orgSlug: string, projectSlug: string, appSlug: string, data: { name: string; description?: string }) =>
+    request<Application>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}`, { method: 'PUT', body: JSON.stringify(data) }),
 };
 ```
 
@@ -529,15 +524,16 @@ git commit -m "feat: add entitiesApi module and useOrgs/useProjects/useApps hook
 From `web/src/mocks/hierarchy.ts`, remove:
 - `MOCK_ORGS` constant and its data
 - `MOCK_PROJECTS` constant and its data
-- `MOCK_APPLICATIONS` constant and its data
 - `getMockOrgs()` function
 - `getMockProjects()` function
-- `getMockApps()` function
+- `getMockApps()` function (but keep `MOCK_APPLICATIONS` — see below)
 - `getOrgName()` function
 - `getProjectName()` function
 - `getAppName()` function
 
-Keep everything else: `MOCK_FLAG_ENV_STATE`, `MOCK_DEPLOYMENT_DETAIL`, `MOCK_DEPLOYMENT_EVENTS`, `MOCK_RELEASE_DETAIL`, `MOCK_RELEASE_FLAG_CHANGES`, `MOCK_ENVIRONMENTS`, `MOCK_MEMBERS`, `MOCK_GROUPS`, `MOCK_API_KEYS`, `getMockEnvironments()`, `getEnvironmentName()`.
+Keep everything else: `MOCK_APPLICATIONS` (still used by `FlagDetailPage` and `MembersPage` which aren't being wired this pass), `MOCK_FLAG_ENV_STATE`, `MOCK_DEPLOYMENT_DETAIL`, `MOCK_DEPLOYMENT_EVENTS`, `MOCK_RELEASE_DETAIL`, `MOCK_RELEASE_FLAG_CHANGES`, `MOCK_ENVIRONMENTS`, `MOCK_MEMBERS`, `MOCK_GROUPS`, `MOCK_API_KEYS`, `getMockEnvironments()`, `getEnvironmentName()`.
+
+Note: `getMockApps()` is removed because it depended on `MOCK_PROJECTS` for lookup. `MOCK_APPLICATIONS` stays as raw data for pages that reference it directly.
 
 Also remove the `Organization`, `Application`, `Project` type imports if they are no longer needed. Keep the remaining type imports.
 
@@ -909,7 +905,7 @@ Remove `import { getProjectName } from '@/mocks/hierarchy'`. Replace with slug f
 
 - [ ] **Step 6: Fix MembersPage**
 
-Remove `getAppName` import. The `MOCK_MEMBERS`, `MOCK_GROUPS`, `MOCK_ENVIRONMENTS`, `MOCK_APPLICATIONS` imports stay since those are non-entity mocks that remain in the file. Only remove `getAppName` which was deleted.
+Remove `getAppName` import (this helper function was deleted). The remaining imports (`MOCK_MEMBERS`, `MOCK_GROUPS`, `MOCK_ENVIRONMENTS`, `MOCK_APPLICATIONS`, `getEnvironmentName`) all stay — these constants remain in `hierarchy.ts`. Replace uses of `getAppName(...)` with the app slug from params or inline lookup from `MOCK_APPLICATIONS`.
 
 - [ ] **Step 7: Verify full compilation**
 

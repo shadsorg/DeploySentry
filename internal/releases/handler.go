@@ -25,6 +25,8 @@ func NewHandler(service ReleaseService) *Handler {
 
 // RegisterRoutes mounts all release API routes on the given router group.
 // Routes are nested under /applications/:app_id/releases.
+// Flat routes under /releases/:id are also registered for operations that
+// only require the release ID (get, delete, and state-transition actions).
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	releases := rg.Group("/applications/:app_id/releases")
 	{
@@ -39,6 +41,21 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		releases.POST("/:id/complete", auth.RequirePermission(h.rbac, auth.PermReleasePromote), h.completeRelease)
 		releases.POST("/:id/flag-changes", auth.RequirePermission(h.rbac, auth.PermReleaseCreate), h.addFlagChange)
 		releases.GET("/:id/flag-changes", auth.RequirePermission(h.rbac, auth.PermReleaseRead), h.listFlagChanges)
+	}
+
+	// Flat routes for operations by release ID (no app_id needed).
+	// listReleases and createRelease are excluded as they require app_id.
+	flat := rg.Group("/releases")
+	{
+		flat.GET("/:id", auth.RequirePermission(h.rbac, auth.PermReleaseRead), h.getRelease)
+		flat.DELETE("/:id", auth.RequirePermission(h.rbac, auth.PermReleaseCreate), h.deleteRelease)
+		flat.POST("/:id/start", auth.RequirePermission(h.rbac, auth.PermReleasePromote), h.startRelease)
+		flat.POST("/:id/promote", auth.RequirePermission(h.rbac, auth.PermReleasePromote), h.promoteRelease)
+		flat.POST("/:id/pause", auth.RequirePermission(h.rbac, auth.PermReleasePromote), h.pauseRelease)
+		flat.POST("/:id/rollback", auth.RequirePermission(h.rbac, auth.PermReleasePromote), h.rollbackRelease)
+		flat.POST("/:id/complete", auth.RequirePermission(h.rbac, auth.PermReleasePromote), h.completeRelease)
+		flat.POST("/:id/flag-changes", auth.RequirePermission(h.rbac, auth.PermReleaseCreate), h.addFlagChange)
+		flat.GET("/:id/flag-changes", auth.RequirePermission(h.rbac, auth.PermReleaseRead), h.listFlagChanges)
 	}
 }
 

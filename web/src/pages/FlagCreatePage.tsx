@@ -1,6 +1,8 @@
-import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import type { FlagType, FlagCategory } from '@/types';
+import { useState, useEffect } from 'react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import type { FlagType, FlagCategory, Environment } from '@/types';
+import { flagsApi, entitiesApi } from '@/api';
+import { useApps } from '@/hooks/useEntities';
 
 interface FormState {
   key: string;
@@ -14,6 +16,7 @@ interface FormState {
   expires_at: string;
   default_value: string;
   tags: string;
+  environment_id: string;
 }
 
 const INITIAL: FormState = {
@@ -28,43 +31,99 @@ const INITIAL: FormState = {
   expires_at: '',
   default_value: '',
   tags: '',
+  environment_id: '',
 };
 
 export default function FlagCreatePage() {
   const { orgSlug, projectSlug, appSlug } = useParams();
+  const navigate = useNavigate();
   const backPath = appSlug
     ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags`
     : `/orgs/${orgSlug}/projects/${projectSlug}/flags`;
 
   const [form, setForm] = useState<FormState>({ ...INITIAL, category: appSlug ? 'release' : 'feature' });
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [appId, setAppId] = useState<string | null>(null);
+
+  // Load environments: if appSlug is present, load from that app; otherwise load from first app
+  const { apps } = useApps(orgSlug, projectSlug);
+  const [environments, setEnvironments] = useState<Environment[]>([]);
+
+  useEffect(() => {
+    if (!orgSlug || !projectSlug) return;
+    // Get project ID for flag creation
+    entitiesApi.getProject(orgSlug, projectSlug)
+      .then((p) => setProjectId(p.id))
+      .catch(() => {});
+  }, [orgSlug, projectSlug]);
+
+  useEffect(() => {
+    if (!orgSlug || !projectSlug) return;
+    const targetAppSlug = appSlug || (apps.length > 0 ? apps[0].slug : null);
+    if (!targetAppSlug) return;
+
+    // Get app ID
+    entitiesApi.getApp(orgSlug, projectSlug, targetAppSlug)
+      .then((a) => setAppId(a.id))
+      .catch(() => {});
+
+    entitiesApi.listEnvironments(orgSlug, projectSlug, targetAppSlug)
+      .then((res) => {
+        setEnvironments(res.environments ?? []);
+        if (res.environments?.length > 0 && !form.environment_id) {
+          setForm((prev) => ({ ...prev, environment_id: res.environments[0].id }));
+        }
+      })
+      .catch(() => {});
+  }, [orgSlug, projectSlug, appSlug, apps]);
 
   const set = <K extends keyof FormState>(field: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = {
-      project_id: 'proj-1',
-      environment_id: 'env-prod',
-      key: form.key,
-      name: form.name,
-      description: form.description,
-      flag_type: form.flag_type,
-      category: form.category,
-      purpose: form.purpose,
-      owners: form.owners
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-      is_permanent: form.is_permanent,
-      expires_at: form.is_permanent ? undefined : form.expires_at || undefined,
-      default_value: form.default_value,
-      tags: form.tags
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-    };
-    console.log('Create Flag payload:', payload);
+    if (!projectId) {
+      setError('Project not found');
+      return;
+    }
+    if (!form.environment_id) {
+      setError('Please select an environment. Create an application with environments first.');
+      return;
+    }
+
+    setError(null);
+    setSubmitting(true);
+    try {
+      await flagsApi.create({
+        project_id: projectId,
+        environment_id: form.environment_id,
+        application_id: appId || undefined,
+        key: form.key,
+        name: form.name,
+        description: form.description,
+        flag_type: form.flag_type,
+        category: form.category,
+        purpose: form.purpose,
+        owners: form.owners
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
+        is_permanent: form.is_permanent,
+        expires_at: form.is_permanent ? undefined : form.expires_at || undefined,
+        default_value: form.default_value,
+        tags: form.tags
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
+      });
+      navigate(backPath);
+    } catch (err: any) {
+      setError(err.message || 'Failed to create flag');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -73,6 +132,8 @@ export default function FlagCreatePage() {
 
       <form onSubmit={handleSubmit}>
         <div className="card">
+          {error && <p className="form-error" style={{ marginBottom: 16 }}>{error}</p>}
+
           <div className="form-row">
             <div className="form-group">
               <label className="form-label" htmlFor="flag-key">Key</label>
@@ -140,6 +201,27 @@ export default function FlagCreatePage() {
                 <option value="permission">Permission</option>
               </select>
             </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="flag-env">Environment</label>
+            {environments.length > 0 ? (
+              <select
+                id="flag-env"
+                className="form-select"
+                required
+                value={form.environment_id}
+                onChange={(e) => set('environment_id', e.target.value)}
+              >
+                {environments.map((env) => (
+                  <option key={env.id} value={env.id}>
+                    {env.name}{env.is_production ? ' (production)' : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="form-hint">No environments found. Create an application with environments first.</p>
+            )}
           </div>
 
           <div className="form-group">
@@ -217,8 +299,8 @@ export default function FlagCreatePage() {
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
-          <button type="submit" className="btn btn-primary">
-            Create Flag
+          <button type="submit" className="btn btn-primary" disabled={submitting}>
+            {submitting ? 'Creating...' : 'Create Flag'}
           </button>
           <Link to={backPath} className="btn btn-secondary">
             Cancel

@@ -92,6 +92,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 type createFlagRequest struct {
 	ProjectID     uuid.UUID  `json:"project_id" binding:"required"`
 	EnvironmentID uuid.UUID  `json:"environment_id" binding:"required"`
+	ApplicationID *uuid.UUID `json:"application_id"`
 	Key           string     `json:"key" binding:"required"`
 	Name          string     `json:"name" binding:"required"`
 	Description   string     `json:"description"`
@@ -102,6 +103,7 @@ type createFlagRequest struct {
 	IsPermanent   bool       `json:"is_permanent"`
 	ExpiresAt     *time.Time `json:"expires_at"`
 	DefaultValue  string     `json:"default_value"`
+	Tags          []string   `json:"tags"`
 }
 
 func (h *Handler) createFlag(c *gin.Context) {
@@ -125,6 +127,7 @@ func (h *Handler) createFlag(c *gin.Context) {
 	flag := &models.FeatureFlag{
 		ProjectID:     req.ProjectID,
 		EnvironmentID: req.EnvironmentID,
+		ApplicationID: req.ApplicationID,
 		Key:           req.Key,
 		Name:          req.Name,
 		Description:   req.Description,
@@ -135,8 +138,15 @@ func (h *Handler) createFlag(c *gin.Context) {
 		IsPermanent:   req.IsPermanent,
 		ExpiresAt:     req.ExpiresAt,
 		DefaultValue:  req.DefaultValue,
+		Tags:          req.Tags,
 		Enabled:       false,
 		CreatedBy:     createdBy,
+	}
+	if flag.Tags == nil {
+		flag.Tags = []string{}
+	}
+	if flag.Owners == nil {
+		flag.Owners = []string{}
 	}
 
 	if err := h.service.CreateFlag(c.Request.Context(), flag); err != nil {

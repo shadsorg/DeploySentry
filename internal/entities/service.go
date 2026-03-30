@@ -25,6 +25,8 @@ type EntityService interface {
 	GetAppBySlug(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
 	ListAppsByProject(ctx context.Context, projectID uuid.UUID) ([]*models.Application, error)
 	UpdateApp(ctx context.Context, app *models.Application) error
+
+	ListEnvironmentsByApp(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error)
 }
 
 type entityService struct {
@@ -115,4 +117,8 @@ func (s *entityService) ListAppsByProject(ctx context.Context, projectID uuid.UU
 func (s *entityService) UpdateApp(ctx context.Context, app *models.Application) error {
 	app.UpdatedAt = time.Now().UTC()
 	return s.repo.UpdateApp(ctx, app)
+}
+
+func (s *entityService) ListEnvironmentsByApp(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error) {
+	return s.repo.ListEnvironmentsByApp(ctx, appID)
 }

@@ -122,6 +122,7 @@ export interface Environment {
 export interface CreateFlagRequest {
   project_id: string;
   environment_id: string;
+  application_id?: string;
   key: string;
   name: string;
   description?: string;
@@ -132,6 +133,7 @@ export interface CreateFlagRequest {
   is_permanent?: boolean;
   expires_at?: string;
   default_value: string;
+  tags?: string[];
 }
 
 export interface UpdateFlagRequest {

@@ -46,13 +46,11 @@ type ProjectMember struct {
 type Environment struct {
 	ID            uuid.UUID `json:"id" db:"id"`
 	ApplicationID uuid.UUID `json:"application_id" db:"application_id"`
-	Name        string    `json:"name" db:"name"`
-	Slug        string    `json:"slug" db:"slug"`
-	Description string    `json:"description,omitempty" db:"description"`
-	IsProduction bool     `json:"is_production" db:"is_production"`
-	SortOrder   int       `json:"sort_order" db:"sort_order"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	Name          string    `json:"name" db:"name"`
+	Slug          string    `json:"slug" db:"slug"`
+	IsProduction  bool      `json:"is_production" db:"is_production"`
+	SortOrder     int       `json:"sort_order" db:"sort_order"`
+	CreatedAt     time.Time `json:"created_at" db:"created_at"`
 }
 
 // Validate checks that the Project has all required fields populated.

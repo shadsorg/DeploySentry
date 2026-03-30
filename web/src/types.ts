@@ -231,10 +231,11 @@ export type GroupRole = 'viewer' | 'editor' | 'admin';
 
 export interface Member {
   id: string;
+  user_id: string;
   name: string;
   email: string;
-  role: 'owner' | 'member';
-  group_ids: string[];
+  avatar_url?: string;
+  role: 'owner' | 'admin' | 'member' | 'viewer';
   joined_at: string;
 }
 

@@ -78,21 +78,7 @@ func (h *UserHandler) RegisterRoutes(rg *gin.RouterGroup) {
 		users.DELETE("/:id", h.deleteUser)
 	}
 
-	orgs := rg.Group("/orgs/:org_id/members")
-	{
-		orgs.GET("", h.listOrgMembers)
-		orgs.POST("", h.inviteOrgMember)
-		orgs.PUT("/:user_id", h.changeOrgRole)
-		orgs.DELETE("/:user_id", h.removeOrgMember)
-	}
-
-	projects := rg.Group("/projects/:project_id/members")
-	{
-		projects.GET("", h.listProjectMembers)
-		projects.POST("", h.addProjectMember)
-		projects.PUT("/:user_id", h.changeProjectRole)
-		projects.DELETE("/:user_id", h.removeProjectMember)
-	}
+	// Member routes moved to internal/members/handler.go
 }
 
 // ---------------------------------------------------------------------------

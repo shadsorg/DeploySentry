@@ -20,6 +20,7 @@ import SettingsPage from './pages/SettingsPage';
 import MembersPage from './pages/MembersPage';
 import APIKeysPage from './pages/APIKeysPage';
 import CreateAppPage from './pages/CreateAppPage';
+import ApplicationsListPage from './pages/ApplicationsListPage';
 import CreateProjectPage from './pages/CreateProjectPage';
 
 export default function App() {
@@ -59,6 +60,7 @@ export default function App() {
               <Route path="settings" element={<SettingsPage level="project" />} />
 
               {/* App-level */}
+              <Route path="apps" element={<ApplicationsListPage />} />
               <Route path="apps/new" element={<CreateAppPage />} />
               <Route path="apps/:appSlug">
                 <Route path="deployments" element={<DeploymentsPage />} />

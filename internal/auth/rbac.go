@@ -57,6 +57,11 @@ const (
 	PermEnvDeploy Permission = "env:deploy"
 	// PermBillingManage allows managing billing and subscription settings.
 	PermBillingManage Permission = "billing:manage"
+
+	// PermSettingsRead allows reading hierarchical settings.
+	PermSettingsRead Permission = "settings:read"
+	// PermSettingsWrite allows creating, updating, and deleting hierarchical settings.
+	PermSettingsWrite Permission = "settings:write"
 )
 
 // Role defines a named set of permissions.
@@ -93,20 +98,24 @@ var rolePermissions = map[Role][]Permission{
 		PermFlagCreate, PermFlagRead, PermFlagUpdate, PermFlagToggle, PermFlagArchive,
 		PermReleaseCreate, PermReleaseRead, PermReleasePromote,
 		PermProjectManage, PermOrgManage, PermAuditRead,
+		PermSettingsRead, PermSettingsWrite,
 	},
 	RoleAdmin: {
 		PermDeployCreate, PermDeployRead, PermDeployPromote, PermDeployRollback, PermDeployManage,
 		PermFlagCreate, PermFlagRead, PermFlagUpdate, PermFlagToggle, PermFlagArchive,
 		PermReleaseCreate, PermReleaseRead, PermReleasePromote,
 		PermProjectManage, PermAuditRead,
+		PermSettingsRead, PermSettingsWrite,
 	},
 	RoleDeveloper: {
 		PermDeployCreate, PermDeployRead, PermDeployPromote, PermDeployRollback, PermDeployManage,
 		PermFlagCreate, PermFlagRead, PermFlagUpdate, PermFlagToggle,
 		PermReleaseCreate, PermReleaseRead, PermReleasePromote,
+		PermSettingsRead,
 	},
 	RoleViewer: {
 		PermDeployRead, PermFlagRead, PermReleaseRead,
+		PermSettingsRead,
 	},
 
 	// Granular organization-level roles.
@@ -116,6 +125,7 @@ var rolePermissions = map[Role][]Permission{
 		PermReleaseCreate, PermReleaseRead, PermReleasePromote,
 		PermProjectManage, PermOrgManage, PermAuditRead,
 		PermAPIKeyManage, PermUserManage, PermEnvDeploy, PermBillingManage,
+		PermSettingsRead, PermSettingsWrite,
 	},
 	RoleOrgAdmin: {
 		PermDeployCreate, PermDeployRead, PermDeployPromote, PermDeployRollback, PermDeployManage,
@@ -123,6 +133,7 @@ var rolePermissions = map[Role][]Permission{
 		PermReleaseCreate, PermReleaseRead, PermReleasePromote,
 		PermProjectManage, PermAuditRead,
 		PermAPIKeyManage, PermUserManage, PermEnvDeploy, PermBillingManage,
+		PermSettingsRead, PermSettingsWrite,
 	},
 
 	// Granular project-level roles.

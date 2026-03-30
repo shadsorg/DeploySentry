@@ -140,13 +140,13 @@ func TestRBACChecker_HasPermission_InvalidRole(t *testing.T) {
 func TestRBACChecker_GetPermissions_Owner(t *testing.T) {
 	rbac := NewRBACChecker()
 	perms := rbac.GetPermissions(RoleOwner)
-	assert.Len(t, perms, 16)
+	assert.Len(t, perms, 18)
 }
 
 func TestRBACChecker_GetPermissions_Viewer(t *testing.T) {
 	rbac := NewRBACChecker()
 	perms := rbac.GetPermissions(RoleViewer)
-	assert.Len(t, perms, 3)
+	assert.Len(t, perms, 4)
 	assert.Contains(t, perms, PermDeployRead)
 	assert.Contains(t, perms, PermFlagRead)
 	assert.Contains(t, perms, PermReleaseRead)

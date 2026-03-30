@@ -1,4 +1,4 @@
-import type { Flag, Deployment, Release, ApiKey, CreateFlagRequest, UpdateFlagRequest, TargetingRule, Organization, Project, Application, FlagEnvironmentState, Setting, ReleaseFlagChangeAPI } from './types';
+import type { Flag, Deployment, Release, ApiKey, CreateFlagRequest, UpdateFlagRequest, TargetingRule, Organization, Project, Application, FlagEnvironmentState, Setting, ReleaseFlagChangeAPI, Member } from './types';
 
 const BASE = '/api/v1';
 
@@ -105,8 +105,37 @@ export const releasesApi = {
 
 // Members
 export const membersApi = {
-  listByOrg: (orgId: string) =>
-    request<{ members: any[] }>(`/orgs/${orgId}/members`),
+  // Org members
+  listByOrg: (orgSlug: string) =>
+    request<{ members: Member[] }>(`/orgs/${orgSlug}/members`),
+  addToOrg: (orgSlug: string, email: string, role: string) =>
+    request<{ member: Member }>(`/orgs/${orgSlug}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ email, role }),
+    }),
+  updateOrgRole: (orgSlug: string, userId: string, role: string) =>
+    request<{ member: Member }>(`/orgs/${orgSlug}/members/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    }),
+  removeFromOrg: (orgSlug: string, userId: string) =>
+    request<void>(`/orgs/${orgSlug}/members/${userId}`, { method: 'DELETE' }),
+
+  // Project members
+  listByProject: (orgSlug: string, projectSlug: string) =>
+    request<{ members: Member[] }>(`/orgs/${orgSlug}/projects/${projectSlug}/members`),
+  addToProject: (orgSlug: string, projectSlug: string, email: string, role: string) =>
+    request<{ member: Member }>(`/orgs/${orgSlug}/projects/${projectSlug}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ email, role }),
+    }),
+  updateProjectRole: (orgSlug: string, projectSlug: string, userId: string, role: string) =>
+    request<{ member: Member }>(`/orgs/${orgSlug}/projects/${projectSlug}/members/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    }),
+  removeFromProject: (orgSlug: string, projectSlug: string, userId: string) =>
+    request<void>(`/orgs/${orgSlug}/projects/${projectSlug}/members/${userId}`, { method: 'DELETE' }),
 };
 
 // API Keys

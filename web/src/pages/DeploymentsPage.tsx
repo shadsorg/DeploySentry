@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { getAppName } from '@/mocks/hierarchy';
 import type { Deployment, DeployStrategy, DeployStatus } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -216,7 +215,7 @@ function computeDuration(start: string, end: string | null): string {
 
 const DeploymentsPage: React.FC = () => {
   const { appSlug } = useParams();
-  const appName = appSlug ? getAppName(appSlug) : '';
+  const appName = appSlug ?? '';
 
   const [search, setSearch] = useState('');
   const [strategyFilter, setStrategyFilter] = useState<string>('all');

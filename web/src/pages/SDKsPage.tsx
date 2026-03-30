@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { getProjectName } from '@/mocks/hierarchy';
 
 // ---------------------------------------------------------------------------
 // SDK data
@@ -317,7 +316,7 @@ const FLAG_CATEGORIES = [
 
 const SDKsPage: React.FC = () => {
   const { projectSlug } = useParams();
-  const projectName = projectSlug ? getProjectName(projectSlug) : '';
+  const projectName = projectSlug ?? '';
 
   const [activeLanguage, setActiveLanguage] = useState<Language>('go');
 

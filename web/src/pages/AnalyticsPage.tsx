@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useParams } from 'react-router-dom';
-import { getProjectName } from '@/mocks/hierarchy';
 import AnalyticsSummary from '../components/analytics/AnalyticsSummary';
 import FlagAnalytics from '../components/analytics/FlagAnalytics';
 import DeploymentAnalytics from '../components/analytics/DeploymentAnalytics';
@@ -11,7 +10,7 @@ type TabType = 'overview' | 'flags' | 'deployments' | 'system';
 
 export default function AnalyticsPage() {
   const { projectSlug } = useParams();
-  const projectName = projectSlug ? getProjectName(projectSlug) : '';
+  const projectName = projectSlug ?? '';
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [timeRange, setTimeRange] = useState<TimeRange>(

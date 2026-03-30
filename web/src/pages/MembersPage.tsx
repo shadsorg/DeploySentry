@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { Member, Group, GroupRole } from '@/types';
-import { MOCK_MEMBERS, MOCK_GROUPS, MOCK_ENVIRONMENTS, MOCK_APPLICATIONS, getEnvironmentName, getAppName } from '@/mocks/hierarchy';
+import { MOCK_MEMBERS, MOCK_GROUPS, MOCK_ENVIRONMENTS, MOCK_APPLICATIONS, getEnvironmentName } from '@/mocks/hierarchy';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -138,9 +138,6 @@ export default function MembersPage() {
     setGroups((prev) => prev.map((g) => (g.id === groupId ? { ...g, ...updated } : g)));
     setEditingGroupId(null);
   }
-
-  // Suppress unused import warning — getAppName imported per task spec
-  void getAppName;
 
   return (
     <div className="page-content">

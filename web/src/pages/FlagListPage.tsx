@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { getProjectName, getAppName } from '@/mocks/hierarchy';
 import type { Flag, FlagCategory } from '@/types';
 
 const MOCK_FLAGS: Flag[] = [
@@ -228,7 +227,7 @@ function formatDate(iso: string): string {
 
 export default function FlagListPage() {
   const { orgSlug, projectSlug, appSlug } = useParams();
-  const contextName = appSlug ? getAppName(appSlug) : projectSlug ? getProjectName(projectSlug) : '';
+  const contextName = appSlug ?? projectSlug ?? '';
   const heading = appSlug ? `${contextName} — Flags` : contextName ? `${contextName} — Feature Flags` : 'Feature Flags';
 
   const createPath = appSlug

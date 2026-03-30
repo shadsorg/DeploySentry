@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { getAppName } from '@/mocks/hierarchy';
 import type { Release, ReleaseStatus } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -144,7 +143,7 @@ function formatDate(iso: string): string {
 
 const ReleasesPage: React.FC = () => {
   const { appSlug } = useParams();
-  const appName = appSlug ? getAppName(appSlug) : '';
+  const appName = appSlug ?? '';
 
   const [activeTab, setActiveTab] = useState<TabKey>('all');
 

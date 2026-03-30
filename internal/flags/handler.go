@@ -73,6 +73,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 		rules := flags.Group("/:id/rules")
 		{
+			rules.GET("", auth.RequirePermission(h.rbac, auth.PermFlagRead), h.listRules)
 			rules.POST("", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.addRule)
 			rules.PUT("/:ruleId", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.updateRule)
 			rules.DELETE("/:ruleId", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.deleteRule)
@@ -751,6 +752,22 @@ func (h *Handler) deleteRule(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusNoContent, nil)
+}
+
+func (h *Handler) listRules(c *gin.Context) {
+	flagID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid flag id"})
+		return
+	}
+
+	rules, err := h.service.ListRules(c.Request.Context(), flagID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list rules"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"rules": rules})
 }
 
 // --- SSE (Server-Sent Events) support ---

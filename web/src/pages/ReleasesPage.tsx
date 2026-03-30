@@ -1,84 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import type { Release, ReleaseStatus } from '@/types';
-
-// ---------------------------------------------------------------------------
-// Mock data
-// ---------------------------------------------------------------------------
-
-const MOCK_RELEASES: Release[] = [
-  {
-    id: 'rel-1',
-    application_id: 'app-1',
-    name: 'Enable Checkout V2',
-    description: 'Gradual rollout of checkout v2 flags',
-    session_sticky: true,
-    sticky_header: 'X-Session-ID',
-    traffic_percent: 25,
-    status: 'rolling_out',
-    created_by: 'alice@example.com',
-    started_at: '2026-03-21T10:00:00Z',
-    created_at: '2026-03-20T14:00:00Z',
-    updated_at: '2026-03-21T10:30:00Z',
-  },
-  {
-    id: 'rel-2',
-    application_id: 'app-1',
-    name: 'Dark Mode Feature Flags',
-    description: 'Enable dark mode across all environments',
-    session_sticky: false,
-    traffic_percent: 100,
-    status: 'completed',
-    created_by: 'bob@example.com',
-    started_at: '2026-03-18T08:00:00Z',
-    completed_at: '2026-03-19T11:30:00Z',
-    created_at: '2026-03-17T10:00:00Z',
-    updated_at: '2026-03-19T11:30:00Z',
-  },
-  {
-    id: 'rel-3',
-    application_id: 'app-1',
-    name: 'Search Experiment Rollout',
-    description: 'ML search ranking A/B test activation',
-    session_sticky: true,
-    sticky_header: 'X-User-ID',
-    traffic_percent: 0,
-    status: 'draft',
-    created_by: 'team-platform',
-    created_at: '2026-03-21T07:30:00Z',
-    updated_at: '2026-03-21T07:30:00Z',
-  },
-  {
-    id: 'rel-4',
-    application_id: 'app-1',
-    name: 'Payment Gateway Migration',
-    description: 'Switch payment flags to new gateway',
-    session_sticky: false,
-    traffic_percent: 50,
-    status: 'paused',
-    created_by: 'alice@example.com',
-    started_at: '2026-03-20T16:00:00Z',
-    created_at: '2026-03-20T12:00:00Z',
-    updated_at: '2026-03-21T06:00:00Z',
-  },
-  {
-    id: 'rel-5',
-    application_id: 'app-1',
-    name: 'Legacy API Sunset',
-    description: 'Disable legacy API endpoint flags',
-    session_sticky: false,
-    traffic_percent: 100,
-    status: 'rolled_back',
-    created_by: 'ci/deploy-bot',
-    started_at: '2026-03-19T10:00:00Z',
-    created_at: '2026-03-19T08:00:00Z',
-    updated_at: '2026-03-19T14:00:00Z',
-  },
-];
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+import { entitiesApi, releasesApi } from '@/api';
 
 const TABS = ['all', 'draft', 'rolling_out', 'paused', 'completed', 'rolled_back'] as const;
 
@@ -137,24 +60,49 @@ function formatDate(iso: string): string {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 const ReleasesPage: React.FC = () => {
-  const { appSlug } = useParams();
+  const { orgSlug, projectSlug, appSlug } = useParams();
   const appName = appSlug ?? '';
 
+  const [releases, setReleases] = useState<Release[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('all');
 
+  useEffect(() => {
+    if (!orgSlug || !projectSlug || !appSlug) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+
+    entitiesApi.getApp(orgSlug, projectSlug, appSlug)
+      .then((app) => releasesApi.list(app.id))
+      .then((result) => setReleases(result.releases))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [orgSlug, projectSlug, appSlug]);
+
   const filtered = useMemo(() => {
-    if (activeTab === 'all') return MOCK_RELEASES;
-    return MOCK_RELEASES.filter((r) => r.status === activeTab);
-  }, [activeTab]);
+    if (activeTab === 'all') return releases;
+    return releases.filter((r) => r.status === activeTab);
+  }, [releases, activeTab]);
+
+  if (!appSlug) {
+    return (
+      <div>
+        <h1 className="page-header">Releases</h1>
+        <p>Select an application to view releases</p>
+      </div>
+    );
+  }
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
 
   return (
     <div>
-      {/* Page header */}
       <div className="page-header-row">
         <div className="page-header" style={{ marginBottom: 0 }}>
           <h1>{appName ? `${appName} — Releases` : 'Releases'}</h1>
@@ -163,7 +111,6 @@ const ReleasesPage: React.FC = () => {
         <button className="btn btn-primary">+ Create Release</button>
       </div>
 
-      {/* Tabs */}
       <div className="tabs">
         {TABS.map((tab) => (
           <button
@@ -176,7 +123,6 @@ const ReleasesPage: React.FC = () => {
         ))}
       </div>
 
-      {/* Table */}
       <div className="card">
         <div className="table-container">
           <table>

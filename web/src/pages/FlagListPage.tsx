@@ -1,219 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { Flag, FlagCategory } from '@/types';
-
-const MOCK_FLAGS: Flag[] = [
-  {
-    id: 'flag-001',
-    project_id: 'proj-1',
-    environment_id: 'env-prod',
-    key: 'enable-dark-mode',
-    name: 'Dark Mode',
-    description: 'Enable dark mode across the application',
-    flag_type: 'boolean',
-    category: 'feature',
-    purpose: 'Allow users to switch to dark theme',
-    owners: ['frontend-team', 'design-team'],
-    is_permanent: true,
-    expires_at: null,
-    enabled: true,
-    default_value: 'false',
-    archived: false,
-    tags: ['ui', 'theme'],
-    created_by: 'alice',
-    created_at: '2025-11-01T10:00:00Z',
-    updated_at: '2026-03-18T14:30:00Z',
-  },
-  {
-    id: 'flag-002',
-    project_id: 'proj-1',
-    environment_id: 'env-prod',
-    key: 'checkout-v2-rollout',
-    name: 'Checkout V2 Rollout',
-    description: 'Gradual rollout of new checkout flow',
-    flag_type: 'boolean',
-    category: 'release',
-    purpose: 'Progressive delivery of checkout redesign',
-    owners: ['payments-team'],
-    is_permanent: false,
-    expires_at: '2026-06-01T00:00:00Z',
-    enabled: true,
-    default_value: 'false',
-    archived: false,
-    tags: ['checkout', 'rollout'],
-    created_by: 'bob',
-    created_at: '2026-01-15T09:00:00Z',
-    updated_at: '2026-03-20T11:00:00Z',
-  },
-  {
-    id: 'flag-003',
-    project_id: 'proj-1',
-    environment_id: 'env-prod',
-    key: 'search-ranking-experiment',
-    name: 'Search Ranking A/B Test',
-    description: 'Test new ML-based search ranking algorithm',
-    flag_type: 'string',
-    category: 'experiment',
-    purpose: 'Measure impact of ML ranking on conversion',
-    owners: ['search-team', 'data-science'],
-    is_permanent: false,
-    expires_at: '2026-04-15T00:00:00Z',
-    enabled: true,
-    default_value: 'control',
-    archived: false,
-    tags: ['search', 'ml', 'ab-test'],
-    created_by: 'carol',
-    created_at: '2026-02-01T08:00:00Z',
-    updated_at: '2026-03-19T16:45:00Z',
-  },
-  {
-    id: 'flag-004',
-    project_id: 'proj-1',
-    environment_id: 'env-prod',
-    key: 'rate-limit-override',
-    name: 'Rate Limit Override',
-    description: 'Override default rate limits for specific endpoints',
-    flag_type: 'integer',
-    category: 'ops',
-    purpose: 'Operational control for API rate limiting',
-    owners: ['platform-team'],
-    is_permanent: true,
-    expires_at: null,
-    enabled: true,
-    default_value: '1000',
-    archived: false,
-    tags: ['ops', 'rate-limit'],
-    created_by: 'dave',
-    created_at: '2025-09-10T12:00:00Z',
-    updated_at: '2026-03-15T09:20:00Z',
-  },
-  {
-    id: 'flag-005',
-    project_id: 'proj-1',
-    environment_id: 'env-prod',
-    key: 'admin-billing-access',
-    name: 'Admin Billing Access',
-    description: 'Grant billing dashboard access to admin users',
-    flag_type: 'boolean',
-    category: 'permission',
-    purpose: 'Control access to billing management features',
-    owners: ['security-team'],
-    is_permanent: true,
-    expires_at: null,
-    enabled: true,
-    default_value: 'false',
-    archived: false,
-    tags: ['rbac', 'billing'],
-    created_by: 'eve',
-    created_at: '2025-10-20T14:00:00Z',
-    updated_at: '2026-02-28T10:00:00Z',
-  },
-  {
-    id: 'flag-006',
-    project_id: 'proj-1',
-    environment_id: 'env-prod',
-    key: 'notification-center-v3',
-    name: 'Notification Center V3',
-    description: 'New notification center with grouped notifications',
-    flag_type: 'boolean',
-    category: 'release',
-    purpose: 'Ship redesigned notification center',
-    owners: ['frontend-team'],
-    is_permanent: false,
-    expires_at: '2026-05-01T00:00:00Z',
-    enabled: false,
-    default_value: 'false',
-    archived: false,
-    tags: ['notifications', 'ui'],
-    created_by: 'frank',
-    created_at: '2026-02-20T11:00:00Z',
-    updated_at: '2026-03-10T08:30:00Z',
-  },
-  {
-    id: 'flag-007',
-    project_id: 'proj-1',
-    environment_id: 'env-prod',
-    key: 'onboarding-wizard-experiment',
-    name: 'Onboarding Wizard Experiment',
-    description: 'Test simplified onboarding flow',
-    flag_type: 'string',
-    category: 'experiment',
-    purpose: 'Improve new user activation rate',
-    owners: ['growth-team', 'product-team'],
-    is_permanent: false,
-    expires_at: '2026-04-30T00:00:00Z',
-    enabled: false,
-    default_value: 'control',
-    archived: false,
-    tags: ['onboarding', 'growth'],
-    created_by: 'grace',
-    created_at: '2026-03-01T10:00:00Z',
-    updated_at: '2026-03-05T14:00:00Z',
-  },
-  {
-    id: 'flag-008',
-    project_id: 'proj-1',
-    environment_id: 'env-prod',
-    key: 'legacy-api-deprecation',
-    name: 'Legacy API Deprecation',
-    description: 'Disable deprecated v1 API endpoints',
-    flag_type: 'boolean',
-    category: 'ops',
-    purpose: 'Gradually sunset legacy API',
-    owners: ['platform-team', 'api-team'],
-    is_permanent: false,
-    expires_at: null,
-    enabled: true,
-    default_value: 'true',
-    archived: true,
-    tags: ['deprecation', 'api'],
-    created_by: 'hank',
-    created_at: '2025-06-15T09:00:00Z',
-    updated_at: '2026-01-10T17:00:00Z',
-  },
-  {
-    id: 'flag-009',
-    project_id: 'proj-1',
-    environment_id: 'env-prod',
-    key: 'premium-analytics-dashboard',
-    name: 'Premium Analytics Dashboard',
-    description: 'Advanced analytics for premium tier users',
-    flag_type: 'boolean',
-    category: 'permission',
-    purpose: 'Gate advanced analytics behind premium plan',
-    owners: ['product-team', 'analytics-team'],
-    is_permanent: true,
-    expires_at: null,
-    enabled: true,
-    default_value: 'false',
-    archived: false,
-    tags: ['premium', 'analytics'],
-    created_by: 'iris',
-    created_at: '2025-12-01T08:00:00Z',
-    updated_at: '2026-03-17T12:15:00Z',
-  },
-  {
-    id: 'flag-010',
-    project_id: 'proj-1',
-    environment_id: 'env-prod',
-    key: 'real-time-collab',
-    name: 'Real-Time Collaboration',
-    description: 'Enable WebSocket-based real-time editing',
-    flag_type: 'boolean',
-    category: 'feature',
-    purpose: 'Ship collaborative editing capabilities',
-    owners: ['backend-team', 'frontend-team'],
-    is_permanent: false,
-    expires_at: '2026-07-01T00:00:00Z',
-    enabled: false,
-    default_value: 'false',
-    archived: false,
-    tags: ['collab', 'websocket'],
-    created_by: 'jack',
-    created_at: '2026-03-10T10:00:00Z',
-    updated_at: '2026-03-20T09:00:00Z',
-  },
-];
+import { entitiesApi, flagsApi } from '@/api';
 
 type StatusFilter = 'all' | 'enabled' | 'disabled' | 'archived';
 
@@ -238,11 +26,29 @@ export default function FlagListPage() {
     ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags/${flagId}`
     : `/orgs/${orgSlug}/projects/${projectSlug}/flags/${flagId}`;
 
+  const [flags, setFlags] = useState<Flag[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | FlagCategory>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
-  const filtered = MOCK_FLAGS.filter((flag) => {
+  useEffect(() => {
+    if (!orgSlug || !projectSlug) return;
+    setLoading(true);
+    setError(null);
+
+    entitiesApi.getProject(orgSlug, projectSlug)
+      .then((project) => flagsApi.list(project.id))
+      .then((result) => setFlags(result.flags))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [orgSlug, projectSlug]);
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+
+  const filtered = flags.filter((flag) => {
     if (search) {
       const q = search.toLowerCase();
       if (

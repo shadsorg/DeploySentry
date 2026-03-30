@@ -58,7 +58,7 @@ export const flagsApi = {
 // Deployments
 export const deploymentsApi = {
   list: (applicationId: string) =>
-    request<{ deployments: Deployment[] }>(`/deployments?application_id=${applicationId}`),
+    request<{ deployments: Deployment[] }>(`/deployments?app_id=${applicationId}`),
   get: (id: string) => request<Deployment>(`/deployments/${id}`),
   create: (data: { project_id: string; environment_id: string; version: string; strategy: string }) =>
     request<Deployment>('/deployments', { method: 'POST', body: JSON.stringify(data) }),
@@ -75,7 +75,7 @@ export const deploymentsApi = {
 // Releases
 export const releasesApi = {
   list: (applicationId: string) =>
-    request<{ releases: Release[] }>(`/releases?application_id=${applicationId}`),
+    request<{ releases: Release[] }>(`/applications/${applicationId}/releases`),
   get: (id: string) => request<Release>(`/releases/${id}`),
   create: (data: { project_id: string; version: string; description?: string; commit_sha?: string }) =>
     request<Release>('/releases', { method: 'POST', body: JSON.stringify(data) }),
@@ -163,15 +163,6 @@ export const authApi = {
   },
 };
 
-// Notifications
-export const notificationsApi = {
-  getSettings: () => request<any>('/notifications/settings'),
-  updateSettings: (data: any) =>
-    request<any>('/notifications/settings', { method: 'PUT', body: JSON.stringify(data) }),
-  testChannel: (channel: string) =>
-    request<{ status: string }>(`/notifications/test/${channel}`, { method: 'POST' }),
-};
-
 // Health
 export const healthApi = {
   check: () => fetch('/health').then((r) => r.json()),
@@ -202,19 +193,6 @@ export const analyticsApi = {
     const qs = new URLSearchParams({ project_id: projectId, start_date: startDate, end_date: endDate, format });
     return request<any>(`/analytics/admin/export?${qs}`);
   },
-};
-
-// Applications (direct ID-based CRUD)
-export const applicationsApi = {
-  list: (projectId: string) =>
-    request<{ applications: Application[] }>(`/projects/${projectId}/applications`),
-  get: (id: string) => request<Application>(`/applications/${id}`),
-  create: (projectId: string, data: { name: string; slug: string; description?: string; repo_url?: string }) =>
-    request<Application>(`/projects/${projectId}/applications`, { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: Partial<Application>) =>
-    request<Application>(`/applications/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  delete: (id: string) =>
-    request<void>(`/applications/${id}`, { method: 'DELETE' }),
 };
 
 // Flag Environment State

@@ -132,6 +132,7 @@ export interface CreateFlagRequest {
   is_permanent?: boolean;
   expires_at?: string;
   default_value: string;
+  tags?: string[];
 }
 
 export interface UpdateFlagRequest {

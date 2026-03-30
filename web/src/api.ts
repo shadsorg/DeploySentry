@@ -1,4 +1,4 @@
-import type { Flag, Deployment, Release, ApiKey, CreateFlagRequest, UpdateFlagRequest, TargetingRule, Organization, Project, Application, FlagEnvironmentState, Setting, ReleaseFlagChangeAPI, Member } from './types';
+import type { Flag, Deployment, Release, ApiKey, CreateFlagRequest, UpdateFlagRequest, TargetingRule, Organization, Project, Application, FlagEnvironmentState, Setting, ReleaseFlagChangeAPI, Member, Environment } from './types';
 
 const BASE = '/api/v1';
 
@@ -279,4 +279,8 @@ export const entitiesApi = {
     request<Application>(`/orgs/${orgSlug}/projects/${projectSlug}/apps`, { method: 'POST', body: JSON.stringify(data) }),
   updateApp: (orgSlug: string, projectSlug: string, appSlug: string, data: { name: string; description?: string }) =>
     request<Application>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  // Environments
+  listEnvironments: (orgSlug: string, projectSlug: string, appSlug: string) =>
+    request<{ environments: Environment[] }>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/environments`),
 };

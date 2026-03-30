@@ -43,6 +43,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 				apps.GET("", h.listApps)
 				apps.GET("/:appSlug", h.getApp)
 				apps.PUT("/:appSlug", auth.RequirePermission(h.rbac, auth.PermProjectManage), h.updateApp)
+				apps.GET("/:appSlug/environments", h.listEnvironments)
 			}
 		}
 	}
@@ -370,4 +371,35 @@ func (h *Handler) updateApp(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, app)
+}
+
+// ---------------------------------------------------------------------------
+// Environment handlers
+// ---------------------------------------------------------------------------
+
+func (h *Handler) listEnvironments(c *gin.Context) {
+	org, err := h.service.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
+	if err != nil || org == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		return
+	}
+
+	project, err := h.service.GetProjectBySlug(c.Request.Context(), org.ID, c.Param("projectSlug"))
+	if err != nil || project == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
+		return
+	}
+
+	app, err := h.service.GetAppBySlug(c.Request.Context(), project.ID, c.Param("appSlug"))
+	if err != nil || app == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "application not found"})
+		return
+	}
+
+	environments, err := h.service.ListEnvironmentsByApp(c.Request.Context(), app.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"environments": environments})
 }

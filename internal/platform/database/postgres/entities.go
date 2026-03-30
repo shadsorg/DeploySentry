@@ -338,6 +338,46 @@ func (r *EntityRepository) UpdateApp(ctx context.Context, app *models.Applicatio
 }
 
 // ---------------------------------------------------------------------------
+// Environment methods
+// ---------------------------------------------------------------------------
+
+// ListEnvironmentsByApp returns all environments for an application, ordered by sort_order.
+func (r *EntityRepository) ListEnvironmentsByApp(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error) {
+	const q = `
+		SELECT id, application_id, name, slug, COALESCE(description, ''), is_production, sort_order, created_at, updated_at
+		FROM environments WHERE application_id = $1 ORDER BY sort_order`
+
+	rows, err := r.pool.Query(ctx, q, appID)
+	if err != nil {
+		return nil, fmt.Errorf("postgres.ListEnvironmentsByApp: %w", err)
+	}
+	defer rows.Close()
+
+	result := make([]*models.Environment, 0)
+	for rows.Next() {
+		var e models.Environment
+		if err := rows.Scan(
+			&e.ID,
+			&e.ApplicationID,
+			&e.Name,
+			&e.Slug,
+			&e.Description,
+			&e.IsProduction,
+			&e.SortOrder,
+			&e.CreatedAt,
+			&e.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("postgres.ListEnvironmentsByApp: %w", err)
+		}
+		result = append(result, &e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("postgres.ListEnvironmentsByApp: %w", err)
+	}
+	return result, nil
+}
+
+// ---------------------------------------------------------------------------
 // OrgMember methods
 // ---------------------------------------------------------------------------
 

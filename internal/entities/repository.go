@@ -24,5 +24,7 @@ type EntityRepository interface {
 	ListAppsByProject(ctx context.Context, projectID uuid.UUID) ([]*models.Application, error)
 	UpdateApp(ctx context.Context, app *models.Application) error
 
+	ListEnvironmentsByApp(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error)
+
 	AddOrgMember(ctx context.Context, orgID, userID uuid.UUID, role string) error
 }

@@ -270,6 +270,8 @@ func run() error {
 	api.Use(corsMiddleware)
 	api.Use(rateLimiter.Middleware())
 	api.Use(authMiddleware.RequireAuth())
+	orgRoleLookup := postgres.NewOrgRoleLookup(db.Pool)
+	api.Use(auth.ResolveOrgRole(orgRoleLookup))
 
 	flagHandler := flags.NewHandler(flagService, rbacChecker, webhookService, analyticsService)
 	flagHandler.SetRatingService(ratingService)

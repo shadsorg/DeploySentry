@@ -362,6 +362,54 @@ func RequireEnvironmentPermission(rbac *RBACChecker, resolver RoleResolver, perm
 	}
 }
 
+// OrgRoleLookup resolves a user's org role by org slug.
+type OrgRoleLookup interface {
+	GetOrgIDBySlug(ctx context.Context, slug string) (uuid.UUID, error)
+	GetOrgMemberRole(ctx context.Context, orgID, userID uuid.UUID) (string, error)
+}
+
+// ResolveOrgRole returns a Gin middleware that looks up the user's org role
+// from the :orgSlug URL parameter and sets "role" on the Gin context.
+// This must run before RequirePermission on org-scoped routes.
+func ResolveOrgRole(lookup OrgRoleLookup) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		orgSlug := c.Param("orgSlug")
+		if orgSlug == "" {
+			c.Next()
+			return
+		}
+
+		userIDValue, exists := c.Get("user_id")
+		if !exists {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+			return
+		}
+
+		userID, ok := userIDValue.(uuid.UUID)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid user identity"})
+			return
+		}
+
+		orgID, err := lookup.GetOrgIDBySlug(c.Request.Context(), orgSlug)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+			return
+		}
+
+		role, err := lookup.GetOrgMemberRole(c.Request.Context(), orgID, userID)
+		if err != nil {
+			// User is not a member — let RequirePermission handle the 403
+			c.Next()
+			return
+		}
+
+		c.Set("role", Role(role))
+		c.Set("org_id", orgID.String())
+		c.Next()
+	}
+}
+
 // ValidateResourceOwnership returns a Gin middleware that checks whether the
 // authenticated user's organization owns the specified resource. It reads
 // "user_id" and "org_id" from the Gin context and the resource ID from the

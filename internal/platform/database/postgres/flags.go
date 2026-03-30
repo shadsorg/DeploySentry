@@ -467,6 +467,60 @@ func (r *FlagRepository) DeleteRule(ctx context.Context, id uuid.UUID) error {
 }
 
 // ---------------------------------------------------------------------------
+// FlagEnvironmentState methods
+// ---------------------------------------------------------------------------
+
+// ListFlagEnvStates returns all per-environment states for a given flag.
+func (r *FlagRepository) ListFlagEnvStates(ctx context.Context, flagID uuid.UUID) ([]*models.FlagEnvironmentState, error) {
+	const q = `
+		SELECT id, flag_id, environment_id, enabled, value, updated_by, updated_at
+		FROM flag_environment_state
+		WHERE flag_id = $1
+		ORDER BY environment_id`
+	rows, err := r.pool.Query(ctx, q, flagID)
+	if err != nil {
+		return nil, fmt.Errorf("postgres.ListFlagEnvStates: %w", err)
+	}
+	defer rows.Close()
+	var result []*models.FlagEnvironmentState
+	for rows.Next() {
+		var s models.FlagEnvironmentState
+		if err := rows.Scan(&s.ID, &s.FlagID, &s.EnvironmentID, &s.Enabled, &s.Value, &s.UpdatedBy, &s.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("postgres.ListFlagEnvStates: %w", err)
+		}
+		result = append(result, &s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("postgres.ListFlagEnvStates: %w", err)
+	}
+	return result, nil
+}
+
+// UpsertFlagEnvState creates or updates a per-environment flag state using
+// ON CONFLICT on the (flag_id, environment_id) unique constraint.
+func (r *FlagRepository) UpsertFlagEnvState(ctx context.Context, state *models.FlagEnvironmentState) error {
+	if state.ID == uuid.Nil {
+		state.ID = uuid.New()
+	}
+	state.UpdatedAt = time.Now().UTC()
+
+	const q = `
+		INSERT INTO flag_environment_state (id, flag_id, environment_id, enabled, value, updated_by, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (flag_id, environment_id)
+		DO UPDATE SET enabled = EXCLUDED.enabled, value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at
+		RETURNING id`
+
+	err := r.pool.QueryRow(ctx, q,
+		state.ID, state.FlagID, state.EnvironmentID, state.Enabled, state.Value, state.UpdatedBy, state.UpdatedAt,
+	).Scan(&state.ID)
+	if err != nil {
+		return fmt.Errorf("postgres.UpsertFlagEnvState: %w", err)
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
 // Evaluation log
 // ---------------------------------------------------------------------------
 

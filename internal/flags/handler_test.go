@@ -29,10 +29,12 @@ type mockFlagService struct {
 	archiveFlagFn func(ctx context.Context, id uuid.UUID) error
 	toggleFlagFn  func(ctx context.Context, id uuid.UUID, enabled bool) error
 	evaluateFn    func(ctx context.Context, projectID, environmentID uuid.UUID, key string, evalCtx models.EvaluationContext) (*models.FlagEvaluationResult, error)
-	addRuleFn     func(ctx context.Context, rule *models.TargetingRule) error
-	updateRuleFn  func(ctx context.Context, rule *models.TargetingRule) error
-	deleteRuleFn  func(ctx context.Context, ruleID uuid.UUID) error
-	listRulesFn   func(ctx context.Context, flagID uuid.UUID) ([]*models.TargetingRule, error)
+	addRuleFn           func(ctx context.Context, rule *models.TargetingRule) error
+	updateRuleFn        func(ctx context.Context, rule *models.TargetingRule) error
+	deleteRuleFn        func(ctx context.Context, ruleID uuid.UUID) error
+	listRulesFn         func(ctx context.Context, flagID uuid.UUID) ([]*models.TargetingRule, error)
+	listFlagEnvStatesFn func(ctx context.Context, flagID uuid.UUID) ([]*models.FlagEnvironmentState, error)
+	setFlagEnvStateFn   func(ctx context.Context, state *models.FlagEnvironmentState) error
 }
 
 func (m *mockFlagService) CreateFlag(ctx context.Context, flag *models.FeatureFlag) error {
@@ -110,6 +112,20 @@ func (m *mockFlagService) ListRules(ctx context.Context, flagID uuid.UUID) ([]*m
 		return m.listRulesFn(ctx, flagID)
 	}
 	return []*models.TargetingRule{}, nil
+}
+
+func (m *mockFlagService) ListFlagEnvStates(ctx context.Context, flagID uuid.UUID) ([]*models.FlagEnvironmentState, error) {
+	if m.listFlagEnvStatesFn != nil {
+		return m.listFlagEnvStatesFn(ctx, flagID)
+	}
+	return []*models.FlagEnvironmentState{}, nil
+}
+
+func (m *mockFlagService) SetFlagEnvState(ctx context.Context, state *models.FlagEnvironmentState) error {
+	if m.setFlagEnvStateFn != nil {
+		return m.setFlagEnvStateFn(ctx, state)
+	}
+	return nil
 }
 
 func (m *mockFlagService) BatchEvaluate(ctx context.Context, projectID, environmentID uuid.UUID, keys []string, evalCtx models.EvaluationContext) ([]*models.FlagEvaluationResult, error) {
@@ -905,4 +921,97 @@ func TestGetFlag_WithoutRatingService_PlainResponse(t *testing.T) {
 
 	assert.NotContains(t, resp, "rating_summary")
 	assert.NotContains(t, resp, "error_rate")
+}
+
+// ---------------------------------------------------------------------------
+// GET /flags/:id/environments  (listFlagEnvStates)
+// ---------------------------------------------------------------------------
+
+func TestListFlagEnvStates_Valid(t *testing.T) {
+	flagID := uuid.New()
+	envID := uuid.New()
+	svc := &mockFlagService{
+		listFlagEnvStatesFn: func(_ context.Context, fID uuid.UUID) ([]*models.FlagEnvironmentState, error) {
+			assert.Equal(t, flagID, fID)
+			return []*models.FlagEnvironmentState{
+				{ID: uuid.New(), FlagID: fID, EnvironmentID: envID, Enabled: true},
+			}, nil
+		},
+	}
+	router := setupFlagRouter(svc)
+	req := httptest.NewRequest(http.MethodGet, "/api/flags/"+flagID.String()+"/environments", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]json.RawMessage
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Contains(t, resp, "environment_states")
+}
+
+func TestListFlagEnvStates_InvalidFlagID(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+	req := httptest.NewRequest(http.MethodGet, "/api/flags/bad-uuid/environments", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// PUT /flags/:id/environments/:envId  (setFlagEnvState)
+// ---------------------------------------------------------------------------
+
+func TestSetFlagEnvState_Valid(t *testing.T) {
+	flagID := uuid.New()
+	envID := uuid.New()
+	svc := &mockFlagService{
+		setFlagEnvStateFn: func(_ context.Context, state *models.FlagEnvironmentState) error {
+			assert.Equal(t, flagID, state.FlagID)
+			assert.Equal(t, envID, state.EnvironmentID)
+			assert.True(t, state.Enabled)
+			return nil
+		},
+	}
+	router := setupFlagRouter(svc)
+	body := map[string]interface{}{"enabled": true}
+	req := httptest.NewRequest(http.MethodPut, "/api/flags/"+flagID.String()+"/environments/"+envID.String(), toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestSetFlagEnvState_InvalidFlagID(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+	body := map[string]interface{}{"enabled": true}
+	req := httptest.NewRequest(http.MethodPut, "/api/flags/bad-uuid/environments/"+uuid.New().String(), toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSetFlagEnvState_InvalidEnvID(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+	body := map[string]interface{}{"enabled": true}
+	req := httptest.NewRequest(http.MethodPut, "/api/flags/"+uuid.New().String()+"/environments/bad-uuid", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestSetFlagEnvState_ServiceError(t *testing.T) {
+	svc := &mockFlagService{
+		setFlagEnvStateFn: func(_ context.Context, _ *models.FlagEnvironmentState) error {
+			return errors.New("db error")
+		},
+	}
+	router := setupFlagRouter(svc)
+	body := map[string]interface{}{"enabled": true}
+	req := httptest.NewRequest(http.MethodPut, "/api/flags/"+uuid.New().String()+"/environments/"+uuid.New().String(), toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 }

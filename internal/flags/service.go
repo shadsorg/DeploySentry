@@ -68,6 +68,12 @@ type FlagService interface {
 	// ListRules returns all targeting rules for a flag.
 	ListRules(ctx context.Context, flagID uuid.UUID) ([]*models.TargetingRule, error)
 
+	// ListFlagEnvStates returns all per-environment states for a given flag.
+	ListFlagEnvStates(ctx context.Context, flagID uuid.UUID) ([]*models.FlagEnvironmentState, error)
+
+	// SetFlagEnvState creates or updates a per-environment flag state.
+	SetFlagEnvState(ctx context.Context, state *models.FlagEnvironmentState) error
+
 	// DetectStaleFlags returns flags that have not been evaluated within the
 	// given threshold duration for the specified project.
 	DetectStaleFlags(ctx context.Context, projectID uuid.UUID, threshold time.Duration) ([]*models.FeatureFlag, error)
@@ -320,6 +326,26 @@ func (s *flagService) ListRules(ctx context.Context, flagID uuid.UUID) ([]*model
 		return nil, fmt.Errorf("listing rules: %w", err)
 	}
 	return rules, nil
+}
+
+// ListFlagEnvStates returns all per-environment states for a given flag.
+func (s *flagService) ListFlagEnvStates(ctx context.Context, flagID uuid.UUID) ([]*models.FlagEnvironmentState, error) {
+	states, err := s.repo.ListFlagEnvStates(ctx, flagID)
+	if err != nil {
+		return nil, fmt.Errorf("listing flag env states: %w", err)
+	}
+	return states, nil
+}
+
+// SetFlagEnvState validates and persists a per-environment flag state.
+func (s *flagService) SetFlagEnvState(ctx context.Context, state *models.FlagEnvironmentState) error {
+	if err := state.Validate(); err != nil {
+		return fmt.Errorf("validation failed: %w", err)
+	}
+	if err := s.repo.UpsertFlagEnvState(ctx, state); err != nil {
+		return fmt.Errorf("setting flag env state: %w", err)
+	}
+	return nil
 }
 
 // DetectStaleFlags returns feature flags that have not been evaluated within

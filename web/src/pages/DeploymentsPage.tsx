@@ -1,130 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import type { Deployment, DeployStrategy, DeployStatus } from '@/types';
-
-// ---------------------------------------------------------------------------
-// Mock data
-// ---------------------------------------------------------------------------
-
-const MOCK_DEPLOYMENTS: Deployment[] = [
-  {
-    id: 'dep-1',
-    application_id: 'app-1',
-    environment_id: 'env-prod',
-    version: 'v2.4.1',
-    commit_sha: 'a3f8c1d9e27b',
-    artifact: 'ghcr.io/acme/api:v2.4.1',
-    strategy: 'canary',
-    status: 'running',
-    traffic_percent: 25,
-    health_score: 99.8,
-    created_by: 'alice@example.com',
-    created_at: '2026-03-21T09:15:00Z',
-    updated_at: '2026-03-21T10:30:00Z',
-    completed_at: null,
-  },
-  {
-    id: 'dep-2',
-    application_id: 'app-1',
-    environment_id: 'env-prod',
-    version: 'v2.4.0',
-    commit_sha: 'b7e2f4a01c93',
-    artifact: 'ghcr.io/acme/api:v2.4.0',
-    strategy: 'blue-green',
-    status: 'completed',
-    traffic_percent: 100,
-    health_score: 98.5,
-    created_by: 'ci/deploy-bot',
-    created_at: '2026-03-21T06:00:00Z',
-    updated_at: '2026-03-21T06:45:00Z',
-    completed_at: '2026-03-21T06:45:00Z',
-  },
-  {
-    id: 'dep-3',
-    application_id: 'app-1',
-    environment_id: 'env-staging',
-    version: 'v2.5.0-rc1',
-    commit_sha: 'c4d91e5f738a',
-    strategy: 'rolling',
-    status: 'running',
-    traffic_percent: 60,
-    health_score: 97.2,
-    created_by: 'bob@example.com',
-    created_at: '2026-03-21T11:00:00Z',
-    updated_at: '2026-03-21T11:20:00Z',
-    completed_at: null,
-  },
-  {
-    id: 'dep-4',
-    application_id: 'app-2',
-    environment_id: 'env-prod',
-    version: 'v1.12.3',
-    strategy: 'canary',
-    status: 'failed',
-    traffic_percent: 10,
-    health_score: 72.1,
-    created_by: 'ci/deploy-bot',
-    created_at: '2026-03-21T04:30:00Z',
-    updated_at: '2026-03-21T04:55:00Z',
-    completed_at: '2026-03-21T04:55:00Z',
-  },
-  {
-    id: 'dep-5',
-    application_id: 'app-1',
-    environment_id: 'env-prod',
-    version: 'v2.3.9',
-    strategy: 'blue-green',
-    status: 'completed',
-    traffic_percent: 100,
-    health_score: 99.9,
-    created_by: 'alice@example.com',
-    created_at: '2026-03-20T14:00:00Z',
-    updated_at: '2026-03-20T14:30:00Z',
-    completed_at: '2026-03-20T14:30:00Z',
-  },
-  {
-    id: 'dep-6',
-    application_id: 'app-2',
-    environment_id: 'env-prod',
-    version: 'v1.12.2',
-    strategy: 'rolling',
-    status: 'rolled_back',
-    traffic_percent: 0,
-    health_score: 65.3,
-    created_by: 'bob@example.com',
-    created_at: '2026-03-21T01:00:00Z',
-    updated_at: '2026-03-21T01:40:00Z',
-    completed_at: '2026-03-21T01:40:00Z',
-  },
-  {
-    id: 'dep-7',
-    application_id: 'app-1',
-    environment_id: 'env-prod',
-    version: 'v2.4.1-hotfix',
-    strategy: 'canary',
-    status: 'promoting',
-    traffic_percent: 5,
-    health_score: 100,
-    created_by: 'ci/deploy-bot',
-    created_at: '2026-03-21T12:00:00Z',
-    updated_at: '2026-03-21T12:05:00Z',
-    completed_at: null,
-  },
-  {
-    id: 'dep-8',
-    application_id: 'app-3',
-    environment_id: 'env-prod',
-    version: 'v3.0.0',
-    strategy: 'blue-green',
-    status: 'completed',
-    traffic_percent: 100,
-    health_score: 96.4,
-    created_by: 'alice@example.com',
-    created_at: '2026-03-21T08:00:00Z',
-    updated_at: '2026-03-21T08:25:00Z',
-    completed_at: '2026-03-21T08:25:00Z',
-  },
-];
+import { entitiesApi, deploymentsApi } from '@/api';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -214,15 +91,33 @@ function computeDuration(start: string, end: string | null): string {
 // ---------------------------------------------------------------------------
 
 const DeploymentsPage: React.FC = () => {
-  const { appSlug } = useParams();
+  const { orgSlug, projectSlug, appSlug } = useParams();
   const appName = appSlug ?? '';
 
+  const [deployments, setDeployments] = useState<Deployment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [strategyFilter, setStrategyFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
+  useEffect(() => {
+    if (!orgSlug || !projectSlug || !appSlug) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+
+    entitiesApi.getApp(orgSlug, projectSlug, appSlug)
+      .then((app) => deploymentsApi.list(app.id))
+      .then((result) => setDeployments(result.deployments))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [orgSlug, projectSlug, appSlug]);
+
   const filtered = useMemo(() => {
-    return MOCK_DEPLOYMENTS.filter((d) => {
+    return deployments.filter((d) => {
       if (search && !d.version.toLowerCase().includes(search.toLowerCase())) {
         return false;
       }
@@ -234,7 +129,19 @@ const DeploymentsPage: React.FC = () => {
       }
       return true;
     });
-  }, [search, strategyFilter, statusFilter]);
+  }, [deployments, search, strategyFilter, statusFilter]);
+
+  if (!appSlug) {
+    return (
+      <div>
+        <h1 className="page-header">Deployments</h1>
+        <p>Select an application to view deployments</p>
+      </div>
+    );
+  }
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
 
   return (
     <div>
@@ -245,25 +152,6 @@ const DeploymentsPage: React.FC = () => {
           <p>Monitor and manage application deployments across environments</p>
         </div>
         <button className="btn btn-primary">+ New Deployment</button>
-      </div>
-
-      {/* Stat cards */}
-      <div className="stat-grid">
-        <div className="stat-card">
-          <div className="stat-label">Active Deployments</div>
-          <div className="stat-value">3</div>
-          <div className="stat-meta">currently running</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Completed Today</div>
-          <div className="stat-value">7</div>
-          <div className="stat-meta">across all environments</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Rollbacks</div>
-          <div className="stat-value text-warning">1</div>
-          <div className="stat-meta">in the last 24 hours</div>
-        </div>
       </div>
 
       {/* Filter bar */}

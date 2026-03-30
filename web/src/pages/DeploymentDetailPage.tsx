@@ -1,7 +1,8 @@
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import ActionBar from '@/components/ActionBar';
-import { MOCK_DEPLOYMENT_DETAIL, MOCK_DEPLOYMENT_EVENTS } from '@/mocks/hierarchy';
-import type { DeployStatus } from '@/types';
+import { deploymentsApi } from '@/api';
+import type { Deployment, DeployStatus } from '@/types';
 
 function getDeployActions(status: DeployStatus) {
   const noop = () => {};
@@ -19,12 +20,6 @@ function getDeployActions(status: DeployStatus) {
     default:
       return {};
   }
-}
-
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('en-US', {
-    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
 }
 
 function computeDuration(start?: string, end?: string | null): string {
@@ -58,15 +53,6 @@ function statusBadgeClass(status: string): string {
   }
 }
 
-function statusDotColor(status: DeployStatus): string {
-  switch (status) {
-    case 'running': case 'completed': return 'activity-dot-green';
-    case 'paused': case 'promoting': case 'pending': return 'activity-dot-yellow';
-    case 'failed': case 'rolled_back': case 'cancelled': return 'activity-dot-red';
-    default: return 'activity-dot-gray';
-  }
-}
-
 function healthColorClass(score: number): string {
   if (score >= 99) return 'text-success';
   if (score >= 95) return 'text-warning';
@@ -74,13 +60,29 @@ function healthColorClass(score: number): string {
 }
 
 export default function DeploymentDetailPage() {
-  const { orgSlug, projectSlug, appSlug } = useParams();
+  const { id, orgSlug, projectSlug, appSlug } = useParams();
   const backPath = `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/deployments`;
 
-  const dep = MOCK_DEPLOYMENT_DETAIL;
-  const events = MOCK_DEPLOYMENT_EVENTS;
-  const actions = getDeployActions(dep.status);
+  const [dep, setDep] = useState<Deployment | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+
+    deploymentsApi.get(id)
+      .then((data) => setDep(data))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+  if (!dep) return <div>Deployment not found.</div>;
+
+  const actions = getDeployActions(dep.status);
   const artifactHostname = dep.artifact ? (() => { try { return new URL(dep.artifact).hostname; } catch { return undefined; } })() : undefined;
 
   return (
@@ -135,14 +137,9 @@ export default function DeploymentDetailPage() {
 
       <div className="activity-log">
         <h2 className="activity-log-title">Activity Log</h2>
-        {events.map((event, i) => (
-          <div key={i} className="activity-log-entry">
-            <span className={`activity-dot ${statusDotColor(event.status)}`} />
-            <span className="activity-status">{event.status.replace('_', ' ')}</span>
-            <span className="activity-time">{formatDateTime(event.timestamp)}</span>
-            <span className="activity-note">{event.note}</span>
-          </div>
-        ))}
+        <p style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--color-text-muted)' }}>
+          No events data available
+        </p>
       </div>
     </div>
   );

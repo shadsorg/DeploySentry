@@ -1,4 +1,4 @@
-import type { Flag, Deployment, Release, ApiKey, CreateFlagRequest, UpdateFlagRequest, TargetingRule, Organization, Application } from './types';
+import type { Flag, Deployment, Release, ApiKey, CreateFlagRequest, UpdateFlagRequest, TargetingRule, Organization, Project, Application } from './types';
 
 const BASE = '/api/v1';
 
@@ -179,15 +179,33 @@ export const analyticsApi = {
   },
 };
 
-// Organizations
-export const orgsApi = {
-  list: () => request<{ organizations: Organization[] }>('/orgs'),
-  get: (slug: string) => request<Organization>(`/orgs/${slug}`),
-};
+// Entities (Orgs / Projects / Apps)
+export const entitiesApi = {
+  // Orgs
+  listOrgs: () => request<{ organizations: Organization[] }>('/orgs'),
+  getOrg: (slug: string) => request<Organization>(`/orgs/${slug}`),
+  createOrg: (data: { name: string; slug: string }) =>
+    request<Organization>('/orgs', { method: 'POST', body: JSON.stringify(data) }),
+  updateOrg: (slug: string, data: { name: string }) =>
+    request<Organization>(`/orgs/${slug}`, { method: 'PUT', body: JSON.stringify(data) }),
 
-// Applications
-export const applicationsApi = {
-  list: (projectId: string) =>
-    request<{ applications: Application[] }>(`/projects/${projectId}/applications`),
-  get: (id: string) => request<Application>(`/applications/${id}`),
+  // Projects
+  listProjects: (orgSlug: string) =>
+    request<{ projects: Project[] }>(`/orgs/${orgSlug}/projects`),
+  getProject: (orgSlug: string, projectSlug: string) =>
+    request<Project>(`/orgs/${orgSlug}/projects/${projectSlug}`),
+  createProject: (orgSlug: string, data: { name: string; slug: string }) =>
+    request<Project>(`/orgs/${orgSlug}/projects`, { method: 'POST', body: JSON.stringify(data) }),
+  updateProject: (orgSlug: string, projectSlug: string, data: { name: string }) =>
+    request<Project>(`/orgs/${orgSlug}/projects/${projectSlug}`, { method: 'PUT', body: JSON.stringify(data) }),
+
+  // Apps
+  listApps: (orgSlug: string, projectSlug: string) =>
+    request<{ applications: Application[] }>(`/orgs/${orgSlug}/projects/${projectSlug}/apps`),
+  getApp: (orgSlug: string, projectSlug: string, appSlug: string) =>
+    request<Application>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}`),
+  createApp: (orgSlug: string, projectSlug: string, data: { name: string; slug: string; description?: string }) =>
+    request<Application>(`/orgs/${orgSlug}/projects/${projectSlug}/apps`, { method: 'POST', body: JSON.stringify(data) }),
+  updateApp: (orgSlug: string, projectSlug: string, appSlug: string, data: { name: string; description?: string }) =>
+    request<Application>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}`, { method: 'PUT', body: JSON.stringify(data) }),
 };

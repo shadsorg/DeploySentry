@@ -1,27 +1,4 @@
-import type { Organization, Application, Project, FlagEnvState, DeploymentEvent, Deployment, Release, ReleaseFlagChange, Member, Group, OrgEnvironment, ApiKey } from '@/types';
-
-export const MOCK_ORGS: Organization[] = [
-  {
-    id: 'org-1',
-    name: 'Acme Corp',
-    slug: 'acme-corp',
-    created_at: '2025-06-01T00:00:00Z',
-    updated_at: '2026-03-01T00:00:00Z',
-  },
-  {
-    id: 'org-2',
-    name: 'Personal',
-    slug: 'personal',
-    created_at: '2025-08-15T00:00:00Z',
-    updated_at: '2026-02-01T00:00:00Z',
-  },
-];
-
-export const MOCK_PROJECTS: Project[] = [
-  { id: 'proj-1', name: 'Platform', slug: 'platform', org_id: 'org-1' },
-  { id: 'proj-2', name: 'Mobile', slug: 'mobile', org_id: 'org-1' },
-  { id: 'proj-3', name: 'Side Project', slug: 'side-project', org_id: 'org-2' },
-];
+import type { Application, FlagEnvState, DeploymentEvent, Deployment, Release, ReleaseFlagChange, Member, Group, OrgEnvironment, ApiKey } from '@/types';
 
 export const MOCK_APPLICATIONS: Application[] = [
   {
@@ -80,38 +57,6 @@ export const MOCK_APPLICATIONS: Application[] = [
     updated_at: '2026-03-10T00:00:00Z',
   },
 ];
-
-/** Get orgs for current user */
-export function getMockOrgs(): Organization[] {
-  return MOCK_ORGS;
-}
-
-/** Get projects for an org by slug */
-export function getMockProjects(orgSlug: string): Project[] {
-  const org = MOCK_ORGS.find((o) => o.slug === orgSlug);
-  if (!org) return [];
-  return MOCK_PROJECTS.filter((p) => p.org_id === org.id);
-}
-
-/** Get applications for a project by slug */
-export function getMockApps(projectSlug: string): Application[] {
-  const project = MOCK_PROJECTS.find((p) => p.slug === projectSlug);
-  if (!project) return [];
-  return MOCK_APPLICATIONS.filter((a) => a.project_id === project.id);
-}
-
-/** Resolve a slug to a display name */
-export function getOrgName(orgSlug: string): string {
-  return MOCK_ORGS.find((o) => o.slug === orgSlug)?.name ?? orgSlug;
-}
-
-export function getProjectName(projectSlug: string): string {
-  return MOCK_PROJECTS.find((p) => p.slug === projectSlug)?.name ?? projectSlug;
-}
-
-export function getAppName(appSlug: string): string {
-  return MOCK_APPLICATIONS.find((a) => a.slug === appSlug)?.name ?? appSlug;
-}
 
 export function getMockEnvironments(): OrgEnvironment[] {
   return MOCK_ENVIRONMENTS;

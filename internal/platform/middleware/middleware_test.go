@@ -540,3 +540,51 @@ func TestStructuredLogger_IncludesUserIDInResponse(t *testing.T) {
 	require.NoError(t, json.Unmarshal(mt.messages[1], &respMsg))
 	assert.Equal(t, testUserID.String(), respMsg["_userId"])
 }
+
+// ---------------------------------------------------------------------------
+// 9. ErrorHandler GELF integration
+// ---------------------------------------------------------------------------
+
+func TestErrorHandler_SendsGELFOnPanic(t *testing.T) {
+	router := gin.New()
+	router.Use(RequestID())
+
+	mt := &gelfMockTransport{}
+	gelfClient := newTestGELFClient(mt)
+
+	router.Use(ErrorHandler(DefaultErrorHandlingConfig(), gelfClient))
+	router.GET("/panic", func(c *gin.Context) {
+		panic("test panic")
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/panic", nil)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	require.GreaterOrEqual(t, len(mt.messages), 1)
+
+	var msg map[string]interface{}
+	require.NoError(t, json.Unmarshal(mt.messages[0], &msg))
+	assert.Equal(t, "error", msg["_logType"])
+	assert.Equal(t, "fatal", msg["_logLevel"])
+	assert.Contains(t, msg["_errorName"], "test panic")
+	assert.NotEmpty(t, msg["_errorStack"])
+	assert.Equal(t, "GET", msg["_httpMethod"])
+	assert.Equal(t, "/panic", msg["_httpPath"])
+}
+
+func TestErrorHandler_NilGELFClientDoesNotPanic(t *testing.T) {
+	router := gin.New()
+	router.Use(RequestID())
+	router.Use(ErrorHandler(DefaultErrorHandlingConfig(), nil))
+	router.GET("/panic", func(c *gin.Context) {
+		panic("test")
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/panic", nil)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}

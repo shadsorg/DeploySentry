@@ -121,8 +121,8 @@ func run() error {
 	if cfg.Log.Level == "debug" {
 		errorConfig = middleware.DevelopmentErrorHandlingConfig()
 	}
-	router.Use(middleware.ErrorHandler(errorConfig))
-	router.Use(middleware.StructuredLogger(middleware.DefaultLoggingConfig()))
+	router.Use(middleware.ErrorHandler(errorConfig, nil))
+	router.Use(middleware.StructuredLogger(middleware.DefaultLoggingConfig(), nil))
 
 	// Security and performance middleware
 	router.Use(middleware.RequestSizeLimit(middleware.DefaultRequestSizeConfig()))
@@ -307,6 +307,13 @@ func run() error {
 		}, deployService)
 		ghHandler.RegisterRoutes(public)
 		log.Println("github webhook integration enabled")
+	}
+
+	// -------------------------------------------------------------------------
+	// Debug: print all registered routes at startup
+	// -------------------------------------------------------------------------
+	for _, route := range router.Routes() {
+		log.Printf("ROUTE: %-6s %s", route.Method, route.Path)
 	}
 
 	// -------------------------------------------------------------------------

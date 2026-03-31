@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"runtime/debug"
 
+	"github.com/deploysentry/deploysentry/internal/platform/gelf"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // ErrorHandlingConfig holds configuration for error handling middleware.
@@ -37,7 +39,7 @@ func DevelopmentErrorHandlingConfig() ErrorHandlingConfig {
 
 // ErrorHandler returns middleware that provides centralized error handling.
 // It catches panics, logs errors with context, and returns consistent error responses.
-func ErrorHandler(config ErrorHandlingConfig) gin.HandlerFunc {
+func ErrorHandler(config ErrorHandlingConfig, gelfClient *gelf.Client) gin.HandlerFunc {
 	return gin.HandlerFunc(func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -57,6 +59,25 @@ func ErrorHandler(config ErrorHandlingConfig) gin.HandlerFunc {
 				}
 
 				log.Println(logEntry)
+
+				// Send GELF fatal log for panics
+				if gelfClient != nil {
+					userID := ""
+					if uid, exists := c.Get("user_id"); exists {
+						if id, ok := uid.(uuid.UUID); ok {
+							userID = id.String()
+						}
+					}
+					gelfClient.Fatal(
+						fmt.Sprintf("PANIC: %v", err),
+						fmt.Sprintf("%v", err),
+						string(debug.Stack()),
+						requestID,
+						c.Request.Method,
+						c.Request.URL.Path,
+						userID,
+					)
+				}
 
 				// Return error response
 				response := gin.H{
@@ -93,6 +114,26 @@ func ErrorHandler(config ErrorHandlingConfig) gin.HandlerFunc {
 				}
 
 				log.Println(logEntry)
+			}
+
+			// Send GELF error log for request errors
+			if gelfClient != nil {
+				lastErr := c.Errors.Last()
+				userID := ""
+				if uid, exists := c.Get("user_id"); exists {
+					if id, ok := uid.(uuid.UUID); ok {
+						userID = id.String()
+					}
+				}
+				gelfClient.ErrorWithContext(
+					fmt.Sprintf("ERROR: %v", lastErr.Err),
+					fmt.Sprintf("%v", lastErr.Err),
+					"",
+					requestID,
+					c.Request.Method,
+					c.Request.URL.Path,
+					userID,
+				)
 			}
 
 			// Return error response if not already responded

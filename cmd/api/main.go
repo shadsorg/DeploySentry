@@ -29,6 +29,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/platform/database"
 	"github.com/deploysentry/deploysentry/internal/platform/database/postgres"
 	"github.com/deploysentry/deploysentry/internal/platform/messaging"
+	"github.com/deploysentry/deploysentry/internal/platform/gelf"
 	"github.com/deploysentry/deploysentry/internal/platform/middleware"
 	"github.com/deploysentry/deploysentry/internal/platform/metrics"
 	"github.com/deploysentry/deploysentry/internal/ratings"
@@ -113,6 +114,18 @@ func run() error {
 
 	router := gin.New()
 
+	// Initialize GELF structured logging
+	gelfClient, gelfErr := gelf.NewClient("deploysentry-api")
+	if gelfErr != nil {
+		log.Printf("warning: GELF logging disabled: %v", gelfErr)
+		gelfClient = nil
+	}
+	defer func() {
+		if gelfClient != nil {
+			gelfClient.Close()
+		}
+	}()
+
 	// Core middleware for production readiness
 	router.Use(middleware.RequestID())
 
@@ -121,8 +134,10 @@ func run() error {
 	if cfg.Log.Level == "debug" {
 		errorConfig = middleware.DevelopmentErrorHandlingConfig()
 	}
-	router.Use(middleware.ErrorHandler(errorConfig, nil))
-	router.Use(middleware.StructuredLogger(middleware.DefaultLoggingConfig(), nil))
+	loggingConfig := middleware.DefaultLoggingConfig()
+	loggingConfig.LogLevel = cfg.Log.Level
+	router.Use(middleware.ErrorHandler(errorConfig, gelfClient))
+	router.Use(middleware.StructuredLogger(loggingConfig, gelfClient))
 
 	// Security and performance middleware
 	router.Use(middleware.RequestSizeLimit(middleware.DefaultRequestSizeConfig()))
@@ -314,6 +329,11 @@ func run() error {
 	// -------------------------------------------------------------------------
 	for _, route := range router.Routes() {
 		log.Printf("ROUTE: %-6s %s", route.Method, route.Path)
+	}
+
+	// GELF startup confirmation
+	if gelfClient != nil {
+		gelfClient.Info("deploysentry-api started")
 	}
 
 	// -------------------------------------------------------------------------

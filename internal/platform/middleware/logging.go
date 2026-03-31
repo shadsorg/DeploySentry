@@ -7,7 +7,9 @@ import (
 	"log"
 	"time"
 
+	"github.com/deploysentry/deploysentry/internal/platform/gelf"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // LoggingConfig holds configuration for the logging middleware.
@@ -23,6 +25,9 @@ type LoggingConfig struct {
 
 	// MaxBodyLogSize is the maximum number of bytes of request/response body to log.
 	MaxBodyLogSize int64 `json:"max_body_log_size"`
+
+	// LogLevel controls verbosity; when "trace", skip-paths filtering is disabled.
+	LogLevel string `json:"log_level"`
 }
 
 // DefaultLoggingConfig returns sensible defaults for request logging.
@@ -36,15 +41,15 @@ func DefaultLoggingConfig() LoggingConfig {
 }
 
 // StructuredLogger returns middleware that provides structured request/response logging.
-func StructuredLogger(config LoggingConfig) gin.HandlerFunc {
+func StructuredLogger(config LoggingConfig, gelfClient *gelf.Client) gin.HandlerFunc {
 	skipPaths := make(map[string]bool, len(config.SkipPaths))
 	for _, path := range config.SkipPaths {
 		skipPaths[path] = true
 	}
 
 	return gin.HandlerFunc(func(c *gin.Context) {
-		// Skip logging for certain paths
-		if skipPaths[c.Request.URL.Path] {
+		// Skip logging for certain paths (unless trace-level logging is enabled)
+		if config.LogLevel != "trace" && skipPaths[c.Request.URL.Path] {
 			c.Next()
 			return
 		}
@@ -74,12 +79,30 @@ func StructuredLogger(config LoggingConfig) gin.HandlerFunc {
 			c.Writer = writer
 		}
 
+		// Send GELF request log
+		method := c.Request.Method
+		path := c.Request.URL.Path
+		if gelfClient != nil {
+			gelfClient.Request(requestID, method, path, "")
+		}
+
 		// Process the request
 		c.Next()
 
 		// Log the completed request
 		duration := time.Since(start)
 		status := c.Writer.Status()
+
+		// Send GELF response log
+		if gelfClient != nil {
+			userID := ""
+			if uid, exists := c.Get("user_id"); exists {
+				if id, ok := uid.(uuid.UUID); ok {
+					userID = id.String()
+				}
+			}
+			gelfClient.Response(requestID, method, path, userID, status, int64(duration.Milliseconds()))
+		}
 
 		logEntry := fmt.Sprintf(
 			"[%s] %s %s %d %s",

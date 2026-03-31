@@ -1,13 +1,17 @@
 package middleware
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/deploysentry/deploysentry/internal/platform/gelf"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func init() {
@@ -396,4 +400,143 @@ func TestCORS_Preflight_AllowAll(t *testing.T) {
 
 	assert.Equal(t, http.StatusNoContent, w.Code)
 	assert.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
+}
+
+// ---------------------------------------------------------------------------
+// GELF test helpers
+// ---------------------------------------------------------------------------
+
+type gelfMockTransport struct {
+	messages [][]byte
+}
+
+func (m *gelfMockTransport) Send(data []byte) error {
+	cp := make([]byte, len(data))
+	copy(cp, data)
+	m.messages = append(m.messages, cp)
+	return nil
+}
+
+func (m *gelfMockTransport) Close() error { return nil }
+
+func newTestGELFClient(mt *gelfMockTransport) *gelf.Client {
+	return gelf.NewTestClient(mt)
+}
+
+// ---------------------------------------------------------------------------
+// 8. StructuredLogger GELF integration
+// ---------------------------------------------------------------------------
+
+func TestStructuredLogger_SendsGELFRequestAndResponse(t *testing.T) {
+	router := gin.New()
+	router.Use(RequestID())
+
+	mt := &gelfMockTransport{}
+	gelfClient := newTestGELFClient(mt)
+
+	router.Use(StructuredLogger(DefaultLoggingConfig(), gelfClient))
+	router.GET("/test", func(c *gin.Context) {
+		c.String(http.StatusOK, "ok")
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	require.GreaterOrEqual(t, len(mt.messages), 2)
+
+	var reqMsg map[string]interface{}
+	require.NoError(t, json.Unmarshal(mt.messages[0], &reqMsg))
+	assert.Equal(t, "request", reqMsg["_logType"])
+	assert.Equal(t, "GET", reqMsg["_httpMethod"])
+	assert.Equal(t, "/test", reqMsg["_httpPath"])
+	assert.NotEmpty(t, reqMsg["_requestId"])
+
+	var respMsg map[string]interface{}
+	require.NoError(t, json.Unmarshal(mt.messages[1], &respMsg))
+	assert.Equal(t, "response", respMsg["_logType"])
+	assert.Equal(t, float64(200), respMsg["_httpStatus"])
+	assert.Equal(t, "GET", respMsg["_httpMethod"])
+}
+
+func TestStructuredLogger_SkipsHealthByDefault(t *testing.T) {
+	router := gin.New()
+	router.Use(RequestID())
+
+	mt := &gelfMockTransport{}
+	gelfClient := newTestGELFClient(mt)
+
+	router.Use(StructuredLogger(DefaultLoggingConfig(), gelfClient))
+	router.GET("/health", func(c *gin.Context) {
+		c.String(http.StatusOK, "ok")
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Empty(t, mt.messages)
+}
+
+func TestStructuredLogger_LogsHealthAtTraceLevel(t *testing.T) {
+	router := gin.New()
+	router.Use(RequestID())
+
+	mt := &gelfMockTransport{}
+	gelfClient := newTestGELFClient(mt)
+
+	cfg := DefaultLoggingConfig()
+	cfg.LogLevel = "trace"
+	router.Use(StructuredLogger(cfg, gelfClient))
+	router.GET("/health", func(c *gin.Context) {
+		c.String(http.StatusOK, "ok")
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.GreaterOrEqual(t, len(mt.messages), 2)
+}
+
+func TestStructuredLogger_NilGELFClientDoesNotPanic(t *testing.T) {
+	router := gin.New()
+	router.Use(RequestID())
+	router.Use(StructuredLogger(DefaultLoggingConfig(), nil))
+	router.GET("/test", func(c *gin.Context) {
+		c.String(http.StatusOK, "ok")
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestStructuredLogger_IncludesUserIDInResponse(t *testing.T) {
+	router := gin.New()
+	router.Use(RequestID())
+
+	mt := &gelfMockTransport{}
+	gelfClient := newTestGELFClient(mt)
+
+	router.Use(StructuredLogger(DefaultLoggingConfig(), gelfClient))
+	testUserID := uuid.New()
+	router.GET("/test", func(c *gin.Context) {
+		c.Set("user_id", testUserID)
+		c.String(http.StatusOK, "ok")
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	router.ServeHTTP(w, req)
+
+	require.GreaterOrEqual(t, len(mt.messages), 2)
+	var respMsg map[string]interface{}
+	require.NoError(t, json.Unmarshal(mt.messages[1], &respMsg))
+	assert.Equal(t, testUserID.String(), respMsg["_userId"])
 }

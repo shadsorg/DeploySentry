@@ -1,10 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import { authApi, type AuthUser } from './api';
-import { type AuthContextValue } from './authTypes';
 import { AuthContext } from './authContext';
 import { useAuth } from './authHooks';
-
 /**
  * AuthProvider provides authentication context to the application.
  */
@@ -80,4 +78,3 @@ export function RedirectIfAuth() {
 
   return <Outlet />;
 }
-export { useAuth };

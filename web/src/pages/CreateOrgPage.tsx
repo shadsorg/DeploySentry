@@ -23,7 +23,7 @@ export default function CreateOrgPage() {
       await entitiesApi.createOrg({ name, slug });
       localStorage.setItem('ds_last_org', slug);
       navigate(`/orgs/${slug}/projects`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err.message || 'Failed to create organization');
     } finally {
       setSubmitting(false);

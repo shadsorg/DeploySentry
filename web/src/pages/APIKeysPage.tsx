@@ -33,7 +33,7 @@ export default function APIKeysPage() {
     try {
       const result = await apiKeysApi.list();
       setKeys(result.api_keys);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err.message || 'Failed to load API keys');
     } finally {
       setLoading(false);
@@ -53,7 +53,7 @@ export default function APIKeysPage() {
       setNewScopes([]);
       setShowCreate(false);
       await fetchKeys();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err.message || 'Failed to create API key');
     }
   }
@@ -69,7 +69,7 @@ export default function APIKeysPage() {
       await apiKeysApi.revoke(keyId);
       setConfirmRevoke(null);
       await fetchKeys();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err.message || 'Failed to revoke API key');
     }
   }

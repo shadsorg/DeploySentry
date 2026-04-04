@@ -29,7 +29,9 @@ export default function HierarchyLayout() {
     };
 
     initializeRealtime();
-    return () => { RealtimeManager.getInstance().dispose(); };
+    return () => {
+      RealtimeManager.getInstance().dispose();
+    };
   }, []);
 
   return (

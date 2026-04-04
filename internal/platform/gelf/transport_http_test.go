@@ -34,7 +34,7 @@ func TestHTTPTransport_SendsToEndpoint(t *testing.T) {
 	require.NoError(t, tr.Send(data))
 
 	// Close flushes the buffer, ensuring the message is sent
-	tr.Close()
+	_ = tr.Close()
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -68,7 +68,7 @@ func TestHTTPTransport_CloseFlushesBuffer(t *testing.T) {
 		require.NoError(t, tr.Send([]byte(`{"short_message":"msg"}`)))
 	}
 
-	tr.Close()
+	_ = tr.Close()
 
 	mu.Lock()
 	defer mu.Unlock()

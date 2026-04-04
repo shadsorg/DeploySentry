@@ -1,7 +1,15 @@
 export type FlagCategory = 'release' | 'feature' | 'experiment' | 'ops' | 'permission';
 export type FlagType = 'boolean' | 'string' | 'integer' | 'json';
 export type DeployStrategy = 'canary' | 'blue-green' | 'rolling';
-export type DeployStatus = 'pending' | 'running' | 'promoting' | 'paused' | 'completed' | 'failed' | 'rolled_back' | 'cancelled';
+export type DeployStatus =
+  | 'pending'
+  | 'running'
+  | 'promoting'
+  | 'paused'
+  | 'completed'
+  | 'failed'
+  | 'rolled_back'
+  | 'cancelled';
 export type ReleaseStatus = 'draft' | 'rolling_out' | 'paused' | 'completed' | 'rolled_back';
 export type RuleType = 'percentage' | 'user_target' | 'attribute' | 'segment' | 'schedule';
 
@@ -181,7 +189,7 @@ export interface FlagEnvironmentState {
   flag_id: string;
   environment_id: string;
   enabled: boolean;
-  value?: any;
+  value?: unknown;
   updated_by?: string;
   updated_at: string;
 }
@@ -193,7 +201,7 @@ export interface Setting {
   application_id?: string;
   environment_id?: string;
   key: string;
-  value: any;
+  value: unknown;
   updated_by?: string;
   updated_at: string;
 }
@@ -221,8 +229,8 @@ export interface ReleaseFlagChangeAPI {
   release_id: string;
   flag_id: string;
   environment_id: string;
-  previous_value?: any;
-  new_value?: any;
+  previous_value?: unknown;
+  new_value?: unknown;
   previous_enabled?: boolean;
   new_enabled?: boolean;
   applied_at: string | null;

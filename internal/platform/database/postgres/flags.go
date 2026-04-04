@@ -587,7 +587,7 @@ func (r *FlagRepository) WriteEvaluationLog(ctx context.Context, logs []flags.Ev
 	}
 
 	results := r.pool.SendBatch(ctx, batch)
-	defer results.Close()
+	defer func() { _ = results.Close() }()
 
 	for range logs {
 		if _, err := results.Exec(); err != nil {

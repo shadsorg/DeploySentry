@@ -21,10 +21,14 @@ function defaultTab(level: string, tab?: string): SettingsTab {
   const levelTabs = validTabs[level] || [];
   if (tab && levelTabs.includes(tab as SettingsTab)) return tab as SettingsTab;
   switch (level) {
-    case 'org': return 'environments';
-    case 'project': return 'general';
-    case 'app': return 'general';
-    default: return 'environments';
+    case 'org':
+      return 'environments';
+    case 'project':
+      return 'general';
+    case 'app':
+      return 'general';
+    default:
+      return 'environments';
   }
 }
 
@@ -37,9 +41,7 @@ function getTabsForLevel(level: string): { key: SettingsTab; label: string }[] {
         { key: 'notifications', label: 'Notifications' },
       ];
     case 'project':
-      return [
-        { key: 'general', label: 'Project Settings' },
-      ];
+      return [{ key: 'general', label: 'Project Settings' }];
     case 'app':
       return [
         { key: 'general', label: 'General' },
@@ -141,7 +143,12 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
 
   const handleEnvNameChange = (value: string) => {
     setNewEnvName(value);
-    setNewEnvSlug(value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+    setNewEnvSlug(
+      value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, ''),
+    );
   };
 
   const handleAddEnvironment = () => {
@@ -195,7 +202,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
       {/* Environments tab (org level) */}
       {activeTab === 'environments' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <p className="text-muted text-sm">Note: Environment changes are local to this session. Backend persistence coming soon.</p>
+          <p className="text-muted text-sm">
+            Note: Environment changes are local to this session. Backend persistence coming soon.
+          </p>
           {/* Add environment form */}
           <div className="card">
             <div className="card-header">
@@ -265,7 +274,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                     {environments.map((env) => (
                       <tr key={env.id}>
                         <td style={{ fontWeight: 500 }}>{env.name}</td>
-                        <td><code className="font-mono text-sm">{env.slug}</code></td>
+                        <td>
+                          <code className="font-mono text-sm">{env.slug}</code>
+                        </td>
                         <td>
                           {env.is_production && (
                             <span className="badge badge-active">Production</span>
@@ -367,7 +378,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             <div className="card-header">
               <span className="card-title">Slack</span>
               <label className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
-                <input type="checkbox" checked={slackEnabled} onChange={(e) => setSlackEnabled(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={slackEnabled}
+                  onChange={(e) => setSlackEnabled(e.target.checked)}
+                />
                 <span className="text-sm">Enabled</span>
               </label>
             </div>
@@ -375,11 +390,23 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
               <>
                 <div className="form-group">
                   <label className="form-label">Webhook URL</label>
-                  <input type="text" className="form-input" placeholder="https://hooks.slack.com/services/..." value={slackUrl} onChange={(e) => setSlackUrl(e.target.value)} />
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="https://hooks.slack.com/services/..."
+                    value={slackUrl}
+                    onChange={(e) => setSlackUrl(e.target.value)}
+                  />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Channel (optional)</label>
-                  <input type="text" className="form-input" placeholder="#deployments" value={slackChannel} onChange={(e) => setSlackChannel(e.target.value)} />
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="#deployments"
+                    value={slackChannel}
+                    onChange={(e) => setSlackChannel(e.target.value)}
+                  />
                 </div>
               </>
             )}
@@ -390,7 +417,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             <div className="card-header">
               <span className="card-title">Email (SMTP)</span>
               <label className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
-                <input type="checkbox" checked={emailEnabled} onChange={(e) => setEmailEnabled(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={emailEnabled}
+                  onChange={(e) => setEmailEnabled(e.target.checked)}
+                />
                 <span className="text-sm">Enabled</span>
               </label>
             </div>
@@ -399,26 +430,56 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                 <div className="grid-2">
                   <div className="form-group">
                     <label className="form-label">SMTP Host</label>
-                    <input type="text" className="form-input" placeholder="smtp.gmail.com" value={emailSmtpHost} onChange={(e) => setEmailSmtpHost(e.target.value)} />
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="smtp.gmail.com"
+                      value={emailSmtpHost}
+                      onChange={(e) => setEmailSmtpHost(e.target.value)}
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">SMTP Port</label>
-                    <input type="number" className="form-input" placeholder="587" value={emailSmtpPort} onChange={(e) => setEmailSmtpPort(e.target.value)} />
+                    <input
+                      type="number"
+                      className="form-input"
+                      placeholder="587"
+                      value={emailSmtpPort}
+                      onChange={(e) => setEmailSmtpPort(e.target.value)}
+                    />
                   </div>
                 </div>
                 <div className="grid-2">
                   <div className="form-group">
                     <label className="form-label">Username</label>
-                    <input type="text" className="form-input" placeholder="user@example.com" value={emailUsername} onChange={(e) => setEmailUsername(e.target.value)} />
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="user@example.com"
+                      value={emailUsername}
+                      onChange={(e) => setEmailUsername(e.target.value)}
+                    />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Password</label>
-                    <input type="password" className="form-input" placeholder="App password" value={emailPassword} onChange={(e) => setEmailPassword(e.target.value)} />
+                    <input
+                      type="password"
+                      className="form-input"
+                      placeholder="App password"
+                      value={emailPassword}
+                      onChange={(e) => setEmailPassword(e.target.value)}
+                    />
                   </div>
                 </div>
                 <div className="form-group">
                   <label className="form-label">From Address</label>
-                  <input type="email" className="form-input" placeholder="noreply@deploysentry.com" value={emailFrom} onChange={(e) => setEmailFrom(e.target.value)} />
+                  <input
+                    type="email"
+                    className="form-input"
+                    placeholder="noreply@deploysentry.com"
+                    value={emailFrom}
+                    onChange={(e) => setEmailFrom(e.target.value)}
+                  />
                 </div>
               </>
             )}
@@ -429,15 +490,27 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             <div className="card-header">
               <span className="card-title">PagerDuty</span>
               <label className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
-                <input type="checkbox" checked={pagerdutyEnabled} onChange={(e) => setPagerdutyEnabled(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={pagerdutyEnabled}
+                  onChange={(e) => setPagerdutyEnabled(e.target.checked)}
+                />
                 <span className="text-sm">Enabled</span>
               </label>
             </div>
             {pagerdutyEnabled && (
               <div className="form-group">
                 <label className="form-label">Integration/Routing Key</label>
-                <input type="text" className="form-input" placeholder="Events API v2 routing key" value={pagerdutyKey} onChange={(e) => setPagerdutyKey(e.target.value)} />
-                <div className="form-hint">PagerDuty incidents are auto-created for deployment failures and health alerts.</div>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Events API v2 routing key"
+                  value={pagerdutyKey}
+                  onChange={(e) => setPagerdutyKey(e.target.value)}
+                />
+                <div className="form-hint">
+                  PagerDuty incidents are auto-created for deployment failures and health alerts.
+                </div>
               </div>
             )}
           </div>
@@ -449,15 +522,25 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {NOTIFICATION_EVENTS.map((event) => (
-                <label key={event} className="flex items-center gap-3" style={{ cursor: 'pointer' }}>
-                  <input type="checkbox" checked={enabledEvents.has(event)} onChange={() => toggleEvent(event)} />
+                <label
+                  key={event}
+                  className="flex items-center gap-3"
+                  style={{ cursor: 'pointer' }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={enabledEvents.has(event)}
+                    onChange={() => toggleEvent(event)}
+                  />
                   <code className="font-mono text-sm">{event}</code>
                 </label>
               ))}
             </div>
           </div>
 
-          <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>Save Notification Settings</button>
+          <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>
+            Save Notification Settings
+          </button>
         </div>
       )}
 
@@ -564,7 +647,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
       {activeTab === 'danger' && (
         <div className="danger-zone">
           <h3>Delete Application</h3>
-          <p>Deleting this application will remove all its deployments, releases, and flag configurations. This action cannot be undone.</p>
+          <p>
+            Deleting this application will remove all its deployments, releases, and flag
+            configurations. This action cannot be undone.
+          </p>
           <button className="btn btn-danger">Delete Application</button>
         </div>
       )}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"sync"
@@ -174,8 +175,7 @@ func (h *Handler) createFlag(c *gin.Context) {
 		}
 
 		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventFlagCreated, orgID, &flag.ProjectID, webhookData, &createdBy); err != nil {
-			// Log error but don't fail the request
-			// TODO: Add proper logging
+			log.Printf("failed to publish flag created webhook: %v", err)
 		}
 	}
 
@@ -355,7 +355,7 @@ func (h *Handler) updateFlag(c *gin.Context) {
 		}
 
 		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventFlagUpdated, orgID, &flag.ProjectID, webhookData, &updatedBy); err != nil {
-			// Log error but don't fail the request
+			log.Printf("failed to publish flag updated webhook: %v", err)
 		}
 	}
 
@@ -404,7 +404,7 @@ func (h *Handler) archiveFlag(c *gin.Context) {
 		}
 
 		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventFlagArchived, orgID, &flag.ProjectID, webhookData, &archivedBy); err != nil {
-			// Log error but don't fail the request
+			log.Printf("failed to publish flag archived webhook: %v", err)
 		}
 	}
 
@@ -468,7 +468,7 @@ func (h *Handler) toggleFlag(c *gin.Context) {
 		}
 
 		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventFlagToggled, orgID, &flag.ProjectID, webhookData, &toggledBy); err != nil {
-			// Log error but don't fail the request
+			log.Printf("failed to publish flag toggled webhook: %v", err)
 		}
 	}
 
@@ -548,7 +548,7 @@ func (h *Handler) evaluate(c *gin.Context) {
 
 			go func() {
 				if recordErr := h.analyticsSvc.RecordFlagEvaluation(c.Request.Context(), event); recordErr != nil {
-					// Log error but don't fail the request
+					log.Printf("failed to record flag evaluation: %v", recordErr)
 				}
 			}()
 		}
@@ -590,7 +590,7 @@ func (h *Handler) evaluate(c *gin.Context) {
 
 		go func() {
 			if recordErr := h.analyticsSvc.RecordFlagEvaluation(c.Request.Context(), event); recordErr != nil {
-				// Log error but don't fail the request
+				log.Printf("failed to record flag evaluation: %v", recordErr)
 			}
 		}()
 	}
@@ -660,7 +660,7 @@ func (h *Handler) batchEvaluate(c *gin.Context) {
 				}
 
 				if recordErr := h.analyticsSvc.RecordFlagEvaluation(c.Request.Context(), &event); recordErr != nil {
-					// Log error but continue with other events
+					log.Printf("failed to record flag evaluation: %v", recordErr)
 				}
 			}
 		}()

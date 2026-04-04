@@ -151,7 +151,7 @@ func (d *DatadogCheck) queryMetric(ctx context.Context, metric string) (float64,
 	if err != nil {
 		return 0, fmt.Errorf("querying datadog: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("datadog returned status %d", resp.StatusCode)
@@ -214,7 +214,7 @@ func (d *DatadogCheck) GetMonitorStatus(ctx context.Context, monitorID int) (*Da
 	if err != nil {
 		return nil, fmt.Errorf("querying datadog monitor: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("datadog returned status %d for monitor %d", resp.StatusCode, monitorID)

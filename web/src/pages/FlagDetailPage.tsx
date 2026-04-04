@@ -61,15 +61,12 @@ export default function FlagDetailPage() {
     setLoading(true);
     setError(null);
 
-    const fetchApps = orgSlug && projectSlug
-      ? entitiesApi.listApps(orgSlug, projectSlug).then((r) => r.applications)
-      : Promise.resolve([]);
+    const fetchApps =
+      orgSlug && projectSlug
+        ? entitiesApi.listApps(orgSlug, projectSlug).then((r) => r.applications)
+        : Promise.resolve([]);
 
-    Promise.all([
-      flagsApi.get(id),
-      flagsApi.listRules(id).then((r) => r.rules),
-      fetchApps,
-    ])
+    Promise.all([flagsApi.get(id), flagsApi.listRules(id).then((r) => r.rules), fetchApps])
       .then(([flagData, rulesData, appsData]) => {
         setFlag(flagData);
         setRules(rulesData);
@@ -84,11 +81,11 @@ export default function FlagDetailPage() {
   if (!flag) return <div>Flag not found.</div>;
 
   const handleToggle = () => {
-    setFlag((prev) => prev ? { ...prev, enabled: !prev.enabled } : prev);
+    setFlag((prev) => (prev ? { ...prev, enabled: !prev.enabled } : prev));
   };
 
   const handleArchive = () => {
-    setFlag((prev) => prev ? { ...prev, archived: true } : prev);
+    setFlag((prev) => (prev ? { ...prev, archived: true } : prev));
   };
 
   return (
@@ -104,11 +101,7 @@ export default function FlagDetailPage() {
           </div>
           <div className="detail-header-badges">
             <label className="toggle">
-              <input
-                type="checkbox"
-                checked={flag.enabled}
-                onChange={handleToggle}
-              />
+              <input type="checkbox" checked={flag.enabled} onChange={handleToggle} />
               <span>{flag.enabled ? 'Enabled' : 'Disabled'}</span>
             </label>
             <span className={`badge badge-${flag.category}`}>{flag.category}</span>
@@ -119,9 +112,21 @@ export default function FlagDetailPage() {
         <div className="detail-chips">
           <span>Type: {flag.flag_type}</span>
           <span>Owners: {flag.owners.join(', ')}</span>
-          <span>Expires: {flag.is_permanent ? 'Permanent' : flag.expires_at ? formatDate(flag.expires_at) : '\u2014'}</span>
-          <span>Default Value: <span className="font-mono">{flag.default_value}</span></span>
-          <span>Scope: {flag.application_id ? getAppNameById(flag.application_id, apps) : 'Project-wide'}</span>
+          <span>
+            Expires:{' '}
+            {flag.is_permanent
+              ? 'Permanent'
+              : flag.expires_at
+                ? formatDate(flag.expires_at)
+                : '\u2014'}
+          </span>
+          <span>
+            Default Value: <span className="font-mono">{flag.default_value}</span>
+          </span>
+          <span>
+            Scope:{' '}
+            {flag.application_id ? getAppNameById(flag.application_id, apps) : 'Project-wide'}
+          </span>
           {flag.purpose && <span>Purpose: {flag.purpose}</span>}
           {flag.tags.length > 0 && <span>Tags: {flag.tags.join(', ')}</span>}
         </div>
@@ -132,9 +137,7 @@ export default function FlagDetailPage() {
           <span>Updated {formatDateTime(flag.updated_at)}</span>
         </div>
 
-        {flag.description && (
-          <div className="detail-description">{flag.description}</div>
-        )}
+        {flag.description && <div className="detail-description">{flag.description}</div>}
       </div>
 
       {/* Tabs */}
@@ -156,8 +159,17 @@ export default function FlagDetailPage() {
       {/* Tab: Targeting Rules */}
       {activeTab === 'rules' && (
         <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <span>{rules.length} rule{rules.length !== 1 ? 's' : ''}</span>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1rem',
+            }}
+          >
+            <span>
+              {rules.length} rule{rules.length !== 1 ? 's' : ''}
+            </span>
             <button className="btn btn-secondary">Add Rule</button>
           </div>
           <table>
@@ -209,14 +221,10 @@ export default function FlagDetailPage() {
       <div className="danger-zone">
         <h2>Danger Zone</h2>
         <p className="text-muted">
-          Archiving a flag disables it permanently and removes it from active use.
-          This action cannot be easily undone.
+          Archiving a flag disables it permanently and removes it from active use. This action
+          cannot be easily undone.
         </p>
-        <button
-          className="btn btn-danger"
-          onClick={handleArchive}
-          disabled={flag.archived}
-        >
+        <button className="btn btn-danger" onClick={handleArchive} disabled={flag.archived}>
           {flag.archived ? 'Archived' : 'Archive Flag'}
         </button>
       </div>

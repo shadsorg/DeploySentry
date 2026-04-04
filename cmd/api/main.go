@@ -122,7 +122,7 @@ func run() error {
 	}
 	defer func() {
 		if gelfClient != nil {
-			gelfClient.Close()
+			_ = gelfClient.Close()
 		}
 	}()
 

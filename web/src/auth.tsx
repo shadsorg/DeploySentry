@@ -1,9 +1,9 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import { authApi, type AuthUser } from './api';
 import { type AuthContextValue } from './authTypes';
-
-const AuthContext = createContext<AuthContextValue | null>(null);
+import { AuthContext } from './authContext';
+import { useAuth } from './authHooks';
 
 /**
  * AuthProvider provides authentication context to the application.
@@ -52,12 +52,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
-}
-
 export function RequireAuth() {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -86,3 +80,4 @@ export function RedirectIfAuth() {
 
   return <Outlet />;
 }
+export { useAuth };

@@ -1,4 +1,4 @@
-import { authApi, type AuthUser } from './api';
+import { type AuthUser } from './api';
 
 export interface AuthContextValue {
   user: AuthUser | null;

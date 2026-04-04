@@ -201,26 +201,26 @@ export const healthApi = {
 // Analytics
 export const analyticsApi = {
   getSummary: (projectId: string, environmentId: string, timeRange: string) =>
-    request<any>(`/analytics/summary?project_id=${projectId}&environment_id=${environmentId}&time_range=${timeRange}`),
+    request<Record<string, unknown>>(`/analytics/summary?project_id=${projectId}&environment_id=${environmentId}&time_range=${timeRange}`),
   getFlagStats: (projectId: string, environmentId: string, timeRange: string, limit?: number) => {
     const qs = new URLSearchParams({ project_id: projectId, environment_id: environmentId, time_range: timeRange });
     if (limit) qs.set('limit', String(limit));
-    return request<any>(`/analytics/flags/stats?${qs}`);
+    return request<Record<string, unknown>>(`/analytics/flags/stats?${qs}`);
   },
   getFlagUsage: (projectId: string, environmentId: string, flagKey: string, timeRange: string) =>
-    request<any>(`/analytics/flags/${flagKey}/usage?project_id=${projectId}&environment_id=${environmentId}&time_range=${timeRange}`),
+    request<Record<string, unknown>>(`/analytics/flags/${flagKey}/usage?project_id=${projectId}&environment_id=${environmentId}&time_range=${timeRange}`),
   getDeploymentStats: (projectId: string, timeRange: string, environmentId?: string) => {
     const qs = new URLSearchParams({ project_id: projectId, time_range: timeRange });
     if (environmentId) qs.set('environment_id', environmentId);
-    return request<any>(`/analytics/deployments/stats?${qs}`);
+    return request<Record<string, unknown>>(`/analytics/deployments/stats?${qs}`);
   },
-  getSystemHealth: () => request<any>('/analytics/health'),
+  getSystemHealth: () => request<Record<string, unknown>>('/analytics/health'),
   streamMetrics: () => new EventSource('/api/v1/analytics/metrics/stream'),
   refreshAggregations: () =>
     request<{ message: string; timestamp: string }>('/analytics/admin/refresh', { method: 'POST' }),
   exportAnalytics: (projectId: string, startDate: string, endDate: string, format: string = 'json') => {
     const qs = new URLSearchParams({ project_id: projectId, start_date: startDate, end_date: endDate, format });
-    return request<any>(`/analytics/admin/export?${qs}`);
+    return request<Record<string, unknown>>(`/analytics/admin/export?${qs}`);
   },
 };
 
@@ -228,7 +228,7 @@ export const analyticsApi = {
 export const flagEnvStateApi = {
   list: (flagId: string) =>
     request<{ environment_states: FlagEnvironmentState[] }>(`/flags/${flagId}/environments`),
-  set: (flagId: string, envId: string, data: { enabled: boolean; value?: any }) =>
+  set: (flagId: string, envId: string, data: { enabled: boolean; value?: unknown }) =>
     request<FlagEnvironmentState>(`/flags/${flagId}/environments/${envId}`, {
       method: 'PUT',
       body: JSON.stringify(data),

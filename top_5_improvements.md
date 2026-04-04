@@ -14,7 +14,9 @@ Based on my analysis of the DeploySentry feature flag architecture and code, her
 **Why:** The `BatchEvaluate` function in `service.go` iterates over an array of flag keys sequentially. If an organization requests an evaluation of 50 flags, this serial processing adds latency, especially if there are cache misses that result in serial database queries. Additionally, a failure on a single flag returns a default stub (`Enabled: false`, `Reason: "error"`) without providing robust telemetry or an explicit error type.
 **Improvement:** Use a concurrent approach (e.g., goroutines with `errgroup`) to fetch and evaluate multiple flags in parallel. Improve the partial failure semantics so that SDKs are informed exactly which evaluations failed and why, without masking it as a valid disabled state.
 
-
+## 4. Optimize Database Queries and Caching Strategy
+**Why:** While the `Evaluator` checks a local cache first, the fallback on cache miss triggers sequential synchronous database queries (e.g. `repo.GetFlagByKey` followed by `repo.ListRules`). If the evaluation cache is wiped or a surge of new requests occurs, this cache stampede can overload the PostgreSQL database, leading to degraded performance.
+**Improvement:** Introduce a Redis-backed distributed cache tier between the SDK's local cache and the PostgreSQL database, and use a single-flight or read-through mechanism to prevent concurrent identical cache misses from hammering the primary database.
 
 ## 5. Overhaul Real-time SSE Broadcast Triggers
 **Why:** The `toggleFlag` API handler broadcasts an SSE update when a flag is enabled/disabled (`h.sse.Broadcast`). However, other critical mutations like `updateFlag`, `addRule`, `updateRule`, and `deleteRule` do not broadcast to SSE clients in the API handler. If targeting rules change, connected SDKs will not be notified to invalidate their caches in real-time, resulting in stale targeting behavior until the cache TTL expires or the SDK reconnects.

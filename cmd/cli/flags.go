@@ -444,7 +444,7 @@ func runFlagsGet(cmd *cobra.Command, args []string) error {
 			}
 			attr, _ := rule["attribute"].(string)
 			op, _ := rule["operator"].(string)
-			val, _ := rule["value"]
+			val := rule["value"]
 			pct, _ := rule["percentage"].(float64)
 			fmt.Fprintf(cmd.OutOrStdout(), "    %d. %s %s -> %v (%.0f%%)\n", i+1, attr, op, val, pct)
 		}
@@ -613,7 +613,7 @@ func runFlagsEvaluate(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	value, _ := resp["value"]
+	value := resp["value"]
 	reason, _ := resp["reason"].(string)
 	ruleIndex, hasRule := resp["rule_index"].(float64)
 

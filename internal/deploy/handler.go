@@ -110,9 +110,7 @@ func (h *Handler) createDeployment(c *gin.Context) {
 		}
 
 		go func() {
-			if err := h.analyticsSvc.RecordDeploymentEvent(c.Request.Context(), event); err != nil {
-				// Log error but don't fail the request
-			}
+			_ = h.analyticsSvc.RecordDeploymentEvent(c.Request.Context(), event)
 		}()
 	}
 
@@ -134,9 +132,7 @@ func (h *Handler) createDeployment(c *gin.Context) {
 			orgID, _ = orgIDVal.(uuid.UUID)
 		}
 
-		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentCreated, orgID, &d.ApplicationID, webhookData, &createdBy); err != nil {
-			// Log error but don't fail the request
-		}
+		_ = h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentCreated, orgID, &d.ApplicationID, webhookData, &createdBy)
 	}
 
 	c.JSON(http.StatusCreated, d)
@@ -236,9 +232,7 @@ func (h *Handler) rollbackDeployment(c *gin.Context) {
 		}
 
 		go func() {
-			if err := h.analyticsSvc.RecordDeploymentEvent(c.Request.Context(), event); err != nil {
-				// Log error but don't fail the request
-			}
+			_ = h.analyticsSvc.RecordDeploymentEvent(c.Request.Context(), event)
 		}()
 	}
 
@@ -307,9 +301,7 @@ func (h *Handler) pauseDeployment(c *gin.Context) {
 		}
 
 		go func() {
-			if err := h.analyticsSvc.RecordDeploymentEvent(c.Request.Context(), event); err != nil {
-				// Log error but don't fail the request
-			}
+			_ = h.analyticsSvc.RecordDeploymentEvent(c.Request.Context(), event)
 		}()
 	}
 
@@ -378,9 +370,7 @@ func (h *Handler) resumeDeployment(c *gin.Context) {
 		}
 
 		go func() {
-			if err := h.analyticsSvc.RecordDeploymentEvent(c.Request.Context(), event); err != nil {
-				// Log error but don't fail the request
-			}
+			_ = h.analyticsSvc.RecordDeploymentEvent(c.Request.Context(), event)
 		}()
 	}
 

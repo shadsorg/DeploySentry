@@ -337,10 +337,7 @@ const SDKsPage: React.FC = () => {
         {SDKS.map((sdk) => (
           <div key={sdk.name} className="sdk-card">
             <div className="sdk-card-header">
-              <div
-                className="sdk-card-icon"
-                style={{ background: sdk.iconColor, color: '#fff' }}
-              >
+              <div className="sdk-card-icon" style={{ background: sdk.iconColor, color: '#fff' }}>
                 {sdk.iconLetter}
               </div>
               <div>
@@ -350,7 +347,11 @@ const SDKsPage: React.FC = () => {
             </div>
             <div className="sdk-card-desc">{sdk.description}</div>
             <div className="sdk-install-cmd">
-              <code>{sdk.installCmd.includes('\n') ? sdk.installCmd.split('\n')[0] + ' ...' : sdk.installCmd}</code>
+              <code>
+                {sdk.installCmd.includes('\n')
+                  ? sdk.installCmd.split('\n')[0] + ' ...'
+                  : sdk.installCmd}
+              </code>
               <button
                 className="btn-icon"
                 title="Copy install command"
@@ -439,22 +440,28 @@ const SDKsPage: React.FC = () => {
         <p className="text-secondary text-sm mb-2">
           To authenticate your SDK, you need an API key with the appropriate scopes:
         </p>
-        <ol style={{ paddingLeft: 20, color: 'var(--color-text-secondary)', fontSize: 14, lineHeight: 1.8 }}>
+        <ol
+          style={{
+            paddingLeft: 20,
+            color: 'var(--color-text-secondary)',
+            fontSize: 14,
+            lineHeight: 1.8,
+          }}
+        >
           <li>
-            Navigate to <a href="/settings">Settings</a> and select the <strong>API Keys</strong> tab.
+            Navigate to <a href="/settings">Settings</a> and select the <strong>API Keys</strong>{' '}
+            tab.
           </li>
           <li>
-            Click <strong>Create API Key</strong> and give it a descriptive name (e.g., &quot;Production
-            Backend&quot;).
+            Click <strong>Create API Key</strong> and give it a descriptive name (e.g.,
+            &quot;Production Backend&quot;).
           </li>
           <li>
             Select the <code className="font-mono">flags:read</code> scope for flag evaluation. Add{' '}
             <code className="font-mono">deploys:read</code> if your service also needs deployment
             information.
           </li>
-          <li>
-            Copy the generated key immediately &mdash; it will only be shown once.
-          </li>
+          <li>Copy the generated key immediately &mdash; it will only be shown once.</li>
         </ol>
       </div>
     </div>

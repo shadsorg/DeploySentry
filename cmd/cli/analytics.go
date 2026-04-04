@@ -583,7 +583,7 @@ func watchHealth(client *apiClient, detailed bool, interval int, cmd *cobra.Comm
 
 		fmt.Fprintf(cmd.OutOrStdout(), "\nRefreshing every %d seconds... (Press Ctrl+C to stop)\n", interval)
 
-		select {
+
 		case <-ticker.C:
 			// Continue to next iteration
 		}

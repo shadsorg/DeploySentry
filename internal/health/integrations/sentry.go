@@ -84,7 +84,7 @@ func (s *SentryCheck) Check(ctx context.Context, deploymentID uuid.UUID) (*healt
 	}
 
 	// Compute score based on threshold.
-	score := 1.0
+
 	if s.config.ErrorThreshold > 0 {
 		score = 1.0 - (float64(errorCount) / float64(s.config.ErrorThreshold))
 		if score < 0 {
@@ -208,7 +208,7 @@ func (r *SentryWebhookReceiver) HandleWebhook(ctx context.Context, req *http.Req
 
 	// Compute a health score based on the event type.
 	// New issues and regressions have a bigger impact on health.
-	score := 1.0
+
 	switch {
 	case event.Data.Issue.IsRegression:
 		score = 0.2

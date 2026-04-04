@@ -41,11 +41,13 @@ class RealtimeManager {
   /**
    * Initialize real-time updates
    */
-  async initialize(options: {
-    baseUrl?: string;
-    apiKey?: string;
-    refreshInterval?: number;
-  } = {}): Promise<void> {
+  async initialize(
+    options: {
+      baseUrl?: string;
+      apiKey?: string;
+      refreshInterval?: number;
+    } = {},
+  ): Promise<void> {
     this.baseUrl = options.baseUrl || '';
 
     // Set up periodic refresh if specified
@@ -69,7 +71,7 @@ class RealtimeManager {
       const url = `${this.baseUrl}/api/v1/events/stream`;
 
       this.eventSource = new EventSource(url, {
-        withCredentials: true
+        withCredentials: true,
       });
 
       this.eventSource.onopen = () => {
@@ -87,7 +89,6 @@ class RealtimeManager {
         console.error('[RealtimeManager] SSE error:', error);
         this.handleSSEError();
       };
-
     } catch (error) {
       console.error('[RealtimeManager] Failed to connect SSE:', error);
       this.handleSSEError();
@@ -121,7 +122,9 @@ class RealtimeManager {
     // Attempt to reconnect with exponential backoff
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-      console.log(`[RealtimeManager] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1})`);
+      console.log(
+        `[RealtimeManager] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1})`,
+      );
 
       this.reconnectTimeout = setTimeout(() => {
         this.reconnectAttempts++;
@@ -138,7 +141,7 @@ class RealtimeManager {
   private dispatchEvent(event: RealtimeEvent): void {
     const callbacks = this.eventCallbacks.get(event.type);
     if (callbacks) {
-      callbacks.forEach(callback => {
+      callbacks.forEach((callback) => {
         try {
           callback(event);
         } catch (error) {
@@ -150,7 +153,7 @@ class RealtimeManager {
     // Also dispatch to 'all' listeners
     const allCallbacks = this.eventCallbacks.get('*' as RealtimeEventType);
     if (allCallbacks) {
-      allCallbacks.forEach(callback => {
+      allCallbacks.forEach((callback) => {
         try {
           callback(event);
         } catch (error) {
@@ -183,7 +186,7 @@ class RealtimeManager {
   subscribe(eventTypes: RealtimeEventType[] | '*', callback: EventCallback): () => void {
     const types = eventTypes === '*' ? ['*' as RealtimeEventType] : eventTypes;
 
-    types.forEach(type => {
+    types.forEach((type) => {
       if (!this.eventCallbacks.has(type)) {
         this.eventCallbacks.set(type, new Set());
       }
@@ -192,7 +195,7 @@ class RealtimeManager {
 
     // Return unsubscribe function
     return () => {
-      types.forEach(type => {
+      types.forEach((type) => {
         const callbacks = this.eventCallbacks.get(type);
         if (callbacks) {
           callbacks.delete(callback);
@@ -220,8 +223,10 @@ class RealtimeManager {
       timestamp: new Date().toISOString(),
       data: {
         connected: this.isConnected,
-        message: this.isConnected ? 'Real-time updates connected' : 'Real-time updates disconnected'
-      }
+        message: this.isConnected
+          ? 'Real-time updates connected'
+          : 'Real-time updates disconnected',
+      },
     });
   }
 
@@ -254,7 +259,7 @@ import { useEffect, useState, useCallback } from 'react';
 
 export function useRealtimeUpdates(
   eventTypes: RealtimeEventType[] | '*' = ['refresh'],
-  onEvent?: EventCallback
+  onEvent?: EventCallback,
 ): {
   connected: boolean;
   triggerRefresh: () => void;
@@ -296,15 +301,15 @@ export function useAutoRefresh(
     interval?: number;
     events?: RealtimeEventType[];
     enabled?: boolean;
-  } = {}
+  } = {},
 ): {
   refresh: () => Promise<void>;
   connected: boolean;
 } {
   const {
-    interval = 30000,  // 30 seconds default
+    interval = 30000, // 30 seconds default
     events = ['refresh', 'flag_updated', 'deployment_status_changed', 'release_promoted'],
-    enabled = true
+    enabled = true,
   } = options;
 
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -322,12 +327,15 @@ export function useAutoRefresh(
     }
   }, [fetchData, isRefreshing]);
 
-  const handleEvent = useCallback((event: RealtimeEvent) => {
-    if (!enabled) return;
+  const handleEvent = useCallback(
+    (event: RealtimeEvent) => {
+      if (!enabled) return;
 
-    console.log('[useAutoRefresh] Received event:', event.type);
-    refresh();
-  }, [refresh, enabled]);
+      console.log('[useAutoRefresh] Received event:', event.type);
+      refresh();
+    },
+    [refresh, enabled],
+  );
 
   const { connected } = useRealtimeUpdates(events, handleEvent);
 
@@ -344,7 +352,7 @@ export function useAutoRefresh(
     if (enabled) {
       refresh();
     }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]); // Only run on mount and when enabled changes
 
   return { refresh, connected };

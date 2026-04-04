@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -785,7 +787,7 @@ func runWebhooksEvents(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintln(cmd.OutOrStdout(), "Available Webhook Events:")
 	for cat, eventList := range events {
-		fmt.Fprintf(cmd.OutOrStdout(), "\n%s Events:\n", strings.Title(cat))
+		fmt.Fprintf(cmd.OutOrStdout(), "\n%s Events:\n", cases.Title(language.English).String(cat))
 		for _, event := range eventList {
 			if detailed {
 				fmt.Fprintf(cmd.OutOrStdout(), "  %s - %s\n", event, getEventDescription(event))

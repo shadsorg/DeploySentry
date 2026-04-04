@@ -18,7 +18,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    authApi.me()
+    authApi
+      .me()
       .then(setUser)
       .catch(() => {
         localStorage.removeItem('ds_token');

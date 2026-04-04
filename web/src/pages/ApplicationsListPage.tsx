@@ -20,7 +20,10 @@ export default function ApplicationsListPage() {
       {apps.length === 0 ? (
         <div className="empty-state">
           <p>No applications yet.</p>
-          <Link to={`/orgs/${orgSlug}/projects/${projectSlug}/apps/new`} className="btn btn-primary">
+          <Link
+            to={`/orgs/${orgSlug}/projects/${projectSlug}/apps/new`}
+            className="btn btn-primary"
+          >
             Create Your First App
           </Link>
         </div>
@@ -34,9 +37,7 @@ export default function ApplicationsListPage() {
             >
               <h3 className="project-card-name">{app.name}</h3>
               <span className="project-card-slug">{app.slug}</span>
-              {app.description && (
-                <p className="project-card-desc">{app.description}</p>
-              )}
+              {app.description && <p className="project-card-desc">{app.description}</p>}
             </Link>
           ))}
         </div>

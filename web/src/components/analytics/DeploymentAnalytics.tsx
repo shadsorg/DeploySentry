@@ -15,7 +15,11 @@ interface DeploymentStrategyStats {
   avg_duration_minutes: number;
 }
 
-export default function DeploymentAnalytics({ projectId, environmentId, timeRange }: DeploymentAnalyticsProps) {
+export default function DeploymentAnalytics({
+  projectId,
+  environmentId,
+  timeRange,
+}: DeploymentAnalyticsProps) {
   const [strategyStats, setStrategyStats] = useState<DeploymentStrategyStats[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -70,9 +74,11 @@ export default function DeploymentAnalytics({ projectId, environmentId, timeRang
   const totalDeployments = strategyStats.reduce((sum, stat) => sum + stat.total_deployments, 0);
   const totalSuccessful = strategyStats.reduce((sum, stat) => sum + stat.successful_deployments, 0);
   const overallSuccessRate = totalDeployments > 0 ? (totalSuccessful / totalDeployments) * 100 : 0;
-  const avgDuration = strategyStats.length > 0
-    ? strategyStats.reduce((sum, stat) => sum + stat.avg_duration_minutes, 0) / strategyStats.length
-    : 0;
+  const avgDuration =
+    strategyStats.length > 0
+      ? strategyStats.reduce((sum, stat) => sum + stat.avg_duration_minutes, 0) /
+        strategyStats.length
+      : 0;
 
   return (
     <div className="deployment-analytics">
@@ -145,9 +151,7 @@ export default function DeploymentAnalytics({ projectId, environmentId, timeRang
                     </div>
                   </td>
                   <td>
-                    <div className="duration">
-                      {stat.avg_duration_minutes.toFixed(1)}m
-                    </div>
+                    <div className="duration">{stat.avg_duration_minutes.toFixed(1)}m</div>
                   </td>
                   <td>
                     <div className="health-score">
@@ -176,7 +180,9 @@ export default function DeploymentAnalytics({ projectId, environmentId, timeRang
               <div className="timeline-content">
                 <div className="timeline-title">v2.1.4 Canary Deployment</div>
                 <div className="timeline-meta">Production • 2 hours ago • 12.3m duration</div>
-                <div className="timeline-description">Successfully deployed with 0% traffic increase</div>
+                <div className="timeline-description">
+                  Successfully deployed with 0% traffic increase
+                </div>
               </div>
             </div>
             <div className="timeline-item success">
@@ -184,7 +190,9 @@ export default function DeploymentAnalytics({ projectId, environmentId, timeRang
               <div className="timeline-content">
                 <div className="timeline-title">v2.1.3 Blue-Green Deployment</div>
                 <div className="timeline-meta">Production • 1 day ago • 8.7m duration</div>
-                <div className="timeline-description">Completed successfully with zero downtime</div>
+                <div className="timeline-description">
+                  Completed successfully with zero downtime
+                </div>
               </div>
             </div>
             <div className="timeline-item warning">
@@ -192,7 +200,9 @@ export default function DeploymentAnalytics({ projectId, environmentId, timeRang
               <div className="timeline-content">
                 <div className="timeline-title">v2.1.2 Rolling Deployment</div>
                 <div className="timeline-meta">Production • 3 days ago • 15.2m duration</div>
-                <div className="timeline-description">Completed with warnings - slow health checks</div>
+                <div className="timeline-description">
+                  Completed with warnings - slow health checks
+                </div>
               </div>
             </div>
             <div className="timeline-item error">
@@ -200,7 +210,9 @@ export default function DeploymentAnalytics({ projectId, environmentId, timeRang
               <div className="timeline-content">
                 <div className="timeline-title">v2.1.1 Canary Deployment</div>
                 <div className="timeline-meta">Production • 5 days ago • Failed after 8.1m</div>
-                <div className="timeline-description">Failed health checks, automatically rolled back</div>
+                <div className="timeline-description">
+                  Failed health checks, automatically rolled back
+                </div>
               </div>
             </div>
           </div>

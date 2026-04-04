@@ -70,7 +70,11 @@ export default function SystemHealthWidget({ detailed = false }: SystemHealthWid
     if (metrics.error_rate > 1 || metrics.avg_latency_ms > 500 || metrics.cpu_usage_percent > 80) {
       return 'critical';
     }
-    if (metrics.error_rate > 0.5 || metrics.avg_latency_ms > 200 || metrics.cpu_usage_percent > 60) {
+    if (
+      metrics.error_rate > 0.5 ||
+      metrics.avg_latency_ms > 200 ||
+      metrics.cpu_usage_percent > 60
+    ) {
       return 'warning';
     }
     return 'healthy';
@@ -154,25 +158,29 @@ export default function SystemHealthWidget({ detailed = false }: SystemHealthWid
               <div className="metric-grid">
                 <div className="metric-item">
                   <div className="metric-label">CPU Usage</div>
-                  <div className={`metric-value ${metrics.cpu_usage_percent > 60 ? 'warning' : ''}`}>
+                  <div
+                    className={`metric-value ${metrics.cpu_usage_percent > 60 ? 'warning' : ''}`}
+                  >
                     {metrics.cpu_usage_percent.toFixed(1)}%
                   </div>
                 </div>
                 <div className="metric-item">
                   <div className="metric-label">Memory</div>
-                  <div className="metric-value">
-                    {formatBytes(metrics.memory_usage_bytes)}
-                  </div>
+                  <div className="metric-value">{formatBytes(metrics.memory_usage_bytes)}</div>
                 </div>
                 <div className="metric-item">
                   <div className="metric-label">Memory %</div>
-                  <div className={`metric-value ${metrics.memory_usage_percent > 80 ? 'warning' : ''}`}>
+                  <div
+                    className={`metric-value ${metrics.memory_usage_percent > 80 ? 'warning' : ''}`}
+                  >
                     {metrics.memory_usage_percent.toFixed(1)}%
                   </div>
                 </div>
                 <div className="metric-item">
                   <div className="metric-label">Disk Usage</div>
-                  <div className={`metric-value ${metrics.disk_usage_percent > 85 ? 'warning' : ''}`}>
+                  <div
+                    className={`metric-value ${metrics.disk_usage_percent > 85 ? 'warning' : ''}`}
+                  >
                     {metrics.disk_usage_percent.toFixed(1)}%
                   </div>
                 </div>
@@ -206,16 +214,15 @@ export default function SystemHealthWidget({ detailed = false }: SystemHealthWid
       </div>
 
       <div className="widget-footer">
-        <span className="last-updated">
-          Updated {lastUpdated.toLocaleTimeString()}
-        </span>
+        <span className="last-updated">Updated {lastUpdated.toLocaleTimeString()}</span>
       </div>
 
       {healthStatus !== 'healthy' && (
         <div className={`health-alert ${healthStatus}`}>
           {healthStatus === 'critical' && (
             <>
-              <strong>Critical:</strong> System performance degraded. Check error logs and resource usage.
+              <strong>Critical:</strong> System performance degraded. Check error logs and resource
+              usage.
             </>
           )}
           {healthStatus === 'warning' && (

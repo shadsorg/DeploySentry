@@ -14,7 +14,12 @@ export default function CreateProjectPage() {
 
   function handleNameChange(value: string) {
     setName(value);
-    setSlug(value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+    setSlug(
+      value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, ''),
+    );
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -41,16 +46,32 @@ export default function CreateProjectPage() {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label">Project Name</label>
-            <input type="text" className="form-input" value={name}
-              onChange={(e) => handleNameChange(e.target.value)} placeholder="My Project" required />
+            <input
+              type="text"
+              className="form-input"
+              value={name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              placeholder="My Project"
+              required
+            />
           </div>
           <div className="form-group">
             <label className="form-label">Slug</label>
-            <input type="text" className="form-input" value={slug}
-              onChange={(e) => setSlug(e.target.value)} placeholder="my-project" required />
+            <input
+              type="text"
+              className="form-input"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder="my-project"
+              required
+            />
           </div>
-          <button type="submit" className="btn btn-primary" style={{ width: '100%' }}
-            disabled={submitting}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            style={{ width: '100%' }}
+            disabled={submitting}
+          >
             {submitting ? 'Creating...' : 'Create Project'}
           </button>
         </form>

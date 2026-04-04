@@ -315,7 +315,7 @@ func (s *Service) deliverWebhook(ctx context.Context, webhook *models.Webhook, d
 	if err != nil {
 		return fmt.Errorf("failed to send webhook: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Read response
 	responseBody, _ := io.ReadAll(resp.Body)

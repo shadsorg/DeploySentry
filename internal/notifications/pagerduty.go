@@ -212,7 +212,7 @@ func (p *PagerDutyChannel) sendRequest(ctx context.Context, payload *pdPayload) 
 	if err != nil {
 		return nil, fmt.Errorf("sending pagerduty event: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 

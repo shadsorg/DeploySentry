@@ -103,18 +103,18 @@ func runAPIKeysList(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	apiKeys, _ := resp["api_keys"].([]interface{})
 	if len(apiKeys) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No API keys found.")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No API keys found.")
 		return nil
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tNAME\tPREFIX\tSCOPES\tCREATED\tLAST_USED\tEXPIRES")
+	_, _ = fmt.Fprintln(w, "ID\tNAME\tPREFIX\tSCOPES\tCREATED\tLAST_USED\tEXPIRES")
 	for _, k := range apiKeys {
 		key, ok := k.(map[string]interface{})
 		if !ok {
@@ -149,7 +149,7 @@ func runAPIKeysList(cmd *cobra.Command, args []string) error {
 			expiresAt = "never"
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			id, name, prefix, scopes, createdAt, lastUsed, expiresAt)
 	}
 	return w.Flush()
@@ -178,20 +178,20 @@ func runAPIKeysCreate(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	id, _ := resp["id"].(string)
 	token, _ := resp["token"].(string)
 
-	fmt.Fprintf(cmd.OutOrStdout(), "API key created successfully.\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  ID:     %s\n", id)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Name:   %s\n", name)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Scopes: %s\n", strings.Join(scopes, ", "))
-	fmt.Fprintf(cmd.OutOrStdout(), "\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "Token (shown only once — save it now):\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", token)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "API key created successfully.\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  ID:     %s\n", id)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Name:   %s\n", name)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Scopes: %s\n", strings.Join(scopes, ", "))
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Token (shown only once — save it now):\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", token)
 	return nil
 }
 
@@ -209,6 +209,6 @@ func runAPIKeysRevoke(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to revoke API key: %w", err)
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "API key %s revoked successfully.\n", keyID)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "API key %s revoked successfully.\n", keyID)
 	return nil
 }

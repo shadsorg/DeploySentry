@@ -118,18 +118,18 @@ func runSettingsList(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	settings, _ := resp["settings"].([]interface{})
 	if len(settings) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No settings found.")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No settings found.")
 		return nil
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "KEY\tVALUE\tUPDATED_BY\tUPDATED_AT")
+	_, _ = fmt.Fprintln(w, "KEY\tVALUE\tUPDATED_BY\tUPDATED_AT")
 	for _, s := range settings {
 		setting, ok := s.(map[string]interface{})
 		if !ok {
@@ -147,7 +147,7 @@ func runSettingsList(cmd *cobra.Command, args []string) error {
 			displayValue = displayValue[:37] + "..."
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", key, displayValue, updatedBy, updatedAt)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", key, displayValue, updatedBy, updatedAt)
 	}
 	return w.Flush()
 }
@@ -177,15 +177,15 @@ func runSettingsSet(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Setting updated successfully.\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  Scope:  %s\n", scope)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Target: %s\n", target)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Key:    %s\n", key)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Value:  %s\n", value)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Setting updated successfully.\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Scope:  %s\n", scope)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Target: %s\n", target)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Key:    %s\n", key)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Value:  %s\n", value)
 	return nil
 }
 
@@ -203,7 +203,7 @@ func runSettingsDelete(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to delete setting: %w", err)
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Setting %s deleted successfully.\n", settingID)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Setting %s deleted successfully.\n", settingID)
 	return nil
 }
 

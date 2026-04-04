@@ -230,36 +230,36 @@ func runAnalyticsSummary(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	// Format table output
-	fmt.Fprintf(cmd.OutOrStdout(), "Analytics Summary (%s)\n", timeRange)
-	fmt.Fprintln(cmd.OutOrStdout(), strings.Repeat("=", 50))
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Analytics Summary (%s)\n", timeRange)
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), strings.Repeat("=", 50))
 
 	if summary, ok := resp["summary"].(map[string]interface{}); ok {
 		if flags, ok := summary["flags"].(map[string]interface{}); ok {
-			fmt.Fprintf(cmd.OutOrStdout(), "\n%s Flag Performance:\n", colorBold("📊"))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n%s Flag Performance:\n", colorBold("📊"))
 			if evals, ok := flags["total_evaluations"].(float64); ok {
-				fmt.Fprintf(cmd.OutOrStdout(), "  Total Evaluations: %s\n", colorGreen(formatNumber(int(evals))))
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Total Evaluations: %s\n", colorGreen(formatNumber(int(evals))))
 			}
 			if activeFlags, ok := flags["active_flags"].(float64); ok {
-				fmt.Fprintf(cmd.OutOrStdout(), "  Active Flags: %s\n", colorCyan(formatNumber(int(activeFlags))))
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Active Flags: %s\n", colorCyan(formatNumber(int(activeFlags))))
 			}
 			if cacheHitRate, ok := flags["cache_hit_rate"].(float64); ok {
 				color := colorGreen
 				if cacheHitRate < 90 {
 					color = colorYellow
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "  Cache Hit Rate: %s\n", color(fmt.Sprintf("%.1f%%", cacheHitRate)))
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Cache Hit Rate: %s\n", color(fmt.Sprintf("%.1f%%", cacheHitRate)))
 			}
 		}
 
 		if deploys, ok := summary["deployments"].(map[string]interface{}); ok {
-			fmt.Fprintf(cmd.OutOrStdout(), "\n%s Deployment Performance:\n", colorBold("🚀"))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n%s Deployment Performance:\n", colorBold("🚀"))
 			if totalDeploys, ok := deploys["total_deployments"].(float64); ok {
-				fmt.Fprintf(cmd.OutOrStdout(), "  Total Deployments: %s\n", colorGreen(formatNumber(int(totalDeploys))))
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Total Deployments: %s\n", colorGreen(formatNumber(int(totalDeploys))))
 			}
 			if successRate, ok := deploys["success_rate"].(float64); ok {
 				color := colorGreen
@@ -269,17 +269,17 @@ func runAnalyticsSummary(cmd *cobra.Command, args []string) error {
 				if successRate < 90 {
 					color = colorRed
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "  Success Rate: %s\n", color(fmt.Sprintf("%.1f%%", successRate)))
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Success Rate: %s\n", color(fmt.Sprintf("%.1f%%", successRate)))
 			}
 			if avgDuration, ok := deploys["average_duration_minutes"].(float64); ok {
-				fmt.Fprintf(cmd.OutOrStdout(), "  Average Duration: %s\n", colorCyan(fmt.Sprintf("%.1f min", avgDuration)))
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Average Duration: %s\n", colorCyan(fmt.Sprintf("%.1f min", avgDuration)))
 			}
 		}
 
 		if api, ok := summary["api"].(map[string]interface{}); ok {
-			fmt.Fprintf(cmd.OutOrStdout(), "\n%s API Performance:\n", colorBold("⚡"))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n%s API Performance:\n", colorBold("⚡"))
 			if requests, ok := api["total_requests"].(float64); ok {
-				fmt.Fprintf(cmd.OutOrStdout(), "  Total Requests: %s\n", colorGreen(formatNumber(int(requests))))
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Total Requests: %s\n", colorGreen(formatNumber(int(requests))))
 			}
 			if avgLatency, ok := api["average_latency_ms"].(float64); ok {
 				color := colorGreen
@@ -289,7 +289,7 @@ func runAnalyticsSummary(cmd *cobra.Command, args []string) error {
 				if avgLatency > 500 {
 					color = colorRed
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "  Average Latency: %s\n", color(fmt.Sprintf("%.0f ms", avgLatency)))
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Average Latency: %s\n", color(fmt.Sprintf("%.0f ms", avgLatency)))
 			}
 			if errorRate, ok := api["error_rate"].(float64); ok {
 				color := colorGreen
@@ -299,7 +299,7 @@ func runAnalyticsSummary(cmd *cobra.Command, args []string) error {
 				if errorRate > 1.0 {
 					color = colorRed
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "  Error Rate: %s\n", color(fmt.Sprintf("%.2f%%", errorRate)))
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Error Rate: %s\n", color(fmt.Sprintf("%.2f%%", errorRate)))
 			}
 		}
 	}
@@ -339,19 +339,19 @@ func runAnalyticsFlagsStats(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	flags, ok := resp["flags"].([]interface{})
 	if !ok || len(flags) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No flag statistics found.")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No flag statistics found.")
 		return nil
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "FLAG KEY\tEVALUATIONS\tCACHE HIT %\tAVG LATENCY\tERROR RATE")
-	fmt.Fprintln(w, strings.Repeat("-", 70))
+	_, _ = fmt.Fprintln(w, "FLAG KEY\tEVALUATIONS\tCACHE HIT %\tAVG LATENCY\tERROR RATE")
+	_, _ = fmt.Fprintln(w, strings.Repeat("-", 70))
 
 	for _, f := range flags {
 		flag, ok := f.(map[string]interface{})
@@ -365,7 +365,7 @@ func runAnalyticsFlagsStats(cmd *cobra.Command, args []string) error {
 		latency, _ := flag["average_latency_ms"].(float64)
 		errorRate, _ := flag["error_rate"].(float64)
 
-		fmt.Fprintf(w, "%s\t%s\t%.1f%%\t%.0f ms\t%.2f%%\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%.1f%%\t%.0f ms\t%.2f%%\n",
 			key, formatNumber(int(evals)), cacheHit, latency, errorRate)
 	}
 
@@ -404,42 +404,42 @@ func runAnalyticsFlagsUsage(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Flag Usage: %s (%s)\n", flagKey, timeRange)
-	fmt.Fprintln(cmd.OutOrStdout(), strings.Repeat("=", 50))
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag Usage: %s (%s)\n", flagKey, timeRange)
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), strings.Repeat("=", 50))
 
 	if usage, ok := resp["usage"].(map[string]interface{}); ok {
 		if totalEvals, ok := usage["total_evaluations"].(float64); ok {
-			fmt.Fprintf(cmd.OutOrStdout(), "\nTotal Evaluations: %s\n", colorGreen(formatNumber(int(totalEvals))))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nTotal Evaluations: %s\n", colorGreen(formatNumber(int(totalEvals))))
 		}
 
 		if results, ok := usage["result_distribution"].(map[string]interface{}); ok {
-			fmt.Fprintf(cmd.OutOrStdout(), "\nResult Distribution:\n")
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nResult Distribution:\n")
 			for result, count := range results {
 				if c, ok := count.(float64); ok {
-					fmt.Fprintf(cmd.OutOrStdout(), "  %s: %s\n", result, colorCyan(formatNumber(int(c))))
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %s: %s\n", result, colorCyan(formatNumber(int(c))))
 				}
 			}
 		}
 
 		if performance, ok := usage["performance"].(map[string]interface{}); ok {
-			fmt.Fprintf(cmd.OutOrStdout(), "\nPerformance:\n")
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nPerformance:\n")
 			if avgLatency, ok := performance["average_latency_ms"].(float64); ok {
 				color := colorGreen
 				if avgLatency > 10 {
 					color = colorYellow
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "  Average Latency: %s\n", color(fmt.Sprintf("%.1f ms", avgLatency)))
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Average Latency: %s\n", color(fmt.Sprintf("%.1f ms", avgLatency)))
 			}
 			if cacheHitRate, ok := performance["cache_hit_rate"].(float64); ok {
 				color := colorGreen
 				if cacheHitRate < 90 {
 					color = colorYellow
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "  Cache Hit Rate: %s\n", color(fmt.Sprintf("%.1f%%", cacheHitRate)))
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Cache Hit Rate: %s\n", color(fmt.Sprintf("%.1f%%", cacheHitRate)))
 			}
 		}
 	}
@@ -479,16 +479,16 @@ func runAnalyticsDeploymentsStats(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Deployment Statistics (%s)\n", timeRange)
-	fmt.Fprintln(cmd.OutOrStdout(), strings.Repeat("=", 50))
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Deployment Statistics (%s)\n", timeRange)
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), strings.Repeat("=", 50))
 
 	if summary, ok := resp["summary"].(map[string]interface{}); ok {
 		if totalDeploys, ok := summary["total_deployments"].(float64); ok {
-			fmt.Fprintf(cmd.OutOrStdout(), "\nTotal Deployments: %s\n", colorGreen(formatNumber(int(totalDeploys))))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nTotal Deployments: %s\n", colorGreen(formatNumber(int(totalDeploys))))
 		}
 		if successRate, ok := summary["success_rate"].(float64); ok {
 			color := colorGreen
@@ -498,17 +498,17 @@ func runAnalyticsDeploymentsStats(cmd *cobra.Command, args []string) error {
 			if successRate < 90 {
 				color = colorRed
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Success Rate: %s\n", color(fmt.Sprintf("%.1f%%", successRate)))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Success Rate: %s\n", color(fmt.Sprintf("%.1f%%", successRate)))
 		}
 		if avgDuration, ok := summary["average_duration_minutes"].(float64); ok {
-			fmt.Fprintf(cmd.OutOrStdout(), "Average Duration: %s\n", colorCyan(fmt.Sprintf("%.1f minutes", avgDuration)))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Average Duration: %s\n", colorCyan(fmt.Sprintf("%.1f minutes", avgDuration)))
 		}
 	}
 
 	if strategies, ok := resp["by_strategy"].([]interface{}); ok && len(strategies) > 0 {
-		fmt.Fprintf(cmd.OutOrStdout(), "\nBy Strategy:\n")
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nBy Strategy:\n")
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "STRATEGY\tDEPLOYMENTS\tSUCCESS RATE\tAVG DURATION")
+		_, _ = fmt.Fprintln(w, "STRATEGY\tDEPLOYMENTS\tSUCCESS RATE\tAVG DURATION")
 
 		for _, s := range strategies {
 			strategy, ok := s.(map[string]interface{})
@@ -521,10 +521,10 @@ func runAnalyticsDeploymentsStats(cmd *cobra.Command, args []string) error {
 			successRate, _ := strategy["success_rate"].(float64)
 			duration, _ := strategy["average_duration_minutes"].(float64)
 
-			fmt.Fprintf(w, "%s\t%s\t%.1f%%\t%.1f min\n",
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%.1f%%\t%.1f min\n",
 				name, formatNumber(int(count)), successRate, duration)
 		}
-		w.Flush()
+		_ = w.Flush()
 	}
 
 	return nil
@@ -555,12 +555,12 @@ func showHealthOnce(client *apiClient, detailed bool, cmd *cobra.Command) error 
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "System Health (%s)\n", time.Now().Format("15:04:05"))
-	fmt.Fprintln(cmd.OutOrStdout(), strings.Repeat("=", 50))
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "System Health (%s)\n", time.Now().Format("15:04:05"))
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), strings.Repeat("=", 50))
 
 	if health, ok := resp["health"].(map[string]interface{}); ok {
 		printHealthMetrics(cmd, health, detailed)
@@ -575,13 +575,13 @@ func watchHealth(client *apiClient, detailed bool, interval int, cmd *cobra.Comm
 
 	for {
 		// Clear screen
-		fmt.Fprint(cmd.OutOrStdout(), "\033[2J\033[H")
+		_, _ = fmt.Fprint(cmd.OutOrStdout(), "\033[2J\033[H")
 
 		if err := showHealthOnce(client, detailed, cmd); err != nil {
 			return err
 		}
 
-		fmt.Fprintf(cmd.OutOrStdout(), "\nRefreshing every %d seconds... (Press Ctrl+C to stop)\n", interval)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nRefreshing every %d seconds... (Press Ctrl+C to stop)\n", interval)
 
 		<-ticker.C
 	}
@@ -589,9 +589,9 @@ func watchHealth(client *apiClient, detailed bool, interval int, cmd *cobra.Comm
 
 func printHealthMetrics(cmd *cobra.Command, health map[string]interface{}, detailed bool) {
 	if api, ok := health["api"].(map[string]interface{}); ok {
-		fmt.Fprintf(cmd.OutOrStdout(), "\n%s API Performance:\n", colorBold("⚡"))
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n%s API Performance:\n", colorBold("⚡"))
 		if rps, ok := api["requests_per_second"].(float64); ok {
-			fmt.Fprintf(cmd.OutOrStdout(), "  Requests/sec: %s\n", colorGreen(fmt.Sprintf("%.1f", rps)))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Requests/sec: %s\n", colorGreen(fmt.Sprintf("%.1f", rps)))
 		}
 		if latency, ok := api["avg_latency_ms"].(float64); ok {
 			color := colorGreen
@@ -601,7 +601,7 @@ func printHealthMetrics(cmd *cobra.Command, health map[string]interface{}, detai
 			if latency > 500 {
 				color = colorRed
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "  Avg Latency: %s\n", color(fmt.Sprintf("%.1f ms", latency)))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Avg Latency: %s\n", color(fmt.Sprintf("%.1f ms", latency)))
 		}
 		if errorRate, ok := api["error_rate"].(float64); ok {
 			color := colorGreen
@@ -611,27 +611,27 @@ func printHealthMetrics(cmd *cobra.Command, health map[string]interface{}, detai
 			if errorRate > 1.0 {
 				color = colorRed
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "  Error Rate: %s\n", color(fmt.Sprintf("%.2f%%", errorRate)))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Error Rate: %s\n", color(fmt.Sprintf("%.2f%%", errorRate)))
 		}
 	}
 
 	if detailed {
 		if db, ok := health["database"].(map[string]interface{}); ok {
-			fmt.Fprintf(cmd.OutOrStdout(), "\n%s Database:\n", colorBold("💾"))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n%s Database:\n", colorBold("💾"))
 			if conns, ok := db["connections"].(float64); ok {
-				fmt.Fprintf(cmd.OutOrStdout(), "  Connections: %s\n", colorCyan(fmt.Sprintf("%.0f", conns)))
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Connections: %s\n", colorCyan(fmt.Sprintf("%.0f", conns)))
 			}
 			if queryLatency, ok := db["query_latency_ms"].(float64); ok {
 				color := colorGreen
 				if queryLatency > 20 {
 					color = colorYellow
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "  Query Latency: %s\n", color(fmt.Sprintf("%.1f ms", queryLatency)))
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Query Latency: %s\n", color(fmt.Sprintf("%.1f ms", queryLatency)))
 			}
 		}
 
 		if resources, ok := health["resources"].(map[string]interface{}); ok {
-			fmt.Fprintf(cmd.OutOrStdout(), "\n%s Resources:\n", colorBold("🖥️"))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n%s Resources:\n", colorBold("🖥️"))
 			if cpu, ok := resources["cpu_usage_percent"].(float64); ok {
 				color := colorGreen
 				if cpu > 60 {
@@ -640,7 +640,7 @@ func printHealthMetrics(cmd *cobra.Command, health map[string]interface{}, detai
 				if cpu > 80 {
 					color = colorRed
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "  CPU Usage: %s\n", color(fmt.Sprintf("%.1f%%", cpu)))
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  CPU Usage: %s\n", color(fmt.Sprintf("%.1f%%", cpu)))
 			}
 			if memory, ok := resources["memory_usage_percent"].(float64); ok {
 				color := colorGreen
@@ -650,7 +650,7 @@ func printHealthMetrics(cmd *cobra.Command, health map[string]interface{}, detai
 				if memory > 85 {
 					color = colorRed
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "  Memory Usage: %s\n", color(fmt.Sprintf("%.1f%%", memory)))
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Memory Usage: %s\n", color(fmt.Sprintf("%.1f%%", memory)))
 			}
 		}
 	}
@@ -704,12 +704,12 @@ func runAnalyticsExport(cmd *cobra.Command, args []string) error {
 	if format == "csv" {
 		// Handle CSV response
 		if csvData, ok := resp["data"].(string); ok {
-			fmt.Fprint(cmd.OutOrStdout(), csvData)
+			_, _ = fmt.Fprint(cmd.OutOrStdout(), csvData)
 		}
 	} else {
 		// Handle JSON response
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 	}
 
 	return nil

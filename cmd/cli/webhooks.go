@@ -300,16 +300,16 @@ func runWebhooksCreate(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	webhook, _ := resp["webhook"].(map[string]interface{})
-	fmt.Fprintf(cmd.OutOrStdout(), "Webhook created successfully.\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  ID:     %s\n", webhook["id"])
-	fmt.Fprintf(cmd.OutOrStdout(), "  Name:   %s\n", webhook["name"])
-	fmt.Fprintf(cmd.OutOrStdout(), "  URL:    %s\n", webhook["url"])
-	fmt.Fprintf(cmd.OutOrStdout(), "  Events: %s\n", strings.Join(events, ", "))
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Webhook created successfully.\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  ID:     %s\n", webhook["id"])
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Name:   %s\n", webhook["name"])
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  URL:    %s\n", webhook["url"])
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Events: %s\n", strings.Join(events, ", "))
 	return nil
 }
 
@@ -355,18 +355,18 @@ func runWebhooksList(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	webhooks, _ := resp["webhooks"].([]interface{})
 	if len(webhooks) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No webhooks found.")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No webhooks found.")
 		return nil
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tNAME\tURL\tSTATUS\tEVENTS\tCREATED")
+	_, _ = fmt.Fprintln(w, "ID\tNAME\tURL\tSTATUS\tEVENTS\tCREATED")
 	for _, wh := range webhooks {
 		webhook, ok := wh.(map[string]interface{})
 		if !ok {
@@ -404,7 +404,7 @@ func runWebhooksList(cmd *cobra.Command, args []string) error {
 			displayURL = displayURL[:37] + "..."
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
 			id[:8], name, displayURL, status, events, createdAt)
 	}
 	return w.Flush()
@@ -431,44 +431,44 @@ func runWebhooksGet(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	webhook, _ := resp["webhook"].(map[string]interface{})
-	fmt.Fprintf(cmd.OutOrStdout(), "Webhook Details:\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  ID:              %s\n", webhook["id"])
-	fmt.Fprintf(cmd.OutOrStdout(), "  Name:            %s\n", webhook["name"])
-	fmt.Fprintf(cmd.OutOrStdout(), "  URL:             %s\n", webhook["url"])
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Webhook Details:\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  ID:              %s\n", webhook["id"])
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Name:            %s\n", webhook["name"])
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  URL:             %s\n", webhook["url"])
 
 	isActive, _ := webhook["is_active"].(bool)
 	status := "inactive"
 	if isActive {
 		status = "active"
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "  Status:          %s\n", status)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:          %s\n", status)
 
 	if retryAttempts, ok := webhook["retry_attempts"].(float64); ok {
-		fmt.Fprintf(cmd.OutOrStdout(), "  Retry Attempts:  %.0f\n", retryAttempts)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Retry Attempts:  %.0f\n", retryAttempts)
 	}
 	if timeout, ok := webhook["timeout_seconds"].(float64); ok {
-		fmt.Fprintf(cmd.OutOrStdout(), "  Timeout:         %.0fs\n", timeout)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Timeout:         %.0fs\n", timeout)
 	}
 
 	if eventList, ok := webhook["events"].([]interface{}); ok {
-		fmt.Fprintf(cmd.OutOrStdout(), "  Events:\n")
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Events:\n")
 		for _, e := range eventList {
 			if s, ok := e.(string); ok {
-				fmt.Fprintf(cmd.OutOrStdout(), "    - %s\n", s)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "    - %s\n", s)
 			}
 		}
 	}
 
 	if createdAt, ok := webhook["created_at"].(string); ok {
-		fmt.Fprintf(cmd.OutOrStdout(), "  Created:         %s\n", createdAt)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Created:         %s\n", createdAt)
 	}
 	if updatedAt, ok := webhook["updated_at"].(string); ok {
-		fmt.Fprintf(cmd.OutOrStdout(), "  Updated:         %s\n", updatedAt)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Updated:         %s\n", updatedAt)
 	}
 
 	return nil
@@ -531,11 +531,11 @@ func runWebhooksUpdate(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Webhook updated successfully.\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Webhook updated successfully.\n")
 	return nil
 }
 
@@ -554,12 +554,12 @@ func runWebhooksDelete(cmd *cobra.Command, args []string) error {
 
 	confirm, _ := cmd.Flags().GetBool("confirm")
 	if !confirm {
-		fmt.Fprintf(cmd.OutOrStdout(), "Are you sure you want to delete webhook %s? This cannot be undone.\n", webhookID)
-		fmt.Fprint(cmd.OutOrStdout(), "Type 'yes' to confirm: ")
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Are you sure you want to delete webhook %s? This cannot be undone.\n", webhookID)
+		_, _ = fmt.Fprint(cmd.OutOrStdout(), "Type 'yes' to confirm: ")
 		var response string
 		_, _ = fmt.Scanln(&response)
 		if response != "yes" {
-			fmt.Fprintln(cmd.OutOrStdout(), "Deletion cancelled.")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Deletion cancelled.")
 			return nil
 		}
 	}
@@ -570,7 +570,7 @@ func runWebhooksDelete(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to delete webhook: %w", err)
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Webhook deleted successfully.\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Webhook deleted successfully.\n")
 	return nil
 }
 
@@ -607,27 +607,27 @@ func runWebhooksTest(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	success, _ := resp["success"].(bool)
 	if success {
-		fmt.Fprintf(cmd.OutOrStdout(), "%s Test webhook sent successfully.\n", colorGreen("✓"))
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s Test webhook sent successfully.\n", colorGreen("✓"))
 	} else {
-		fmt.Fprintf(cmd.OutOrStdout(), "%s Test webhook failed.\n", colorRed("✗"))
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s Test webhook failed.\n", colorRed("✗"))
 		if errorMsg, ok := resp["error"].(string); ok {
-			fmt.Fprintf(cmd.OutOrStdout(), "Error: %s\n", errorMsg)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Error: %s\n", errorMsg)
 		}
 	}
 
 	if delivery, ok := resp["delivery"].(map[string]interface{}); ok {
 		if httpStatus, ok := delivery["http_status"].(float64); ok {
-			fmt.Fprintf(cmd.OutOrStdout(), "HTTP Status: %.0f\n", httpStatus)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "HTTP Status: %.0f\n", httpStatus)
 		}
 		if isVerbose() {
 			if responseBody, ok := delivery["response_body"].(string); ok && responseBody != "" {
-				fmt.Fprintf(cmd.OutOrStdout(), "Response: %s\n", responseBody)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Response: %s\n", responseBody)
 			}
 		}
 	}
@@ -671,13 +671,13 @@ func runWebhooksDeliveries(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	deliveries, _ := resp["deliveries"].([]interface{})
 	if len(deliveries) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No deliveries found.")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No deliveries found.")
 		return nil
 	}
 
@@ -691,29 +691,29 @@ func runWebhooksDeliveries(cmd *cobra.Command, args []string) error {
 			}
 
 			if i > 0 {
-				fmt.Fprintln(cmd.OutOrStdout())
+				_, _ = fmt.Fprintln(cmd.OutOrStdout())
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Delivery %s:\n", delivery["id"])
-			fmt.Fprintf(cmd.OutOrStdout(), "  Event Type: %s\n", delivery["event_type"])
-			fmt.Fprintf(cmd.OutOrStdout(), "  Status:     %s\n", delivery["status"])
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Delivery %s:\n", delivery["id"])
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Event Type: %s\n", delivery["event_type"])
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:     %s\n", delivery["status"])
 			if httpStatus, ok := delivery["http_status"].(float64); ok {
-				fmt.Fprintf(cmd.OutOrStdout(), "  HTTP Status: %.0f\n", httpStatus)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  HTTP Status: %.0f\n", httpStatus)
 			}
 			if attemptCount, ok := delivery["attempt_count"].(float64); ok {
-				fmt.Fprintf(cmd.OutOrStdout(), "  Attempts:   %.0f\n", attemptCount)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Attempts:   %.0f\n", attemptCount)
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "  Created:    %s\n", delivery["created_at"])
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Created:    %s\n", delivery["created_at"])
 			if sentAt, ok := delivery["sent_at"].(string); ok && sentAt != "" {
-				fmt.Fprintf(cmd.OutOrStdout(), "  Sent:       %s\n", sentAt)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Sent:       %s\n", sentAt)
 			}
 			if errorMsg, ok := delivery["error_message"].(string); ok && errorMsg != "" {
-				fmt.Fprintf(cmd.OutOrStdout(), "  Error:      %s\n", errorMsg)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Error:      %s\n", errorMsg)
 			}
 		}
 	} else {
 		w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "ID\tEVENT\tSTATUS\tHTTP\tATTEMPTS\tCREATED")
+		_, _ = fmt.Fprintln(w, "ID\tEVENT\tSTATUS\tHTTP\tATTEMPTS\tCREATED")
 		for _, d := range deliveries {
 			delivery, ok := d.(map[string]interface{})
 			if !ok {
@@ -730,10 +730,10 @@ func runWebhooksDeliveries(cmd *cobra.Command, args []string) error {
 			attemptCount, _ := delivery["attempt_count"].(float64)
 			createdAt, _ := delivery["created_at"].(string)
 
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%.0f\t%s\n",
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%.0f\t%s\n",
 				id[:8], eventType, status, httpStatus, attemptCount, createdAt)
 		}
-		w.Flush()
+		_ = w.Flush()
 	}
 
 	return nil
@@ -775,7 +775,7 @@ func runWebhooksEvents(cmd *cobra.Command, args []string) error {
 	if category != "" {
 		if eventList, ok := events[category]; ok {
 			for _, event := range eventList {
-				fmt.Fprintln(cmd.OutOrStdout(), event)
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), event)
 			}
 		} else {
 			return fmt.Errorf("unknown category: %s", category)
@@ -783,18 +783,18 @@ func runWebhooksEvents(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Fprintln(cmd.OutOrStdout(), "Available Webhook Events:")
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Available Webhook Events:")
 	for cat, eventList := range events {
 		title := cat
 		if len(cat) > 0 {
 			title = strings.ToUpper(cat[:1]) + cat[1:]
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "\n%s Events:\n", title)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n%s Events:\n", title)
 		for _, event := range eventList {
 			if detailed {
-				fmt.Fprintf(cmd.OutOrStdout(), "  %s - %s\n", event, getEventDescription(event))
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %s - %s\n", event, getEventDescription(event))
 			} else {
-				fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", event)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", event)
 			}
 		}
 	}

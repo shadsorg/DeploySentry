@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -85,7 +86,7 @@ func TestSecurityHeaders_HSTS(t *testing.T) {
 
 	// Test with TLS (HSTS SHOULD be present)
 	reqTLS, _ := http.NewRequest("GET", "/test", nil)
-	reqTLS.TLS = &struct{}{} // Simulate TLS
+	reqTLS.TLS = &tls.ConnectionState{} // Simulate TLS
 	wTLS := httptest.NewRecorder()
 	r.ServeHTTP(wTLS, reqTLS)
 	if hsts := wTLS.Header().Get("Strict-Transport-Security"); hsts == "" {

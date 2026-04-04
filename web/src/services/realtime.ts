@@ -13,7 +13,7 @@ export type RealtimeEventType =
 export interface RealtimeEvent {
   type: RealtimeEventType;
   timestamp: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
 export type EventCallback = (event: RealtimeEvent) => void;
@@ -344,6 +344,7 @@ export function useAutoRefresh(
     if (enabled) {
       refresh();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]); // Only run on mount and when enabled changes
 
   return { refresh, connected };

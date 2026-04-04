@@ -33,6 +33,14 @@ type mockEntityService struct {
 	getAppBySlugFn      func(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
 	listAppsByProjectFn func(ctx context.Context, projectID uuid.UUID) ([]*models.Application, error)
 	updateAppFn         func(ctx context.Context, app *models.Application) error
+	listEnvironmentsByAppFn func(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error)
+}
+
+func (m *mockEntityService) ListEnvironmentsByApp(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error) {
+	if m.listEnvironmentsByAppFn != nil {
+		return m.listEnvironmentsByAppFn(ctx, appID)
+	}
+	return []*models.Environment{}, nil
 }
 
 func (m *mockEntityService) CreateOrg(ctx context.Context, org *models.Organization, creatorID uuid.UUID) error {

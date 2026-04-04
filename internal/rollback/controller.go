@@ -27,6 +27,8 @@ const (
 )
 
 // validRollbackTransitions defines the allowed state transitions.
+//
+//nolint:unused
 var validRollbackTransitions = map[RollbackState][]RollbackState{
 	RollbackStateHealthy:     {RollbackStateEvaluating},
 	RollbackStateEvaluating:  {RollbackStateHealthy, RollbackStateRollingBack},

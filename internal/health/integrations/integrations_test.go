@@ -55,7 +55,7 @@ func TestPrometheusCheck_Healthy(t *testing.T) {
 				},
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -100,7 +100,7 @@ func TestPrometheusCheck_Unhealthy(t *testing.T) {
 				},
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -127,7 +127,7 @@ func TestPrometheusCheck_EmptyResult(t *testing.T) {
 		}
 		resp.Data.ResultType = "vector"
 		resp.Data.Result = nil
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -150,7 +150,7 @@ func TestPrometheusCheck_EmptyResult(t *testing.T) {
 func TestPrometheusCheck_ServerError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("internal error"))
+		_, _ = w.Write([]byte("internal error"))
 	}))
 	defer server.Close()
 
@@ -175,7 +175,7 @@ func TestPrometheusCheck_ServerError(t *testing.T) {
 func TestPrometheusCheck_QueryFailure(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := prometheusResponse{Status: "error"}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -228,7 +228,7 @@ func TestDatadogCheck_Healthy(t *testing.T) {
 				},
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer server.Close()
 
@@ -290,7 +290,7 @@ func TestSentryCheck_Healthy(t *testing.T) {
 			{ID: "2", Count: "3"},
 			{ID: "3", Count: "1"},
 		}
-		json.NewEncoder(w).Encode(issues)
+		_ = json.NewEncoder(w).Encode(issues)
 	}))
 	defer server.Close()
 
@@ -369,7 +369,7 @@ func TestSentryCheck_ServerError(t *testing.T) {
 
 func TestSentryCheck_ZeroErrors(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(sentryIssuesResponse{})
+		_ = json.NewEncoder(w).Encode(sentryIssuesResponse{})
 	}))
 	defer server.Close()
 
@@ -392,7 +392,7 @@ func TestSentryCheck_ZeroErrors(t *testing.T) {
 
 func TestSentryCheck_ThresholdZero(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(sentryIssuesResponse{})
+		_ = json.NewEncoder(w).Encode(sentryIssuesResponse{})
 	}))
 	defer server.Close()
 

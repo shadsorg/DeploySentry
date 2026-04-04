@@ -26,8 +26,8 @@ export default function CreateProjectPage() {
       await entitiesApi.createProject(orgSlug!, { name, slug });
       localStorage.setItem('ds_last_project', slug);
       navigate(`/orgs/${orgSlug}/projects/${slug}/flags`);
-    } catch (err: any) {
-      setError(err.message || 'Failed to create project');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create project');
     } finally {
       setSubmitting(false);
     }

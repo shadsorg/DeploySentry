@@ -110,8 +110,8 @@ func (h *Handler) createDeployment(c *gin.Context) {
 		}
 
 		go func() {
-			if err := h.analyticsSvc.RecordDeploymentEvent(c.Request.Context(), event); err != nil {
-				// Log error but don't fail the request
+			if err := h.analyticsSvc.RecordDeploymentEvent(context.Background(), event); err != nil {
+				log.Printf("failed to record deployment event: %v", err)
 			}
 		}()
 	}
@@ -135,7 +135,7 @@ func (h *Handler) createDeployment(c *gin.Context) {
 		}
 
 		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentCreated, orgID, &d.ApplicationID, webhookData, &createdBy); err != nil {
-			// Log error but don't fail the request
+			log.Printf("failed to publish deployment created webhook: %v", err)
 		}
 	}
 
@@ -236,8 +236,8 @@ func (h *Handler) rollbackDeployment(c *gin.Context) {
 		}
 
 		go func() {
-			if err := h.analyticsSvc.RecordDeploymentEvent(c.Request.Context(), event); err != nil {
-				// Log error but don't fail the request
+			if err := h.analyticsSvc.RecordDeploymentEvent(context.Background(), event); err != nil {
+				log.Printf("failed to record deployment rollback event: %v", err)
 			}
 		}()
 	}
@@ -264,7 +264,7 @@ func (h *Handler) rollbackDeployment(c *gin.Context) {
 		}
 
 		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentRolledback, orgID, &deployment.ApplicationID, webhookData, &rolledBackBy); err != nil {
-			// Log error but don't fail the request
+			log.Printf("failed to publish deployment rolled back webhook: %v", err)
 		}
 	}
 
@@ -307,8 +307,8 @@ func (h *Handler) pauseDeployment(c *gin.Context) {
 		}
 
 		go func() {
-			if err := h.analyticsSvc.RecordDeploymentEvent(c.Request.Context(), event); err != nil {
-				// Log error but don't fail the request
+			if err := h.analyticsSvc.RecordDeploymentEvent(context.Background(), event); err != nil {
+				log.Printf("failed to record deployment paused event: %v", err)
 			}
 		}()
 	}
@@ -335,7 +335,7 @@ func (h *Handler) pauseDeployment(c *gin.Context) {
 		}
 
 		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentPaused, orgID, &deployment.ApplicationID, webhookData, &pausedBy); err != nil {
-			// Log error but don't fail the request
+			log.Printf("failed to publish deployment paused webhook: %v", err)
 		}
 	}
 
@@ -378,8 +378,8 @@ func (h *Handler) resumeDeployment(c *gin.Context) {
 		}
 
 		go func() {
-			if err := h.analyticsSvc.RecordDeploymentEvent(c.Request.Context(), event); err != nil {
-				// Log error but don't fail the request
+			if err := h.analyticsSvc.RecordDeploymentEvent(context.Background(), event); err != nil {
+				log.Printf("failed to record deployment resumed event: %v", err)
 			}
 		}()
 	}
@@ -406,7 +406,7 @@ func (h *Handler) resumeDeployment(c *gin.Context) {
 		}
 
 		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentResumed, orgID, &deployment.ApplicationID, webhookData, &resumedBy); err != nil {
-			// Log error but don't fail the request
+			log.Printf("failed to publish deployment resumed webhook: %v", err)
 		}
 	}
 

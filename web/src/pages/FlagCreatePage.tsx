@@ -77,7 +77,7 @@ export default function FlagCreatePage() {
         }
       })
       .catch(() => {});
-  }, [orgSlug, projectSlug, appSlug, apps]);
+  }, [orgSlug, projectSlug, appSlug, apps, form.environment_id]);
 
   const set = <K extends keyof FormState>(field: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -119,8 +119,8 @@ export default function FlagCreatePage() {
           .filter(Boolean),
       });
       navigate(backPath);
-    } catch (err: any) {
-      setError(err.message || 'Failed to create flag');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create flag');
     } finally {
       setSubmitting(false);
     }

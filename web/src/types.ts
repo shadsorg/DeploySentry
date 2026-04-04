@@ -181,7 +181,7 @@ export interface FlagEnvironmentState {
   flag_id: string;
   environment_id: string;
   enabled: boolean;
-  value?: any;
+  value?: unknown;
   updated_by?: string;
   updated_at: string;
 }
@@ -193,7 +193,7 @@ export interface Setting {
   application_id?: string;
   environment_id?: string;
   key: string;
-  value: any;
+  value: unknown;
   updated_by?: string;
   updated_at: string;
 }
@@ -221,8 +221,8 @@ export interface ReleaseFlagChangeAPI {
   release_id: string;
   flag_id: string;
   environment_id: string;
-  previous_value?: any;
-  new_value?: any;
+  previous_value?: unknown;
+  new_value?: unknown;
   previous_enabled?: boolean;
   new_enabled?: boolean;
   applied_at: string | null;

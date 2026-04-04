@@ -84,12 +84,14 @@ func (s *SentryCheck) Check(ctx context.Context, deploymentID uuid.UUID) (*healt
 	}
 
 	// Compute score based on threshold.
-	score := 1.0
+	var score float64
 	if s.config.ErrorThreshold > 0 {
 		score = 1.0 - (float64(errorCount) / float64(s.config.ErrorThreshold))
 		if score < 0 {
 			score = 0
 		}
+	} else {
+		score = 1.0
 	}
 
 	healthy := errorCount <= s.config.ErrorThreshold

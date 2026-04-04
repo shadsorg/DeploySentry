@@ -133,6 +133,8 @@ func evaluateScheduleRule(rule *models.TargetingRule) bool {
 // evaluateCompoundRule evaluates multiple conditions combined with either AND
 // or OR logic. For AND, all conditions must match. For OR, at least one
 // condition must match.
+//
+//nolint:unused
 func evaluateCompoundRule(operator CombineOperator, conditions []CompoundCondition, evalCtx models.EvaluationContext) bool {
 	if len(conditions) == 0 {
 		return false
@@ -161,6 +163,8 @@ func evaluateCompoundRule(operator CombineOperator, conditions []CompoundConditi
 // evaluateSingleCondition evaluates a single compound condition against the
 // evaluation context. It reuses the same operator semantics as
 // evaluateAttributeRule by constructing a temporary targeting rule.
+//
+//nolint:unused
 func evaluateSingleCondition(cond CompoundCondition, evalCtx models.EvaluationContext) bool {
 	rule := &models.TargetingRule{
 		Attribute: cond.Attribute,

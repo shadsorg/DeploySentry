@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import type { Member } from '@/types';
 import { membersApi } from '@/api';
@@ -22,23 +22,23 @@ export default function MembersPage() {
   // Delete confirm
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  async function fetchMembers() {
+  const fetchMembers = useCallback(async () => {
     if (!orgSlug) return;
     setLoading(true);
     setError(null);
     try {
       const result = await membersApi.listByOrg(orgSlug);
       setMembers(result.members);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load members');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load members');
     } finally {
       setLoading(false);
     }
-  }
+  }, [orgSlug]);
 
   useEffect(() => {
     fetchMembers();
-  }, [orgSlug]);
+  }, [orgSlug, fetchMembers]);
 
   async function handleAddMember() {
     if (!newEmail.trim() || !orgSlug) return;
@@ -48,7 +48,7 @@ export default function MembersPage() {
       setMembers((prev) => [...prev, result.member]);
       setNewEmail('');
       setNewRole('member');
-    } catch (err: any) {
+    } catch (err) {
       setActionError(err.message || 'Failed to add member');
     }
   }
@@ -59,7 +59,7 @@ export default function MembersPage() {
     try {
       await membersApi.updateOrgRole(orgSlug, userId, role);
       setMembers((prev) => prev.map((m) => (m.user_id === userId ? { ...m, role: role as Member['role'] } : m)));
-    } catch (err: any) {
+    } catch (err) {
       setActionError(err.message || 'Failed to update role');
     }
   }
@@ -71,7 +71,7 @@ export default function MembersPage() {
       await membersApi.removeFromOrg(orgSlug, userId);
       setMembers((prev) => prev.filter((m) => m.user_id !== userId));
       setConfirmDelete(null);
-    } catch (err: any) {
+    } catch (err) {
       setActionError(err.message || 'Failed to remove member');
       setConfirmDelete(null);
     }

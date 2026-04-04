@@ -559,7 +559,7 @@ func runWebhooksDelete(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(cmd.OutOrStdout(), "Are you sure you want to delete webhook %s? This cannot be undone.\n", webhookID)
 		fmt.Fprint(cmd.OutOrStdout(), "Type 'yes' to confirm: ")
 		var response string
-		_ = fmt.Scanln(&response)
+		_, _ = fmt.Scanln(&response)
 		if response != "yes" {
 			fmt.Fprintln(cmd.OutOrStdout(), "Deletion cancelled.")
 			return nil

@@ -115,6 +115,17 @@ func (m *mockFlagRepo) ListRules(ctx context.Context, flagID uuid.UUID) ([]*mode
 	return m.rules[flagID], nil
 }
 
+func (m *mockFlagRepo) ListRulesByFlagIDs(ctx context.Context, flagIDs []uuid.UUID) (map[uuid.UUID][]*models.TargetingRule, error) {
+	result := make(map[uuid.UUID][]*models.TargetingRule)
+	for _, id := range flagIDs {
+		rules, ok := m.rules[id]
+		if ok {
+			result[id] = rules
+		}
+	}
+	return result, nil
+}
+
 func (m *mockFlagRepo) UpdateRule(ctx context.Context, rule *models.TargetingRule) error {
 	if m.updateRuleFn != nil {
 		return m.updateRuleFn(ctx, rule)
@@ -158,7 +169,7 @@ func (m *mockFlagRepo) UpsertFlagEnvState(ctx context.Context, state *models.Fla
 
 // mockCache is a test double for Cache.
 type mockCache struct {
-	flags map[string]*models.FeatureFlag   // key: "projectID:envID:key"
+	flags map[string]*models.FeatureFlag // key: "projectID:envID:key"
 	rules map[uuid.UUID][]*models.TargetingRule
 }
 

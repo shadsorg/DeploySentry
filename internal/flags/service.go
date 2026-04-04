@@ -387,16 +387,30 @@ func (s *flagService) WarmCache(ctx context.Context, projectID uuid.UUID) error 
 		return fmt.Errorf("loading flags for cache warm-up: %w", err)
 	}
 
+	var activeFlagIDs []uuid.UUID
+	var activeFlags []*models.FeatureFlag
 	for _, flag := range flags {
-		if !flag.Enabled {
-			continue
+		if flag.Enabled {
+			activeFlags = append(activeFlags, flag)
+			activeFlagIDs = append(activeFlagIDs, flag.ID)
 		}
-		_ = s.cache.SetFlag(ctx, flag, 30*time.Second)
+	}
 
-		rules, err := s.repo.ListRules(ctx, flag.ID)
-		if err != nil {
-			continue
-		}
+	if len(activeFlagIDs) == 0 {
+		return nil
+	}
+
+	// Bulk-fetch all rules for active flags
+	rulesByFlagID, err := s.repo.ListRulesByFlagIDs(ctx, activeFlagIDs)
+	if err != nil {
+		// Fall back to empty rules map on error rather than failing the whole warm-up
+		rulesByFlagID = make(map[uuid.UUID][]*models.TargetingRule)
+	}
+
+	// Populate cache
+	for _, flag := range activeFlags {
+		_ = s.cache.SetFlag(ctx, flag, 30*time.Second)
+		rules := rulesByFlagID[flag.ID]
 		_ = s.cache.SetRules(ctx, flag.ID, rules, 30*time.Second)
 	}
 	return nil

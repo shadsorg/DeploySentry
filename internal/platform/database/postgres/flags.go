@@ -410,6 +410,34 @@ func (r *FlagRepository) ListRules(ctx context.Context, flagID uuid.UUID) ([]*mo
 	return result, nil
 }
 
+// ListRulesByFlagIDs returns all targeting rules for the given flag IDs, ordered by flag_id and priority.
+func (r *FlagRepository) ListRulesByFlagIDs(ctx context.Context, flagIDs []uuid.UUID) (map[uuid.UUID][]*models.TargetingRule, error) {
+	if len(flagIDs) == 0 {
+		return make(map[uuid.UUID][]*models.TargetingRule), nil
+	}
+
+	q := "SELECT" + ruleSelectCols + " FROM flag_targeting_rules WHERE flag_id = ANY($1) ORDER BY flag_id, priority ASC"
+
+	rows, err := r.pool.Query(ctx, q, flagIDs)
+	if err != nil {
+		return nil, fmt.Errorf("postgres.ListRulesByFlagIDs: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[uuid.UUID][]*models.TargetingRule)
+	for rows.Next() {
+		rule, err := scanTargetingRule(rows)
+		if err != nil {
+			return nil, fmt.Errorf("postgres.ListRulesByFlagIDs: %w", err)
+		}
+		result[rule.FlagID] = append(result[rule.FlagID], rule)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("postgres.ListRulesByFlagIDs: %w", err)
+	}
+	return result, nil
+}
+
 // UpdateRule persists changes to an existing targeting rule.
 func (r *FlagRepository) UpdateRule(ctx context.Context, rule *models.TargetingRule) error {
 	rule.UpdatedAt = time.Now().UTC()

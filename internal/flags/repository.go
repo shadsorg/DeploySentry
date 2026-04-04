@@ -50,6 +50,9 @@ type FlagRepository interface {
 	// ListRules returns all targeting rules for a flag, ordered by priority.
 	ListRules(ctx context.Context, flagID uuid.UUID) ([]*models.TargetingRule, error)
 
+	// ListRulesByFlagIDs returns all targeting rules for the given flag IDs.
+	ListRulesByFlagIDs(ctx context.Context, flagIDs []uuid.UUID) (map[uuid.UUID][]*models.TargetingRule, error)
+
 	// UpdateRule persists changes to an existing targeting rule.
 	UpdateRule(ctx context.Context, rule *models.TargetingRule) error
 

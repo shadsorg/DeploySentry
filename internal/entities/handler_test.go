@@ -29,10 +29,18 @@ type mockEntityService struct {
 	getProjectBySlugFn  func(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error)
 	listProjectsByOrgFn func(ctx context.Context, orgID uuid.UUID) ([]*models.Project, error)
 	updateProjectFn     func(ctx context.Context, project *models.Project) error
-	createAppFn         func(ctx context.Context, app *models.Application) error
-	getAppBySlugFn      func(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
-	listAppsByProjectFn func(ctx context.Context, projectID uuid.UUID) ([]*models.Application, error)
-	updateAppFn         func(ctx context.Context, app *models.Application) error
+	createAppFn               func(ctx context.Context, app *models.Application) error
+	getAppBySlugFn            func(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
+	listAppsByProjectFn       func(ctx context.Context, projectID uuid.UUID) ([]*models.Application, error)
+	updateAppFn               func(ctx context.Context, app *models.Application) error
+	listEnvironmentsByAppFn   func(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error)
+}
+
+func (m *mockEntityService) ListEnvironmentsByApp(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error) {
+	if m.listEnvironmentsByAppFn != nil {
+		return m.listEnvironmentsByAppFn(ctx, appID)
+	}
+	return []*models.Environment{}, nil
 }
 
 func (m *mockEntityService) CreateOrg(ctx context.Context, org *models.Organization, creatorID uuid.UUID) error {

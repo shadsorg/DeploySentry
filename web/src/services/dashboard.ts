@@ -92,7 +92,7 @@ class DashboardService {
     }
   }
 
-  private calculateStats(flags: Flag[], deployments: Deployment[], healthData: any): DashboardStats {
+  private calculateStats(flags: Flag[], deployments: Deployment[], healthData: unknown): DashboardStats {
     const now = new Date();
     const expiredFlags = flags.filter(flag =>
       flag.expires_at && new Date(flag.expires_at) < now

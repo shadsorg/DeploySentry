@@ -1,17 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import { authApi, type AuthUser } from './api';
-
-interface AuthContextValue {
-  user: AuthUser | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
-  logout: () => void;
-}
+import { type AuthContextValue } from './authTypes';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/**
+ * AuthProvider provides authentication context to the application.
+ */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);

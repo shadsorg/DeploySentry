@@ -383,15 +383,3 @@ func (h *Handler) exportAnalytics(c *gin.Context) {
 		})
 	}
 }
-
-// Helper function to check if a slice contains a string
-//
-//nolint:unused
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
-}

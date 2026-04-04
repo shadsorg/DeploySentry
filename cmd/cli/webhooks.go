@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -557,7 +559,7 @@ func runWebhooksDelete(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(cmd.OutOrStdout(), "Are you sure you want to delete webhook %s? This cannot be undone.\n", webhookID)
 		fmt.Fprint(cmd.OutOrStdout(), "Type 'yes' to confirm: ")
 		var response string
-		fmt.Scanln(&response)
+		_ = fmt.Scanln(&response)
 		if response != "yes" {
 			fmt.Fprintln(cmd.OutOrStdout(), "Deletion cancelled.")
 			return nil
@@ -785,7 +787,7 @@ func runWebhooksEvents(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintln(cmd.OutOrStdout(), "Available Webhook Events:")
 	for cat, eventList := range events {
-		fmt.Fprintf(cmd.OutOrStdout(), "\n%s Events:\n", strings.Title(cat))
+		fmt.Fprintf(cmd.OutOrStdout(), "\n%s Events:\n", cases.Title(language.English).String(cat))
 		for _, event := range eventList {
 			if detailed {
 				fmt.Fprintf(cmd.OutOrStdout(), "  %s - %s\n", event, getEventDescription(event))

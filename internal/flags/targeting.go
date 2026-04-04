@@ -133,42 +133,10 @@ func evaluateScheduleRule(rule *models.TargetingRule) bool {
 // evaluateCompoundRule evaluates multiple conditions combined with either AND
 // or OR logic. For AND, all conditions must match. For OR, at least one
 // condition must match.
-func evaluateCompoundRule(operator CombineOperator, conditions []CompoundCondition, evalCtx models.EvaluationContext) bool {
-	if len(conditions) == 0 {
-		return false
-	}
-
-	switch operator {
-	case CombineAND:
-		for _, cond := range conditions {
-			if !evaluateSingleCondition(cond, evalCtx) {
-				return false
-			}
-		}
-		return true
-	case CombineOR:
-		for _, cond := range conditions {
-			if evaluateSingleCondition(cond, evalCtx) {
-				return true
-			}
-		}
-		return false
-	default:
-		return false
-	}
-}
 
 // evaluateSingleCondition evaluates a single compound condition against the
 // evaluation context. It reuses the same operator semantics as
 // evaluateAttributeRule by constructing a temporary targeting rule.
-func evaluateSingleCondition(cond CompoundCondition, evalCtx models.EvaluationContext) bool {
-	rule := &models.TargetingRule{
-		Attribute: cond.Attribute,
-		Operator:  cond.Operator,
-		Value:     cond.Value,
-	}
-	return evaluateAttributeRule(rule, evalCtx)
-}
 
 // compareNumeric parses two strings as float64 values and returns:
 //

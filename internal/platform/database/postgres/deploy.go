@@ -139,6 +139,9 @@ func (r *DeployRepository) ListDeployments(ctx context.Context, applicationID uu
 	if opts.Status != nil {
 		w.Add("status = $%d", string(*opts.Status))
 	}
+	if opts.ExcludeTerminal {
+		w.Add("status NOT IN ('completed', 'failed', 'rolled_back', 'cancelled')", nil)
+	}
 
 	whereClause, args := w.Build()
 	pagClause, args := paginationClause(opts.Limit, opts.Offset, args)

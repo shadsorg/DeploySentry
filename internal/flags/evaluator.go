@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"sync/atomic"
 	"time"
 
@@ -49,12 +49,12 @@ type CacheMetrics struct {
 // for a given evaluation context by checking the cache, falling back to the
 // database, and applying targeting rules in priority order.
 type Evaluator struct {
-	repo            FlagRepository
-	cache           Cache
-	cacheTTL        time.Duration
-	telemetry       TelemetryLogger
-	sampleRate      float64
-	Metrics         CacheMetrics
+	repo       FlagRepository
+	cache      Cache
+	cacheTTL   time.Duration
+	telemetry  TelemetryLogger
+	sampleRate float64
+	Metrics    CacheMetrics
 }
 
 // NewEvaluator creates a new flag evaluation engine.

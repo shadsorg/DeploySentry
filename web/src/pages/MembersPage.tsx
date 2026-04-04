@@ -4,7 +4,11 @@ import type { Member } from '@/types';
 import { membersApi } from '@/api';
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 export default function MembersPage() {
@@ -59,7 +63,9 @@ export default function MembersPage() {
     setActionError(null);
     try {
       await membersApi.updateOrgRole(orgSlug, userId, role);
-      setMembers((prev) => prev.map((m) => (m.user_id === userId ? { ...m, role: role as Member['role'] } : m)));
+      setMembers((prev) =>
+        prev.map((m) => (m.user_id === userId ? { ...m, role: role as Member['role'] } : m)),
+      );
     } catch (err: unknown) {
       setActionError(err.message || 'Failed to update role');
     }
@@ -117,8 +123,16 @@ export default function MembersPage() {
             </button>
           </div>
 
-          {error && <p className="form-error" style={{ marginBottom: 8 }}>{error}</p>}
-          {actionError && <p className="form-error" style={{ marginBottom: 8 }}>{actionError}</p>}
+          {error && (
+            <p className="form-error" style={{ marginBottom: 8 }}>
+              {error}
+            </p>
+          )}
+          {actionError && (
+            <p className="form-error" style={{ marginBottom: 8 }}>
+              {actionError}
+            </p>
+          )}
 
           {loading ? (
             <p className="text-muted">Loading members...</p>
@@ -145,7 +159,9 @@ export default function MembersPage() {
                     </td>
                     <td>{formatDate(m.joined_at)}</td>
                     <td>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <div
+                        style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}
+                      >
                         {m.role === 'owner' ? (
                           <span className="text-muted">Owner</span>
                         ) : (
@@ -162,7 +178,10 @@ export default function MembersPage() {
                         {confirmDelete === m.user_id ? (
                           <span className="inline-confirm">
                             Are you sure?{' '}
-                            <button className="btn btn-sm btn-danger" onClick={() => handleRemoveMember(m.user_id)}>
+                            <button
+                              className="btn btn-sm btn-danger"
+                              onClick={() => handleRemoveMember(m.user_id)}
+                            >
                               Yes
                             </button>{' '}
                             <button className="btn btn-sm" onClick={() => setConfirmDelete(null)}>
@@ -170,7 +189,10 @@ export default function MembersPage() {
                             </button>
                           </span>
                         ) : (
-                          <button className="btn btn-sm btn-danger" onClick={() => setConfirmDelete(m.user_id)}>
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => setConfirmDelete(m.user_id)}
+                          >
                             Remove
                           </button>
                         )}

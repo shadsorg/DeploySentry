@@ -94,7 +94,7 @@ func (s *Service) CreateWebhook(ctx context.Context, orgID uuid.UUID, req models
 	}
 
 	// Publish webhook created event
-	s.publishEvent(ctx, models.EventAuditLog, orgID, req.ProjectID, map[string]interface{}{
+	_ = s.publishEvent(ctx, models.EventAuditLog, orgID, req.ProjectID, map[string]interface{}{
 		"action":     "webhook.created",
 		"webhook_id": webhook.ID,
 		"name":       webhook.Name,
@@ -161,7 +161,7 @@ func (s *Service) UpdateWebhook(ctx context.Context, id uuid.UUID, req models.Up
 	}
 
 	// Publish webhook updated event
-	s.publishEvent(ctx, models.EventAuditLog, webhook.OrgID, webhook.ProjectID, map[string]interface{}{
+	_ = s.publishEvent(ctx, models.EventAuditLog, webhook.OrgID, webhook.ProjectID, map[string]interface{}{
 		"action":     "webhook.updated",
 		"webhook_id": webhook.ID,
 		"name":       webhook.Name,
@@ -183,7 +183,7 @@ func (s *Service) DeleteWebhook(ctx context.Context, id uuid.UUID, userID *uuid.
 	}
 
 	// Publish webhook deleted event
-	s.publishEvent(ctx, models.EventAuditLog, webhook.OrgID, webhook.ProjectID, map[string]interface{}{
+	_ = s.publishEvent(ctx, models.EventAuditLog, webhook.OrgID, webhook.ProjectID, map[string]interface{}{
 		"action":     "webhook.deleted",
 		"webhook_id": webhook.ID,
 		"name":       webhook.Name,

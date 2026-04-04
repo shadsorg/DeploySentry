@@ -363,7 +363,7 @@ func (s *Service) GetSystemHealthMetrics(ctx context.Context) (*models.SystemHea
 
 	// Database connection count
 	dbQuery := `SELECT count(*) FROM pg_stat_activity WHERE state = 'active'`
-	s.db.QueryRow(ctx, dbQuery).Scan(&metrics.DatabaseConnections)
+	_ = s.db.QueryRow(ctx, dbQuery).Scan(&metrics.DatabaseConnections)
 
 	return metrics, nil
 }

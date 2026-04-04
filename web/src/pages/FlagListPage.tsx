@@ -16,15 +16,20 @@ function formatDate(iso: string): string {
 export default function FlagListPage() {
   const { orgSlug, projectSlug, appSlug } = useParams();
   const contextName = appSlug ?? projectSlug ?? '';
-  const heading = appSlug ? `${contextName} — Flags` : contextName ? `${contextName} — Feature Flags` : 'Feature Flags';
+  const heading = appSlug
+    ? `${contextName} — Flags`
+    : contextName
+      ? `${contextName} — Feature Flags`
+      : 'Feature Flags';
 
   const createPath = appSlug
     ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags/new`
     : `/orgs/${orgSlug}/projects/${projectSlug}/flags/new`;
 
-  const flagDetailPath = (flagId: string) => appSlug
-    ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags/${flagId}`
-    : `/orgs/${orgSlug}/projects/${projectSlug}/flags/${flagId}`;
+  const flagDetailPath = (flagId: string) =>
+    appSlug
+      ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags/${flagId}`
+      : `/orgs/${orgSlug}/projects/${projectSlug}/flags/${flagId}`;
 
   const [flags, setFlags] = useState<Flag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +43,8 @@ export default function FlagListPage() {
     setLoading(true);
     setError(null);
 
-    entitiesApi.getProject(orgSlug, projectSlug)
+    entitiesApi
+      .getProject(orgSlug, projectSlug)
       .then((project) => flagsApi.list(project.id))
       .then((result) => setFlags(result.flags))
       .catch((err) => setError(err.message))
@@ -51,10 +57,7 @@ export default function FlagListPage() {
   const filtered = flags.filter((flag) => {
     if (search) {
       const q = search.toLowerCase();
-      if (
-        !flag.name.toLowerCase().includes(q) &&
-        !flag.key.toLowerCase().includes(q)
-      ) {
+      if (!flag.name.toLowerCase().includes(q) && !flag.key.toLowerCase().includes(q)) {
         return false;
       }
     }
@@ -128,9 +131,7 @@ export default function FlagListPage() {
                   <div className="font-mono text-muted">{flag.key}</div>
                 </td>
                 <td>
-                  <span className={`badge badge-${flag.category}`}>
-                    {flag.category}
-                  </span>
+                  <span className={`badge badge-${flag.category}`}>{flag.category}</span>
                 </td>
                 <td>
                   {flag.archived ? (

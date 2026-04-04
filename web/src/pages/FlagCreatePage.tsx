@@ -41,7 +41,10 @@ export default function FlagCreatePage() {
     ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags`
     : `/orgs/${orgSlug}/projects/${projectSlug}/flags`;
 
-  const [form, setForm] = useState<FormState>({ ...INITIAL, category: appSlug ? 'release' : 'feature' });
+  const [form, setForm] = useState<FormState>({
+    ...INITIAL,
+    category: appSlug ? 'release' : 'feature',
+  });
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -54,7 +57,8 @@ export default function FlagCreatePage() {
   useEffect(() => {
     if (!orgSlug || !projectSlug) return;
     // Get project ID for flag creation
-    entitiesApi.getProject(orgSlug, projectSlug)
+    entitiesApi
+      .getProject(orgSlug, projectSlug)
       .then((p) => setProjectId(p.id))
       .catch(() => {});
   }, [orgSlug, projectSlug]);
@@ -65,11 +69,13 @@ export default function FlagCreatePage() {
     if (!targetAppSlug) return;
 
     // Get app ID
-    entitiesApi.getApp(orgSlug, projectSlug, targetAppSlug)
+    entitiesApi
+      .getApp(orgSlug, projectSlug, targetAppSlug)
       .then((a) => setAppId(a.id))
       .catch(() => {});
 
-    entitiesApi.listEnvironments(orgSlug, projectSlug, targetAppSlug)
+    entitiesApi
+      .listEnvironments(orgSlug, projectSlug, targetAppSlug)
       .then((res) => {
         setEnvironments(res.environments ?? []);
         if (res.environments?.length > 0 && !form.environment_id) {
@@ -133,11 +139,17 @@ export default function FlagCreatePage() {
 
       <form onSubmit={handleSubmit}>
         <div className="card">
-          {error && <p className="form-error" style={{ marginBottom: 16 }}>{error}</p>}
+          {error && (
+            <p className="form-error" style={{ marginBottom: 16 }}>
+              {error}
+            </p>
+          )}
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label" htmlFor="flag-key">Key</label>
+              <label className="form-label" htmlFor="flag-key">
+                Key
+              </label>
               <input
                 id="flag-key"
                 className="form-input"
@@ -149,7 +161,9 @@ export default function FlagCreatePage() {
               <span className="form-hint">Unique identifier, e.g. enable-dark-mode</span>
             </div>
             <div className="form-group">
-              <label className="form-label" htmlFor="flag-name">Name</label>
+              <label className="form-label" htmlFor="flag-name">
+                Name
+              </label>
               <input
                 id="flag-name"
                 className="form-input"
@@ -162,7 +176,9 @@ export default function FlagCreatePage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="flag-description">Description</label>
+            <label className="form-label" htmlFor="flag-description">
+              Description
+            </label>
             <textarea
               id="flag-description"
               className="form-textarea"
@@ -174,7 +190,9 @@ export default function FlagCreatePage() {
 
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label" htmlFor="flag-type">Flag Type</label>
+              <label className="form-label" htmlFor="flag-type">
+                Flag Type
+              </label>
               <select
                 id="flag-type"
                 className="form-select"
@@ -188,7 +206,9 @@ export default function FlagCreatePage() {
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label" htmlFor="flag-category">Category</label>
+              <label className="form-label" htmlFor="flag-category">
+                Category
+              </label>
               <select
                 id="flag-category"
                 className="form-select"
@@ -205,7 +225,9 @@ export default function FlagCreatePage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="flag-env">Environment</label>
+            <label className="form-label" htmlFor="flag-env">
+              Environment
+            </label>
             {environments.length > 0 ? (
               <select
                 id="flag-env"
@@ -216,17 +238,22 @@ export default function FlagCreatePage() {
               >
                 {environments.map((env) => (
                   <option key={env.id} value={env.id}>
-                    {env.name}{env.is_production ? ' (production)' : ''}
+                    {env.name}
+                    {env.is_production ? ' (production)' : ''}
                   </option>
                 ))}
               </select>
             ) : (
-              <p className="form-hint">No environments found. Create an application with environments first.</p>
+              <p className="form-hint">
+                No environments found. Create an application with environments first.
+              </p>
             )}
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="flag-purpose">Purpose</label>
+            <label className="form-label" htmlFor="flag-purpose">
+              Purpose
+            </label>
             <textarea
               id="flag-purpose"
               className="form-textarea"
@@ -237,7 +264,9 @@ export default function FlagCreatePage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="flag-owners">Owners</label>
+            <label className="form-label" htmlFor="flag-owners">
+              Owners
+            </label>
             <input
               id="flag-owners"
               className="form-input"
@@ -262,7 +291,9 @@ export default function FlagCreatePage() {
 
           {!form.is_permanent && (
             <div className="form-group">
-              <label className="form-label" htmlFor="flag-expires">Expires At</label>
+              <label className="form-label" htmlFor="flag-expires">
+                Expires At
+              </label>
               <input
                 id="flag-expires"
                 className="form-input"
@@ -274,7 +305,9 @@ export default function FlagCreatePage() {
           )}
 
           <div className="form-group">
-            <label className="form-label" htmlFor="flag-default">Default Value</label>
+            <label className="form-label" htmlFor="flag-default">
+              Default Value
+            </label>
             <input
               id="flag-default"
               className="form-input"
@@ -286,7 +319,9 @@ export default function FlagCreatePage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="flag-tags">Tags</label>
+            <label className="form-label" htmlFor="flag-tags">
+              Tags
+            </label>
             <input
               id="flag-tags"
               className="form-input"

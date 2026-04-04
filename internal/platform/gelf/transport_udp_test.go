@@ -26,7 +26,7 @@ func TestUDPTransport_SendReceive(t *testing.T) {
 	require.NoError(t, tr.Send(data))
 
 	buf := make([]byte, 8192)
-	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 	n, _, err := conn.ReadFromUDP(buf)
 	require.NoError(t, err)
 

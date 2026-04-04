@@ -6,6 +6,9 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+
 	"github.com/spf13/cobra"
 )
 
@@ -557,7 +560,9 @@ func runWebhooksDelete(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(cmd.OutOrStdout(), "Are you sure you want to delete webhook %s? This cannot be undone.\n", webhookID)
 		fmt.Fprint(cmd.OutOrStdout(), "Type 'yes' to confirm: ")
 		var response string
-		fmt.Scanln(&response)
+		if _, err := fmt.Scanln(&response); err != nil {
+			return err
+		}
 		if response != "yes" {
 			fmt.Fprintln(cmd.OutOrStdout(), "Deletion cancelled.")
 			return nil
@@ -784,8 +789,9 @@ func runWebhooksEvents(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintln(cmd.OutOrStdout(), "Available Webhook Events:")
+	titleCaser := cases.Title(language.English)
 	for cat, eventList := range events {
-		fmt.Fprintf(cmd.OutOrStdout(), "\n%s Events:\n", strings.Title(cat))
+		fmt.Fprintf(cmd.OutOrStdout(), "\n%s Events:\n", titleCaser.String(cat))
 		for _, event := range eventList {
 			if detailed {
 				fmt.Fprintf(cmd.OutOrStdout(), "  %s - %s\n", event, getEventDescription(event))

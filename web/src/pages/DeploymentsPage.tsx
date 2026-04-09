@@ -117,9 +117,12 @@ const DeploymentsPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [orgSlug, projectSlug, appSlug]);
 
+  // Optimization: Memoize deployments filtering and hoist search string allocation outside the loop
+  // to avoid O(N) penalties per render.
   const filtered = useMemo(() => {
+    const q = search?.toLowerCase() ?? '';
     return deployments.filter((d) => {
-      if (search && !d.version.toLowerCase().includes(search.toLowerCase())) {
+      if (q && !d.version.toLowerCase().includes(q)) {
         return false;
       }
       if (strategyFilter !== 'all' && d.strategy !== strategyFilter) {

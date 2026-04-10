@@ -14,6 +14,7 @@ import type {
   ReleaseFlagChangeAPI,
   Member,
   Environment,
+  OrgEnvironment,
 } from './types';
 
 const BASE = '/api/v1';
@@ -342,9 +343,96 @@ export const entitiesApi = {
       body: JSON.stringify(data),
     }),
 
-  // Environments
+  // Environments (app-level, legacy)
   listEnvironments: (orgSlug: string, projectSlug: string, appSlug: string) =>
     request<{ environments: Environment[] }>(
       `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/environments`,
     ),
+
+  // Org-level environments
+  listOrgEnvironments: (orgSlug: string) =>
+    request<{ environments: OrgEnvironment[] }>(`/orgs/${orgSlug}/environments`),
+  createEnvironment: (orgSlug: string, data: { name: string; slug: string; is_production: boolean }) =>
+    request<OrgEnvironment>(`/orgs/${orgSlug}/environments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateEnvironment: (orgSlug: string, envSlug: string, data: Partial<{ name: string; slug: string; is_production: boolean; sort_order: number }>) =>
+    request<OrgEnvironment>(`/orgs/${orgSlug}/environments/${envSlug}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteEnvironment: (orgSlug: string, envSlug: string) =>
+    request<{ deleted: boolean }>(`/orgs/${orgSlug}/environments/${envSlug}`, {
+      method: 'DELETE',
+    }),
+};
+
+// Webhooks
+export interface Webhook {
+  id: string;
+  url: string;
+  events: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export const webhooksApi = {
+  list: () => request<{ webhooks: Webhook[] }>('/webhooks'),
+  get: (id: string) => request<Webhook>(`/webhooks/${id}`),
+  create: (data: { url: string; events: string[]; is_active?: boolean }) =>
+    request<Webhook>('/webhooks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: Partial<{ url: string; events: string[]; is_active: boolean }>) =>
+    request<Webhook>(`/webhooks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    request<{ deleted: boolean }>(`/webhooks/${id}`, { method: 'DELETE' }),
+  test: (id: string) =>
+    request<{ success: boolean; status_code: number }>(`/webhooks/${id}/test`, {
+      method: 'POST',
+    }),
+  deliveries: (id: string) =>
+    request<{ deliveries: unknown[] }>(`/webhooks/${id}/deliveries`),
+};
+
+// Notifications
+export interface ChannelConfig {
+  enabled: boolean;
+  webhook_url?: string;
+  channel?: string;
+  smtp_host?: string;
+  smtp_port?: number;
+  username?: string;
+  password?: string;
+  from?: string;
+  routing_key?: string;
+  source: 'config' | 'api';
+}
+
+export interface NotificationPreferences {
+  channels: Record<string, ChannelConfig>;
+  event_routing: Record<string, string[]>;
+}
+
+export const notificationsApi = {
+  getPreferences: () =>
+    request<NotificationPreferences>('/notifications/preferences'),
+  savePreferences: (data: {
+    channels?: Record<string, Partial<ChannelConfig>>;
+    event_routing?: Record<string, string[]>;
+  }) =>
+    request<{ saved: boolean }>('/notifications/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  resetPreferences: () =>
+    request<{ reset: boolean }>('/notifications/preferences', {
+      method: 'DELETE',
+    }),
 };

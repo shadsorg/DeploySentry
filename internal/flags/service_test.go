@@ -1118,3 +1118,68 @@ func TestEvaluator_ScheduleRuleWithinWindow(t *testing.T) {
 	assert.Equal(t, "scheduled-value", result.Value)
 	assert.Equal(t, "rule_match", result.Reason)
 }
+
+// ---------------------------------------------------------------------------
+// Task 12: Concurrent batch evaluation — error field
+// ---------------------------------------------------------------------------
+
+// errorOnKeyRepo returns an error for a specific flag key and otherwise
+// delegates to the embedded mockFlagRepo.
+type errorOnKeyRepo struct {
+	mockFlagRepo
+	badKey string
+}
+
+func (r *errorOnKeyRepo) GetFlagByKey(ctx context.Context, projectID, environmentID uuid.UUID, key string) (*models.FeatureFlag, error) {
+	if key == r.badKey {
+		return nil, errors.New("flag not found: " + key)
+	}
+	return r.mockFlagRepo.GetFlagByKey(ctx, projectID, environmentID, key)
+}
+
+func TestBatchEvaluate_ErrorField(t *testing.T) {
+	projectID := uuid.New()
+	envID := uuid.New()
+
+	goodID := uuid.New()
+	goodFlag := &models.FeatureFlag{
+		ID:            goodID,
+		ProjectID:     projectID,
+		EnvironmentID: envID,
+		Key:           "good-flag",
+		Name:          "Good Flag",
+		FlagType:      models.FlagTypeBoolean,
+		DefaultValue:  "false",
+		Enabled:       true,
+		CreatedBy:     uuid.New(),
+		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
+	}
+
+	repo := &errorOnKeyRepo{
+		mockFlagRepo: mockFlagRepo{
+			flags: map[uuid.UUID]*models.FeatureFlag{goodID: goodFlag},
+			rules: make(map[uuid.UUID][]*models.TargetingRule),
+		},
+		badKey: "bad-flag",
+	}
+
+	svc := NewFlagService(repo, newMockCache(), nil)
+
+	results, err := svc.BatchEvaluate(context.Background(), projectID, envID,
+		[]string{"good-flag", "bad-flag"},
+		models.EvaluationContext{},
+	)
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+
+	// good-flag should succeed with no error
+	assert.Equal(t, "good-flag", results[0].FlagKey)
+	assert.Empty(t, results[0].Error, "good flag should have no error")
+
+	// bad-flag should have an Error field populated and be disabled
+	assert.Equal(t, "bad-flag", results[1].FlagKey)
+	assert.NotEmpty(t, results[1].Error, "bad flag should have error populated")
+	assert.False(t, results[1].Enabled, "failed flag should be disabled")
+	assert.Equal(t, "error", results[1].Reason)
+}

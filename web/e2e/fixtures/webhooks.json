@@ -1,0 +1,33 @@
+{
+  "list": {
+    "webhooks": [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440111",
+        "org_id": "550e8400-e29b-41d4-a716-446655440010",
+        "name": "Slack Notifier",
+        "url": "https://hooks.slack.com/services/T00/B00/example",
+        "events": ["deployment.completed", "deployment.failed", "flag.toggled"],
+        "active": true,
+        "created_at": "2025-02-20T10:00:00Z",
+        "updated_at": "2025-05-15T08:30:00Z"
+      },
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440112",
+        "org_id": "550e8400-e29b-41d4-a716-446655440010",
+        "name": "PagerDuty Alerts",
+        "url": "https://events.pagerduty.com/v2/enqueue",
+        "events": ["deployment.failed", "rollback.triggered"],
+        "active": false,
+        "created_at": "2025-03-10T14:00:00Z",
+        "updated_at": "2025-06-01T09:00:00Z"
+      }
+    ]
+  },
+  "create": {
+    "id": "550e8400-e29b-41d4-a716-446655440113",
+    "name": "New Webhook",
+    "url": "https://example.com/webhook",
+    "events": ["deployment.completed"],
+    "active": true
+  }
+}

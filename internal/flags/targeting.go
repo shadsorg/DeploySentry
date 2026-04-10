@@ -18,14 +18,6 @@ const (
 	CombineOR CombineOperator = "OR"
 )
 
-// CompoundCondition represents a single condition within a compound rule.
-// Each condition evaluates an attribute against a value using an operator.
-type CompoundCondition struct {
-	Attribute string `json:"attribute"`
-	Operator  string `json:"operator"`
-	Value     string `json:"value"`
-}
-
 // evaluatePercentageRule uses deterministic hashing to determine whether a user
 // falls within the configured traffic percentage. The hash is based on the flag
 // key and user ID, ensuring consistent assignment across evaluations.

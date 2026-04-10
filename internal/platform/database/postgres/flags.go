@@ -75,6 +75,8 @@ func scanFeatureFlag(row pgx.Row) (*models.FeatureFlag, error) {
 // The SELECT must include columns in the order defined by ruleSelectCols.
 func scanTargetingRule(row pgx.Row) (*models.TargetingRule, error) {
 	var r models.TargetingRule
+	var conditionsBytes []byte
+	var combineOp string
 
 	err := row.Scan(
 		&r.ID,
@@ -92,12 +94,21 @@ func scanTargetingRule(row pgx.Row) (*models.TargetingRule, error) {
 		&r.Enabled,
 		&r.CreatedAt,
 		&r.UpdatedAt,
+		&conditionsBytes,
+		&combineOp,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, err
+	}
+
+	if r.RuleType == "compound" && len(conditionsBytes) > 0 {
+		if err := json.Unmarshal(conditionsBytes, &r.Conditions); err != nil {
+			return nil, fmt.Errorf("scanTargetingRule: unmarshal conditions: %w", err)
+		}
+		r.CombineOp = combineOp
 	}
 
 	return &r, nil
@@ -134,7 +145,9 @@ const ruleSelectCols = `
 	segment_id,
 	start_time, end_time,
 	enabled,
-	created_at, updated_at`
+	created_at, updated_at,
+	COALESCE(conditions, '[]'),
+	COALESCE(combine_op, '')`
 
 // ---------------------------------------------------------------------------
 // FeatureFlag methods
@@ -340,15 +353,26 @@ func (r *FlagRepository) CreateRule(ctx context.Context, rule *models.TargetingR
 	rule.CreatedAt = now
 	rule.UpdatedAt = now
 
+	conditionsJSON := []byte("[]")
+	combineOp := ""
+	if rule.RuleType == "compound" {
+		var err error
+		conditionsJSON, err = json.Marshal(rule.Conditions)
+		if err != nil {
+			return fmt.Errorf("postgres.CreateRule: marshal conditions: %w", err)
+		}
+		combineOp = rule.CombineOp
+	}
+
 	const q = `
 		INSERT INTO flag_targeting_rules
 			(id, flag_id, environment, rule_type, priority, value, percentage,
 			 attribute, operator, target_values, segment_id, start_time, end_time,
-			 enabled, conditions, serve_value, created_at, updated_at)
+			 enabled, conditions, combine_op, serve_value, created_at, updated_at)
 		VALUES
 			($1, $2, '', $3, $4, $5, $6,
 			 $7, $8, $9, $10, $11, $12,
-			 $13, '{}', '{}', $14, $15)`
+			 $13, $14, $15, '{}', $16, $17)`
 
 	_, err := r.pool.Exec(ctx, q,
 		rule.ID,
@@ -364,6 +388,8 @@ func (r *FlagRepository) CreateRule(ctx context.Context, rule *models.TargetingR
 		rule.StartTime,
 		rule.EndTime,
 		rule.Enabled,
+		conditionsJSON,
+		combineOp,
 		rule.CreatedAt,
 		rule.UpdatedAt,
 	)
@@ -414,6 +440,17 @@ func (r *FlagRepository) ListRules(ctx context.Context, flagID uuid.UUID) ([]*mo
 func (r *FlagRepository) UpdateRule(ctx context.Context, rule *models.TargetingRule) error {
 	rule.UpdatedAt = time.Now().UTC()
 
+	conditionsJSON := []byte("[]")
+	combineOp := ""
+	if rule.RuleType == "compound" {
+		var err error
+		conditionsJSON, err = json.Marshal(rule.Conditions)
+		if err != nil {
+			return fmt.Errorf("postgres.UpdateRule: marshal conditions: %w", err)
+		}
+		combineOp = rule.CombineOp
+	}
+
 	const q = `
 		UPDATE flag_targeting_rules SET
 			rule_type     = $2,
@@ -427,7 +464,9 @@ func (r *FlagRepository) UpdateRule(ctx context.Context, rule *models.TargetingR
 			start_time    = $10,
 			end_time      = $11,
 			enabled       = $12,
-			updated_at    = $13
+			conditions    = $13,
+			combine_op    = $14,
+			updated_at    = $15
 		WHERE id = $1`
 
 	tag, err := r.pool.Exec(ctx, q,
@@ -443,6 +482,8 @@ func (r *FlagRepository) UpdateRule(ctx context.Context, rule *models.TargetingR
 		rule.StartTime,
 		rule.EndTime,
 		rule.Enabled,
+		conditionsJSON,
+		combineOp,
 		rule.UpdatedAt,
 	)
 	if err != nil {

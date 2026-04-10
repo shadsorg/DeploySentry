@@ -264,6 +264,8 @@ func run() error {
 		}
 	}()
 
+	prefStore := notifications.NewInMemoryPreferenceStore()
+
 	// -------------------------------------------------------------------------
 	// Middleware
 	// -------------------------------------------------------------------------
@@ -304,6 +306,7 @@ func run() error {
 	entities.NewHandler(entityService, rbacChecker).RegisterRoutes(api)
 	settings.NewHandler(settingService, rbacChecker).RegisterRoutes(api)
 	members.NewHandler(memberService, entityService, rbacChecker).RegisterRoutes(api)
+	notifications.NewPreferencesHandler(prefStore, notificationService, rbacChecker).RegisterRoutes(api)
 
 	// Public routes (no auth required).
 	public := router.Group("/api/v1")

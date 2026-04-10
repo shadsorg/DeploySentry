@@ -223,6 +223,16 @@ export class DeploySentryClient {
     return this.cache.getAll();
   }
 
+  /**
+   * Clear the local cache and re-fetch all flags from the API.
+   * Useful when a new session starts and fresh flag state is required.
+   */
+  async refreshSession(): Promise<void> {
+    this.cache.clear();
+    const flags = await this.fetchAllFlags();
+    this.cache.setMany(flags);
+  }
+
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------

@@ -42,6 +42,7 @@ export class DeploySentryClient {
   private readonly project: string;
   private readonly sessionId: string | undefined;
   private user: UserContext | undefined;
+  private readonly sessionId: string | undefined;
 
   /** In-memory flag store keyed by flag key. */
   private readonly flags = new Map<string, Flag>();
@@ -77,6 +78,7 @@ export class DeploySentryClient {
     this.project = options.project;
     this.sessionId = options.sessionId;
     this.user = options.user;
+    this.sessionId = options.sessionId;
   }
 
   // ---------------------------------------------------------------------------
@@ -105,6 +107,15 @@ export class DeploySentryClient {
   /** Update the user context and re-fetch flags. */
   async identify(user: UserContext | undefined): Promise<void> {
     this.user = user;
+    await this.fetchFlags();
+  }
+
+  /**
+   * Clear the local flag store and re-fetch all flags from the API.
+   * Useful when a new session starts and fresh flag state is required.
+   */
+  async refreshSession(): Promise<void> {
+    this.flags.clear();
     await this.fetchFlags();
   }
 

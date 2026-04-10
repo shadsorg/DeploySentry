@@ -19,6 +19,7 @@ class DeploySentryClient {
   final String? sessionId;
   final Duration cacheTimeout;
   final bool offlineMode;
+  final String? sessionId;
 
   late final FlagCache _cache;
   late final http.Client _httpClient;
@@ -34,6 +35,7 @@ class DeploySentryClient {
     this.sessionId,
     this.cacheTimeout = const Duration(minutes: 5),
     this.offlineMode = false,
+    this.sessionId,
   }) {
     _cache = FlagCache(timeout: cacheTimeout);
     _httpClient = http.Client();
@@ -77,7 +79,8 @@ class DeploySentryClient {
     _initialized = false;
   }
 
-  /// Clear the cache and re-fetch all flags for the current session.
+  /// Clear the local cache and re-fetch all flags from the API.
+  /// Useful when a new session starts and fresh flag state is required.
   Future<void> refreshSession() async {
     _cache.clear();
     await _fetchAllFlags();

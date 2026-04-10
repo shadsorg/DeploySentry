@@ -99,6 +99,15 @@ public final class DeploySentryClient implements AutoCloseable {
         LOG.info("DeploySentry client closed");
     }
 
+    /**
+     * Clears the local flag cache and re-fetches all flags from the API.
+     * Useful when a new session starts and fresh flag state is required.
+     */
+    public void refreshSession() {
+        cache.clear();
+        fetchFlags();
+    }
+
     // --------------------------------------------------------- typed evaluations
 
     /**

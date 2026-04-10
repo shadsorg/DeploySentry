@@ -9,3 +9,4 @@
 | Web UI Phase 3 — Entity Management | Complete | [Link](./superpowers/plans/2026-03-28-web-ui-phase3-entity-management.md) |
 | Flag Ratings & Error Tracking | Implementation | [Link](./superpowers/specs/2026-03-29-flag-ratings-and-error-tracking-design.md) |
 | Entity Management API & UI Wiring | Implementation | [Link](./superpowers/specs/2026-03-29-entity-management-api-wiring-design.md) |
+| Feature Flag Engine Improvements | Implementation | [Link](./superpowers/specs/2026-04-10-flag-engine-improvements-design.md) |

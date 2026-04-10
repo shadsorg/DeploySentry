@@ -156,6 +156,30 @@ func (m *mockFlagRepo) UpsertFlagEnvState(ctx context.Context, state *models.Fla
 	return nil
 }
 
+func (m *mockFlagRepo) CreateSegment(ctx context.Context, segment *models.Segment) error {
+	return nil
+}
+
+func (m *mockFlagRepo) GetSegment(ctx context.Context, id uuid.UUID) (*models.Segment, error) {
+	return nil, nil
+}
+
+func (m *mockFlagRepo) GetSegmentByKey(ctx context.Context, projectID uuid.UUID, key string) (*models.Segment, error) {
+	return nil, nil
+}
+
+func (m *mockFlagRepo) ListSegments(ctx context.Context, projectID uuid.UUID) ([]*models.Segment, error) {
+	return nil, nil
+}
+
+func (m *mockFlagRepo) UpdateSegment(ctx context.Context, segment *models.Segment) error {
+	return nil
+}
+
+func (m *mockFlagRepo) DeleteSegment(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+
 // mockCache is a test double for Cache.
 type mockCache struct {
 	flags map[string]*models.FeatureFlag   // key: "projectID:envID:key"

@@ -81,6 +81,23 @@ type FlagService interface {
 
 	// WarmCache pre-loads active flags into the evaluation cache.
 	WarmCache(ctx context.Context, projectID uuid.UUID) error
+
+	// Segment operations
+
+	// CreateSegment creates a new reusable segment.
+	CreateSegment(ctx context.Context, segment *models.Segment) error
+
+	// GetSegment retrieves a segment by ID.
+	GetSegment(ctx context.Context, id uuid.UUID) (*models.Segment, error)
+
+	// ListSegments returns all segments for a project.
+	ListSegments(ctx context.Context, projectID uuid.UUID) ([]*models.Segment, error)
+
+	// UpdateSegment persists changes to an existing segment.
+	UpdateSegment(ctx context.Context, segment *models.Segment) error
+
+	// DeleteSegment removes a segment by ID.
+	DeleteSegment(ctx context.Context, id uuid.UUID) error
 }
 
 // flagService is the concrete implementation of FlagService.
@@ -379,6 +396,31 @@ func (s *flagService) DetectStaleFlags(ctx context.Context, projectID uuid.UUID,
 		}
 	}
 	return stale, nil
+}
+
+// CreateSegment persists a new segment, generating an ID if not set.
+func (s *flagService) CreateSegment(ctx context.Context, segment *models.Segment) error {
+	return s.repo.CreateSegment(ctx, segment)
+}
+
+// GetSegment retrieves a segment by its unique identifier.
+func (s *flagService) GetSegment(ctx context.Context, id uuid.UUID) (*models.Segment, error) {
+	return s.repo.GetSegment(ctx, id)
+}
+
+// ListSegments returns all segments for a project.
+func (s *flagService) ListSegments(ctx context.Context, projectID uuid.UUID) ([]*models.Segment, error) {
+	return s.repo.ListSegments(ctx, projectID)
+}
+
+// UpdateSegment persists changes to an existing segment.
+func (s *flagService) UpdateSegment(ctx context.Context, segment *models.Segment) error {
+	return s.repo.UpdateSegment(ctx, segment)
+}
+
+// DeleteSegment removes a segment by its ID.
+func (s *flagService) DeleteSegment(ctx context.Context, id uuid.UUID) error {
+	return s.repo.DeleteSegment(ctx, id)
 }
 
 // WarmCache pre-loads all active flags for a project into the evaluation cache.

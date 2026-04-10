@@ -35,6 +35,12 @@ type mockFlagService struct {
 	listRulesFn         func(ctx context.Context, flagID uuid.UUID) ([]*models.TargetingRule, error)
 	listFlagEnvStatesFn func(ctx context.Context, flagID uuid.UUID) ([]*models.FlagEnvironmentState, error)
 	setFlagEnvStateFn   func(ctx context.Context, state *models.FlagEnvironmentState) error
+	// Segment stubs
+	createSegmentFn func(ctx context.Context, segment *models.Segment) error
+	getSegmentFn    func(ctx context.Context, id uuid.UUID) (*models.Segment, error)
+	listSegmentsFn  func(ctx context.Context, projectID uuid.UUID) ([]*models.Segment, error)
+	updateSegmentFn func(ctx context.Context, segment *models.Segment) error
+	deleteSegmentFn func(ctx context.Context, id uuid.UUID) error
 }
 
 func (m *mockFlagService) CreateFlag(ctx context.Context, flag *models.FeatureFlag) error {
@@ -145,6 +151,41 @@ func (m *mockFlagService) DetectStaleFlags(ctx context.Context, projectID uuid.U
 }
 
 func (m *mockFlagService) WarmCache(ctx context.Context, projectID uuid.UUID) error {
+	return nil
+}
+
+func (m *mockFlagService) CreateSegment(ctx context.Context, segment *models.Segment) error {
+	if m.createSegmentFn != nil {
+		return m.createSegmentFn(ctx, segment)
+	}
+	return nil
+}
+
+func (m *mockFlagService) GetSegment(ctx context.Context, id uuid.UUID) (*models.Segment, error) {
+	if m.getSegmentFn != nil {
+		return m.getSegmentFn(ctx, id)
+	}
+	return &models.Segment{ID: id}, nil
+}
+
+func (m *mockFlagService) ListSegments(ctx context.Context, projectID uuid.UUID) ([]*models.Segment, error) {
+	if m.listSegmentsFn != nil {
+		return m.listSegmentsFn(ctx, projectID)
+	}
+	return []*models.Segment{}, nil
+}
+
+func (m *mockFlagService) UpdateSegment(ctx context.Context, segment *models.Segment) error {
+	if m.updateSegmentFn != nil {
+		return m.updateSegmentFn(ctx, segment)
+	}
+	return nil
+}
+
+func (m *mockFlagService) DeleteSegment(ctx context.Context, id uuid.UUID) error {
+	if m.deleteSegmentFn != nil {
+		return m.deleteSegmentFn(ctx, id)
+	}
 	return nil
 }
 

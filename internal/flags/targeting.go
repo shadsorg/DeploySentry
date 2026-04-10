@@ -123,6 +123,33 @@ func evaluateScheduleRule(rule *models.TargetingRule) bool {
 }
 
 
+// evaluateConditions evaluates a list of compound conditions against an evaluation context.
+// AND mode: all conditions must match (short-circuits on first false).
+// OR mode: any condition must match (short-circuits on first true).
+func evaluateConditions(conditions []models.CompoundCondition, op CombineOperator, evalCtx models.EvaluationContext) bool {
+	if len(conditions) == 0 {
+		return op == CombineAND
+	}
+
+	for _, cond := range conditions {
+		rule := &models.TargetingRule{
+			Attribute: cond.Attribute,
+			Operator:  cond.Operator,
+			Value:     cond.Value,
+		}
+		match := evaluateAttributeRule(rule, evalCtx)
+
+		if op == CombineAND && !match {
+			return false
+		}
+		if op == CombineOR && match {
+			return true
+		}
+	}
+
+	return op == CombineAND
+}
+
 // compareNumeric parses two strings as float64 values and returns:
 //
 //	-1 if a < b, 0 if a == b, 1 if a > b.

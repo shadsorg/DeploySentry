@@ -6,13 +6,15 @@
 
 | Initiative | Phase | Plan/Spec File | Notes |
 |---|---|---|---|
-| Documentation Updates | Implementation | [Plan](./superpowers/plans/2026-03-27-documentation-updates.md) | Evaluate endpoint listed in README but missing: SSE protocol, rule management, session consistency, percentage rollout docs. SDK READMEs missing auth header docs (5 of 7) and session consistency examples (all 7) |
+| *(none)* | | | |
+
 ## Completed (archive candidates)
 
 These are implemented in the codebase but their plan checklists were never updated. They should be archived to `docs/archives/`.
 
 | Initiative | Plan/Spec File | Status |
 |---|---|---|
+| Documentation Updates | [Plan](./superpowers/plans/2026-03-27-documentation-updates.md) | All 6 tasks complete: evaluation API, SSE protocol, rule management, session consistency, percentage rollout in README; auth header + session docs in all 7 SDK READMEs |
 | SettingsPage Backend Wiring | [Plan](./superpowers/plans/2026-04-10-settings-page-wiring.md) | All 5 tabs wired: environments CRUD, webhooks CRUD, notification preferences, project/app settings. No mock data remains |
 | SDK Production Readiness | [Plan](./superpowers/plans/2026-03-27-sdk-production-readiness.md) | All 15 tasks complete: contract fixtures, auth headers, typed eval, SSE reconnection, session consistency, unit/contract tests — all 7 SDKs |
 | Feature Flag Engine Improvements | [Plan](./Feature_Flag_Engine_Improvements.md) | All 5 items complete: segments, compound rules, batch concurrency, singleflight, SSE broadcasts |

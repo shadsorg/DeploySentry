@@ -180,3 +180,6 @@ temp/
 debug
 __debug_bin*
 .gstack/
+
+# Git worktrees
+.worktrees/

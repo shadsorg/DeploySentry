@@ -228,6 +228,14 @@ func (c *mockCache) Invalidate(ctx context.Context, flagID uuid.UUID) error {
 	return nil
 }
 
+func (c *mockCache) GetSegment(ctx context.Context, id uuid.UUID) (*models.Segment, error) {
+	return nil, nil
+}
+
+func (c *mockCache) SetSegment(ctx context.Context, segment *models.Segment, ttl time.Duration) error {
+	return nil
+}
+
 // emptyCacheThatMisses always returns nil (cache miss) for everything.
 type emptyCacheThatMisses struct{}
 
@@ -244,6 +252,12 @@ func (e *emptyCacheThatMisses) SetRules(ctx context.Context, flagID uuid.UUID, r
 	return nil
 }
 func (e *emptyCacheThatMisses) Invalidate(ctx context.Context, flagID uuid.UUID) error {
+	return nil
+}
+func (e *emptyCacheThatMisses) GetSegment(ctx context.Context, id uuid.UUID) (*models.Segment, error) {
+	return nil, nil
+}
+func (e *emptyCacheThatMisses) SetSegment(ctx context.Context, segment *models.Segment, ttl time.Duration) error {
 	return nil
 }
 

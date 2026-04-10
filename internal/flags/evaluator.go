@@ -29,6 +29,12 @@ type Cache interface {
 
 	// Invalidate removes a flag and its rules from the cache.
 	Invalidate(ctx context.Context, flagID uuid.UUID) error
+
+	// GetSegment returns a cached segment, or nil if not found.
+	GetSegment(ctx context.Context, id uuid.UUID) (*models.Segment, error)
+
+	// SetSegment stores a segment in the cache with a TTL.
+	SetSegment(ctx context.Context, segment *models.Segment, ttl time.Duration) error
 }
 
 // TelemetryLogger defines the interface for logging flag evaluation telemetry.

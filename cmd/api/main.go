@@ -199,6 +199,7 @@ func run() error {
 	webhookRepo := postgres.NewWebhookRepository(db.Pool)
 	ratingRepo := postgres.NewRatingRepository(db.Pool)
 	entityRepo := postgres.NewEntityRepository(db.Pool)
+	envRepo := entities.NewEnvironmentRepository(db.Pool)
 	settingRepo := postgres.NewSettingRepository(db.Pool)
 	memberRepo := postgres.NewMemberRepository(db.Pool)
 
@@ -214,7 +215,7 @@ func run() error {
 	analyticsService := analytics.NewService(db.Pool, rdb.Client)
 	webhookService := webhooks.NewService(webhookRepo, nc)
 	ratingService := ratings.NewRatingService(ratingRepo)
-	entityService := entities.NewEntityService(entityRepo)
+	entityService := entities.NewEntityService(entityRepo, envRepo)
 	settingService := settings.NewSettingService(settingRepo)
 	memberService := members.NewService(memberRepo)
 

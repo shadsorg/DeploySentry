@@ -149,7 +149,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, projectID, environmentID uuid.
 			continue
 		}
 
-		match, err := e.evaluateRule(rule, evalCtx, flag.Key)
+		match, err := e.evaluateRule(ctx, rule, evalCtx, flag.Key)
 		if err != nil {
 			// Rule evaluation errors are non-fatal; skip the rule.
 			continue
@@ -187,7 +187,7 @@ func (e *Evaluator) logTelemetry(ctx context.Context, result *models.FlagEvaluat
 }
 
 // evaluateRule dispatches to the appropriate rule evaluator based on rule type.
-func (e *Evaluator) evaluateRule(rule *models.TargetingRule, evalCtx models.EvaluationContext, flagKey string) (bool, error) {
+func (e *Evaluator) evaluateRule(ctx context.Context, rule *models.TargetingRule, evalCtx models.EvaluationContext, flagKey string) (bool, error) {
 	switch rule.RuleType {
 	case models.RuleTypePercentage:
 		return evaluatePercentageRule(rule, evalCtx, flagKey), nil
@@ -198,12 +198,42 @@ func (e *Evaluator) evaluateRule(rule *models.TargetingRule, evalCtx models.Eval
 	case models.RuleTypeSchedule:
 		return evaluateScheduleRule(rule), nil
 	case models.RuleTypeSegment:
-		// Segment evaluation would require loading segment membership data.
-		// Returning false as a stub.
-		return false, nil
+		segment, err := e.loadSegment(ctx, rule.SegmentID)
+		if err != nil {
+			return false, err
+		}
+		conditions := make([]models.CompoundCondition, len(segment.Conditions))
+		for i, sc := range segment.Conditions {
+			conditions[i] = models.CompoundCondition{
+				Attribute: sc.Attribute,
+				Operator:  sc.Operator,
+				Value:     sc.Value,
+			}
+		}
+		return evaluateConditions(conditions, CombineOperator(segment.CombineOp), evalCtx), nil
+	case models.RuleTypeCompound:
+		return evaluateConditions(rule.Conditions, CombineOperator(rule.CombineOp), evalCtx), nil
 	default:
 		return false, fmt.Errorf("unknown rule type: %s", rule.RuleType)
 	}
+}
+
+// loadSegment retrieves a segment from the cache, falling back to the repository.
+// The segment is written back to cache after a repo load.
+func (e *Evaluator) loadSegment(ctx context.Context, segmentID *uuid.UUID) (*models.Segment, error) {
+	if segmentID == nil {
+		return nil, fmt.Errorf("segment rule missing segment_id")
+	}
+	segment, err := e.cache.GetSegment(ctx, *segmentID)
+	if err == nil && segment != nil {
+		return segment, nil
+	}
+	segment, err = e.repo.GetSegment(ctx, *segmentID)
+	if err != nil {
+		return nil, fmt.Errorf("loading segment %s: %w", segmentID, err)
+	}
+	_ = e.cache.SetSegment(ctx, segment, e.cacheTTL)
+	return segment, nil
 }
 
 // HashPercentage computes a deterministic hash-based percentage (0-99) for a

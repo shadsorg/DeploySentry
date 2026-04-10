@@ -14,6 +14,7 @@ These are implemented in the codebase but their plan checklists were never updat
 
 | Initiative | Plan/Spec File | Status |
 |---|---|---|
+| Playwright E2E Testing | [Plan](./superpowers/plans/2026-04-10-playwright-e2e-testing.md) | Infrastructure + 6 smoke tests + 9 UI tests + 13 fixtures |
 | Documentation Updates | [Plan](./superpowers/plans/2026-03-27-documentation-updates.md) | All 6 tasks complete: evaluation API, SSE protocol, rule management, session consistency, percentage rollout in README; auth header + session docs in all 7 SDK READMEs |
 | SettingsPage Backend Wiring | [Plan](./superpowers/plans/2026-04-10-settings-page-wiring.md) | All 5 tabs wired: environments CRUD, webhooks CRUD, notification preferences, project/app settings. No mock data remains |
 | SDK Production Readiness | [Plan](./superpowers/plans/2026-03-27-sdk-production-readiness.md) | All 15 tasks complete: contract fixtures, auth headers, typed eval, SSE reconnection, session consistency, unit/contract tests — all 7 SDKs |

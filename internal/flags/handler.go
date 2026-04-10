@@ -3,7 +3,6 @@ package flags
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -331,6 +330,8 @@ func (h *Handler) updateFlag(c *gin.Context) {
 		return
 	}
 
+	h.broadcastEvent("flag.updated", id, "")
+
 	// Trigger webhook event for flag update
 	if h.webhookSvc != nil {
 		userID, _ := c.Get("user_id")
@@ -380,6 +381,8 @@ func (h *Handler) archiveFlag(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
+
+	h.broadcastEvent("flag.archived", id, "")
 
 	// Trigger webhook event for flag archive
 	if h.webhookSvc != nil {
@@ -442,7 +445,7 @@ func (h *Handler) toggleFlag(c *gin.Context) {
 	}
 
 	// Broadcast toggle event to SSE clients.
-	h.sse.Broadcast(fmt.Sprintf(`{"event":"flag.toggled","flag_id":"%s","enabled":%t}`, id, req.Enabled))
+	h.broadcastEvent("flag.toggled", id, "")
 
 	// Trigger webhook event for flag toggle
 	if h.webhookSvc != nil {
@@ -496,6 +499,10 @@ func (h *Handler) bulkToggle(c *gin.Context) {
 	if err := h.service.BulkToggle(c.Request.Context(), req.FlagIDs, req.Enabled); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
+	}
+
+	for _, flagID := range req.FlagIDs {
+		h.broadcastEvent("flag.bulk_toggled", flagID, "")
 	}
 
 	c.JSON(http.StatusOK, gin.H{"toggled": len(req.FlagIDs), "enabled": req.Enabled})
@@ -712,6 +719,8 @@ func (h *Handler) addRule(c *gin.Context) {
 		return
 	}
 
+	h.broadcastEvent("rule.created", rule.FlagID, "")
+
 	c.JSON(http.StatusCreated, rule)
 }
 
@@ -753,6 +762,8 @@ func (h *Handler) updateRule(c *gin.Context) {
 		return
 	}
 
+	h.broadcastEvent("rule.updated", rule.FlagID, "")
+
 	c.JSON(http.StatusOK, rule)
 }
 
@@ -763,10 +774,18 @@ func (h *Handler) deleteRule(c *gin.Context) {
 		return
 	}
 
+	flagID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid flag id"})
+		return
+	}
+
 	if err := h.service.DeleteRule(c.Request.Context(), ruleID); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
+
+	h.broadcastEvent("rule.deleted", flagID, "")
 
 	c.JSON(http.StatusNoContent, nil)
 }
@@ -845,6 +864,26 @@ func (h *Handler) setFlagEnvState(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, state)
+}
+
+// SSEEvent is the structured payload broadcast to connected SSE clients when a
+// flag or rule mutation occurs.
+type SSEEvent struct {
+	Event     string    `json:"event"`
+	FlagID    string    `json:"flag_id"`
+	FlagKey   string    `json:"flag_key,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// broadcastEvent serialises an SSEEvent and sends it to all connected clients.
+func (h *Handler) broadcastEvent(event string, flagID uuid.UUID, flagKey string) {
+	data, _ := json.Marshal(SSEEvent{
+		Event:     event,
+		FlagID:    flagID.String(),
+		FlagKey:   flagKey,
+		Timestamp: time.Now(),
+	})
+	h.sse.Broadcast(string(data))
 }
 
 // --- SSE (Server-Sent Events) support ---

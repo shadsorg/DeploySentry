@@ -1015,3 +1015,45 @@ func TestSetFlagEnvState_ServiceError(t *testing.T) {
 	router.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 }
+
+// ---------------------------------------------------------------------------
+// broadcastEvent helper
+// ---------------------------------------------------------------------------
+
+func TestBroadcastEvent(t *testing.T) {
+	broker := NewSSEBroker()
+	handler := &Handler{sse: broker, service: &mockFlagService{}}
+
+	ch := broker.Subscribe()
+	defer broker.Unsubscribe(ch)
+
+	flagID := uuid.New()
+	handler.broadcastEvent("flag.updated", flagID, "my-flag")
+
+	select {
+	case msg := <-ch:
+		var event struct {
+			Event     string `json:"event"`
+			FlagID    string `json:"flag_id"`
+			FlagKey   string `json:"flag_key"`
+			Timestamp string `json:"timestamp"`
+		}
+		if err := json.Unmarshal([]byte(msg), &event); err != nil {
+			t.Fatalf("failed to unmarshal SSE event: %v", err)
+		}
+		if event.Event != "flag.updated" {
+			t.Errorf("event = %q, want %q", event.Event, "flag.updated")
+		}
+		if event.FlagID != flagID.String() {
+			t.Errorf("flag_id = %q, want %q", event.FlagID, flagID.String())
+		}
+		if event.FlagKey != "my-flag" {
+			t.Errorf("flag_key = %q, want %q", event.FlagKey, "my-flag")
+		}
+		if event.Timestamp == "" {
+			t.Error("timestamp should not be empty")
+		}
+	default:
+		t.Error("expected to receive SSE event")
+	}
+}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/deploysentry/deploysentry/internal/models"
 	"github.com/google/uuid"
+	"golang.org/x/sync/singleflight"
 )
 
 // Cache defines the interface for a flag evaluation cache.
@@ -55,12 +56,14 @@ type CacheMetrics struct {
 // for a given evaluation context by checking the cache, falling back to the
 // database, and applying targeting rules in priority order.
 type Evaluator struct {
-	repo            FlagRepository
-	cache           Cache
-	cacheTTL        time.Duration
-	telemetry       TelemetryLogger
-	sampleRate      float64
-	Metrics         CacheMetrics
+	repo       FlagRepository
+	cache      Cache
+	cacheTTL   time.Duration
+	telemetry  TelemetryLogger
+	sampleRate float64
+	Metrics    CacheMetrics
+	sfFlags    singleflight.Group
+	sfRules    singleflight.Group
 }
 
 // NewEvaluator creates a new flag evaluation engine.
@@ -106,13 +109,16 @@ func (e *Evaluator) Evaluate(ctx context.Context, projectID, environmentID uuid.
 	// Try cache first.
 	flag, err := e.cache.GetFlag(ctx, projectID, environmentID, key)
 	if err != nil || flag == nil {
-		// Cache miss: fall back to database.
+		// Cache miss: fall back to database, coalescing concurrent requests.
 		e.Metrics.Misses.Add(1)
-		flag, err = e.repo.GetFlagByKey(ctx, projectID, environmentID, key)
-		if err != nil {
-			return nil, fmt.Errorf("flag %q not found: %w", key, err)
+		sfKey := fmt.Sprintf("%s:%s:%s", projectID, environmentID, key)
+		val, sfErr, _ := e.sfFlags.Do(sfKey, func() (interface{}, error) {
+			return e.repo.GetFlagByKey(ctx, projectID, environmentID, key)
+		})
+		if sfErr != nil {
+			return nil, fmt.Errorf("flag %q not found: %w", key, sfErr)
 		}
-		// Populate cache asynchronously (best-effort).
+		flag = val.(*models.FeatureFlag)
 		_ = e.cache.SetFlag(ctx, flag, e.cacheTTL)
 	} else {
 		e.Metrics.Hits.Add(1)
@@ -134,10 +140,13 @@ func (e *Evaluator) Evaluate(ctx context.Context, projectID, environmentID uuid.
 	rules, err := e.cache.GetRules(ctx, flag.ID)
 	if err != nil || rules == nil {
 		e.Metrics.Misses.Add(1)
-		rules, err = e.repo.ListRules(ctx, flag.ID)
-		if err != nil {
-			return nil, fmt.Errorf("loading rules for flag %q: %w", key, err)
+		val, sfErr, _ := e.sfRules.Do(flag.ID.String(), func() (interface{}, error) {
+			return e.repo.ListRules(ctx, flag.ID)
+		})
+		if sfErr != nil {
+			return nil, fmt.Errorf("loading rules for flag %q: %w", key, sfErr)
 		}
+		rules = val.([]*models.TargetingRule)
 		_ = e.cache.SetRules(ctx, flag.ID, rules, e.cacheTTL)
 	} else {
 		e.Metrics.Hits.Add(1)

@@ -2,13 +2,111 @@ package flags
 
 import (
 	"context"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/deploysentry/deploysentry/internal/models"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// ---------------------------------------------------------------------------
+// Task 11: Singleflight cache stampede protection
+// ---------------------------------------------------------------------------
+
+// slowMissCache always returns a cache miss for flags (nil, nil) and never
+// stores anything. It implements the full Cache interface.
+type slowMissCache struct{}
+
+func (c *slowMissCache) GetFlag(ctx context.Context, projectID, environmentID uuid.UUID, key string) (*models.FeatureFlag, error) {
+	return nil, nil
+}
+func (c *slowMissCache) SetFlag(ctx context.Context, flag *models.FeatureFlag, ttl time.Duration) error {
+	return nil
+}
+func (c *slowMissCache) GetRules(ctx context.Context, flagID uuid.UUID) ([]*models.TargetingRule, error) {
+	return nil, nil
+}
+func (c *slowMissCache) SetRules(ctx context.Context, flagID uuid.UUID, rules []*models.TargetingRule, ttl time.Duration) error {
+	return nil
+}
+func (c *slowMissCache) Invalidate(ctx context.Context, flagID uuid.UUID) error {
+	return nil
+}
+func (c *slowMissCache) GetSegment(ctx context.Context, id uuid.UUID) (*models.Segment, error) {
+	return nil, nil
+}
+func (c *slowMissCache) SetSegment(ctx context.Context, segment *models.Segment, ttl time.Duration) error {
+	return nil
+}
+
+// countingSlowRepo counts calls to GetFlagByKey and sleeps to allow concurrent
+// goroutines to pile up before the first call returns.
+type countingSlowRepo struct {
+	mockFlagRepo
+	callCount atomic.Int64
+}
+
+func (r *countingSlowRepo) GetFlagByKey(ctx context.Context, projectID, environmentID uuid.UUID, key string) (*models.FeatureFlag, error) {
+	r.callCount.Add(1)
+	time.Sleep(50 * time.Millisecond)
+	for _, f := range r.flags {
+		if f.ProjectID == projectID && f.EnvironmentID == environmentID && f.Key == key {
+			return f, nil
+		}
+	}
+	return r.mockFlagRepo.GetFlagByKey(ctx, projectID, environmentID, key)
+}
+
+// ListRules delegates to embedded mockFlagRepo (returns empty slice).
+func (r *countingSlowRepo) ListRules(ctx context.Context, flagID uuid.UUID) ([]*models.TargetingRule, error) {
+	return r.mockFlagRepo.ListRules(ctx, flagID)
+}
+
+func TestEvaluator_SingleflightCoalescesConcurrentDBCalls(t *testing.T) {
+	projectID := uuid.New()
+	envID := uuid.New()
+	flagID := uuid.New()
+
+	flag := &models.FeatureFlag{
+		ID:            flagID,
+		ProjectID:     projectID,
+		EnvironmentID: envID,
+		Key:           "sf-test-flag",
+		Name:          "Singleflight Test Flag",
+		FlagType:      models.FlagTypeBoolean,
+		DefaultValue:  "false",
+		Enabled:       true,
+		CreatedBy:     uuid.New(),
+	}
+
+	repo := &countingSlowRepo{
+		mockFlagRepo: mockFlagRepo{
+			flags: map[uuid.UUID]*models.FeatureFlag{flagID: flag},
+			rules: make(map[uuid.UUID][]*models.TargetingRule),
+		},
+	}
+	cache := &slowMissCache{}
+	evaluator := NewEvaluator(repo, cache)
+
+	const goroutines = 10
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			defer wg.Done()
+			_, _ = evaluator.Evaluate(context.Background(), projectID, envID, "sf-test-flag", models.EvaluationContext{})
+		}()
+	}
+	wg.Wait()
+
+	calls := repo.callCount.Load()
+	assert.Equal(t, int64(1), calls, "singleflight should coalesce 10 concurrent cache misses into 1 DB call, got %d", calls)
+}
 
 // ---------------------------------------------------------------------------
 // Helpers — segment-aware mock repo and cache

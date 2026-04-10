@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
-import type { OrgEnvironment } from '@/types';
+import { useParams } from 'react-router-dom';
+import { useEnvironments } from '../hooks/useEntities';
+import { useWebhooks } from '../hooks/useWebhooks';
+import { useNotifications } from '../hooks/useNotifications';
+import { entitiesApi, webhooksApi, Webhook } from '../api';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -52,94 +56,79 @@ function getTabsForLevel(level: string): { key: SettingsTab; label: string }[] {
   }
 }
 
-interface Webhook {
-  id: string;
-  url: string;
-  events: string[];
-  status: 'Active' | 'Inactive';
-  created: string;
-}
-
-// ---------------------------------------------------------------------------
-// Mock data
-// ---------------------------------------------------------------------------
-
-const MOCK_WEBHOOKS: Webhook[] = [
-  {
-    id: 'wh-1',
-    url: 'https://hooks.slack.com/services/T00/B00/xxxx',
-    events: ['deploy.completed', 'deploy.failed', 'deploy.rolled_back'],
-    status: 'Active',
-    created: '2025-11-20',
-  },
-  {
-    id: 'wh-2',
-    url: 'https://api.pagerduty.com/webhooks/deploysentry',
-    events: ['deploy.failed', 'flag.changed'],
-    status: 'Inactive',
-    created: '2026-01-05',
-  },
-];
-
-const NOTIFICATION_EVENTS = [
-  'deploy.started',
-  'deploy.completed',
-  'deploy.failed',
-  'deploy.rolled_back',
-  'flag.changed',
-];
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
+  const { orgSlug, projectSlug, appSlug } = useParams();
   const [activeTab, setActiveTab] = useState<SettingsTab>(defaultTab(level, tab));
 
-  // Environments state (org level)
-  const [environments, setEnvironments] = useState<OrgEnvironment[]>([]);
+  // ---------------------------------------------------------------------------
+  // Environments (org level) — Task 7
+  // ---------------------------------------------------------------------------
+  const {
+    environments,
+    loading: envsLoading,
+    error: envsError,
+    refresh: refreshEnvs,
+  } = useEnvironments(orgSlug);
   const [newEnvName, setNewEnvName] = useState('');
   const [newEnvSlug, setNewEnvSlug] = useState('');
   const [newEnvIsProd, setNewEnvIsProd] = useState(false);
   const [confirmDeleteEnv, setConfirmDeleteEnv] = useState<string | null>(null);
+  const [envSaving, setEnvSaving] = useState(false);
 
-  // Notifications form state
-  const [slackUrl, setSlackUrl] = useState('');
-  const [slackChannel, setSlackChannel] = useState('');
-  const [slackEnabled, setSlackEnabled] = useState(false);
-  const [emailEnabled, setEmailEnabled] = useState(false);
-  const [emailSmtpHost, setEmailSmtpHost] = useState('');
-  const [emailSmtpPort, setEmailSmtpPort] = useState('587');
-  const [emailUsername, setEmailUsername] = useState('');
-  const [emailPassword, setEmailPassword] = useState('');
-  const [emailFrom, setEmailFrom] = useState('');
-  const [pagerdutyEnabled, setPagerdutyEnabled] = useState(false);
-  const [pagerdutyKey, setPagerdutyKey] = useState('');
-  const [enabledEvents, setEnabledEvents] = useState<Set<string>>(
-    new Set(['deploy.completed', 'deploy.failed']),
-  );
+  // ---------------------------------------------------------------------------
+  // Webhooks — Task 8
+  // ---------------------------------------------------------------------------
+  const {
+    webhooks,
+    loading: webhooksLoading,
+    error: webhooksError,
+    refresh: refreshWebhooks,
+  } = useWebhooks();
+  const [addingWebhook, setAddingWebhook] = useState(false);
+  const [editingWebhookId, setEditingWebhookId] = useState<string | null>(null);
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [webhookEvents, setWebhookEvents] = useState<string[]>([]);
+  const [webhookActive, setWebhookActive] = useState(true);
+  const [webhookSaving, setWebhookSaving] = useState(false);
+  const [testingWebhookId, setTestingWebhookId] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<{ id: string; success: boolean } | null>(null);
 
-  // Project form state
-  const [projectName, setProjectName] = useState('DeploySentry');
+  // ---------------------------------------------------------------------------
+  // Notifications — Task 9
+  // ---------------------------------------------------------------------------
+  const {
+    preferences: notifPrefs,
+    loading: notifLoading,
+    error: notifError,
+    saving: notifSaving,
+    save: saveNotifPrefs,
+    reset: resetNotifPrefs,
+  } = useNotifications();
+  const [notifSuccess, setNotifSuccess] = useState(false);
+
+  // ---------------------------------------------------------------------------
+  // Project form state — Task 10
+  // ---------------------------------------------------------------------------
+  const [projectName, setProjectName] = useState('');
   const [defaultEnv, setDefaultEnv] = useState('production');
   const [staleThreshold, setStaleThreshold] = useState('30d');
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsSuccess, setSettingsSuccess] = useState(false);
 
-  // App form state
-  const [appName, setAppName] = useState('API Server');
-  const [appDescription, setAppDescription] = useState('Core REST API');
-  const [appRepoUrl, setAppRepoUrl] = useState('https://github.com/acme/api-server');
+  // ---------------------------------------------------------------------------
+  // App form state — Task 10
+  // ---------------------------------------------------------------------------
+  const [appName, setAppName] = useState('');
+  const [appDescription, setAppDescription] = useState('');
+  const [appRepoUrl, setAppRepoUrl] = useState('');
 
-  const toggleEvent = (event: string) => {
-    setEnabledEvents((prev) => {
-      const next = new Set(prev);
-      if (next.has(event)) {
-        next.delete(event);
-      } else {
-        next.add(event);
-      }
-      return next;
-    });
-  };
+  // ---------------------------------------------------------------------------
+  // Handlers — Environments
+  // ---------------------------------------------------------------------------
 
   const handleEnvNameChange = (value: string) => {
     setNewEnvName(value);
@@ -151,25 +140,187 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
     );
   };
 
-  const handleAddEnvironment = () => {
-    if (!newEnvName.trim() || !newEnvSlug.trim()) return;
-    const env: OrgEnvironment = {
-      id: `env-${Date.now()}`,
-      name: newEnvName.trim(),
-      slug: newEnvSlug.trim(),
-      is_production: newEnvIsProd,
-      created_at: new Date().toISOString(),
-    };
-    setEnvironments((prev) => [...prev, env]);
-    setNewEnvName('');
-    setNewEnvSlug('');
-    setNewEnvIsProd(false);
+  const handleAddEnvironment = async () => {
+    if (!newEnvName.trim() || !orgSlug) return;
+    setEnvSaving(true);
+    try {
+      await entitiesApi.createEnvironment(orgSlug, {
+        name: newEnvName,
+        slug: newEnvSlug || newEnvName.toLowerCase().replace(/\s+/g, '-'),
+        is_production: newEnvIsProd,
+      });
+      setNewEnvName('');
+      setNewEnvSlug('');
+      setNewEnvIsProd(false);
+      refreshEnvs();
+    } catch (err) {
+      console.error('Failed to create environment:', err);
+    } finally {
+      setEnvSaving(false);
+    }
   };
 
-  const handleDeleteEnvironment = (envId: string) => {
-    setEnvironments((prev) => prev.filter((e) => e.id !== envId));
-    setConfirmDeleteEnv(null);
+  const handleDeleteEnvironment = async (envSlug: string) => {
+    if (!orgSlug) return;
+    try {
+      await entitiesApi.deleteEnvironment(orgSlug, envSlug);
+      setConfirmDeleteEnv(null);
+      refreshEnvs();
+    } catch (err) {
+      console.error('Failed to delete environment:', err);
+    }
   };
+
+  // ---------------------------------------------------------------------------
+  // Handlers — Webhooks
+  // ---------------------------------------------------------------------------
+
+  const startEditWebhook = (wh: Webhook) => {
+    setEditingWebhookId(wh.id);
+    setWebhookUrl(wh.url);
+    setWebhookEvents([...wh.events]);
+    setWebhookActive(wh.is_active);
+    setAddingWebhook(false);
+  };
+
+  const cancelWebhookForm = () => {
+    setAddingWebhook(false);
+    setEditingWebhookId(null);
+    setWebhookUrl('');
+    setWebhookEvents([]);
+    setWebhookActive(true);
+  };
+
+  const handleSaveWebhook = async () => {
+    if (!webhookUrl.trim()) return;
+    setWebhookSaving(true);
+    try {
+      if (editingWebhookId) {
+        await webhooksApi.update(editingWebhookId, {
+          url: webhookUrl,
+          events: webhookEvents,
+          is_active: webhookActive,
+        });
+      } else {
+        await webhooksApi.create({
+          url: webhookUrl,
+          events: webhookEvents,
+          is_active: webhookActive,
+        });
+      }
+      cancelWebhookForm();
+      refreshWebhooks();
+    } catch (err) {
+      console.error('Failed to save webhook:', err);
+    } finally {
+      setWebhookSaving(false);
+    }
+  };
+
+  const handleDeleteWebhook = async (id: string) => {
+    try {
+      await webhooksApi.delete(id);
+      refreshWebhooks();
+    } catch (err) {
+      console.error('Failed to delete webhook:', err);
+    }
+  };
+
+  const handleTestWebhook = async (id: string) => {
+    setTestingWebhookId(id);
+    setTestResult(null);
+    try {
+      const res = await webhooksApi.test(id);
+      setTestResult({ id, success: res.success });
+    } catch (err) {
+      console.error('Failed to test webhook:', err);
+      setTestResult({ id, success: false });
+    } finally {
+      setTestingWebhookId(null);
+    }
+  };
+
+  const toggleWebhookEvent = (event: string) => {
+    setWebhookEvents((prev) =>
+      prev.includes(event) ? prev.filter((e) => e !== event) : [...prev, event],
+    );
+  };
+
+  // ---------------------------------------------------------------------------
+  // Handlers — Notifications
+  // ---------------------------------------------------------------------------
+
+  const handleSaveNotifications = async () => {
+    if (!notifPrefs) return;
+    try {
+      await saveNotifPrefs({
+        channels: notifPrefs.channels,
+        event_routing: notifPrefs.event_routing,
+      });
+      setNotifSuccess(true);
+      setTimeout(() => setNotifSuccess(false), 3000);
+    } catch (err) {
+      console.error('Failed to save notification settings:', err);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Handlers — Project Settings (Task 10)
+  // ---------------------------------------------------------------------------
+
+  const handleSaveProjectSettings = async () => {
+    if (!orgSlug || !projectSlug) return;
+    setSettingsSaving(true);
+    try {
+      await entitiesApi.updateProject(orgSlug, projectSlug, { name: projectName });
+      setSettingsSuccess(true);
+      setTimeout(() => setSettingsSuccess(false), 3000);
+    } catch (err) {
+      console.error('Failed to save project settings:', err);
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Handlers — App Settings (Task 10)
+  // ---------------------------------------------------------------------------
+
+  const handleSaveAppSettings = async () => {
+    if (!orgSlug || !projectSlug || !appSlug) return;
+    setSettingsSaving(true);
+    try {
+      await entitiesApi.updateApp(orgSlug, projectSlug, appSlug, {
+        name: appName,
+        description: appDescription,
+      });
+      setSettingsSuccess(true);
+      setTimeout(() => setSettingsSuccess(false), 3000);
+    } catch (err) {
+      console.error('Failed to save app settings:', err);
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  const handleDeleteApp = async () => {
+    if (!window.confirm('Are you sure you want to delete this application? This cannot be undone.'))
+      return;
+    if (!orgSlug || !projectSlug || !appSlug) return;
+    try {
+      await fetch(`/api/v1/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('ds_token') ?? ''}` },
+      });
+      window.location.href = `/orgs/${orgSlug}/projects/${projectSlug}/apps`;
+    } catch (err) {
+      console.error('Failed to delete app:', err);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
 
   const headingMap: Record<string, string> = {
     org: 'Organization Settings',
@@ -178,6 +329,14 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
   };
 
   const tabs = getTabsForLevel(level);
+
+  const WEBHOOK_EVENT_OPTIONS = [
+    'deploy.started',
+    'deploy.completed',
+    'deploy.failed',
+    'deploy.rolled_back',
+    'flag.changed',
+  ];
 
   return (
     <div>
@@ -199,12 +358,14 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
         ))}
       </div>
 
-      {/* Environments tab (org level) */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Environments tab (org level) — Task 7                               */}
+      {/* ------------------------------------------------------------------ */}
       {activeTab === 'environments' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <p className="text-muted text-sm">
-            Note: Environment changes are local to this session. Backend persistence coming soon.
-          </p>
+          {envsLoading && <p className="text-muted text-sm">Loading environments…</p>}
+          {envsError && <p className="text-danger text-sm">Error: {envsError}</p>}
+
           {/* Add environment form */}
           <div className="card">
             <div className="card-header">
@@ -245,9 +406,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             <button
               className="btn btn-primary btn-sm"
               onClick={handleAddEnvironment}
-              disabled={!newEnvName.trim()}
+              disabled={!newEnvName.trim() || envSaving}
             >
-              Add Environment
+              {envSaving ? 'Adding…' : 'Add Environment'}
             </button>
           </div>
 
@@ -256,7 +417,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             <div className="card-header">
               <span className="card-title">Environments</span>
             </div>
-            {environments.length === 0 ? (
+            {!envsLoading && environments.length === 0 ? (
               <p className="text-muted">No environments defined. Add one to get started.</p>
             ) : (
               <div className="table-container">
@@ -286,11 +447,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                           {new Date(env.created_at).toLocaleDateString()}
                         </td>
                         <td>
-                          {confirmDeleteEnv === env.id ? (
+                          {confirmDeleteEnv === env.slug ? (
                             <span className="flex items-center gap-2">
                               <button
                                 className="btn btn-danger btn-sm"
-                                onClick={() => handleDeleteEnvironment(env.id)}
+                                onClick={() => handleDeleteEnvironment(env.slug)}
                               >
                                 Confirm
                               </button>
@@ -304,7 +465,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                           ) : (
                             <button
                               className="btn btn-danger btn-sm"
-                              onClick={() => setConfirmDeleteEnv(env.id)}
+                              onClick={() => setConfirmDeleteEnv(env.slug)}
                             >
                               Delete
                             </button>
@@ -320,231 +481,264 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
         </div>
       )}
 
-      {/* Webhooks tab */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Webhooks tab — Task 8                                               */}
+      {/* ------------------------------------------------------------------ */}
       {activeTab === 'webhooks' && (
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">Webhooks</span>
-            <button className="btn btn-primary btn-sm">Add Webhook</button>
-          </div>
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>URL</th>
-                  <th>Events</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {MOCK_WEBHOOKS.map((wh) => (
-                  <tr key={wh.id}>
-                    <td>
-                      <code className="font-mono text-sm">{wh.url}</code>
-                    </td>
-                    <td>
-                      <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
-                        {wh.events.map((evt) => (
-                          <span key={evt} className="badge badge-ops">
-                            {evt}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td>
-                      <span
-                        className={`badge ${
-                          wh.status === 'Active' ? 'badge-active' : 'badge-disabled'
-                        }`}
-                      >
-                        {wh.status}
-                      </span>
-                    </td>
-                    <td className="text-secondary text-sm">{wh.created}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Notifications tab */}
-      {activeTab === 'notifications' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Slack */}
           <div className="card">
             <div className="card-header">
-              <span className="card-title">Slack</span>
-              <label className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={slackEnabled}
-                  onChange={(e) => setSlackEnabled(e.target.checked)}
-                />
-                <span className="text-sm">Enabled</span>
-              </label>
+              <span className="card-title">Webhooks</span>
+              {!addingWebhook && !editingWebhookId && (
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    cancelWebhookForm();
+                    setAddingWebhook(true);
+                  }}
+                >
+                  Add Webhook
+                </button>
+              )}
             </div>
-            {slackEnabled && (
-              <>
+
+            {webhooksLoading && <p className="text-muted text-sm">Loading webhooks…</p>}
+            {webhooksError && <p className="text-danger text-sm">Error: {webhooksError}</p>}
+
+            {/* Inline add/edit form */}
+            {(addingWebhook || editingWebhookId) && (
+              <div
+                style={{
+                  background: 'var(--color-bg-secondary, #1e293b)',
+                  border: '1px solid var(--color-border, #334155)',
+                  borderRadius: 6,
+                  padding: 16,
+                  marginBottom: 16,
+                }}
+              >
                 <div className="form-group">
                   <label className="form-label">Webhook URL</label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="https://hooks.slack.com/services/..."
-                    value={slackUrl}
-                    onChange={(e) => setSlackUrl(e.target.value)}
+                    placeholder="https://hooks.example.com/..."
+                    value={webhookUrl}
+                    onChange={(e) => setWebhookUrl(e.target.value)}
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Channel (optional)</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="#deployments"
-                    value={slackChannel}
-                    onChange={(e) => setSlackChannel(e.target.value)}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Email */}
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Email (SMTP)</span>
-              <label className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={emailEnabled}
-                  onChange={(e) => setEmailEnabled(e.target.checked)}
-                />
-                <span className="text-sm">Enabled</span>
-              </label>
-            </div>
-            {emailEnabled && (
-              <>
-                <div className="grid-2">
-                  <div className="form-group">
-                    <label className="form-label">SMTP Host</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="smtp.gmail.com"
-                      value={emailSmtpHost}
-                      onChange={(e) => setEmailSmtpHost(e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">SMTP Port</label>
-                    <input
-                      type="number"
-                      className="form-input"
-                      placeholder="587"
-                      value={emailSmtpPort}
-                      onChange={(e) => setEmailSmtpPort(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="grid-2">
-                  <div className="form-group">
-                    <label className="form-label">Username</label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="user@example.com"
-                      value={emailUsername}
-                      onChange={(e) => setEmailUsername(e.target.value)}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Password</label>
-                    <input
-                      type="password"
-                      className="form-input"
-                      placeholder="App password"
-                      value={emailPassword}
-                      onChange={(e) => setEmailPassword(e.target.value)}
-                    />
+                  <label className="form-label">Events</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {WEBHOOK_EVENT_OPTIONS.map((evt) => (
+                      <label key={evt} className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={webhookEvents.includes(evt)}
+                          onChange={() => toggleWebhookEvent(evt)}
+                        />
+                        <code className="font-mono text-sm">{evt}</code>
+                      </label>
+                    ))}
                   </div>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">From Address</label>
-                  <input
-                    type="email"
-                    className="form-input"
-                    placeholder="noreply@deploysentry.com"
-                    value={emailFrom}
-                    onChange={(e) => setEmailFrom(e.target.value)}
-                  />
+                  <label className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={webhookActive}
+                      onChange={(e) => setWebhookActive(e.target.checked)}
+                    />
+                    <span className="text-sm">Active</span>
+                  </label>
                 </div>
-              </>
-            )}
-          </div>
-
-          {/* PagerDuty */}
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">PagerDuty</span>
-              <label className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={pagerdutyEnabled}
-                  onChange={(e) => setPagerdutyEnabled(e.target.checked)}
-                />
-                <span className="text-sm">Enabled</span>
-              </label>
-            </div>
-            {pagerdutyEnabled && (
-              <div className="form-group">
-                <label className="form-label">Integration/Routing Key</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Events API v2 routing key"
-                  value={pagerdutyKey}
-                  onChange={(e) => setPagerdutyKey(e.target.value)}
-                />
-                <div className="form-hint">
-                  PagerDuty incidents are auto-created for deployment failures and health alerts.
+                <div className="flex items-center gap-2">
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={handleSaveWebhook}
+                    disabled={!webhookUrl.trim() || webhookSaving}
+                  >
+                    {webhookSaving ? 'Saving…' : editingWebhookId ? 'Update Webhook' : 'Create Webhook'}
+                  </button>
+                  <button className="btn btn-sm" onClick={cancelWebhookForm}>
+                    Cancel
+                  </button>
                 </div>
               </div>
             )}
-          </div>
 
-          {/* Event Types */}
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Event Types</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {NOTIFICATION_EVENTS.map((event) => (
-                <label
-                  key={event}
-                  className="flex items-center gap-3"
-                  style={{ cursor: 'pointer' }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={enabledEvents.has(event)}
-                    onChange={() => toggleEvent(event)}
-                  />
-                  <code className="font-mono text-sm">{event}</code>
-                </label>
-              ))}
-            </div>
+            {!webhooksLoading && webhooks.length === 0 && !addingWebhook ? (
+              <p className="text-muted">No webhooks configured. Add one to get started.</p>
+            ) : (
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>URL</th>
+                      <th>Events</th>
+                      <th>Status</th>
+                      <th>Created</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {webhooks.map((wh) => (
+                      <tr key={wh.id}>
+                        <td>
+                          <code className="font-mono text-sm">{wh.url}</code>
+                        </td>
+                        <td>
+                          <div className="flex items-center gap-2" style={{ flexWrap: 'wrap' }}>
+                            {wh.events.map((evt) => (
+                              <span key={evt} className="badge badge-ops">
+                                {evt}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`badge ${wh.is_active ? 'badge-active' : 'badge-disabled'}`}>
+                            {wh.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="text-secondary text-sm">
+                          {new Date(wh.created_at).toLocaleDateString()}
+                        </td>
+                        <td>
+                          <div className="flex items-center gap-2">
+                            <button
+                              className="btn btn-sm"
+                              onClick={() => startEditWebhook(wh)}
+                              disabled={!!editingWebhookId || addingWebhook}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              className="btn btn-sm"
+                              onClick={() => handleTestWebhook(wh.id)}
+                              disabled={testingWebhookId === wh.id}
+                            >
+                              {testingWebhookId === wh.id ? 'Testing…' : 'Test'}
+                            </button>
+                            <button
+                              className="btn btn-danger btn-sm"
+                              onClick={() => handleDeleteWebhook(wh.id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                          {testResult?.id === wh.id && (
+                            <span
+                              className={`text-sm ${testResult.success ? 'text-success' : 'text-danger'}`}
+                              style={{ display: 'block', marginTop: 4 }}
+                            >
+                              {testResult.success ? 'Test delivered successfully' : 'Test delivery failed'}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-
-          <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>
-            Save Notification Settings
-          </button>
         </div>
       )}
 
-      {/* General tab — project level */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Notifications tab — Task 9                                          */}
+      {/* ------------------------------------------------------------------ */}
+      {activeTab === 'notifications' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {notifLoading && <p className="text-muted text-sm">Loading notification settings…</p>}
+          {notifError && <p className="text-danger text-sm">Error: {notifError}</p>}
+
+          {notifPrefs && (
+            <>
+              {/* Channels */}
+              {Object.entries(notifPrefs.channels).map(([channelName, config]) => (
+                <div className="card" key={channelName}>
+                  <div className="card-header">
+                    <span className="card-title" style={{ textTransform: 'capitalize' }}>
+                      {channelName}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {config.source === 'config' && (
+                        <span className="badge badge-ops" style={{ fontSize: 11 }}>
+                          config-file
+                        </span>
+                      )}
+                      <span
+                        className={`badge ${config.enabled ? 'badge-active' : 'badge-disabled'}`}
+                      >
+                        {config.enabled ? 'Enabled' : 'Disabled'}
+                      </span>
+                    </div>
+                  </div>
+                  {config.source === 'config' ? (
+                    <p className="text-muted text-sm">
+                      This channel is configured via the server config file and cannot be edited here.
+                    </p>
+                  ) : (
+                    <p className="text-muted text-sm">
+                      Manage this channel's settings via the API or server configuration.
+                    </p>
+                  )}
+                </div>
+              ))}
+
+              {/* Event routing */}
+              {Object.keys(notifPrefs.event_routing).length > 0 && (
+                <div className="card">
+                  <div className="card-header">
+                    <span className="card-title">Event Routing</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {Object.entries(notifPrefs.event_routing).map(([event, channels]) => (
+                      <div key={event} className="flex items-center gap-3">
+                        <code className="font-mono text-sm" style={{ minWidth: 200 }}>
+                          {event}
+                        </code>
+                        <div className="flex items-center gap-2">
+                          {(channels as string[]).map((ch) => (
+                            <span key={ch} className="badge badge-ops">
+                              {ch}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3" style={{ alignSelf: 'flex-start' }}>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSaveNotifications}
+                  disabled={notifSaving}
+                >
+                  {notifSaving ? 'Saving…' : 'Save Notification Settings'}
+                </button>
+                <button
+                  className="btn btn-sm"
+                  onClick={resetNotifPrefs}
+                  disabled={notifSaving}
+                >
+                  Reset to Defaults
+                </button>
+                {notifSuccess && (
+                  <span className="text-sm text-success">Settings saved.</span>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* General tab — project level — Task 10                               */}
+      {/* ------------------------------------------------------------------ */}
       {activeTab === 'general' && level === 'project' && (
         <div className="card">
           <div className="card-header">
@@ -587,11 +781,22 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             </div>
           </div>
 
-          <button className="btn btn-primary">Save</button>
+          <div className="flex items-center gap-3">
+            <button
+              className="btn btn-primary"
+              onClick={handleSaveProjectSettings}
+              disabled={settingsSaving}
+            >
+              {settingsSaving ? 'Saving…' : 'Save'}
+            </button>
+            {settingsSuccess && <span className="text-sm text-success">Settings saved.</span>}
+          </div>
         </div>
       )}
 
-      {/* General tab — app level */}
+      {/* ------------------------------------------------------------------ */}
+      {/* General tab — app level — Task 10                                   */}
+      {/* ------------------------------------------------------------------ */}
       {activeTab === 'general' && level === 'app' && (
         <div className="card">
           <div className="card-header">
@@ -612,7 +817,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             <input
               type="text"
               className="form-input font-mono"
-              value="api-server"
+              value={appSlug ?? ''}
               readOnly
               style={{ opacity: 0.7 }}
             />
@@ -639,11 +844,22 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             />
           </div>
 
-          <button className="btn btn-primary">Save</button>
+          <div className="flex items-center gap-3">
+            <button
+              className="btn btn-primary"
+              onClick={handleSaveAppSettings}
+              disabled={settingsSaving}
+            >
+              {settingsSaving ? 'Saving…' : 'Save'}
+            </button>
+            {settingsSuccess && <span className="text-sm text-success">Settings saved.</span>}
+          </div>
         </div>
       )}
 
-      {/* Danger Zone tab (app level) */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Danger Zone tab (app level) — Task 10                               */}
+      {/* ------------------------------------------------------------------ */}
       {activeTab === 'danger' && (
         <div className="danger-zone">
           <h3>Delete Application</h3>
@@ -651,7 +867,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             Deleting this application will remove all its deployments, releases, and flag
             configurations. This action cannot be undone.
           </p>
-          <button className="btn btn-danger">Delete Application</button>
+          <button className="btn btn-danger" onClick={handleDeleteApp}>
+            Delete Application
+          </button>
         </div>
       )}
     </div>

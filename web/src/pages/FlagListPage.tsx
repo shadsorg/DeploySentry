@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { Flag, FlagCategory } from '@/types';
 import { entitiesApi, flagsApi } from '@/api';
@@ -51,24 +51,28 @@ export default function FlagListPage() {
       .finally(() => setLoading(false));
   }, [orgSlug, projectSlug]);
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-
-  const filtered = flags.filter((flag) => {
-    if (search) {
-      const q = search.toLowerCase();
-      if (!flag.name.toLowerCase().includes(q) && !flag.key.toLowerCase().includes(q)) {
+  // Optimization: Wrap filtering logic in useMemo to prevent O(N) recalculations on every render.
+  // We also hoist the search query string manipulation outside the loop to avoid repeated allocations.
+  const filtered = useMemo(() => {
+    const q = search?.toLowerCase() ?? '';
+    return flags.filter((flag) => {
+      if (q) {
+        if (!flag.name.toLowerCase().includes(q) && !flag.key.toLowerCase().includes(q)) {
+          return false;
+        }
+      }
+      if (categoryFilter !== 'all' && flag.category !== categoryFilter) {
         return false;
       }
-    }
-    if (categoryFilter !== 'all' && flag.category !== categoryFilter) {
-      return false;
-    }
-    if (statusFilter === 'enabled' && (!flag.enabled || flag.archived)) return false;
-    if (statusFilter === 'disabled' && (flag.enabled || flag.archived)) return false;
-    if (statusFilter === 'archived' && !flag.archived) return false;
-    return true;
-  });
+      if (statusFilter === 'enabled' && (!flag.enabled || flag.archived)) return false;
+      if (statusFilter === 'disabled' && (flag.enabled || flag.archived)) return false;
+      if (statusFilter === 'archived' && !flag.archived) return false;
+      return true;
+    });
+  }, [flags, search, categoryFilter, statusFilter]);
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
 
   return (
     <div>

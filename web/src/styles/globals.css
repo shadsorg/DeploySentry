@@ -1849,3 +1849,21 @@ tbody tr:last-child td {
 @media (max-width: 900px) {
   .pillar-grid { grid-template-columns: 1fr; }
 }
+
+/* Code contrast */
+.code-contrast { padding: 100px 24px; background: #0a0e14; }
+.code-contrast-inner { max-width: 1100px; margin: 0 auto; }
+.code-pair {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 50px;
+}
+.code-block {
+  background: #0f1419; border: 1px solid #1f2937; border-radius: 8px;
+  padding: 22px 24px; margin: 0;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 13px; line-height: 1.6; color: #e5e7eb;
+  overflow-x: auto;
+}
+.code-after { border-color: #3b82f6; box-shadow: 0 0 0 1px rgba(59,130,246,0.2); }
+@media (max-width: 800px) {
+  .code-pair { grid-template-columns: 1fr; }
+}

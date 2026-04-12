@@ -1,12 +1,12 @@
 # Current Initiatives
 
-> Last updated: 2026-04-10
+> Last updated: 2026-04-12
 
 ## Active (not yet complete)
 
 | Initiative | Phase | Plan/Spec File | Notes |
 |---|---|---|---|
-| *(none)* | | | |
+| Landing Page, Header & In-App Docs | Complete | [Plan](./superpowers/plans/2026-04-12-landing-page-and-header.md) / [Spec](./superpowers/specs/2026-04-12-landing-page-and-header-design.md) | All 19 tasks done: landing page, SiteHeader, UserMenu, docs route, Playwright E2E |
 
 ## Completed (archive candidates)
 

@@ -69,7 +69,7 @@ export default function FlagDetailPage() {
     Promise.all([flagsApi.get(id), flagsApi.listRules(id).then((r) => r.rules), fetchApps])
       .then(([flagData, rulesData, appsData]) => {
         setFlag(flagData);
-        setRules(rulesData);
+        setRules(rulesData ?? []);
         setApps(appsData);
       })
       .catch((err) => setError(err.message))
@@ -80,8 +80,17 @@ export default function FlagDetailPage() {
   if (error) return <div>Error: {error}</div>;
   if (!flag) return <div>Flag not found.</div>;
 
-  const handleToggle = () => {
-    setFlag((prev) => (prev ? { ...prev, enabled: !prev.enabled } : prev));
+  const handleToggle = async () => {
+    if (!flag) return;
+    const nextEnabled = !flag.enabled;
+    // Optimistically update the UI, then persist. On failure, revert.
+    setFlag((prev) => (prev ? { ...prev, enabled: nextEnabled } : prev));
+    try {
+      await flagsApi.toggle(flag.id, nextEnabled);
+    } catch (err) {
+      setFlag((prev) => (prev ? { ...prev, enabled: !nextEnabled } : prev));
+      setError(err instanceof Error ? err.message : 'Failed to toggle flag');
+    }
   };
 
   const handleArchive = () => {
@@ -111,7 +120,7 @@ export default function FlagDetailPage() {
 
         <div className="detail-chips">
           <span>Type: {flag.flag_type}</span>
-          <span>Owners: {flag.owners.join(', ')}</span>
+          <span>Owners: {(flag.owners ?? []).join(', ')}</span>
           <span>
             Expires:{' '}
             {flag.is_permanent
@@ -128,7 +137,7 @@ export default function FlagDetailPage() {
             {flag.application_id ? getAppNameById(flag.application_id, apps) : 'Project-wide'}
           </span>
           {flag.purpose && <span>Purpose: {flag.purpose}</span>}
-          {flag.tags.length > 0 && <span>Tags: {flag.tags.join(', ')}</span>}
+          {(flag.tags ?? []).length > 0 && <span>Tags: {(flag.tags ?? []).join(', ')}</span>}
         </div>
 
         <div className="detail-secondary">

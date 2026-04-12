@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { seedOrgProjectAppViaUI, type SeededContext } from '../helpers/seed-via-ui';
+import {
+  startNodeProbe,
+  startReactProbe,
+  waitForValue,
+} from '../helpers/sdk-driver';
+import { createBooleanFlag, toggleFlag } from '../helpers/flag-ui';
+
+const HARNESS_URL = process.env.DS_E2E_REACT_HARNESS_URL ?? 'http://localhost:4310';
 
 let seeded: SeededContext;
 
@@ -25,4 +33,66 @@ test('seeded environment has all required IDs and an API key', () => {
   expect(seeded.environment).toBe('development');
   expect(seeded.apiKey.length).toBeGreaterThan(20);
   expect(seeded.apiKey).toMatch(/^ds_/);
+});
+
+// Suppress unused-import warning for the React probe helper. The React probe
+// is intentionally disabled in Scenario A — see the comment in the test body.
+void startReactProbe;
+void HARNESS_URL;
+
+test('Scenario A: baseline propagation — Node SDK observes UI-driven toggle within 2s', async ({
+  page,
+}) => {
+  const flagKey = `e2e-baseline-${Date.now().toString(36)}`;
+
+  // Flag starts disabled (the API's createFlag handler hardcodes
+  // `enabled: false`). The Node probe records the evaluator's `enabled`
+  // field via client.detail() — boolean toggles only flip `enabled`,
+  // not the `default_value` the evaluator returns — so the test asserts
+  // `false` baseline, then `true` after the UI toggle.
+  await createBooleanFlag(page, seeded, flagKey, false);
+
+  const probeCtx = {
+    apiUrl: seeded.apiUrl,
+    apiKey: seeded.apiKey,
+    // SSE stream needs the UUIDs, not slugs (Task 4 finding).
+    project: seeded.projectId,
+    environment: seeded.environmentId,
+    flagKeys: [flagKey],
+    user: { id: 'u1' },
+  };
+
+  const nodeProbe = await startNodeProbe(probeCtx);
+
+  // The React probe is currently BLOCKED on multiple SDK ↔ backend mismatches
+  // (wrong path /v1/flags vs /api/v1/flags, wrong query params, EventSource
+  // cannot send the Authorization header the backend SSE endpoint requires,
+  // backend SSE event name `flag_change` vs SDK listener `flag.updated`,
+  // and the listFlags response shape ({flags:[FeatureFlag]}) does not match
+  // the SDK's ApiFlagResponse). Scenario A is therefore restricted to the
+  // Node probe so the UI → API → SSE → SDK chain still gets exercised end
+  // to end. Re-enabling the React probe is tracked as follow-up work to
+  // this task — see the report in this branch.
+
+  try {
+    // Baseline observation proves SDK connect + initial sync.
+    await waitForValue(nodeProbe, flagKey, false, { timeoutMs: 5_000 });
+
+    // Drive the UI toggle and time the propagation to the probe.
+    const clickAt = await toggleFlag(page, seeded, flagKey, true);
+
+    const nodeLatency = await waitForValue(nodeProbe, flagKey, true, {
+      timeoutMs: 5_000,
+    });
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[scenario-A] latency: node=${nodeLatency}ms ` +
+        `(click at perfNow=${clickAt.toFixed(0)})`,
+    );
+
+    expect(nodeLatency).toBeLessThan(2_000);
+  } finally {
+    await nodeProbe.stop();
+  }
 });

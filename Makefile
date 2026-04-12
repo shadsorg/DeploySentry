@@ -129,6 +129,7 @@ e2e-sdk-down:
 
 ## e2e-sdk: Run Playwright SDK e2e tests against the hermetic stack
 e2e-sdk: e2e-sdk-up
+	cd web/e2e/sdk-probes/react-harness && npm install && npm run build
 	cd web && npx playwright test --project=sdk
 	$(MAKE) e2e-sdk-down
 

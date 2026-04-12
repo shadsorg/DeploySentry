@@ -44,11 +44,14 @@ export default defineConfig({
       use: {
         baseURL: 'http://localhost:3002',
         browserName: 'chromium',
-        trace: 'on-first-retry',
+        trace: 'retain-on-failure',
+        screenshot: 'only-on-failure',
       },
       fullyParallel: false,
       workers: 1,
-      retries: 2,
+      // Hermetic e2e API has a 100 req/min rate limiter; retries blow it
+      // out and create cascading failures. Better to fail fast.
+      retries: 0,
     },
   ],
 
@@ -66,6 +69,12 @@ export default defineConfig({
     {
       command: 'VITE_API_PROXY_TARGET=http://localhost:18080 VITE_DEV_PORT=3002 npm run dev',
       port: 3002,
+      reuseExistingServer: true,
+      timeout: 60_000,
+    },
+    {
+      command: 'npm run --prefix e2e/sdk-probes/react-harness preview',
+      port: 4310,
       reuseExistingServer: true,
       timeout: 60_000,
     },

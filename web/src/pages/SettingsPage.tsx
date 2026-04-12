@@ -365,7 +365,6 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {envsLoading && <p className="text-muted text-sm">Loading environments…</p>}
           {envsError && <p className="text-danger text-sm">Error: {envsError}</p>}
-
           {/* Add environment form */}
           <div className="card">
             <div className="card-header">

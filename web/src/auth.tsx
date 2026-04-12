@@ -51,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+
 export function RequireAuth() {
   const { user, loading } = useAuth();
   const location = useLocation();

@@ -5,21 +5,20 @@ test.describe('Settings — Environments Tab', () => {
   test.beforeEach(async ({ page }) => {
     await mockAuthenticatedPage(page);
     await page.goto('/orgs/test-org/settings');
-    const envsTab = page.getByRole('tab', { name: /environment/i });
-    if (await envsTab.isVisible()) {
-      await envsTab.click();
-    }
+    // Environments tab is the default for org-level settings
   });
 
   test('renders environment list', async ({ page }) => {
-    await expect(page.getByText('production')).toBeVisible();
-    await expect(page.getByText('staging')).toBeVisible();
-    await expect(page.getByText('development')).toBeVisible();
+    // Check that the environment names appear in table rows
+    const table = page.locator('table');
+    await expect(table.getByText('production').first()).toBeVisible();
+    await expect(table.getByText('staging').first()).toBeVisible();
+    await expect(table.getByText('development').first()).toBeVisible();
   });
 
   test('add new environment calls POST API', async ({ page }) => {
     let postCalled = false;
-    await page.route('**/api/v1/orgs/test-org/environments', async (route) => {
+    await page.route(/\/api\/v1\/orgs\/test-org\/environments(\?.*)?$/, async (route) => {
       if (route.request().method() === 'POST') {
         postCalled = true;
         await route.fulfill({
@@ -29,31 +28,18 @@ test.describe('Settings — Environments Tab', () => {
         });
         return;
       }
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          environments: [
-            { id: 'env-1', name: 'production', slug: 'production', is_default: true },
-            { id: 'env-2', name: 'staging', slug: 'staging', is_default: false },
-          ],
-        }),
-      });
+      await route.fallback();
     });
 
-    const addBtn = page.getByRole('button', { name: /add environment|new environment/i });
-    await addBtn.click();
-    const nameInput = page.getByPlaceholder(/name|environment name/i).first();
+    const nameInput = page.getByPlaceholder('e.g. QA');
     await nameInput.fill('qa');
-    await page.getByRole('button', { name: /save|create|add/i }).last().click();
+    await page.getByRole('button', { name: /add environment/i }).click();
     expect(postCalled).toBe(true);
   });
 
   test('delete confirmation is shown when deleting an environment', async ({ page }) => {
-    const deleteBtn = page.getByRole('button', { name: /delete|remove/i }).first();
+    const deleteBtn = page.getByRole('button', { name: /delete/i }).first();
     await deleteBtn.click();
-    await expect(
-      page.getByText(/confirm|are you sure|delete/i).first()
-    ).toBeVisible();
+    await expect(page.getByRole('button', { name: /confirm/i })).toBeVisible();
   });
 });

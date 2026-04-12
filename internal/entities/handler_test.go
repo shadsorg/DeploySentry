@@ -127,6 +127,26 @@ func (m *mockEntityService) ListEnvironmentsByApp(ctx context.Context, appID uui
 	return []*models.Environment{}, nil
 }
 
+func (m *mockEntityService) CreateEnvironment(ctx context.Context, env *OrgEnvironment) error {
+	return nil
+}
+
+func (m *mockEntityService) GetEnvironmentBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*OrgEnvironment, error) {
+	return nil, nil
+}
+
+func (m *mockEntityService) UpdateEnvironment(ctx context.Context, env *OrgEnvironment) error {
+	return nil
+}
+
+func (m *mockEntityService) DeleteEnvironment(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+
+func (m *mockEntityService) ListEnvironments(ctx context.Context, orgID uuid.UUID) ([]OrgEnvironment, error) {
+	return nil, nil
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

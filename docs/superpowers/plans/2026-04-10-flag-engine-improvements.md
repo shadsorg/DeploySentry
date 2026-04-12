@@ -44,7 +44,7 @@
 **Files:**
 - Modify: `go.mod`
 
-- [ ] **Step 1: Promote to direct dependency**
+- [x] **Step 1: Promote to direct dependency**
 
 Run:
 ```bash
@@ -53,7 +53,7 @@ cd /Users/sgamel/git/DeploySentry && go get golang.org/x/sync
 
 This moves `golang.org/x/sync` from indirect to direct in `go.mod`. Verify it's no longer marked `// indirect`.
 
-- [ ] **Step 2: Verify imports work**
+- [x] **Step 2: Verify imports work**
 
 Run:
 ```bash
@@ -62,7 +62,7 @@ cd /Users/sgamel/git/DeploySentry && go build ./...
 
 Expected: Build succeeds with no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add go.mod go.sum
@@ -79,7 +79,7 @@ git commit -m "build: promote golang.org/x/sync to direct dependency"
 - Create: `migrations/034_add_compound_rule_support.up.sql`
 - Create: `migrations/034_add_compound_rule_support.down.sql`
 
-- [ ] **Step 1: Create segments migration (up)**
+- [x] **Step 1: Create segments migration (up)**
 
 Write `migrations/033_create_segments.up.sql`:
 
@@ -110,7 +110,7 @@ CREATE INDEX idx_segments_project_id ON segments(project_id);
 CREATE INDEX idx_segment_conditions_segment_id ON segment_conditions(segment_id);
 ```
 
-- [ ] **Step 2: Create segments migration (down)**
+- [x] **Step 2: Create segments migration (down)**
 
 Write `migrations/033_create_segments.down.sql`:
 
@@ -119,7 +119,7 @@ DROP TABLE IF EXISTS segment_conditions;
 DROP TABLE IF EXISTS segments;
 ```
 
-- [ ] **Step 3: Create compound rule migration (up)**
+- [x] **Step 3: Create compound rule migration (up)**
 
 Write `migrations/034_add_compound_rule_support.up.sql`:
 
@@ -131,7 +131,7 @@ ALTER TABLE flag_targeting_rules ADD CONSTRAINT flag_targeting_rules_rule_type_c
     CHECK (rule_type IN ('percentage', 'user_target', 'attribute', 'segment', 'schedule', 'compound'));
 ```
 
-- [ ] **Step 4: Create compound rule migration (down)**
+- [x] **Step 4: Create compound rule migration (down)**
 
 Write `migrations/034_add_compound_rule_support.down.sql`:
 
@@ -143,7 +143,7 @@ ALTER TABLE flag_targeting_rules ADD CONSTRAINT flag_targeting_rules_rule_type_c
 ALTER TABLE flag_targeting_rules DROP COLUMN IF EXISTS combine_op;
 ```
 
-- [ ] **Step 5: Run migrations**
+- [x] **Step 5: Run migrations**
 
 Run:
 ```bash
@@ -152,7 +152,7 @@ cd /Users/sgamel/git/DeploySentry && make migrate-up
 
 Expected: Migrations 033 and 034 applied successfully.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add migrations/033_create_segments.up.sql migrations/033_create_segments.down.sql \
@@ -168,7 +168,7 @@ git commit -m "feat: add segments and compound rule migrations (033, 034)"
 - Create: `internal/models/segment.go`
 - Modify: `internal/models/flag.go:46-60,88-105,116-124`
 
-- [ ] **Step 1: Create segment model**
+- [x] **Step 1: Create segment model**
 
 Write `internal/models/segment.go`:
 
@@ -206,7 +206,7 @@ type SegmentCondition struct {
 }
 ```
 
-- [ ] **Step 2: Add RuleTypeCompound constant**
+- [x] **Step 2: Add RuleTypeCompound constant**
 
 In `internal/models/flag.go`, add after the existing rule type constants (line 56):
 
@@ -214,7 +214,7 @@ In `internal/models/flag.go`, add after the existing rule type constants (line 5
 RuleTypeCompound RuleType = "compound"
 ```
 
-- [ ] **Step 3: Add compound fields to TargetingRule**
+- [x] **Step 3: Add compound fields to TargetingRule**
 
 In `internal/models/flag.go`, add two fields after `SegmentID` (after line 99):
 
@@ -236,7 +236,7 @@ type CompoundCondition struct {
 }
 ```
 
-- [ ] **Step 4: Add Error field to FlagEvaluationResult**
+- [x] **Step 4: Add Error field to FlagEvaluationResult**
 
 In `internal/models/flag.go`, add after the `Metadata` field (after line 123):
 
@@ -244,11 +244,11 @@ In `internal/models/flag.go`, add after the `Metadata` field (after line 123):
 Error string `json:"error,omitempty"`
 ```
 
-- [ ] **Step 5: Update targeting.go to use models.CompoundCondition**
+- [x] **Step 5: Update targeting.go to use models.CompoundCondition**
 
 In `internal/flags/targeting.go`, remove the local `CompoundCondition` struct (lines 23-27) and update imports to use `models.CompoundCondition`. Keep `CombineOperator` and its constants (lines 11-19) in targeting.go since they're evaluation-specific.
 
-- [ ] **Step 6: Verify build**
+- [x] **Step 6: Verify build**
 
 Run:
 ```bash
@@ -257,7 +257,7 @@ cd /Users/sgamel/git/DeploySentry && go build ./...
 
 Expected: Build succeeds.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/models/segment.go internal/models/flag.go internal/flags/targeting.go
@@ -272,7 +272,7 @@ git commit -m "feat: add segment model, compound rule type, and error field on e
 - Modify: `internal/flags/targeting.go`
 - Modify: `internal/flags/targeting_test.go`
 
-- [ ] **Step 1: Write failing tests for evaluateConditions**
+- [x] **Step 1: Write failing tests for evaluateConditions**
 
 Add to `internal/flags/targeting_test.go`:
 
@@ -362,7 +362,7 @@ func TestEvaluateConditions(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run:
 ```bash
@@ -371,7 +371,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -run TestEvaluate
 
 Expected: FAIL — `evaluateConditions` not defined.
 
-- [ ] **Step 3: Implement evaluateConditions**
+- [x] **Step 3: Implement evaluateConditions**
 
 Add to `internal/flags/targeting.go`:
 
@@ -404,7 +404,7 @@ func evaluateConditions(conditions []models.CompoundCondition, op CombineOperato
 }
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run:
 ```bash
@@ -413,7 +413,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -run TestEvaluate
 
 Expected: All tests PASS.
 
-- [ ] **Step 5: Run full targeting test suite**
+- [x] **Step 5: Run full targeting test suite**
 
 Run:
 ```bash
@@ -422,7 +422,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -run TestEvaluate
 
 Expected: All existing tests still pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/flags/targeting.go internal/flags/targeting_test.go
@@ -437,7 +437,7 @@ git commit -m "feat: add shared evaluateConditions function for segments and com
 - Create: `internal/flags/segment_repository.go`
 - Modify: `internal/flags/repository.go:25-69`
 
-- [ ] **Step 1: Add segment methods to FlagRepository interface**
+- [x] **Step 1: Add segment methods to FlagRepository interface**
 
 In `internal/flags/repository.go`, add after the existing methods (after line 68):
 
@@ -451,11 +451,11 @@ In `internal/flags/repository.go`, add after the existing methods (after line 68
 	DeleteSegment(ctx context.Context, id uuid.UUID) error
 ```
 
-- [ ] **Step 2: Find the PostgreSQL repository implementation**
+- [x] **Step 2: Find the PostgreSQL repository implementation**
 
 The concrete FlagRepository is in `internal/platform/database/postgres/`. Locate the file that implements `FlagRepository` — likely `flag_repository.go` or similar. Read it to understand the patterns used (how queries are structured, how `db.Pool` is used, error handling style).
 
-- [ ] **Step 3: Implement segment repository methods**
+- [x] **Step 3: Implement segment repository methods**
 
 Add segment CRUD methods to the PostgreSQL FlagRepository implementation, following the same patterns as existing flag/rule methods. Each method:
 
@@ -466,7 +466,7 @@ Add segment CRUD methods to the PostgreSQL FlagRepository implementation, follow
 - `UpdateSegment`: UPDATE `segments`, DELETE existing conditions, INSERT new conditions — all in a transaction.
 - `DeleteSegment`: DELETE from `segments` WHERE id (conditions cascade).
 
-- [ ] **Step 4: Verify build**
+- [x] **Step 4: Verify build**
 
 Run:
 ```bash
@@ -475,7 +475,7 @@ cd /Users/sgamel/git/DeploySentry && go build ./...
 
 Expected: Build succeeds. Any mock implementations of FlagRepository will need the new methods added (check test files for mock structs).
 
-- [ ] **Step 5: Update mock repositories in tests**
+- [x] **Step 5: Update mock repositories in tests**
 
 Search for mock implementations of `FlagRepository` in test files and add stub implementations of the new segment methods so tests compile:
 
@@ -488,7 +488,7 @@ func (m *mockFlagRepository) UpdateSegment(ctx context.Context, segment *models.
 func (m *mockFlagRepository) DeleteSegment(ctx context.Context, id uuid.UUID) error { return nil }
 ```
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
 
 Run:
 ```bash
@@ -497,7 +497,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./... 2>&1 | tail -20
 
 Expected: All tests pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/flags/repository.go internal/platform/database/postgres/
@@ -512,7 +512,7 @@ git commit -m "feat: add segment CRUD to repository interface and PostgreSQL imp
 - Modify: `internal/flags/evaluator.go:17-32` (Cache interface)
 - Modify: `internal/platform/cache/flagcache/flagcache.go`
 
-- [ ] **Step 1: Add segment methods to Cache interface**
+- [x] **Step 1: Add segment methods to Cache interface**
 
 In `internal/flags/evaluator.go`, add to the `Cache` interface (after line 30):
 
@@ -521,7 +521,7 @@ In `internal/flags/evaluator.go`, add to the `Cache` interface (after line 30):
 	SetSegment(ctx context.Context, segment *models.Segment, ttl time.Duration) error
 ```
 
-- [ ] **Step 2: Implement segment cache methods**
+- [x] **Step 2: Implement segment cache methods**
 
 In `internal/platform/cache/flagcache/flagcache.go`, add:
 
@@ -549,7 +549,7 @@ func (c *FlagCache) SetSegment(ctx context.Context, segment *models.Segment, ttl
 }
 ```
 
-- [ ] **Step 3: Update mock cache implementations**
+- [x] **Step 3: Update mock cache implementations**
 
 Search for mock implementations of the `Cache` interface in test files and add stub implementations:
 
@@ -558,7 +558,7 @@ func (m *mockCache) GetSegment(ctx context.Context, id uuid.UUID) (*models.Segme
 func (m *mockCache) SetSegment(ctx context.Context, segment *models.Segment, ttl time.Duration) error { return nil }
 ```
 
-- [ ] **Step 4: Verify build and tests**
+- [x] **Step 4: Verify build and tests**
 
 Run:
 ```bash
@@ -567,7 +567,7 @@ cd /Users/sgamel/git/DeploySentry && go build ./... && go test ./... 2>&1 | tail
 
 Expected: Build and all tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add internal/flags/evaluator.go internal/platform/cache/flagcache/flagcache.go
@@ -582,7 +582,7 @@ git commit -m "feat: add segment caching to Cache interface and Redis implementa
 - Modify: `internal/flags/evaluator.go:51-58,184-201`
 - Modify: `internal/flags/targeting_test.go`
 
-- [ ] **Step 1: Write failing test for segment evaluation**
+- [x] **Step 1: Write failing test for segment evaluation**
 
 Add to `internal/flags/targeting_test.go` (or a new `evaluator_test.go` if targeting_test doesn't have access to Evaluator):
 
@@ -638,7 +638,7 @@ func TestEvaluateRule_Segment(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 ```bash
@@ -647,7 +647,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -run TestEvaluate
 
 Expected: FAIL — evaluator doesn't have segment loading logic.
 
-- [ ] **Step 3: Add loadSegment method to Evaluator**
+- [x] **Step 3: Add loadSegment method to Evaluator**
 
 In `internal/flags/evaluator.go`, add a method:
 
@@ -673,7 +673,7 @@ func (e *Evaluator) loadSegment(ctx context.Context, segmentID *uuid.UUID) (*mod
 }
 ```
 
-- [ ] **Step 4: Wire segment evaluation in evaluateRule**
+- [x] **Step 4: Wire segment evaluation in evaluateRule**
 
 In `internal/flags/evaluator.go`, replace the segment stub (lines 194-197):
 
@@ -696,7 +696,7 @@ case models.RuleTypeSegment:
 
 Note: `evaluateRule` needs access to `context.Context` for the segment loading. Check if it already receives ctx — if not, update the signature from `evaluateRule(rule, evalCtx, flagKey)` to `evaluateRule(ctx, rule, evalCtx, flagKey)` and update all call sites in `Evaluate()`.
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run:
 ```bash
@@ -705,7 +705,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -run TestEvaluate
 
 Expected: PASS.
 
-- [ ] **Step 6: Run full test suite**
+- [x] **Step 6: Run full test suite**
 
 Run:
 ```bash
@@ -714,7 +714,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -v 2>&1 | tail -3
 
 Expected: All tests pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/flags/evaluator.go internal/flags/targeting_test.go
@@ -729,7 +729,7 @@ git commit -m "feat: wire real segment evaluation into evaluator, replacing stub
 - Modify: `internal/flags/evaluator.go:184-201`
 - Modify: `internal/flags/targeting_test.go`
 
-- [ ] **Step 1: Write failing test for compound rule evaluation**
+- [x] **Step 1: Write failing test for compound rule evaluation**
 
 Add to the test file:
 
@@ -775,7 +775,7 @@ func TestEvaluateRule_Compound(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 ```bash
@@ -784,7 +784,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -run TestEvaluate
 
 Expected: FAIL — no case for `RuleTypeCompound` in evaluateRule.
 
-- [ ] **Step 3: Add compound case to evaluateRule**
+- [x] **Step 3: Add compound case to evaluateRule**
 
 In `internal/flags/evaluator.go`, add a new case in the `evaluateRule` switch:
 
@@ -793,7 +793,7 @@ case models.RuleTypeCompound:
 	return evaluateConditions(rule.Conditions, CombineOperator(rule.CombineOp), evalCtx), nil
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run:
 ```bash
@@ -802,7 +802,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -run TestEvaluate
 
 Expected: PASS.
 
-- [ ] **Step 5: Run full test suite**
+- [x] **Step 5: Run full test suite**
 
 Run:
 ```bash
@@ -811,7 +811,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -v 2>&1 | tail -3
 
 Expected: All tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/flags/evaluator.go internal/flags/targeting_test.go
@@ -825,23 +825,23 @@ git commit -m "feat: wire compound rule evaluation into evaluator"
 **Files:**
 - Modify: PostgreSQL flag repository (the file implementing `CreateRule`, `GetRule`, `ListRules`, `UpdateRule`)
 
-- [ ] **Step 1: Find the repository implementation**
+- [x] **Step 1: Find the repository implementation**
 
 The PostgreSQL repository that implements `CreateRule`/`ListRules` etc. is in `internal/platform/database/postgres/`. Read the file to understand how rules are currently read/written.
 
-- [ ] **Step 2: Update CreateRule to marshal conditions**
+- [x] **Step 2: Update CreateRule to marshal conditions**
 
 When `rule.RuleType == "compound"`, marshal `rule.Conditions` to JSON and store in the `conditions` JSONB column. Set `rule.CombineOp` into the `combine_op` column.
 
-- [ ] **Step 3: Update ListRules/GetRule to unmarshal conditions**
+- [x] **Step 3: Update ListRules/GetRule to unmarshal conditions**
 
 When scanning rules from the database, if `rule_type == "compound"`, unmarshal the `conditions` JSONB column into `rule.Conditions` and read `combine_op` into `rule.CombineOp`.
 
-- [ ] **Step 4: Update UpdateRule similarly**
+- [x] **Step 4: Update UpdateRule similarly**
 
 Same marshaling logic as CreateRule.
 
-- [ ] **Step 5: Verify build and tests**
+- [x] **Step 5: Verify build and tests**
 
 Run:
 ```bash
@@ -850,7 +850,7 @@ cd /Users/sgamel/git/DeploySentry && go build ./... && go test ./... 2>&1 | tail
 
 Expected: Build and all tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/platform/database/postgres/
@@ -864,7 +864,7 @@ git commit -m "feat: marshal/unmarshal compound rule conditions in repository"
 **Files:**
 - Modify: `internal/flags/handler.go:38-45,285-363,365-412,419-476,484-502,684-772`
 
-- [ ] **Step 1: Write failing test for broadcastEvent**
+- [x] **Step 1: Write failing test for broadcastEvent**
 
 Add to `internal/flags/handler_test.go`:
 
@@ -908,7 +908,7 @@ func TestBroadcastEvent(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 ```bash
@@ -917,7 +917,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -run TestBroadcas
 
 Expected: FAIL — `broadcastEvent` method not defined.
 
-- [ ] **Step 3: Add SSEEvent type and broadcastEvent helper**
+- [x] **Step 3: Add SSEEvent type and broadcastEvent helper**
 
 In `internal/flags/handler.go`, add before the SSEBroker struct:
 
@@ -940,7 +940,7 @@ func (h *Handler) broadcastEvent(event string, flagID uuid.UUID, flagKey string)
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run:
 ```bash
@@ -949,7 +949,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -run TestBroadcas
 
 Expected: PASS.
 
-- [ ] **Step 5: Add broadcastEvent calls to all mutation handlers**
+- [x] **Step 5: Add broadcastEvent calls to all mutation handlers**
 
 In `internal/flags/handler.go`, add `h.broadcastEvent(...)` after the successful service call in each handler. You'll need the flag's key for the event — read it from the service response or the request context.
 
@@ -991,7 +991,7 @@ h.broadcastEvent("rule.deleted", flagID, "")
 
 Note: For handlers where you have the flag ID but not the key, pass empty string for flagKey — the ID is sufficient for cache invalidation.
 
-- [ ] **Step 6: Run full handler tests**
+- [x] **Step 6: Run full handler tests**
 
 Run:
 ```bash
@@ -1000,7 +1000,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -run TestHandler 
 
 Expected: All tests pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add internal/flags/handler.go internal/flags/handler_test.go
@@ -1014,7 +1014,7 @@ git commit -m "feat: add structured SSE broadcasts to all flag mutation handlers
 **Files:**
 - Modify: `internal/flags/evaluator.go:51-58,99-138`
 
-- [ ] **Step 1: Write failing test for singleflight coalescing**
+- [x] **Step 1: Write failing test for singleflight coalescing**
 
 Add to an evaluator test file:
 
@@ -1056,7 +1056,7 @@ func TestSingleflightCoalescesFlagLookups(t *testing.T) {
 
 Note: The mock repository may need a function field pattern (e.g., `getFlagByKeyFunc`) to support custom behavior per test. Check existing mock patterns and adapt.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 ```bash
@@ -1065,7 +1065,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -run TestSinglefl
 
 Expected: FAIL — 10 DB calls instead of 1.
 
-- [ ] **Step 3: Add singleflight groups to Evaluator**
+- [x] **Step 3: Add singleflight groups to Evaluator**
 
 In `internal/flags/evaluator.go`, add to the Evaluator struct (after line 57):
 
@@ -1079,7 +1079,7 @@ Add import:
 "golang.org/x/sync/singleflight"
 ```
 
-- [ ] **Step 4: Wrap flag fallback with singleflight**
+- [x] **Step 4: Wrap flag fallback with singleflight**
 
 In the `Evaluate` method, replace the flag cache miss path (around lines 103-110):
 
@@ -1101,7 +1101,7 @@ if err != nil || flag == nil {
 }
 ```
 
-- [ ] **Step 5: Wrap rules fallback with singleflight**
+- [x] **Step 5: Wrap rules fallback with singleflight**
 
 Replace the rules cache miss path (around lines 129-135):
 
@@ -1122,7 +1122,7 @@ if err != nil || rules == nil {
 }
 ```
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run:
 ```bash
@@ -1131,7 +1131,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -run TestSinglefl
 
 Expected: PASS — only 1 DB call.
 
-- [ ] **Step 7: Run full test suite**
+- [x] **Step 7: Run full test suite**
 
 Run:
 ```bash
@@ -1140,7 +1140,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -v 2>&1 | tail -3
 
 Expected: All tests pass.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add internal/flags/evaluator.go
@@ -1155,7 +1155,7 @@ git commit -m "feat: add singleflight protection against cache stampedes"
 - Modify: `internal/flags/service.go:262-279`
 - Modify: `internal/flags/service_test.go`
 
-- [ ] **Step 1: Write failing test for concurrent batch evaluation**
+- [x] **Step 1: Write failing test for concurrent batch evaluation**
 
 Add to `internal/flags/service_test.go`:
 
@@ -1242,7 +1242,7 @@ func TestBatchEvaluate_ErrorField(t *testing.T) {
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run:
 ```bash
@@ -1251,7 +1251,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -run TestBatchEva
 
 Expected: FAIL — Error field doesn't exist yet (added in Task 3), and BatchEvaluate is still sequential.
 
-- [ ] **Step 3: Replace BatchEvaluate with concurrent implementation**
+- [x] **Step 3: Replace BatchEvaluate with concurrent implementation**
 
 In `internal/flags/service.go`, replace the `BatchEvaluate` method (lines 262-279):
 
@@ -1289,7 +1289,7 @@ Add import:
 "golang.org/x/sync/errgroup"
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run:
 ```bash
@@ -1298,7 +1298,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -run TestBatchEva
 
 Expected: PASS.
 
-- [ ] **Step 5: Run full test suite**
+- [x] **Step 5: Run full test suite**
 
 Run:
 ```bash
@@ -1307,7 +1307,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./... 2>&1 | tail -20
 
 Expected: All tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add internal/flags/service.go internal/flags/service_test.go
@@ -1324,7 +1324,7 @@ git commit -m "feat: concurrent batch evaluation with errgroup and per-flag erro
 - Modify: `internal/flags/service.go:30-83` (add segment service methods)
 - Modify: `cmd/api/main.go:291-293`
 
-- [ ] **Step 1: Add segment methods to FlagService interface**
+- [x] **Step 1: Add segment methods to FlagService interface**
 
 In `internal/flags/service.go`, add to the `FlagService` interface:
 
@@ -1337,7 +1337,7 @@ In `internal/flags/service.go`, add to the `FlagService` interface:
 	DeleteSegment(ctx context.Context, id uuid.UUID) error
 ```
 
-- [ ] **Step 2: Implement segment service methods**
+- [x] **Step 2: Implement segment service methods**
 
 Add to `internal/flags/service.go`:
 
@@ -1363,7 +1363,7 @@ func (s *flagService) DeleteSegment(ctx context.Context, id uuid.UUID) error {
 }
 ```
 
-- [ ] **Step 3: Write segment handler**
+- [x] **Step 3: Write segment handler**
 
 Create `internal/flags/segment_handler.go`:
 
@@ -1556,7 +1556,7 @@ func (h *Handler) deleteSegment(c *gin.Context) {
 }
 ```
 
-- [ ] **Step 4: Register segment routes in main.go**
+- [x] **Step 4: Register segment routes in main.go**
 
 In `cmd/api/main.go`, after the existing `flagHandler.RegisterRoutes(api)` call (around line 293), add:
 
@@ -1568,11 +1568,11 @@ Check how project context (project_id) is resolved for the route group. The segm
 
 If segment routes need to be under `/api/v1/orgs/:orgSlug/projects/:projectSlug/segments`, adjust the route registration accordingly.
 
-- [ ] **Step 5: Write basic handler tests**
+- [x] **Step 5: Write basic handler tests**
 
 Create `internal/flags/segment_handler_test.go` with tests for create, get, list, update, and delete. Follow the same patterns used in `handler_test.go` for setting up Gin test contexts and mock services.
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
 
 Run:
 ```bash
@@ -1581,7 +1581,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./internal/flags/ -run TestSegment 
 
 Expected: All segment handler tests pass.
 
-- [ ] **Step 7: Run full test suite**
+- [x] **Step 7: Run full test suite**
 
 Run:
 ```bash
@@ -1590,7 +1590,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./... 2>&1 | tail -20
 
 Expected: All tests pass.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add internal/flags/segment_handler.go internal/flags/segment_handler_test.go \
@@ -1606,19 +1606,19 @@ git commit -m "feat: add segment CRUD handler, service methods, and routes"
 - Modify: `docs/Feature_Flag_Engine_Improvements.md`
 - Modify: `docs/Current_Initiatives.md`
 
-- [ ] **Step 1: Update the plan document phase**
+- [x] **Step 1: Update the plan document phase**
 
 Change the phase from `Design` to `Implementation` in `docs/Feature_Flag_Engine_Improvements.md`.
 
-- [ ] **Step 2: Check off completed items**
+- [x] **Step 2: Check off completed items**
 
 Update the checklist in `docs/Feature_Flag_Engine_Improvements.md` to reflect all completed work.
 
-- [ ] **Step 3: Update Current Initiatives**
+- [x] **Step 3: Update Current Initiatives**
 
 Update `docs/Current_Initiatives.md` to reflect the phase change.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/Feature_Flag_Engine_Improvements.md docs/Current_Initiatives.md
@@ -1629,7 +1629,7 @@ git commit -m "docs: update flag engine improvements to Implementation phase"
 
 ### Task 15: Final Verification
 
-- [ ] **Step 1: Run full build**
+- [x] **Step 1: Run full build**
 
 Run:
 ```bash
@@ -1638,7 +1638,7 @@ cd /Users/sgamel/git/DeploySentry && go build ./...
 
 Expected: Clean build with no errors.
 
-- [ ] **Step 2: Run full test suite**
+- [x] **Step 2: Run full test suite**
 
 Run:
 ```bash
@@ -1647,7 +1647,7 @@ cd /Users/sgamel/git/DeploySentry && go test ./... -count=1
 
 Expected: All tests pass.
 
-- [ ] **Step 3: Run linter (if configured)**
+- [x] **Step 3: Run linter (if configured)**
 
 Run:
 ```bash

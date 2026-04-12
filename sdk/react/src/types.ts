@@ -80,6 +80,8 @@ export interface ProviderProps {
   project: string;
   /** Optional user context for targeting. */
   user?: UserContext;
+  /** Optional session identifier for consistent flag evaluation across requests. */
+  sessionId?: string;
   /** React children. */
   children: React.ReactNode;
 }

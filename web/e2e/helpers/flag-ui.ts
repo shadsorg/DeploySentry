@@ -201,6 +201,78 @@ export async function enableFlagViaApi(
 }
 
 /**
+ * Create a string-type flag via the API.
+ * Returns the created flag's id, key, and name.
+ */
+export async function createStringFlag(
+  page: Page,
+  seeded: SeededContext,
+  flagKey: string,
+  defaultValue: string,
+): Promise<CreatedFlag> {
+  await ensureLoggedIn(page, seeded);
+  const token = await page.evaluate(() => window.localStorage.getItem('ds_token'));
+  if (!token) throw new Error('flag-ui: no JWT in localStorage after login');
+
+  const res = await fetch(`${seeded.apiUrl}/api/v1/flags`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      project_id: seeded.projectId,
+      environment_id: seeded.environmentId,
+      key: flagKey,
+      name: flagKey,
+      flag_type: 'string',
+      category: 'ops',
+      is_permanent: true,
+      default_value: JSON.stringify(defaultValue),
+      owners: [],
+      tags: [],
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(
+      `flag-ui: POST /flags failed (${res.status}): ${await res.text()}`,
+    );
+  }
+  return (await res.json()) as CreatedFlag;
+}
+
+/**
+ * Update a flag's default_value via the API (PUT /flags/:id).
+ * The backend's UpdateFlag handler broadcasts an SSE event and
+ * invalidates the evaluation cache, so SDK probes should observe
+ * the new value without any toggle workaround.
+ */
+export async function updateFlagDefaultValue(
+  page: Page,
+  seeded: SeededContext,
+  flagId: string,
+  newValue: string,
+): Promise<void> {
+  await ensureLoggedIn(page, seeded);
+  const token = await page.evaluate(() => window.localStorage.getItem('ds_token'));
+  if (!token) throw new Error('flag-ui: no JWT in localStorage after login');
+
+  const res = await fetch(`${seeded.apiUrl}/api/v1/flags/${flagId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ default_value: JSON.stringify(newValue) }),
+  });
+  if (!res.ok) {
+    throw new Error(
+      `flag-ui: PUT /flags/${flagId} failed (${res.status}): ${await res.text()}`,
+    );
+  }
+}
+
+/**
  * Toggle a flag's enabled state through the dashboard. Returns a
  * `performance.now()` timestamp captured immediately before the click so
  * the spec can compute end-to-end latency if it wants to.

@@ -7,10 +7,12 @@ import {
 } from '../helpers/sdk-driver';
 import {
   createBooleanFlag,
+  createStringFlag,
   toggleFlag,
   addTargetingRule,
   updateTargetingRule,
   enableFlagViaApi,
+  updateFlagDefaultValue,
 } from '../helpers/flag-ui';
 
 const HARNESS_URL = process.env.DS_E2E_REACT_HARNESS_URL ?? 'http://localhost:4310';
@@ -173,5 +175,57 @@ test('Scenario B: targeting correctness — two Node probes see different values
   } finally {
     await freeProbe.stop();
     await proProbe.stop();
+  }
+});
+
+test('Scenario C: variant delivery — Node probe observes string value change', async ({
+  page,
+}) => {
+  const flagKey = `e2e-variant-${Date.now().toString(36)}`;
+  const variantKey = `variant:${flagKey}`;
+
+  // Create a string-type flag with default_value "control".
+  const created = await createStringFlag(page, seeded, flagKey, 'control');
+
+  // Enable the flag so the evaluator returns the default_value
+  // instead of falling through to the SDK's hardcoded fallback.
+  await enableFlagViaApi(page, seeded, created.id, true);
+
+  const probeCtx = {
+    apiUrl: seeded.apiUrl,
+    apiKey: seeded.apiKey,
+    project: seeded.projectId,
+    environment: seeded.environmentId,
+    flagKeys: [variantKey],
+    user: { id: 'u1' },
+  };
+
+  const nodeProbe = await startNodeProbe(probeCtx);
+
+  try {
+    // The backend stores default_value as JSONB. For string flags the
+    // stored value is a JSON string (e.g. `"control"`) whose raw bytes
+    // include the surrounding quotes. The evaluator returns this raw
+    // JSON text as-is, so the SDK receives the quote-wrapped string.
+    // The Node probe's `variant:` path calls client.stringValue() which
+    // returns the string verbatim — including the JSON quotes.
+    await waitForValue(nodeProbe, variantKey, '"control"', { timeoutMs: 5_000 });
+
+    // Update the flag's default_value to "treatment" via the API.
+    // The backend's UpdateFlag handler broadcasts an SSE event and
+    // invalidates the evaluation cache, so the probe should pick
+    // up the new value without any toggle workaround.
+    await updateFlagDefaultValue(page, seeded, created.id, 'treatment');
+
+    // Probe should observe "treatment" within the latency budget.
+    const latency = await waitForValue(nodeProbe, variantKey, '"treatment"', {
+      timeoutMs: 5_000,
+    });
+
+    // eslint-disable-next-line no-console
+    console.log(`[scenario-C] latency: node=${latency}ms`);
+    expect(latency).toBeLessThan(2_000);
+  } finally {
+    await nodeProbe.stop();
   }
 });

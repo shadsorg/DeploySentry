@@ -1,3 +1,9 @@
+-- The project-scoped environments table from migration 006 (later migrated to
+-- application-scoped in migration 029) is being replaced by an org-scoped
+-- design. Drop the old table via CASCADE so any dependent FK constraints on
+-- other tables are removed before we recreate environments with the new shape.
+DROP TABLE IF EXISTS environments CASCADE;
+
 CREATE TABLE environments (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id        UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,

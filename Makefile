@@ -1,4 +1,4 @@
-.PHONY: dev-up dev-down migrate-up migrate-down run-api run-web test test-unit test-int build docker-build lint clean help dev-setup dev-cli
+.PHONY: dev-up dev-down migrate-up migrate-down run-api run-web test test-unit test-int build docker-build lint clean help dev-setup dev-cli e2e-sdk-up e2e-sdk-down e2e-sdk e2e-sdk-debug
 
 # Build metadata
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -9,6 +9,10 @@ LDFLAGS := -ldflags "-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -
 # Database migration settings
 MIGRATE_DSN ?= postgres://deploysentry:deploysentry@localhost:5432/deploysentry?sslmode=disable&search_path=deploy
 MIGRATE_DIR ?= migrations
+
+# E2E SDK test stack settings (see docker-compose.e2e.yml)
+E2E_COMPOSE ?= docker compose -f docker-compose.e2e.yml
+E2E_MIGRATE_DSN ?= postgres://deploysentry:deploysentry@localhost:15432/deploysentry?sslmode=disable&search_path=deploy
 
 # Default target
 .DEFAULT_GOAL := help
@@ -108,3 +112,26 @@ clean:
 	rm -rf bin/
 	rm -rf web/dist/
 	rm -rf web/node_modules/
+
+# ============================================================================
+# E2E SDK test stack (hermetic, see docker-compose.e2e.yml)
+# ============================================================================
+
+## e2e-sdk-up: Bring up the hermetic e2e SDK stack and run migrations
+e2e-sdk-up:
+	$(E2E_COMPOSE) up -d --wait
+	$(E2E_COMPOSE) exec -T postgres psql -U deploysentry -d deploysentry -c "CREATE SCHEMA IF NOT EXISTS deploy;"
+	migrate -database "$(E2E_MIGRATE_DSN)" -path $(MIGRATE_DIR) up
+
+## e2e-sdk-down: Tear down the e2e SDK stack and remove volumes
+e2e-sdk-down:
+	$(E2E_COMPOSE) down -v
+
+## e2e-sdk: Run Playwright SDK e2e tests against the hermetic stack
+e2e-sdk: e2e-sdk-up
+	cd web && npx playwright test --project=sdk
+	$(MAKE) e2e-sdk-down
+
+## e2e-sdk-debug: Run Playwright SDK e2e tests in headed debug mode
+e2e-sdk-debug: e2e-sdk-up
+	cd web && npx playwright test --project=sdk --headed --debug

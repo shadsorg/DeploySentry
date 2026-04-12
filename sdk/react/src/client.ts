@@ -301,7 +301,7 @@ export class DeploySentryClient {
     if (typeof EventSource === 'undefined') return; // SSR guard
 
     const params = this.buildQueryParams();
-    const url = `${this.baseURL}/v1/flags/stream?${params.toString()}`;
+    const url = `${this.baseURL}/api/v1/flags/stream?${params.toString()}`;
 
     // EventSource does not support custom headers natively. We pass the
     // API key as a query parameter for SSE connections.
@@ -310,28 +310,27 @@ export class DeploySentryClient {
 
     const es = new EventSource(sseUrl.toString());
 
-    es.addEventListener('flag.updated', (event: MessageEvent) => {
-      this.handleSSEMessage(event);
-    });
-
-    es.addEventListener('flag.created', (event: MessageEvent) => {
-      this.handleSSEMessage(event);
-    });
-
-    es.addEventListener('flag.deleted', (event: MessageEvent) => {
+    // The backend sends all flag change events with SSE event type
+    // "flag_change". The JSON payload's inner "event" field distinguishes
+    // the specific action (flag.updated, flag.toggled, flag.deleted, etc.).
+    es.addEventListener('flag_change', (event: MessageEvent) => {
       try {
-        const data = JSON.parse(event.data);
-        if (data?.flag?.key) {
-          this.flags.delete(data.flag.key);
+        const outer = JSON.parse(event.data);
+        // event.data is a double-encoded JSON string from SSEvent():
+        // the outer layer is the SSE data field, inner is the SSEEvent struct.
+        const data = typeof outer === 'string' ? JSON.parse(outer) : outer;
+        if (data?.event === 'flag.deleted' && data?.flag_key) {
+          this.flags.delete(data.flag_key);
           this.emit();
+        } else {
+          // For all other events (updated, toggled, created, rule changes),
+          // re-fetch the full flag set to get the current state.
+          this.fetchFlags();
         }
       } catch {
-        // Ignore malformed messages.
+        // Malformed event — trigger a full refresh as a fallback.
+        this.fetchFlags();
       }
-    });
-
-    es.addEventListener('message', (event: MessageEvent) => {
-      this.handleSSEMessage(event);
     });
 
     es.onerror = () => {

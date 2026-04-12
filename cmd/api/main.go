@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -275,9 +276,21 @@ func run() error {
 		"https://www.dr-sentry.com",
 		"https://dr-sentry.com",
 		"http://localhost:3001",
+		"http://localhost:3002", // e2e SDK dashboard instance
+		"http://localhost:4310", // e2e React SDK harness (Vite preview)
 		"http://localhost:8080",
 	}))
-	rateLimiter := middleware.NewRateLimiter(rdb.Client, middleware.DefaultRateLimitConfig())
+	rateLimitConfig := middleware.DefaultRateLimitConfig()
+	// The hermetic e2e stack runs many requests in tight bursts (login,
+	// seed, list, toggle) and trips the default 100 req/min limiter,
+	// which then causes the React dashboard to drop the user's session.
+	// Allow scaling the limit via DS_RATE_LIMIT_PER_MINUTE for tests.
+	if v := os.Getenv("DS_RATE_LIMIT_PER_MINUTE"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			rateLimitConfig.RequestsPerWindow = n
+		}
+	}
+	rateLimiter := middleware.NewRateLimiter(rdb.Client, rateLimitConfig)
 
 	// -------------------------------------------------------------------------
 	// Routes

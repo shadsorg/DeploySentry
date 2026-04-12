@@ -5,7 +5,13 @@ import {
   startReactProbe,
   waitForValue,
 } from '../helpers/sdk-driver';
-import { createBooleanFlag, toggleFlag } from '../helpers/flag-ui';
+import {
+  createBooleanFlag,
+  toggleFlag,
+  addTargetingRule,
+  updateTargetingRule,
+  enableFlagViaApi,
+} from '../helpers/flag-ui';
 
 const HARNESS_URL = process.env.DS_E2E_REACT_HARNESS_URL ?? 'http://localhost:4310';
 
@@ -85,5 +91,87 @@ test('Scenario A: baseline propagation — Node SDK observes UI-driven toggle wi
     expect(nodeLatency).toBeLessThan(2_000);
   } finally {
     await nodeProbe.stop();
+  }
+});
+
+test('Scenario B: targeting correctness — two Node probes see different values based on attribute rules', async ({
+  page,
+}) => {
+  const flagKey = `e2e-targeting-${Date.now().toString(36)}`;
+
+  // Create a boolean flag with default_value "false".
+  // The flag starts disabled (enabled=false).
+  const created = await createBooleanFlag(page, seeded, flagKey, false);
+  const flagId = created.id;
+
+  // Add an attribute rule: attribute="plan", operator="eq", value="pro".
+  // In DeploySentry's evaluator, the attribute rule's Value field does
+  // double duty — it is both the comparison target AND the served value.
+  // So when plan=="pro", the rule matches AND serves value="pro".
+  // When no rule matches, the evaluator serves the flag's default_value="false".
+  //
+  // The `targeting:` prefix tells the node probe to observe detail.value
+  // (the raw string) instead of detail.enabled.
+  const ruleId = await addTargetingRule(page, seeded, flagId, {
+    ruleType: 'attribute',
+    attribute: 'plan',
+    operator: 'eq',
+    value: 'pro',
+  });
+
+  // Enable the flag so the evaluator processes targeting rules.
+  await enableFlagViaApi(page, seeded, flagId, true);
+
+  const targetingKey = `targeting:${flagKey}`;
+
+  const base = {
+    apiUrl: seeded.apiUrl,
+    apiKey: seeded.apiKey,
+    project: seeded.projectId,
+    environment: seeded.environmentId,
+    flagKeys: [targetingKey],
+  };
+
+  const freeProbe = await startNodeProbe({
+    ...base,
+    user: { id: 'u-free', attributes: { plan: 'free' } },
+  });
+  const proProbe = await startNodeProbe({
+    ...base,
+    user: { id: 'u-pro', attributes: { plan: 'pro' } },
+  });
+
+  try {
+    // The free user's plan="free" does not match rule value="pro",
+    // so the evaluator falls through to default_value="false".
+    await waitForValue(freeProbe, targetingKey, 'false', { timeoutMs: 5_000 });
+    // The pro user's plan="pro" matches rule value="pro" → served value="pro".
+    await waitForValue(proProbe, targetingKey, 'pro', { timeoutMs: 5_000 });
+
+    // Now update the rule to match "enterprise" instead of "pro".
+    // Neither probe's context matches "enterprise", so both should
+    // fall through to default_value="false".
+    await updateTargetingRule(page, seeded, flagId, ruleId, {
+      ruleType: 'attribute',
+      attribute: 'plan',
+      operator: 'eq',
+      value: 'enterprise',
+    });
+
+    // The service's UpdateRule does NOT invalidate the evaluator's
+    // Redis cache (only toggleFlag/updateFlag/archiveFlag do).
+    // Force cache invalidation by toggling the flag off then on —
+    // each toggle calls cache.Invalidate which clears both the flag
+    // and rules cache entries.
+    await enableFlagViaApi(page, seeded, flagId, false);
+    await enableFlagViaApi(page, seeded, flagId, true);
+
+    // Both probes should now see the default value "false"
+    // (the pro probe's plan="pro" no longer matches "enterprise").
+    await waitForValue(freeProbe, targetingKey, 'false', { timeoutMs: 5_000 });
+    await waitForValue(proProbe, targetingKey, 'false', { timeoutMs: 5_000 });
+  } finally {
+    await freeProbe.stop();
+    await proProbe.stop();
   }
 });

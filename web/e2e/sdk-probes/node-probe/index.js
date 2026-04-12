@@ -57,6 +57,14 @@ async function tick() {
       if (key.startsWith('variant:')) {
         const realKey = key.slice('variant:'.length);
         value = await client.stringValue(realKey, 'control', context);
+      } else if (key.startsWith('targeting:')) {
+        // Observe the resolved value (not `enabled`) so targeting-rule
+        // tests can distinguish "rule matched → value=X" from
+        // "no match → value=defaultValue".  The evaluator returns
+        // value as a string for boolean flags ("true"/"false").
+        const realKey = key.slice('targeting:'.length);
+        const detail = await client.detail(realKey, context);
+        value = detail?.value ?? null;
       } else {
         // Use detail() so we observe the server-side `enabled` state in
         // addition to the raw value. The toggle test toggles `enabled`

@@ -86,6 +86,121 @@ export async function createBooleanFlag(
 }
 
 /**
+ * Add a targeting rule to a flag via the API.
+ * Returns the new rule's ID.
+ */
+export async function addTargetingRule(
+  page: Page,
+  seeded: SeededContext,
+  flagId: string,
+  rule: {
+    ruleType: string;
+    attribute: string;
+    operator: string;
+    value: string;
+    priority?: number;
+  },
+): Promise<string> {
+  await ensureLoggedIn(page, seeded);
+  const token = await page.evaluate(() => window.localStorage.getItem('ds_token'));
+  if (!token) throw new Error('flag-ui: no JWT in localStorage after login');
+
+  const res = await fetch(`${seeded.apiUrl}/api/v1/flags/${flagId}/rules`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      rule_type: rule.ruleType,
+      attribute: rule.attribute,
+      operator: rule.operator,
+      value: rule.value,
+      priority: rule.priority ?? 0,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(
+      `flag-ui: POST /flags/${flagId}/rules failed (${res.status}): ${await res.text()}`,
+    );
+  }
+  const body = (await res.json()) as { id: string };
+  return body.id;
+}
+
+/**
+ * Update an existing targeting rule via the API.
+ */
+export async function updateTargetingRule(
+  page: Page,
+  seeded: SeededContext,
+  flagId: string,
+  ruleId: string,
+  updates: {
+    ruleType: string;
+    attribute: string;
+    operator: string;
+    value: string;
+    priority?: number;
+  },
+): Promise<void> {
+  await ensureLoggedIn(page, seeded);
+  const token = await page.evaluate(() => window.localStorage.getItem('ds_token'));
+  if (!token) throw new Error('flag-ui: no JWT in localStorage after login');
+
+  const res = await fetch(
+    `${seeded.apiUrl}/api/v1/flags/${flagId}/rules/${ruleId}`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        rule_type: updates.ruleType,
+        attribute: updates.attribute,
+        operator: updates.operator,
+        value: updates.value,
+        priority: updates.priority ?? 0,
+      }),
+    },
+  );
+  if (!res.ok) {
+    throw new Error(
+      `flag-ui: PUT /flags/${flagId}/rules/${ruleId} failed (${res.status}): ${await res.text()}`,
+    );
+  }
+}
+
+/**
+ * Enable a flag via the API toggle endpoint.
+ */
+export async function enableFlagViaApi(
+  page: Page,
+  seeded: SeededContext,
+  flagId: string,
+  enabled: boolean,
+): Promise<void> {
+  await ensureLoggedIn(page, seeded);
+  const token = await page.evaluate(() => window.localStorage.getItem('ds_token'));
+  if (!token) throw new Error('flag-ui: no JWT in localStorage after login');
+
+  const res = await fetch(`${seeded.apiUrl}/api/v1/flags/${flagId}/toggle`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!res.ok) {
+    throw new Error(
+      `flag-ui: POST /flags/${flagId}/toggle failed (${res.status}): ${await res.text()}`,
+    );
+  }
+}
+
+/**
  * Toggle a flag's enabled state through the dashboard. Returns a
  * `performance.now()` timestamp captured immediately before the click so
  * the spec can compute end-to-end latency if it wants to.

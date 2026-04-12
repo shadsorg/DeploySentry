@@ -1746,3 +1746,74 @@ tbody tr:last-child td {
   .hero-headline { font-size: 40px; }
   .hero-sub { font-size: 16px; }
 }
+
+/* Deploy/release flow diagram */
+.flow-section { padding: 100px 24px; background: #0a0e14; }
+.flow-inner { max-width: 1000px; margin: 0 auto; }
+.section-heading {
+  font-size: 40px; color: #f3f4f6; margin: 0 0 12px 0;
+  text-align: center; letter-spacing: -0.02em;
+}
+.section-sub {
+  font-size: 17px; color: #9ca3af; text-align: center;
+  max-width: 600px; margin: 0 auto 60px auto; line-height: 1.5;
+}
+.flow-diagram-wrap { width: 100%; overflow-x: auto; }
+.flow-diagram { width: 100%; max-width: 900px; height: auto; display: block; margin: 0 auto; }
+
+.flow-track-label {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 11px; fill: #6b7280; letter-spacing: 0.15em;
+}
+.flow-owner {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 11px; fill: #4b5563;
+}
+
+.flow-rail {
+  stroke: #3b82f6; stroke-width: 1.5; stroke-linecap: round;
+  stroke-dasharray: 200; stroke-dashoffset: 200;
+  animation: flowDraw 0.4s ease-out forwards, flowDim 1.5s ease-out 6.5s forwards;
+}
+@keyframes flowDraw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes flowDim {
+  to { opacity: 0.3; }
+}
+
+.flow-node circle { fill: #3b82f6; opacity: 0; transform-origin: center; }
+.flow-node text { fill: #e5e7eb; font-size: 12px; opacity: 0; }
+.flow-node {
+  animation: flowNodePop 0.3s ease-out forwards, flowDim 1.5s ease-out 6.5s forwards;
+}
+@keyframes flowNodePop {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.flow-node circle {
+  animation: flowNodeCircle 0.3s ease-out forwards;
+  animation-delay: inherit;
+}
+.flow-node text {
+  animation: flowNodeText 0.3s ease-out forwards;
+  animation-delay: inherit;
+}
+@keyframes flowNodeCircle { to { opacity: 1; } }
+@keyframes flowNodeText   { to { opacity: 1; } }
+
+.flow-separator {
+  stroke: #1f2937; stroke-width: 1; stroke-dasharray: 6 6;
+  stroke-dashoffset: 800;
+  animation: flowDraw 0.6s ease-out forwards;
+  animation-delay: 2.4s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-rail, .flow-node, .flow-separator,
+  .flow-node circle, .flow-node text {
+    animation: none !important;
+    opacity: 1 !important;
+    stroke-dashoffset: 0 !important;
+  }
+}

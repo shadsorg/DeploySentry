@@ -2,7 +2,7 @@ module github.com/deploysentry/deploysentry
 
 go 1.22.0
 
-toolchain go1.24.7
+toolchain go1.22.12
 
 require (
 	github.com/gin-gonic/gin v1.10.0

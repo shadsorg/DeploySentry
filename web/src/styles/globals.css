@@ -1651,3 +1651,31 @@ tbody tr:last-child td {
   background: var(--color-primary-bg);
   color: var(--color-primary-hover);
 }
+
+/* User menu */
+.user-menu { position: relative; }
+.user-menu-trigger {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: #1f2937; color: #e5e7eb;
+  border: 1px solid #374151;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.5px;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+}
+.user-menu-trigger:hover { background: #2a3441; }
+.user-menu-dropdown {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  min-width: 220px;
+  background: #0f1419; border: 1px solid #1f2937; border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  z-index: 100; padding: 6px 0;
+}
+.user-menu-header { padding: 10px 14px; border-bottom: 1px solid #1f2937; }
+.user-menu-name { color: #e5e7eb; font-size: 13px; font-weight: 600; }
+.user-menu-email { color: #6b7280; font-size: 12px; margin-top: 2px; }
+.user-menu-item {
+  display: block; width: 100%; text-align: left;
+  padding: 9px 14px; background: none; border: none;
+  color: #e5e7eb; font-size: 13px; cursor: pointer;
+  text-decoration: none; font-family: inherit;
+}
+.user-menu-item:hover { background: #1a1f2a; }

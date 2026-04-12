@@ -22,23 +22,24 @@ export default function MembersPage() {
   // Delete confirm
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
-  async function fetchMembers() {
+  const fetchMembers = useCallback(async () => {
     if (!orgSlug) return;
     setLoading(true);
     setError(null);
     try {
       const result = await membersApi.listByOrg(orgSlug);
       setMembers(result.members);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load members');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load members';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
-  }
+  }, [orgSlug]);
 
   useEffect(() => {
     fetchMembers();
-  }, [orgSlug]);
+  }, [fetchMembers]);
 
   async function handleAddMember() {
     if (!newEmail.trim() || !orgSlug) return;
@@ -48,8 +49,9 @@ export default function MembersPage() {
       setMembers((prev) => [...prev, result.member]);
       setNewEmail('');
       setNewRole('member');
-    } catch (err: any) {
-      setActionError(err.message || 'Failed to add member');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add member';
+      setActionError(errorMessage);
     }
   }
 
@@ -59,8 +61,9 @@ export default function MembersPage() {
     try {
       await membersApi.updateOrgRole(orgSlug, userId, role);
       setMembers((prev) => prev.map((m) => (m.user_id === userId ? { ...m, role: role as Member['role'] } : m)));
-    } catch (err: any) {
-      setActionError(err.message || 'Failed to update role');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update role';
+      setActionError(errorMessage);
     }
   }
 
@@ -71,8 +74,9 @@ export default function MembersPage() {
       await membersApi.removeFromOrg(orgSlug, userId);
       setMembers((prev) => prev.filter((m) => m.user_id !== userId));
       setConfirmDelete(null);
-    } catch (err: any) {
-      setActionError(err.message || 'Failed to remove member');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to remove member';
+      setActionError(errorMessage);
       setConfirmDelete(null);
     }
   }

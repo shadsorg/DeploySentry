@@ -8,13 +8,30 @@ function getDeployActions(status: DeployStatus) {
   const noop = () => {};
   switch (status) {
     case 'pending':
-      return { primaryAction: { label: 'Start', onClick: noop }, secondaryActions: [{ label: 'Cancel', onClick: noop }] };
+      return {
+        primaryAction: { label: 'Start', onClick: noop },
+        secondaryActions: [{ label: 'Cancel', onClick: noop }],
+      };
     case 'running':
-      return { primaryAction: { label: 'Promote', onClick: noop }, secondaryActions: [{ label: 'Pause', onClick: noop }, { label: 'Rollback', onClick: noop, variant: 'danger' as const }] };
+      return {
+        primaryAction: { label: 'Promote', onClick: noop },
+        secondaryActions: [
+          { label: 'Pause', onClick: noop },
+          { label: 'Rollback', onClick: noop, variant: 'danger' as const },
+        ],
+      };
     case 'promoting':
-      return { secondaryActions: [{ label: 'Rollback', onClick: noop, variant: 'danger' as const }] };
+      return {
+        secondaryActions: [{ label: 'Rollback', onClick: noop, variant: 'danger' as const }],
+      };
     case 'paused':
-      return { primaryAction: { label: 'Resume', onClick: noop }, secondaryActions: [{ label: 'Rollback', onClick: noop, variant: 'danger' as const }, { label: 'Cancel', onClick: noop }] };
+      return {
+        primaryAction: { label: 'Resume', onClick: noop },
+        secondaryActions: [
+          { label: 'Rollback', onClick: noop, variant: 'danger' as const },
+          { label: 'Cancel', onClick: noop },
+        ],
+      };
     case 'failed':
       return { primaryAction: { label: 'Rollback', onClick: noop, variant: 'danger' as const } };
     default:
@@ -33,23 +50,36 @@ function computeDuration(start?: string, end?: string | null): string {
 
 function strategyBadgeClass(strategy: string): string {
   switch (strategy) {
-    case 'canary': return 'badge badge-experiment';
-    case 'blue-green': return 'badge badge-release';
-    case 'rolling': return 'badge badge-ops';
-    default: return 'badge';
+    case 'canary':
+      return 'badge badge-experiment';
+    case 'blue-green':
+      return 'badge badge-release';
+    case 'rolling':
+      return 'badge badge-ops';
+    default:
+      return 'badge';
   }
 }
 
 function statusBadgeClass(status: string): string {
   switch (status) {
-    case 'running': case 'promoting': return 'badge badge-active';
-    case 'completed': return 'badge badge-completed';
-    case 'failed': return 'badge badge-danger';
-    case 'rolled_back': return 'badge badge-rolling-back';
-    case 'paused': return 'badge badge-ops';
-    case 'pending': return 'badge badge-pending';
-    case 'cancelled': return 'badge badge-disabled';
-    default: return 'badge';
+    case 'running':
+    case 'promoting':
+      return 'badge badge-active';
+    case 'completed':
+      return 'badge badge-completed';
+    case 'failed':
+      return 'badge badge-danger';
+    case 'rolled_back':
+      return 'badge badge-rolling-back';
+    case 'paused':
+      return 'badge badge-ops';
+    case 'pending':
+      return 'badge badge-pending';
+    case 'cancelled':
+      return 'badge badge-disabled';
+    default:
+      return 'badge';
   }
 }
 
@@ -72,7 +102,8 @@ export default function DeploymentDetailPage() {
     setLoading(true);
     setError(null);
 
-    deploymentsApi.get(id)
+    deploymentsApi
+      .get(id)
       .then((data) => setDep(data))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -83,12 +114,22 @@ export default function DeploymentDetailPage() {
   if (!dep) return <div>Deployment not found.</div>;
 
   const actions = getDeployActions(dep.status);
-  const artifactHostname = dep.artifact ? (() => { try { return new URL(dep.artifact).hostname; } catch { return undefined; } })() : undefined;
+  const artifactHostname = dep.artifact
+    ? (() => {
+        try {
+          return new URL(dep.artifact).hostname;
+        } catch {
+          return undefined;
+        }
+      })()
+    : undefined;
 
   return (
     <div className="page">
       <div className="detail-header">
-        <Link to={backPath} className="back-link">← Deployments</Link>
+        <Link to={backPath} className="back-link">
+          ← Deployments
+        </Link>
         <div className="detail-header-top">
           <div>
             <h1 className="detail-header-title">{dep.version}</h1>
@@ -97,7 +138,9 @@ export default function DeploymentDetailPage() {
               {artifactHostname && (
                 <>
                   {' · '}
-                  <a href={dep.artifact} target="_blank" rel="noopener noreferrer">{artifactHostname}</a>
+                  <a href={dep.artifact} target="_blank" rel="noopener noreferrer">
+                    {artifactHostname}
+                  </a>
                 </>
               )}
               {' · '}
@@ -123,7 +166,9 @@ export default function DeploymentDetailPage() {
         </div>
         <div className="info-card">
           <div className="info-card-label">Health</div>
-          <div className={`info-card-value ${healthColorClass(dep.health_score)}`}>{dep.health_score}%</div>
+          <div className={`info-card-value ${healthColorClass(dep.health_score)}`}>
+            {dep.health_score}%
+          </div>
         </div>
         <div className="info-card">
           <div className="info-card-label">Duration</div>

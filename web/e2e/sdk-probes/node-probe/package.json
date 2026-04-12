@@ -1,0 +1,8 @@
+{
+  "name": "ds-e2e-node-probe",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@deploysentry/sdk": "file:../../../../sdk/node"
+  }
+}

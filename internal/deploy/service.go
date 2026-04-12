@@ -198,19 +198,16 @@ func (s *deployService) ResumeDeployment(ctx context.Context, id uuid.UUID) erro
 // GetActiveDeployments returns all non-terminal deployments (pending, running,
 // paused, promoting) for the given application.
 func (s *deployService) GetActiveDeployments(ctx context.Context, applicationID uuid.UUID) ([]*models.Deployment, error) {
-	// Retrieve all deployments for the application with a generous limit
-	// and filter to non-terminal statuses.
-	all, err := s.repo.ListDeployments(ctx, applicationID, ListOptions{Limit: 100})
+	// Retrieve deployments for the application with a generous limit
+	// and exclude terminal statuses at the repository level.
+	active, err := s.repo.ListDeployments(ctx, applicationID, ListOptions{
+		Limit:           100,
+		ExcludeTerminal: true,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("listing deployments for active lookup: %w", err)
+		return nil, fmt.Errorf("listing active deployments: %w", err)
 	}
 
-	var active []*models.Deployment
-	for _, d := range all {
-		if !d.IsTerminal() {
-			active = append(active, d)
-		}
-	}
 	return active, nil
 }
 

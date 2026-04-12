@@ -9,7 +9,7 @@ module DeploySentry
   class Client
     attr_reader :environment, :project
 
-    def initialize(api_key:, base_url:, environment:, project:, cache_timeout: 30, offline_mode: false)
+    def initialize(api_key:, base_url:, environment:, project:, cache_timeout: 30, offline_mode: false, session_id: nil)
       raise ConfigurationError, "api_key is required" if api_key.nil? || api_key.empty?
       raise ConfigurationError, "base_url is required" if base_url.nil? || base_url.empty?
       raise ConfigurationError, "environment is required" if environment.nil? || environment.empty?
@@ -20,6 +20,7 @@ module DeploySentry
       @environment = environment
       @project = project
       @offline_mode = offline_mode
+      @session_id = session_id
 
       @flags = {}
       @flags_mutex = Mutex.new
@@ -44,6 +45,12 @@ module DeploySentry
 
     def initialized?
       @initialized
+    end
+
+    def refresh_session
+      @cache.clear
+      @flags_mutex.synchronize { @flags.clear }
+      fetch_flags
     end
 
     # ----- Value accessors -----
@@ -125,11 +132,13 @@ module DeploySentry
     private
 
     def auth_headers
-      {
+      headers = {
         "Authorization" => "ApiKey #{@api_key}",
         "Content-Type" => "application/json",
         "Accept" => "application/json"
       }
+      headers["X-DeploySentry-Session"] = @session_id if @session_id
+      headers
     end
 
     def evaluate(key, context: nil)
@@ -163,6 +172,7 @@ module DeploySentry
         project: @project
       }
       body[:context] = context.to_h if context
+      body[:session_id] = @session_id if @session_id
 
       response = post(uri, body)
       data = JSON.parse(response.body, symbolize_names: true)

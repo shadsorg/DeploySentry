@@ -11,6 +11,7 @@ import (
 
 	"github.com/deploysentry/deploysentry/internal/models"
 	"github.com/google/uuid"
+	"golang.org/x/sync/singleflight"
 )
 
 // Cache defines the interface for a flag evaluation cache.
@@ -29,6 +30,12 @@ type Cache interface {
 
 	// Invalidate removes a flag and its rules from the cache.
 	Invalidate(ctx context.Context, flagID uuid.UUID) error
+
+	// GetSegment returns a cached segment, or nil if not found.
+	GetSegment(ctx context.Context, id uuid.UUID) (*models.Segment, error)
+
+	// SetSegment stores a segment in the cache with a TTL.
+	SetSegment(ctx context.Context, segment *models.Segment, ttl time.Duration) error
 }
 
 // TelemetryLogger defines the interface for logging flag evaluation telemetry.
@@ -49,12 +56,14 @@ type CacheMetrics struct {
 // for a given evaluation context by checking the cache, falling back to the
 // database, and applying targeting rules in priority order.
 type Evaluator struct {
-	repo            FlagRepository
-	cache           Cache
-	cacheTTL        time.Duration
-	telemetry       TelemetryLogger
-	sampleRate      float64
-	Metrics         CacheMetrics
+	repo       FlagRepository
+	cache      Cache
+	cacheTTL   time.Duration
+	telemetry  TelemetryLogger
+	sampleRate float64
+	Metrics    CacheMetrics
+	sfFlags    singleflight.Group
+	sfRules    singleflight.Group
 }
 
 // NewEvaluator creates a new flag evaluation engine.
@@ -100,13 +109,16 @@ func (e *Evaluator) Evaluate(ctx context.Context, projectID, environmentID uuid.
 	// Try cache first.
 	flag, err := e.cache.GetFlag(ctx, projectID, environmentID, key)
 	if err != nil || flag == nil {
-		// Cache miss: fall back to database.
+		// Cache miss: fall back to database, coalescing concurrent requests.
 		e.Metrics.Misses.Add(1)
-		flag, err = e.repo.GetFlagByKey(ctx, projectID, environmentID, key)
-		if err != nil {
-			return nil, fmt.Errorf("flag %q not found: %w", key, err)
+		sfKey := fmt.Sprintf("%s:%s:%s", projectID, environmentID, key)
+		val, sfErr, _ := e.sfFlags.Do(sfKey, func() (interface{}, error) {
+			return e.repo.GetFlagByKey(ctx, projectID, environmentID, key)
+		})
+		if sfErr != nil {
+			return nil, fmt.Errorf("flag %q not found: %w", key, sfErr)
 		}
-		// Populate cache asynchronously (best-effort).
+		flag = val.(*models.FeatureFlag)
 		_ = e.cache.SetFlag(ctx, flag, e.cacheTTL)
 	} else {
 		e.Metrics.Hits.Add(1)
@@ -128,10 +140,13 @@ func (e *Evaluator) Evaluate(ctx context.Context, projectID, environmentID uuid.
 	rules, err := e.cache.GetRules(ctx, flag.ID)
 	if err != nil || rules == nil {
 		e.Metrics.Misses.Add(1)
-		rules, err = e.repo.ListRules(ctx, flag.ID)
-		if err != nil {
-			return nil, fmt.Errorf("loading rules for flag %q: %w", key, err)
+		val, sfErr, _ := e.sfRules.Do(flag.ID.String(), func() (interface{}, error) {
+			return e.repo.ListRules(ctx, flag.ID)
+		})
+		if sfErr != nil {
+			return nil, fmt.Errorf("loading rules for flag %q: %w", key, sfErr)
 		}
+		rules = val.([]*models.TargetingRule)
 		_ = e.cache.SetRules(ctx, flag.ID, rules, e.cacheTTL)
 	} else {
 		e.Metrics.Hits.Add(1)
@@ -143,7 +158,7 @@ func (e *Evaluator) Evaluate(ctx context.Context, projectID, environmentID uuid.
 			continue
 		}
 
-		match, err := e.evaluateRule(rule, evalCtx, flag.Key)
+		match, err := e.evaluateRule(ctx, rule, evalCtx, flag.Key)
 		if err != nil {
 			// Rule evaluation errors are non-fatal; skip the rule.
 			continue
@@ -181,7 +196,7 @@ func (e *Evaluator) logTelemetry(ctx context.Context, result *models.FlagEvaluat
 }
 
 // evaluateRule dispatches to the appropriate rule evaluator based on rule type.
-func (e *Evaluator) evaluateRule(rule *models.TargetingRule, evalCtx models.EvaluationContext, flagKey string) (bool, error) {
+func (e *Evaluator) evaluateRule(ctx context.Context, rule *models.TargetingRule, evalCtx models.EvaluationContext, flagKey string) (bool, error) {
 	switch rule.RuleType {
 	case models.RuleTypePercentage:
 		return evaluatePercentageRule(rule, evalCtx, flagKey), nil
@@ -192,12 +207,42 @@ func (e *Evaluator) evaluateRule(rule *models.TargetingRule, evalCtx models.Eval
 	case models.RuleTypeSchedule:
 		return evaluateScheduleRule(rule), nil
 	case models.RuleTypeSegment:
-		// Segment evaluation would require loading segment membership data.
-		// Returning false as a stub.
-		return false, nil
+		segment, err := e.loadSegment(ctx, rule.SegmentID)
+		if err != nil {
+			return false, err
+		}
+		conditions := make([]models.CompoundCondition, len(segment.Conditions))
+		for i, sc := range segment.Conditions {
+			conditions[i] = models.CompoundCondition{
+				Attribute: sc.Attribute,
+				Operator:  sc.Operator,
+				Value:     sc.Value,
+			}
+		}
+		return evaluateConditions(conditions, CombineOperator(segment.CombineOp), evalCtx), nil
+	case models.RuleTypeCompound:
+		return evaluateConditions(rule.Conditions, CombineOperator(rule.CombineOp), evalCtx), nil
 	default:
 		return false, fmt.Errorf("unknown rule type: %s", rule.RuleType)
 	}
+}
+
+// loadSegment retrieves a segment from the cache, falling back to the repository.
+// The segment is written back to cache after a repo load.
+func (e *Evaluator) loadSegment(ctx context.Context, segmentID *uuid.UUID) (*models.Segment, error) {
+	if segmentID == nil {
+		return nil, fmt.Errorf("segment rule missing segment_id")
+	}
+	segment, err := e.cache.GetSegment(ctx, *segmentID)
+	if err == nil && segment != nil {
+		return segment, nil
+	}
+	segment, err = e.repo.GetSegment(ctx, *segmentID)
+	if err != nil {
+		return nil, fmt.Errorf("loading segment %s: %w", segmentID, err)
+	}
+	_ = e.cache.SetSegment(ctx, segment, e.cacheTTL)
+	return segment, nil
 }
 
 // HashPercentage computes a deterministic hash-based percentage (0-99) for a

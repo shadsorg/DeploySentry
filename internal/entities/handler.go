@@ -30,6 +30,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		orgs.GET("/:orgSlug", h.getOrg)
 		orgs.PUT("/:orgSlug", auth.RequirePermission(h.rbac, auth.PermOrgManage), h.updateOrg)
 
+		envs := orgs.Group("/:orgSlug/environments")
+		{
+			envs.GET("", h.listOrgEnvironments)
+			envs.POST("", auth.RequirePermission(h.rbac, auth.PermOrgManage), h.createEnvironment)
+			envs.PUT("/:envSlug", auth.RequirePermission(h.rbac, auth.PermOrgManage), h.updateEnvironment)
+			envs.DELETE("/:envSlug", auth.RequirePermission(h.rbac, auth.PermOrgManage), h.deleteEnvironment)
+		}
+
 		projects := orgs.Group("/:orgSlug/projects")
 		{
 			projects.POST("", auth.RequirePermission(h.rbac, auth.PermOrgManage), h.createProject)
@@ -374,7 +382,124 @@ func (h *Handler) updateApp(c *gin.Context) {
 }
 
 // ---------------------------------------------------------------------------
-// Environment handlers
+// Org environment handlers
+// ---------------------------------------------------------------------------
+
+func (h *Handler) listOrgEnvironments(c *gin.Context) {
+	org, err := h.service.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
+	if err != nil || org == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		return
+	}
+
+	envs, err := h.service.ListEnvironments(c.Request.Context(), org.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"environments": envs})
+}
+
+func (h *Handler) createEnvironment(c *gin.Context) {
+	org, err := h.service.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
+	if err != nil || org == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		return
+	}
+
+	var req struct {
+		Name         string `json:"name" binding:"required"`
+		Slug         string `json:"slug" binding:"required"`
+		IsProduction bool   `json:"is_production"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	env := &OrgEnvironment{
+		OrgID:        org.ID,
+		Name:         req.Name,
+		Slug:         req.Slug,
+		IsProduction: req.IsProduction,
+	}
+	if err := h.service.CreateEnvironment(c.Request.Context(), env); err != nil {
+		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
+			c.JSON(http.StatusConflict, gin.H{"error": "slug already exists"})
+			return
+		}
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, env)
+}
+
+func (h *Handler) updateEnvironment(c *gin.Context) {
+	org, err := h.service.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
+	if err != nil || org == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		return
+	}
+
+	env, err := h.service.GetEnvironmentBySlug(c.Request.Context(), org.ID, c.Param("envSlug"))
+	if err != nil || env == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "environment not found"})
+		return
+	}
+
+	var req struct {
+		Name         string `json:"name"`
+		Slug         string `json:"slug"`
+		IsProduction *bool  `json:"is_production"`
+		SortOrder    *int   `json:"sort_order"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if req.Name != "" {
+		env.Name = req.Name
+	}
+	if req.Slug != "" {
+		env.Slug = req.Slug
+	}
+	if req.IsProduction != nil {
+		env.IsProduction = *req.IsProduction
+	}
+	if req.SortOrder != nil {
+		env.SortOrder = *req.SortOrder
+	}
+
+	if err := h.service.UpdateEnvironment(c.Request.Context(), env); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, env)
+}
+
+func (h *Handler) deleteEnvironment(c *gin.Context) {
+	org, err := h.service.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
+	if err != nil || org == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		return
+	}
+
+	env, err := h.service.GetEnvironmentBySlug(c.Request.Context(), org.ID, c.Param("envSlug"))
+	if err != nil || env == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "environment not found"})
+		return
+	}
+
+	if err := h.service.DeleteEnvironment(c.Request.Context(), env.ID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"deleted": true})
+}
+
+// ---------------------------------------------------------------------------
+// App-scoped Environment handlers
 // ---------------------------------------------------------------------------
 
 func (h *Handler) listEnvironments(c *gin.Context) {

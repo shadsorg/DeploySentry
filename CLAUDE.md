@@ -65,3 +65,13 @@ The dashboard is at `web/` (Vite + React + TypeScript, port 3001):
 - DeploymentsPage, DeploymentDetailPage, ReleasesPage, ReleaseDetailPage
 - MembersPage, APIKeysPage, SettingsPage (org/project/app levels)
 - AnalyticsPage, SDKsPage
+
+## Session Directives (MANDATORY)
+
+Before starting any work, read and follow `docs/README.md`. It defines three mandatory processes:
+
+1. **Prompt History** — Log every prompt to `docs/PROMPT_HISTORY.md` before beginning work. Update with results before ending the session.
+2. **Current Initiatives** — Update `docs/CURRENT_INITIATIVES.md` before ending any session to reflect the current state of all specs and plans.
+3. **Spec-First Workflow** — For non-trivial tasks, always clarify → spec (`docs/superpowers/specs/`) → plan (`docs/superpowers/plans/`) → execute, even without the Superpowers plugin.
+
+Completed specs and plans are archived to `docs/archives/`.

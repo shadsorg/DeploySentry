@@ -14,7 +14,12 @@ export default function CreateAppPage() {
 
   function handleNameChange(value: string) {
     setName(value);
-    setSlug(value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+    setSlug(
+      value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, ''),
+    );
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -26,8 +31,8 @@ export default function CreateAppPage() {
       await entitiesApi.createApp(orgSlug, projectSlug, { name, slug, description });
       localStorage.setItem('ds_last_app', slug);
       navigate(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${slug}/deployments`);
-    } catch (err: any) {
-      setError(err.message || 'Failed to create application');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create application');
     } finally {
       setSubmitting(false);
     }
@@ -88,9 +93,15 @@ export default function CreateAppPage() {
           </div>
           <div className="form-group">
             <label className="form-label">Environments</label>
-            <p className="text-muted text-sm">Environments will be inherited from the organization.</p>
+            <p className="text-muted text-sm">
+              Environments will be inherited from the organization.
+            </p>
           </div>
-          {error && <div className="form-error" style={{ marginBottom: 8 }}>{error}</div>}
+          {error && (
+            <div className="form-error" style={{ marginBottom: 8 }}>
+              {error}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
               {submitting ? 'Creating...' : 'Create Application'}

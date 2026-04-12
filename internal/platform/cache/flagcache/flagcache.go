@@ -89,6 +89,28 @@ func (c *FlagCache) SetRules(ctx context.Context, flagID uuid.UUID, rules []*mod
 	return nil
 }
 
+func (c *FlagCache) GetSegment(ctx context.Context, id uuid.UUID) (*models.Segment, error) {
+	key := fmt.Sprintf("segment:%s", id)
+	data, err := c.redis.Get(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	var segment models.Segment
+	if err := json.Unmarshal([]byte(data), &segment); err != nil {
+		return nil, err
+	}
+	return &segment, nil
+}
+
+func (c *FlagCache) SetSegment(ctx context.Context, segment *models.Segment, ttl time.Duration) error {
+	key := fmt.Sprintf("segment:%s", segment.ID)
+	data, err := json.Marshal(segment)
+	if err != nil {
+		return err
+	}
+	return c.redis.Set(ctx, key, string(data), ttl)
+}
+
 func (c *FlagCache) Invalidate(ctx context.Context, flagID uuid.UUID) error {
 	meta, err := c.redis.Get(ctx, flagIDKey(flagID))
 	if err == nil && meta != "" {

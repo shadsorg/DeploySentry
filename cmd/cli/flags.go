@@ -285,15 +285,15 @@ func runFlagsCreate(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Feature flag created successfully.\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  Key:     %s\n", key)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Type:    %s\n", flagType)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Feature flag created successfully.\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Key:     %s\n", key)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Type:    %s\n", flagType)
 	if defaultVal != "" {
-		fmt.Fprintf(cmd.OutOrStdout(), "  Default: %s\n", defaultVal)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Default: %s\n", defaultVal)
 	}
 	return nil
 }
@@ -342,18 +342,18 @@ func runFlagsList(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	flags, _ := resp["flags"].([]interface{})
 	if len(flags) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No feature flags found.")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No feature flags found.")
 		return nil
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "KEY\tTYPE\tSTATUS\tDEFAULT\tTAGS\tUPDATED")
+	_, _ = fmt.Fprintln(w, "KEY\tTYPE\tSTATUS\tDEFAULT\tTAGS\tUPDATED")
 	for _, f := range flags {
 		flag, ok := f.(map[string]interface{})
 		if !ok {
@@ -376,7 +376,7 @@ func runFlagsList(cmd *cobra.Command, args []string) error {
 			tagList = strings.Join(tagStrs, ", ")
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
 			key, flagType, status, defaultVal, tagList, updatedAt)
 	}
 	return w.Flush()
@@ -410,33 +410,33 @@ func runFlagsGet(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Feature Flag: %s\n", key)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Feature Flag: %s\n", key)
 	if t, ok := resp["type"].(string); ok {
-		fmt.Fprintf(cmd.OutOrStdout(), "  Type:        %s\n", t)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Type:        %s\n", t)
 	}
 	if s, ok := resp["status"].(string); ok {
-		fmt.Fprintf(cmd.OutOrStdout(), "  Status:      %s\n", s)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:      %s\n", s)
 	}
 	if d, ok := resp["default_value"]; ok {
-		fmt.Fprintf(cmd.OutOrStdout(), "  Default:     %v\n", d)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Default:     %v\n", d)
 	}
 	if desc, ok := resp["description"].(string); ok && desc != "" {
-		fmt.Fprintf(cmd.OutOrStdout(), "  Description: %s\n", desc)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Description: %s\n", desc)
 	}
 	if created, ok := resp["created_at"].(string); ok {
-		fmt.Fprintf(cmd.OutOrStdout(), "  Created:     %s\n", created)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Created:     %s\n", created)
 	}
 	if updated, ok := resp["updated_at"].(string); ok {
-		fmt.Fprintf(cmd.OutOrStdout(), "  Updated:     %s\n", updated)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Updated:     %s\n", updated)
 	}
 
 	// Print targeting rules if present.
 	if rules, ok := resp["rules"].([]interface{}); ok && len(rules) > 0 {
-		fmt.Fprintf(cmd.OutOrStdout(), "\n  Targeting Rules:\n")
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n  Targeting Rules:\n")
 		for i, r := range rules {
 			rule, ok := r.(map[string]interface{})
 			if !ok {
@@ -444,9 +444,9 @@ func runFlagsGet(cmd *cobra.Command, args []string) error {
 			}
 			attr, _ := rule["attribute"].(string)
 			op, _ := rule["operator"].(string)
-			val, _ := rule["value"]
+			val := rule["value"]
 			pct, _ := rule["percentage"].(float64)
-			fmt.Fprintf(cmd.OutOrStdout(), "    %d. %s %s -> %v (%.0f%%)\n", i+1, attr, op, val, pct)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "    %d. %s %s -> %v (%.0f%%)\n", i+1, attr, op, val, pct)
 		}
 	}
 
@@ -496,7 +496,7 @@ func runFlagsToggle(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
@@ -504,7 +504,7 @@ func runFlagsToggle(cmd *cobra.Command, args []string) error {
 	if enabled {
 		state = "ON"
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "Flag %q toggled %s.\n", key, state)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag %q toggled %s.\n", key, state)
 	return nil
 }
 
@@ -563,11 +563,11 @@ func runFlagsUpdate(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Flag %q updated successfully.\n", key)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag %q updated successfully.\n", key)
 	return nil
 }
 
@@ -609,19 +609,19 @@ func runFlagsEvaluate(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
-	value, _ := resp["value"]
+	value := resp["value"]
 	reason, _ := resp["reason"].(string)
 	ruleIndex, hasRule := resp["rule_index"].(float64)
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Flag:   %s\n", key)
-	fmt.Fprintf(cmd.OutOrStdout(), "Value:  %v\n", value)
-	fmt.Fprintf(cmd.OutOrStdout(), "Reason: %s\n", reason)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag:   %s\n", key)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Value:  %v\n", value)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Reason: %s\n", reason)
 	if hasRule {
-		fmt.Fprintf(cmd.OutOrStdout(), "Rule:   #%.0f\n", ruleIndex)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Rule:   #%.0f\n", ruleIndex)
 	}
 	return nil
 }
@@ -650,10 +650,10 @@ func runFlagsArchive(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Flag %q archived successfully.\n", key)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag %q archived successfully.\n", key)
 	return nil
 }

@@ -1,0 +1,50 @@
+{
+  "list": {
+    "releases": [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440081",
+        "application_id": "550e8400-e29b-41d4-a716-446655440030",
+        "name": "v1.4.2 — Checkout Redesign",
+        "description": "Gradual rollout of the redesigned checkout experience",
+        "session_sticky": true,
+        "sticky_header": "X-Release-Session",
+        "traffic_percent": 30,
+        "status": "rolling_out",
+        "created_by": "550e8400-e29b-41d4-a716-446655440001",
+        "started_at": "2025-06-20T11:00:00Z",
+        "completed_at": null,
+        "created_at": "2025-06-20T10:30:00Z",
+        "updated_at": "2025-06-20T11:30:00Z"
+      },
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440082",
+        "application_id": "550e8400-e29b-41d4-a716-446655440030",
+        "name": "v1.4.1 — Performance Improvements",
+        "description": "Backend optimizations for faster page load times",
+        "session_sticky": false,
+        "traffic_percent": 100,
+        "status": "completed",
+        "created_by": "550e8400-e29b-41d4-a716-446655440001",
+        "started_at": "2025-06-15T09:00:00Z",
+        "completed_at": "2025-06-16T08:00:00Z",
+        "created_at": "2025-06-14T16:00:00Z",
+        "updated_at": "2025-06-16T08:00:00Z"
+      }
+    ]
+  },
+  "detail": {
+    "id": "550e8400-e29b-41d4-a716-446655440081",
+    "application_id": "550e8400-e29b-41d4-a716-446655440030",
+    "name": "v1.4.2 — Checkout Redesign",
+    "description": "Gradual rollout of the redesigned checkout experience",
+    "session_sticky": true,
+    "sticky_header": "X-Release-Session",
+    "traffic_percent": 30,
+    "status": "rolling_out",
+    "created_by": "550e8400-e29b-41d4-a716-446655440001",
+    "started_at": "2025-06-20T11:00:00Z",
+    "completed_at": null,
+    "created_at": "2025-06-20T10:30:00Z",
+    "updated_at": "2025-06-20T11:30:00Z"
+  }
+}

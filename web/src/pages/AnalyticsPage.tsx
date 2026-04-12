@@ -14,10 +14,10 @@ export default function AnalyticsPage() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [timeRange, setTimeRange] = useState<TimeRange>(
-    (searchParams.get('time_range') as TimeRange) || '24h'
+    (searchParams.get('time_range') as TimeRange) || '24h',
   );
   const [activeTab, setActiveTab] = useState<TabType>(
-    (searchParams.get('tab') as TabType) || 'overview'
+    (searchParams.get('tab') as TabType) || 'overview',
   );
 
   // Mock project/environment IDs - in real app these would come from context
@@ -149,36 +149,28 @@ export default function AnalyticsPage() {
                 <h3>API Performance</h3>
                 <div className="metric-chart">
                   {/* Placeholder for API performance chart */}
-                  <div className="chart-placeholder">
-                    API Performance Chart
-                  </div>
+                  <div className="chart-placeholder">API Performance Chart</div>
                 </div>
               </div>
               <div className="metric-card card">
                 <h3>Database Health</h3>
                 <div className="metric-chart">
                   {/* Placeholder for database metrics chart */}
-                  <div className="chart-placeholder">
-                    Database Metrics Chart
-                  </div>
+                  <div className="chart-placeholder">Database Metrics Chart</div>
                 </div>
               </div>
               <div className="metric-card card">
                 <h3>Cache Performance</h3>
                 <div className="metric-chart">
                   {/* Placeholder for cache metrics chart */}
-                  <div className="chart-placeholder">
-                    Cache Metrics Chart
-                  </div>
+                  <div className="chart-placeholder">Cache Metrics Chart</div>
                 </div>
               </div>
               <div className="metric-card card">
                 <h3>Resource Usage</h3>
                 <div className="metric-chart">
                   {/* Placeholder for resource usage chart */}
-                  <div className="chart-placeholder">
-                    Resource Usage Chart
-                  </div>
+                  <div className="chart-placeholder">Resource Usage Chart</div>
                 </div>
               </div>
             </div>

@@ -15,18 +15,18 @@ func TestUDPTransport_SendReceive(t *testing.T) {
 	require.NoError(t, err)
 	conn, err := net.ListenUDP("udp", addr)
 	require.NoError(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	tr, err := newUDPTransport(conn.LocalAddr().String())
 	require.NoError(t, err)
-	defer tr.Close()
+	defer func() { _ = tr.Close() }()
 
 	msg := map[string]string{"short_message": "hello"}
 	data, _ := json.Marshal(msg)
 	require.NoError(t, tr.Send(data))
 
 	buf := make([]byte, 8192)
-	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 	n, _, err := conn.ReadFromUDP(buf)
 	require.NoError(t, err)
 

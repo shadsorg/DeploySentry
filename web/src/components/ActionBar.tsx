@@ -48,10 +48,7 @@ export default function ActionBar({ primaryAction, secondaryActions }: ActionBar
       )}
       {hasSecondary && (
         <div className="action-bar-more">
-          <button
-            className="btn btn-secondary action-bar-more-btn"
-            onClick={() => setOpen(!open)}
-          >
+          <button className="btn btn-secondary action-bar-more-btn" onClick={() => setOpen(!open)}>
             More ▾
           </button>
           {open && (
@@ -60,7 +57,10 @@ export default function ActionBar({ primaryAction, secondaryActions }: ActionBar
                 <button
                   key={action.label}
                   className={`action-bar-option${action.variant === 'danger' ? ' action-bar-option-danger' : ''}`}
-                  onClick={() => { action.onClick(); setOpen(false); }}
+                  onClick={() => {
+                    action.onClick();
+                    setOpen(false);
+                  }}
                 >
                   {action.label}
                 </button>

@@ -99,6 +99,15 @@ public final class DeploySentryClient implements AutoCloseable {
         LOG.info("DeploySentry client closed");
     }
 
+    /**
+     * Clears the local flag cache and re-fetches all flags from the API.
+     * Useful when a new session starts and fresh flag state is required.
+     */
+    public void refreshSession() {
+        cache.clear();
+        fetchFlags();
+    }
+
     // --------------------------------------------------------- typed evaluations
 
     /**
@@ -253,6 +262,15 @@ public final class DeploySentryClient implements AutoCloseable {
         return flag.getMetadata().getOwners();
     }
 
+    /**
+     * Clears the flag cache and re-fetches all flags from the API.
+     * Useful when the session context changes and a full refresh is needed.
+     */
+    public void refreshSession() {
+        cache.clear();
+        fetchFlags();
+    }
+
     // --------------------------------------------------------- internal helpers
 
     private Flag resolveFlag(String key) {
@@ -262,12 +280,17 @@ public final class DeploySentryClient implements AutoCloseable {
     private void fetchFlags() {
         String url = buildUrl("/api/v1/flags");
 
-        HttpRequest request = HttpRequest.newBuilder()
+        HttpRequest.Builder reqBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .header("Authorization", "ApiKey " + options.getApiKey())
                 .header("Accept", "application/json")
-                .GET()
-                .build();
+                .GET();
+
+        if (options.getSessionId() != null) {
+            reqBuilder.header("X-DeploySentry-Session", options.getSessionId());
+        }
+
+        HttpRequest request = reqBuilder.build();
 
         try {
             HttpResponse<String> response = httpClient.send(request,
@@ -303,6 +326,7 @@ public final class DeploySentryClient implements AutoCloseable {
                 httpClient,
                 URI.create(sseUrl),
                 options.getApiKey(),
+                options.getSessionId(),
                 this::handleSSEEvent,
                 error -> LOG.log(Level.WARNING, "SSE error", error)
         );

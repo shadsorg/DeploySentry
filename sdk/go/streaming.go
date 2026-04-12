@@ -28,6 +28,7 @@ type sseClient struct {
 	apiKey      string
 	projectID   string
 	environment string
+	sessionID   string
 	httpClient  *http.Client
 	onUpdate    func(Flag)
 	logger      *log.Logger
@@ -36,12 +37,13 @@ type sseClient struct {
 }
 
 // newSSEClient creates an SSE client. Call start() to begin streaming.
-func newSSEClient(baseURL, apiKey, projectID, environment string, httpClient *http.Client, onUpdate func(Flag), logger *log.Logger) *sseClient {
+func newSSEClient(baseURL, apiKey, projectID, environment, sessionID string, httpClient *http.Client, onUpdate func(Flag), logger *log.Logger) *sseClient {
 	return &sseClient{
 		baseURL:     baseURL,
 		apiKey:      apiKey,
 		projectID:   projectID,
 		environment: environment,
+		sessionID:   sessionID,
 		httpClient:  httpClient,
 		onUpdate:    onUpdate,
 		logger:      logger,
@@ -116,6 +118,9 @@ func (s *sseClient) connect(ctx context.Context) error {
 	req.Header.Set("Authorization", "ApiKey "+s.apiKey)
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("Cache-Control", "no-cache")
+	if s.sessionID != "" {
+		req.Header.Set("X-DeploySentry-Session", s.sessionID)
+	}
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {

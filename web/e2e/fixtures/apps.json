@@ -1,0 +1,26 @@
+{
+  "list": {
+    "applications": [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440030",
+        "project_id": "550e8400-e29b-41d4-a716-446655440020",
+        "name": "Test App",
+        "slug": "test-app",
+        "description": "Primary test application for E2E testing",
+        "repo_url": "https://github.com/example/test-app",
+        "created_at": "2025-02-01T09:00:00Z",
+        "updated_at": "2025-06-10T14:30:00Z"
+      }
+    ]
+  },
+  "detail": {
+    "id": "550e8400-e29b-41d4-a716-446655440030",
+    "project_id": "550e8400-e29b-41d4-a716-446655440020",
+    "name": "Test App",
+    "slug": "test-app",
+    "description": "Primary test application for E2E testing",
+    "repo_url": "https://github.com/example/test-app",
+    "created_at": "2025-02-01T09:00:00Z",
+    "updated_at": "2025-06-10T14:30:00Z"
+  }
+}

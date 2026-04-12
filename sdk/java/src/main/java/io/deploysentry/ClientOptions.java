@@ -19,6 +19,7 @@ public final class ClientOptions {
     private final Duration cacheTimeout;
     private final Duration connectTimeout;
     private final boolean enableSSE;
+    private final String sessionId;
 
     private ClientOptions(Builder builder) {
         this.apiKey = Objects.requireNonNull(builder.apiKey, "apiKey must not be null");
@@ -28,6 +29,7 @@ public final class ClientOptions {
         this.cacheTimeout = builder.cacheTimeout == null ? DEFAULT_CACHE_TIMEOUT : builder.cacheTimeout;
         this.connectTimeout = builder.connectTimeout == null ? Duration.ofSeconds(10) : builder.connectTimeout;
         this.enableSSE = builder.enableSSE;
+        this.sessionId = builder.sessionId;
     }
 
     public String getApiKey() {
@@ -58,6 +60,10 @@ public final class ClientOptions {
         return enableSSE;
     }
 
+    public String getSessionId() {
+        return sessionId;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -70,6 +76,7 @@ public final class ClientOptions {
         private Duration cacheTimeout;
         private Duration connectTimeout;
         private boolean enableSSE = true;
+        private String sessionId;
 
         private Builder() {}
 
@@ -105,6 +112,11 @@ public final class ClientOptions {
 
         public Builder enableSSE(boolean enableSSE) {
             this.enableSSE = enableSSE;
+            return this;
+        }
+
+        public Builder sessionId(String sessionId) {
+            this.sessionId = sessionId;
             return this;
         }
 

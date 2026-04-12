@@ -13,12 +13,17 @@ Deploy release and feature flag management platform. DeploySentry gives engineer
   - [How Flags Work](#how-flags-work)
   - [Creating Flags](#creating-flags)
   - [Targeting Rules](#targeting-rules)
+  - [Percentage Rollout Algorithm](#percentage-rollout-algorithm)
 - [Integrating Into Your Project](#integrating-into-your-project)
   - [Install the CLI](#1-install-the-cli)
   - [Get an API Key](#2-get-an-api-key)
   - [Install the SDK](#3-install-the-sdk)
   - [Initialize and Evaluate](#4-initialize-and-evaluate) (Go, Node, Python, Java, React, Flutter, Ruby)
   - [Best Practices for SDK Integration](#7-best-practices-for-sdk-integration)
+  - [Evaluation API](#evaluation-api)
+  - [SSE Streaming Protocol](#sse-streaming-protocol)
+  - [Rule Management Endpoints](#rule-management-endpoints)
+  - [Session Consistency](#session-consistency)
 - [Monitoring Flags](#monitoring-flags)
   - [Flag Lifecycle Management](#flag-lifecycle-management)
   - [Flag Health Dashboard](#flag-health-dashboard)
@@ -207,6 +212,21 @@ Rules are evaluated in priority order (lower number = higher precedence). First 
 | `schedule` | Time-window activation | Enable Mon-Fri 9am-5pm |
 
 **Attribute operators:** `eq`, `neq`, `contains`, `starts_with`, `ends_with`, `in`, `gt`, `gte`, `lt`, `lte`
+
+#### Percentage Rollout Algorithm
+
+Percentage rollouts use a deterministic hash-based algorithm to assign users to buckets:
+
+1. Compute `SHA256("{flag_key}:{user_id}")`
+2. Take the first 8 bytes of the hash and convert to a `uint64`
+3. Compute `bucket = uint64 % 101` (yields a value 0-100)
+4. The user matches the rule if `bucket <= percentage`
+
+**Properties:**
+
+- **Consistency** — The same user always gets the same bucket for a given flag, ensuring a stable experience across requests and sessions.
+- **Uniform distribution** — SHA256 produces a uniform hash, so buckets are evenly distributed across the user population.
+- **Independence between flags** — Because the flag key is part of the hash input, a user's bucket for one flag is independent of their bucket for another flag. This prevents correlated rollouts.
 
 ---
 
@@ -586,6 +606,270 @@ curl -X PUT /api/v1/flags/<id>/environments/<staging-env-id> \
 # After validation, enable in production
 curl -X PUT /api/v1/flags/<id>/environments/<prod-env-id> \
   -d '{"enabled": true}'
+```
+
+---
+
+### Evaluation API
+
+#### Single Flag Evaluation
+
+**`POST /api/v1/flags/evaluate`** — Evaluate a single flag for a given context.
+
+**Request:**
+
+```json
+{
+  "flag_key": "new-checkout-flow",
+  "project_id": "550e8400-e29b-41d4-a716-446655440000",
+  "environment_id": "660e8400-e29b-41d4-a716-446655440000",
+  "context": {
+    "user_id": "user-123",
+    "org_id": "org-456",
+    "attributes": {
+      "plan": "enterprise",
+      "country": "US"
+    }
+  },
+  "session_id": "sess-user123-v2.1.0"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `flag_key` | string | Yes | The unique key of the flag to evaluate |
+| `project_id` | UUID | No | Project scope (inferred from API key if omitted) |
+| `environment_id` | UUID | No | Environment scope (uses default if omitted) |
+| `context.user_id` | string | No | User identifier for targeting and rollout bucketing |
+| `context.org_id` | string | No | Organization identifier for targeting |
+| `context.attributes` | object | No | Arbitrary key-value pairs for attribute-based targeting |
+| `session_id` | string | No | Session identifier for evaluation consistency caching |
+
+**Response:**
+
+```json
+{
+  "flag_key": "new-checkout-flow",
+  "value": "true",
+  "enabled": true,
+  "reason": "TARGETING_MATCH",
+  "metadata": {
+    "category": "release",
+    "purpose": "Progressive rollout of redesigned checkout",
+    "owners": ["team-payments", "alice@example.com"],
+    "tags": ["checkout", "frontend"],
+    "expires_at": "2026-04-21T00:00:00Z"
+  }
+}
+```
+
+#### Batch Evaluation
+
+**`POST /api/v1/flags/batch-evaluate`** — Evaluate multiple flags in a single request.
+
+**Request:**
+
+```json
+{
+  "flag_keys": ["new-checkout-flow", "enable-dark-mode", "advanced-analytics"],
+  "project_id": "550e8400-e29b-41d4-a716-446655440000",
+  "environment_id": "660e8400-e29b-41d4-a716-446655440000",
+  "context": {
+    "user_id": "user-123",
+    "org_id": "org-456",
+    "attributes": {
+      "plan": "enterprise"
+    }
+  },
+  "session_id": "sess-user123-v2.1.0"
+}
+```
+
+**Response:**
+
+```json
+{
+  "results": [
+    {
+      "flag_key": "new-checkout-flow",
+      "value": "true",
+      "enabled": true,
+      "reason": "TARGETING_MATCH",
+      "metadata": { "category": "release", "purpose": "Progressive rollout of redesigned checkout", "owners": ["team-payments"], "tags": ["checkout"], "expires_at": "2026-04-21T00:00:00Z" }
+    },
+    {
+      "flag_key": "enable-dark-mode",
+      "value": "false",
+      "enabled": false,
+      "reason": "FLAG_DISABLED",
+      "metadata": { "category": "feature", "purpose": "Dark mode UI toggle", "owners": ["team-frontend"], "tags": ["ui"], "expires_at": null }
+    },
+    {
+      "flag_key": "advanced-analytics",
+      "value": "true",
+      "enabled": true,
+      "reason": "PERCENTAGE_ROLLOUT",
+      "metadata": { "category": "feature", "purpose": "Enterprise-only analytics dashboard", "owners": ["team-analytics"], "tags": [], "expires_at": null }
+    }
+  ]
+}
+```
+
+#### Evaluation Reasons
+
+The `reason` field indicates how the evaluation result was determined:
+
+| Reason | Description |
+|--------|-------------|
+| `TARGETING_MATCH` | A targeting rule matched the provided context |
+| `PERCENTAGE_ROLLOUT` | The user fell within the percentage rollout bucket |
+| `DEFAULT_VALUE` | No rules matched; the flag's default value was returned |
+| `FLAG_DISABLED` | The flag is disabled in this environment |
+| `NOT_FOUND` | The flag key does not exist |
+| `ERROR` | An error occurred during evaluation |
+| `SESSION_CACHED` | The result was served from the session consistency cache |
+
+---
+
+### SSE Streaming Protocol
+
+SDKs receive real-time flag updates via Server-Sent Events (SSE).
+
+**Endpoint:** `GET /api/v1/flags/stream?project_id=<uuid>&token=<jwt>`
+
+**Event format:**
+
+```
+event: flag_change
+data: {"type":"flag.toggled","flag_key":"new-checkout-flow","project_id":"550e8400-...","enabled":true,"timestamp":"2026-03-21T12:00:00Z"}
+```
+
+#### Event Types
+
+| Event Type | Description |
+|------------|-------------|
+| `flag.toggled` | A flag was enabled or disabled |
+| `flag.created` | A new flag was created |
+| `flag.updated` | Flag configuration was modified (name, metadata, default value) |
+| `flag.deleted` | A flag was permanently deleted |
+| `flag.archived` | A flag was archived (soft-deleted) |
+| `flag.bulk_toggled` | Multiple flags were toggled in a single operation |
+| `rule.created` | A targeting rule was added to a flag |
+| `rule.updated` | A targeting rule was modified |
+| `rule.deleted` | A targeting rule was removed from a flag |
+
+#### Heartbeat
+
+The server sends a heartbeat comment every 15 seconds to keep the connection alive:
+
+```
+: heartbeat
+```
+
+#### Reconnection
+
+If the SSE connection drops, clients should reconnect using exponential backoff:
+
+| Parameter | Value |
+|-----------|-------|
+| Initial delay | 1 second |
+| Maximum delay | 30 seconds |
+| Backoff factor | 2x |
+| Jitter | +/- 20% |
+
+---
+
+### Rule Management Endpoints
+
+Create, update, and delete targeting rules on a flag.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/flags/:id/rules` | Create a new targeting rule |
+| `PUT` | `/api/v1/flags/:id/rules/:ruleId` | Update an existing rule |
+| `DELETE` | `/api/v1/flags/:id/rules/:ruleId` | Delete a rule |
+
+#### Rule Types
+
+| Rule Type | Required Fields | Optional Fields |
+|-----------|----------------|-----------------|
+| `percentage` | `percentage` (0-100) | — |
+| `user_target` | `user_ids` (string array) | — |
+| `attribute` | `attribute`, `operator`, `value` | `negate` |
+| `segment` | `segment_id` | — |
+| `schedule` | `start_time`, `end_time` | `timezone`, `days_of_week` |
+| `compound` | `rules` (nested rule array), `operator` (`AND`/`OR`) | — |
+
+#### Attribute Operators
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `eq` | Equals | `plan eq enterprise` |
+| `neq` | Not equals | `status neq inactive` |
+| `contains` | String contains | `email contains @acme.com` |
+| `starts_with` | String starts with | `name starts_with admin` |
+| `ends_with` | String ends with | `email ends_with .edu` |
+| `in` | Value in list | `country in [US, CA, GB]` |
+| `gt` | Greater than | `age gt 18` |
+| `gte` | Greater than or equal | `version gte 2.0` |
+| `lt` | Less than | `risk_score lt 50` |
+| `lte` | Less than or equal | `retries lte 3` |
+
+---
+
+### Session Consistency
+
+Session consistency ensures that a user sees the same flag values for the duration of a session, even if flag configurations change mid-session. This prevents jarring UX changes during an active workflow.
+
+#### How It Works
+
+1. The SDK sends a `session_id` with each evaluation request.
+2. The server checks Redis for a cached evaluation result keyed by `session:{session_id}:{flag_key}`.
+3. **Cache hit:** The cached value is returned immediately with reason `SESSION_CACHED`.
+4. **Cache miss:** The flag is evaluated fresh, the result is cached in Redis, and the evaluated value is returned.
+5. SSE updates are still received by the SDK, but cached session values take precedence until the session expires or is refreshed.
+
+#### Session TTL
+
+Sessions use a **30-minute sliding TTL** by default. Each evaluation request resets the TTL. Configure via:
+
+```
+DS_SESSION_TTL=30m
+```
+
+#### Session ID Composition
+
+How you compose the `session_id` determines the consistency boundary:
+
+| Strategy | Session ID Example | Behavior |
+|----------|-------------------|----------|
+| Per-user | `user-123` | Same flags for the user across all devices/versions |
+| Per-user per app version | `user-123:v2.1.0` | Flags stay consistent within an app version |
+| Per-user per device | `user-123:iphone-14` | Flags consistent per device |
+| Per-session | `sess-abc123` | Flags consistent for a single browser/app session |
+
+#### Refreshing a Session
+
+To force re-evaluation (e.g., after a user upgrades their plan), call `refreshSession()`:
+
+**Go:**
+
+```go
+// Force re-evaluation for this session
+client.RefreshSession(ctx, "sess-user123-v2.1.0")
+
+// Or refresh with a new session ID
+client.SetSessionID("sess-user123-v2.2.0")
+```
+
+**Node.js:**
+
+```typescript
+// Force re-evaluation for this session
+await client.refreshSession('sess-user123-v2.1.0');
+
+// Or refresh with a new session ID
+client.setSessionID('sess-user123-v2.2.0');
 ```
 
 ---

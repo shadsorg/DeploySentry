@@ -176,6 +176,25 @@ The SDK communicates with the following DeploySentry API endpoints:
 
 All requests include the header `Authorization: ApiKey <key>`.
 
+### Session Consistency
+
+Bind evaluations to a session so the server caches results for a consistent user experience:
+
+```go
+client := ds.NewClient(
+    ds.WithAPIKey("ds_key_xxxxxxxxxxxx"),
+    ds.WithEnvironment("production"),
+    ds.WithProject("my-project"),
+    ds.WithSessionID("user:" + userID),
+)
+// Force fresh evaluations
+client.RefreshSession(ctx)
+```
+
+- The session ID is sent as an `X-DeploySentry-Session` header on every request.
+- The server caches evaluation results per session for 30 minutes (sliding TTL).
+- Omit the session ID to always get fresh evaluations on each request.
+
 ## License
 
 Apache-2.0

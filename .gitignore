@@ -85,6 +85,15 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # =============================================================================
+# Python
+# =============================================================================
+
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# =============================================================================
 # Environment & Secrets
 # =============================================================================
 
@@ -180,3 +189,9 @@ temp/
 debug
 __debug_bin*
 .gstack/
+
+# Git worktrees
+.worktrees/
+
+# Local Superpowers workspace
+.superpowers/

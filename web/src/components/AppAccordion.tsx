@@ -50,7 +50,9 @@ export default function AppAccordion() {
                   <NavLink
                     key={item.path}
                     to={`${basePath}/${app.slug}/${item.path}`}
-                    className={({ isActive }) => `nav-item nav-item-nested${isActive ? ' active' : ''}`}
+                    className={({ isActive }) =>
+                      `nav-item nav-item-nested${isActive ? ' active' : ''}`
+                    }
                   >
                     {item.label}
                   </NavLink>
@@ -60,10 +62,7 @@ export default function AppAccordion() {
           </div>
         );
       })}
-      <Link
-        to={`/orgs/${orgSlug}/projects/${projectSlug}/apps/new`}
-        className="add-app-link"
-      >
+      <Link to={`/orgs/${orgSlug}/projects/${projectSlug}/apps/new`} className="add-app-link">
         + Add App
       </Link>
     </div>

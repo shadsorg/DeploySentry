@@ -97,6 +97,16 @@ export function DeploySentryProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userKey, client]);
 
+  // Delay rendering children until the client exists. Hooks like
+  // `useFlag` throw synchronously when the context value is null, which
+  // crashes the whole subtree on the first render — before `init()` has
+  // even had a chance to run. Gating children behind the client's
+  // readiness keeps the external API (a throwing hook that enforces
+  // provider presence) while preventing that race.
+  if (!client) {
+    return <DeploySentryContext.Provider value={null}>{null}</DeploySentryContext.Provider>;
+  }
+
   return (
     <DeploySentryContext.Provider value={client}>
       {children}

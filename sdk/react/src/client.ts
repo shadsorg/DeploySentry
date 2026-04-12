@@ -254,8 +254,8 @@ export class DeploySentryClient {
 
   private buildQueryParams(): URLSearchParams {
     const params = new URLSearchParams({
-      environment: this.environment,
-      project: this.project,
+      project_id: this.project,
+      environment_id: this.environment,
     });
     if (this.user?.id) {
       params.set('userId', this.user.id);
@@ -267,7 +267,8 @@ export class DeploySentryClient {
   }
 
   private async fetchFlags(): Promise<void> {
-    const url = `${this.baseURL}/v1/flags?${this.buildQueryParams().toString()}`;
+    // Match the backend `listFlags` endpoint, which only requires a project_id.
+    const url = `${this.baseURL}/api/v1/flags?project_id=${encodeURIComponent(this.project)}`;
 
     const response = await fetch(url, {
       method: 'GET',

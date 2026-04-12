@@ -1952,3 +1952,30 @@ tbody tr:last-child td {
   border: 1px solid #1f2937; padding: 8px 12px; text-align: left; font-size: 14px;
 }
 .markdown-body th { background: #0f1419; color: #f3f4f6; }
+
+/* Docs */
+.docs-shell { display: flex; flex-direction: column; min-height: 100vh; background: #0a0e14; }
+.docs-layout { display: flex; flex: 1; min-height: 0; }
+.docs-sidebar {
+  width: 240px; flex-shrink: 0;
+  background: #070b10; border-right: 1px solid #1f2937;
+  padding: 32px 16px;
+}
+.docs-sidebar-heading {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 11px; color: #6b7280; letter-spacing: 0.15em;
+  padding: 0 12px 12px 12px;
+}
+.docs-sidebar-nav { display: flex; flex-direction: column; gap: 2px; }
+.docs-sidebar-link {
+  display: block; padding: 8px 12px; border-radius: 6px;
+  color: #9ca3af; text-decoration: none; font-size: 13px;
+}
+.docs-sidebar-link:hover { background: #0f1419; color: #e5e7eb; }
+.docs-sidebar-link.active { background: #1a1f2a; color: #f3f4f6; }
+.docs-content { flex: 1; padding: 60px 80px; overflow-y: auto; }
+@media (max-width: 800px) {
+  .docs-layout { flex-direction: column; }
+  .docs-sidebar { width: auto; border-right: none; border-bottom: 1px solid #1f2937; padding: 16px; }
+  .docs-content { padding: 32px 24px; }
+}

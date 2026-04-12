@@ -23,6 +23,7 @@ import CreateAppPage from './pages/CreateAppPage';
 import ApplicationsListPage from './pages/ApplicationsListPage';
 import CreateProjectPage from './pages/CreateProjectPage';
 import LandingPage from './pages/LandingPage';
+import DocsPage from './pages/DocsPage';
 
 export default function App() {
   return (
@@ -38,6 +39,8 @@ export default function App() {
         {/* Authenticated routes */}
         <Route element={<RequireAuth />}>
           <Route path="/portal" element={<DefaultRedirect />} />
+          <Route path="/docs" element={<DocsPage />} />
+          <Route path="/docs/:slug" element={<DocsPage />} />
 
           {/* Create org (outside HierarchyLayout — no sidebar context yet) */}
           <Route path="/orgs/new" element={<CreateOrgPage />} />

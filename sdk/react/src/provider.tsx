@@ -29,6 +29,7 @@ export function DeploySentryProvider({
   environment,
   project,
   user,
+  sessionId,
   children,
 }: ProviderProps): React.ReactElement {
   const [client, setClient] = useState<DeploySentryClient | null>(null);
@@ -40,8 +41,8 @@ export function DeploySentryProvider({
   // Memoise the configuration identity so we only recreate the client when
   // the connection parameters change, not on every render.
   const configKey = useMemo(
-    () => JSON.stringify({ apiKey, baseURL, environment, project }),
-    [apiKey, baseURL, environment, project],
+    () => JSON.stringify({ apiKey, baseURL, environment, project, sessionId }),
+    [apiKey, baseURL, environment, project, sessionId],
   );
 
   useEffect(() => {
@@ -51,6 +52,7 @@ export function DeploySentryProvider({
       environment,
       project,
       user,
+      sessionId,
     });
 
     clientRef.current = instance;

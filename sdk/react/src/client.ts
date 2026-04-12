@@ -40,6 +40,7 @@ export class DeploySentryClient {
   private readonly baseURL: string;
   private readonly environment: string;
   private readonly project: string;
+  private readonly sessionId: string | undefined;
   private user: UserContext | undefined;
 
   /** In-memory flag store keyed by flag key. */
@@ -68,11 +69,13 @@ export class DeploySentryClient {
     environment: string;
     project: string;
     user?: UserContext;
+    sessionId?: string;
   }) {
     this.apiKey = options.apiKey;
     this.baseURL = options.baseURL.replace(/\/+$/, '');
     this.environment = options.environment;
     this.project = options.project;
+    this.sessionId = options.sessionId;
     this.user = options.user;
   }
 
@@ -91,6 +94,12 @@ export class DeploySentryClient {
     this.destroyed = true;
     this.disconnectSSE();
     this.listeners.clear();
+  }
+
+  /** Clear the local flag store and re-fetch all flags from the API. */
+  async refreshSession(): Promise<void> {
+    this.flags.clear();
+    await this.fetchFlags();
   }
 
   /** Update the user context and re-fetch flags. */
@@ -245,11 +254,15 @@ export class DeploySentryClient {
   // ---------------------------------------------------------------------------
 
   private get headers(): Record<string, string> {
-    return {
+    const h: Record<string, string> = {
       Authorization: `ApiKey ${this.apiKey}`,
       'Content-Type': 'application/json',
       Accept: 'application/json',
     };
+    if (this.sessionId) {
+      h['X-DeploySentry-Session'] = this.sessionId;
+    }
+    return h;
   }
 
   private buildQueryParams(): URLSearchParams {

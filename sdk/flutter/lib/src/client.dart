@@ -16,6 +16,7 @@ class DeploySentryClient {
   final String baseUrl;
   final String? environment;
   final String? project;
+  final String? sessionId;
   final Duration cacheTimeout;
   final bool offlineMode;
 
@@ -30,6 +31,7 @@ class DeploySentryClient {
     required this.baseUrl,
     this.environment,
     this.project,
+    this.sessionId,
     this.cacheTimeout = const Duration(minutes: 5),
     this.offlineMode = false,
   }) {
@@ -42,6 +44,7 @@ class DeploySentryClient {
         'Authorization': 'ApiKey $apiKey',
         'Content-Type': 'application/json',
         if (environment != null) 'X-Environment': environment!,
+        if (sessionId != null) 'X-DeploySentry-Session': sessionId!,
       };
 
   /// Whether the client has been initialized.
@@ -72,6 +75,12 @@ class DeploySentryClient {
     _httpClient.close();
     _cache.clear();
     _initialized = false;
+  }
+
+  /// Clear the cache and re-fetch all flags for the current session.
+  Future<void> refreshSession() async {
+    _cache.clear();
+    await _fetchAllFlags();
   }
 
   // ---------------------------------------------------------------------------

@@ -35,6 +35,7 @@ export class DeploySentryClient {
   private readonly environment: string;
   private readonly project: string;
   private readonly offlineMode: boolean;
+  private readonly sessionId: string | undefined;
 
   private readonly cache: FlagCache;
   private streamClient: FlagStreamClient | null = null;
@@ -50,6 +51,7 @@ export class DeploySentryClient {
     this.environment = options.environment;
     this.project = options.project;
     this.offlineMode = options.offlineMode ?? false;
+    this.sessionId = options.sessionId;
 
     this.cache = new FlagCache(options.cacheTimeout ?? DEFAULT_CACHE_TIMEOUT_MS);
   }
@@ -94,6 +96,19 @@ export class DeploySentryClient {
     this.streamClient = null;
     this.cache.clear();
     this._initialized = false;
+  }
+
+  /**
+   * Clear the local cache and re-fetch all flags from the server.
+   * Useful when session state may have changed and the client needs
+   * fresh evaluations.
+   */
+  async refreshSession(): Promise<void> {
+    if (this.offlineMode) return;
+
+    this.cache.clear();
+    const flags = await this.fetchAllFlags();
+    this.cache.setMany(flags);
   }
 
   /** Whether {@link initialize} has been called successfully. */
@@ -171,6 +186,7 @@ export class DeploySentryClient {
           environment_id: this.environment,
           flag_key: key,
           context: context ?? {},
+          ...(this.sessionId ? { session_id: this.sessionId } : {}),
         },
       );
       return body;
@@ -227,6 +243,7 @@ export class DeploySentryClient {
           environment_id: this.environment,
           flag_key: key,
           context: context ?? {},
+          ...(this.sessionId ? { session_id: this.sessionId } : {}),
         },
       );
       return result.value;
@@ -282,7 +299,13 @@ export class DeploySentryClient {
   }
 
   private authHeaders(): Record<string, string> {
-    return { Authorization: `ApiKey ${this.apiKey}` };
+    const headers: Record<string, string> = {
+      Authorization: `ApiKey ${this.apiKey}`,
+    };
+    if (this.sessionId) {
+      headers['X-DeploySentry-Session'] = this.sessionId;
+    }
+    return headers;
   }
 
   private offlineResult(key: string): EvaluationResult {

@@ -31,6 +31,7 @@ public final class SSEClient implements AutoCloseable {
     private final HttpClient httpClient;
     private final URI endpoint;
     private final String apiKey;
+    private final String sessionId;
     private final Consumer<String> onEvent;
     private final Consumer<Throwable> onError;
     private final AtomicBoolean running = new AtomicBoolean(false);
@@ -40,17 +41,20 @@ public final class SSEClient implements AutoCloseable {
      * @param httpClient shared HTTP client
      * @param endpoint   the SSE stream URL
      * @param apiKey     bearer token for authentication
+     * @param sessionId  optional session identifier for consistency (may be {@code null})
      * @param onEvent    callback receiving the {@code data:} payload of each event
      * @param onError    callback receiving any errors during streaming
      */
     public SSEClient(HttpClient httpClient,
                      URI endpoint,
                      String apiKey,
+                     String sessionId,
                      Consumer<String> onEvent,
                      Consumer<Throwable> onError) {
         this.httpClient = httpClient;
         this.endpoint = endpoint;
         this.apiKey = apiKey;
+        this.sessionId = sessionId;
         this.onEvent = onEvent;
         this.onError = onError;
         this.executor = Executors.newSingleThreadExecutor(r -> {
@@ -91,14 +95,19 @@ public final class SSEClient implements AutoCloseable {
 
         while (running.get()) {
             try {
-                HttpRequest request = HttpRequest.newBuilder()
+                HttpRequest.Builder reqBuilder = HttpRequest.newBuilder()
                         .uri(endpoint)
                         .header("Authorization", "ApiKey " + apiKey)
                         .header("Accept", "text/event-stream")
                         .header("Cache-Control", "no-cache")
                         .GET()
-                        .timeout(Duration.ofSeconds(0).plusMillis(Long.MAX_VALUE)) // no timeout
-                        .build();
+                        .timeout(Duration.ofSeconds(0).plusMillis(Long.MAX_VALUE)); // no timeout
+
+                if (sessionId != null) {
+                    reqBuilder.header("X-DeploySentry-Session", sessionId);
+                }
+
+                HttpRequest request = reqBuilder.build();
 
                 HttpResponse<java.io.InputStream> response = httpClient.send(
                         request, HttpResponse.BodyHandlers.ofInputStream());

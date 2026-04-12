@@ -75,6 +75,8 @@ export interface ClientOptions {
   cacheTimeout?: number;
   /** When true, the client returns default values without contacting the API. */
   offlineMode?: boolean;
+  /** Optional session identifier for consistent flag evaluation across requests. */
+  sessionId?: string;
 }
 
 /** Internal representation of an API error response. */

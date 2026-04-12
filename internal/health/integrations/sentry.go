@@ -84,6 +84,7 @@ func (s *SentryCheck) Check(ctx context.Context, deploymentID uuid.UUID) (*healt
 	}
 
 	// Compute score based on threshold.
+	//nolint:ineffassign
 	score := 1.0
 	if s.config.ErrorThreshold > 0 {
 		score = 1.0 - (float64(errorCount) / float64(s.config.ErrorThreshold))

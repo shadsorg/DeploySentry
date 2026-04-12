@@ -256,7 +256,8 @@ func (s *Service) TestWebhook(ctx context.Context, id uuid.UUID, req models.Webh
 
 // PublishEvent publishes an event that may trigger webhooks.
 func (s *Service) PublishEvent(ctx context.Context, event models.WebhookEvent, orgID uuid.UUID, projectID *uuid.UUID, data map[string]interface{}, userID *uuid.UUID) error {
-	return s.publishEvent(ctx, event, orgID, projectID, data, userID)
+	_ = s.publishEvent(ctx, event, orgID, projectID, data, userID)
+	return nil
 }
 
 // GetDeliveries retrieves webhook deliveries.

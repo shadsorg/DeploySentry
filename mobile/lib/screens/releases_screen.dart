@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../widgets/app_shell.dart';
 import '../services/api_client.dart';
 import '../models/release.dart';
@@ -920,11 +921,26 @@ class _ReleasesScreenState extends State<ReleasesScreen>
     );
   }
 
-  void _openChangelog(Release release) {
-    // TODO: Open changelog URL
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Opening changelog for ${release.version}')),
-    );
+  void _openChangelog(Release release) async {
+    final url = release.changelogUrl;
+    if (url != null) {
+      final uri = Uri.parse(url);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not launch changelog URL for ${release.version}')),
+          );
+        }
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No changelog URL available for ${release.version}')),
+        );
+      }
+    }
   }
 
   void _viewCommit(Release release) {

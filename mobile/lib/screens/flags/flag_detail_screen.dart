@@ -245,7 +245,7 @@ class _FlagDetailScreenState extends State<FlagDetailScreen>
             itemBuilder: (context) => [
               PopupMenuItem(
                 onTap: () {
-                  // TODO: Navigate to edit screen
+                  context.go('/flags/${_flag!.id}/edit');
                 },
                 child: const Row(
                   children: [

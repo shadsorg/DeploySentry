@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../widgets/app_shell.dart';
 import '../services/api_client.dart';
 
@@ -68,8 +69,15 @@ class SettingsScreen extends StatelessWidget {
             leading: const Icon(Icons.bug_report),
             title: const Text('Report Issue'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              // TODO: Bug report
+            onTap: () async {
+              final Uri url = Uri.parse('https://github.com/your-org/deploysentry/issues/new');
+              if (!await launchUrl(url)) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Could not open issue tracker')),
+                  );
+                }
+              }
             },
           ),
           ListTile(

@@ -22,12 +22,14 @@ import APIKeysPage from './pages/APIKeysPage';
 import CreateAppPage from './pages/CreateAppPage';
 import ApplicationsListPage from './pages/ApplicationsListPage';
 import CreateProjectPage from './pages/CreateProjectPage';
+import LandingPage from './pages/LandingPage';
 
 export default function App() {
   return (
     <AuthProvider>
       <Routes>
         {/* Public routes */}
+        <Route path="/" element={<LandingPage />} />
         <Route element={<RedirectIfAuth />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -35,8 +37,7 @@ export default function App() {
 
         {/* Authenticated routes */}
         <Route element={<RequireAuth />}>
-          {/* Default redirect */}
-          <Route path="/" element={<DefaultRedirect />} />
+          <Route path="/portal" element={<DefaultRedirect />} />
 
           {/* Create org (outside HierarchyLayout — no sidebar context yet) */}
           <Route path="/orgs/new" element={<CreateOrgPage />} />

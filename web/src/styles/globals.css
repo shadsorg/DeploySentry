@@ -1713,3 +1713,14 @@ tbody tr:last-child td {
 .site-header-link:hover { color: #e5e7eb; }
 .site-header-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
 .site-header-cta { font-size: 13px !important; padding: 7px 14px !important; }
+
+/* Landing page */
+.landing { background: #0a0e14; color: #e5e7eb; min-height: 100vh; }
+.landing-main { max-width: 100%; }
+.landing-placeholder {
+  min-height: calc(100vh - 60px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 16px;
+}
+.landing-placeholder h1 { font-size: 48px; margin: 0; }
+.landing-placeholder p { color: #6b7280; margin: 0; }

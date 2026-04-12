@@ -44,7 +44,7 @@ export default function ReleaseDetailPage() {
 
     releasesApi.get(id)
       .then((data) => setRelease(data))
-      .catch((err) => setError(err.message))
+      .catch((err) => setError((err as Error).message))
       .finally(() => setLoading(false));
   }, [id]);
 

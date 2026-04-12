@@ -56,7 +56,7 @@ export default function AnalyticsSummary({ projectId, environmentId, timeRange }
         const summaryData = await response.json();
         setData(summaryData);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        setError(err instanceof Error ? (err as Error).message : 'Unknown error');
         // Mock data for development
         setData({
           project_id: projectId,

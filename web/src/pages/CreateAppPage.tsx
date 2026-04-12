@@ -26,8 +26,8 @@ export default function CreateAppPage() {
       await entitiesApi.createApp(orgSlug, projectSlug, { name, slug, description });
       localStorage.setItem('ds_last_app', slug);
       navigate(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${slug}/deployments`);
-    } catch (err: any) {
-      setError(err.message || 'Failed to create application');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to create application');
     } finally {
       setSubmitting(false);
     }

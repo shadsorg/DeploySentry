@@ -75,7 +75,7 @@ export default function FlagDetailPage() {
         setRules(rulesData);
         setApps(appsData);
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => setError((err as Error).message))
       .finally(() => setLoading(false));
   }, [id, orgSlug, projectSlug]);
 

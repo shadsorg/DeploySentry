@@ -41,7 +41,7 @@ export default function FlagListPage() {
     entitiesApi.getProject(orgSlug, projectSlug)
       .then((project) => flagsApi.list(project.id))
       .then((result) => setFlags(result.flags))
-      .catch((err) => setError(err.message))
+      .catch((err) => setError((err as Error).message))
       .finally(() => setLoading(false));
   }, [orgSlug, projectSlug]);
 

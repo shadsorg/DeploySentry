@@ -13,7 +13,7 @@ export type RealtimeEventType =
 export interface RealtimeEvent {
   type: RealtimeEventType;
   timestamp: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
 export type EventCallback = (event: RealtimeEvent) => void;
@@ -266,7 +266,7 @@ export function useRealtimeUpdates(
     // Subscribe to connection status updates
     const unsubscribeStatus = realtimeManager.subscribe(['system_alert'], (event) => {
       if (event.data?.connected !== undefined) {
-        setConnected(event.data.connected);
+        setConnected(event.data.connected as boolean);
       }
     });
 
@@ -344,6 +344,7 @@ export function useAutoRefresh(
     if (enabled) {
       refresh();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]); // Only run on mount and when enabled changes
 
   return { refresh, connected };

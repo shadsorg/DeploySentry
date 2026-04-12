@@ -74,7 +74,7 @@ export default function DeploymentDetailPage() {
 
     deploymentsApi.get(id)
       .then((data) => setDep(data))
-      .catch((err) => setError(err.message))
+      .catch((err) => setError((err as Error).message))
       .finally(() => setLoading(false));
   }, [id]);
 

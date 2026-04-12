@@ -77,6 +77,7 @@ export default function FlagCreatePage() {
         }
       })
       .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgSlug, projectSlug, appSlug, apps]);
 
   const set = <K extends keyof FormState>(field: K, value: FormState[K]) =>
@@ -119,8 +120,8 @@ export default function FlagCreatePage() {
           .filter(Boolean),
       });
       navigate(backPath);
-    } catch (err: any) {
-      setError(err.message || 'Failed to create flag');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to create flag');
     } finally {
       setSubmitting(false);
     }

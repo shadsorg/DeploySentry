@@ -201,26 +201,26 @@ export const healthApi = {
 // Analytics
 export const analyticsApi = {
   getSummary: (projectId: string, environmentId: string, timeRange: string) =>
-    request<any>(`/analytics/summary?project_id=${projectId}&environment_id=${environmentId}&time_range=${timeRange}`),
+    request<unknown>(`/analytics/summary?project_id=${projectId}&environment_id=${environmentId}&time_range=${timeRange}`),
   getFlagStats: (projectId: string, environmentId: string, timeRange: string, limit?: number) => {
     const qs = new URLSearchParams({ project_id: projectId, environment_id: environmentId, time_range: timeRange });
     if (limit) qs.set('limit', String(limit));
-    return request<any>(`/analytics/flags/stats?${qs}`);
+    return request<unknown>(`/analytics/flags/stats?${qs}`);
   },
   getFlagUsage: (projectId: string, environmentId: string, flagKey: string, timeRange: string) =>
-    request<any>(`/analytics/flags/${flagKey}/usage?project_id=${projectId}&environment_id=${environmentId}&time_range=${timeRange}`),
+    request<unknown>(`/analytics/flags/${flagKey}/usage?project_id=${projectId}&environment_id=${environmentId}&time_range=${timeRange}`),
   getDeploymentStats: (projectId: string, timeRange: string, environmentId?: string) => {
     const qs = new URLSearchParams({ project_id: projectId, time_range: timeRange });
     if (environmentId) qs.set('environment_id', environmentId);
-    return request<any>(`/analytics/deployments/stats?${qs}`);
+    return request<unknown>(`/analytics/deployments/stats?${qs}`);
   },
-  getSystemHealth: () => request<any>('/analytics/health'),
+  getSystemHealth: () => request<unknown>('/analytics/health'),
   streamMetrics: () => new EventSource('/api/v1/analytics/metrics/stream'),
   refreshAggregations: () =>
     request<{ message: string; timestamp: string }>('/analytics/admin/refresh', { method: 'POST' }),
   exportAnalytics: (projectId: string, startDate: string, endDate: string, format: string = 'json') => {
     const qs = new URLSearchParams({ project_id: projectId, start_date: startDate, end_date: endDate, format });
-    return request<any>(`/analytics/admin/export?${qs}`);
+    return request<unknown>(`/analytics/admin/export?${qs}`);
   },
 };
 
@@ -228,7 +228,7 @@ export const analyticsApi = {
 export const flagEnvStateApi = {
   list: (flagId: string) =>
     request<{ environment_states: FlagEnvironmentState[] }>(`/flags/${flagId}/environments`),
-  set: (flagId: string, envId: string, data: { enabled: boolean; value?: any }) =>
+  set: (flagId: string, envId: string, data: { enabled: boolean; value?: unknown }) =>
     request<FlagEnvironmentState>(`/flags/${flagId}/environments/${envId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -244,7 +244,7 @@ export const settingsApi = {
     Object.entries(params).forEach(([k, v]) => { if (v) qs.set(k, v); });
     return request<Setting>(`/settings/resolve?${qs}`);
   },
-  set: (data: { scope: string; target_id: string; key: string; value: any }) =>
+  set: (data: { scope: string; target_id: string; key: string; value: unknown }) =>
     request<Setting>('/settings', { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) =>
     request<void>(`/settings/${id}`, { method: 'DELETE' }),

@@ -53,7 +53,13 @@ export async function startNodeProbe(ctx: ProbeContext): Promise<Probe> {
       DS_PROJECT: ctx.project,
       DS_ENVIRONMENT: ctx.environment,
       DS_FLAG_KEYS: ctx.flagKeys.join(','),
-      DS_CONTEXT_JSON: JSON.stringify(ctx.user),
+      // Node SDK's EvaluationContext shape: { userId, attributes }.
+      // The driver's canonical ProbeContext.user uses { id, attributes }
+      // (matching the React SDK's UserContext) — translate here.
+      DS_CONTEXT_JSON: JSON.stringify({
+        userId: ctx.user.id,
+        attributes: ctx.user.attributes,
+      }),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

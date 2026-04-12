@@ -93,21 +93,20 @@ func (r *SettingRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.
 
 // ListByScope returns all settings for a given scope and target ID.
 func (r *SettingRepository) ListByScope(ctx context.Context, scope string, targetID uuid.UUID) ([]*models.Setting, error) {
-	var col string
+	var q string
 	switch scope {
 	case "org":
-		col = "org_id"
+		q = `SELECT ` + settingCols + ` FROM settings WHERE org_id = $1 ORDER BY key`
 	case "project":
-		col = "project_id"
+		q = `SELECT ` + settingCols + ` FROM settings WHERE project_id = $1 ORDER BY key`
 	case "application":
-		col = "application_id"
+		q = `SELECT ` + settingCols + ` FROM settings WHERE application_id = $1 ORDER BY key`
 	case "environment":
-		col = "environment_id"
+		q = `SELECT ` + settingCols + ` FROM settings WHERE environment_id = $1 ORDER BY key`
 	default:
 		return nil, fmt.Errorf("postgres.ListSettingsByScope: invalid scope %q", scope)
 	}
 
-	q := fmt.Sprintf(`SELECT %s FROM settings WHERE %s = $1 ORDER BY key`, settingCols, col)
 	rows, err := r.pool.Query(ctx, q, targetID)
 	if err != nil {
 		return nil, fmt.Errorf("postgres.ListSettingsByScope: %w", err)
@@ -175,26 +174,39 @@ func (r *SettingRepository) Upsert(ctx context.Context, setting *models.Setting)
 		setting.ID = uuid.New()
 	}
 
-	var conflictCol string
+	var q string
 	switch setting.ScopeLevel() {
 	case "org":
-		conflictCol = "org_id"
+		q = `
+		INSERT INTO settings (` + settingCols + `)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		ON CONFLICT (org_id, key) WHERE org_id IS NOT NULL
+		DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at
+		RETURNING id`
 	case "project":
-		conflictCol = "project_id"
+		q = `
+		INSERT INTO settings (` + settingCols + `)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		ON CONFLICT (project_id, key) WHERE project_id IS NOT NULL
+		DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at
+		RETURNING id`
 	case "application":
-		conflictCol = "application_id"
+		q = `
+		INSERT INTO settings (` + settingCols + `)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		ON CONFLICT (application_id, key) WHERE application_id IS NOT NULL
+		DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at
+		RETURNING id`
 	case "environment":
-		conflictCol = "environment_id"
+		q = `
+		INSERT INTO settings (` + settingCols + `)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		ON CONFLICT (environment_id, key) WHERE environment_id IS NOT NULL
+		DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at
+		RETURNING id`
 	default:
 		return fmt.Errorf("postgres.UpsertSetting: no scope set")
 	}
-
-	q := fmt.Sprintf(`
-		INSERT INTO settings (%s)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		ON CONFLICT (%s, key) WHERE %s IS NOT NULL
-		DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at
-		RETURNING id`, settingCols, conflictCol, conflictCol)
 
 	err := r.pool.QueryRow(ctx, q,
 		setting.ID, setting.OrgID, setting.ProjectID, setting.ApplicationID, setting.EnvironmentID,

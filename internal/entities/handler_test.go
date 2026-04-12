@@ -146,7 +146,6 @@ func (m *mockEntityService) DeleteEnvironment(ctx context.Context, id uuid.UUID)
 func (m *mockEntityService) ListEnvironments(ctx context.Context, orgID uuid.UUID) ([]OrgEnvironment, error) {
 	return nil, nil
 }
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

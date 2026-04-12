@@ -23,8 +23,8 @@
 
 ### Steps
 
-- [ ] Create `sdk/testdata/` directory
-- [ ] Create `auth_request.json` — validates `Authorization: ApiKey <key>` header format
+- [x] Create `sdk/testdata/` directory
+- [x] Create `auth_request.json` — validates `Authorization: ApiKey <key>` header format
 
 ```json
 {
@@ -40,7 +40,7 @@
 }
 ```
 
-- [ ] Create `evaluate_request.json`
+- [x] Create `evaluate_request.json`
 
 ```json
 {
@@ -64,7 +64,7 @@
 }
 ```
 
-- [ ] Create `evaluate_response.json`
+- [x] Create `evaluate_response.json`
 
 ```json
 {
@@ -96,7 +96,7 @@
 }
 ```
 
-- [ ] Create `batch_evaluate_request.json`
+- [x] Create `batch_evaluate_request.json`
 
 ```json
 {
@@ -117,7 +117,7 @@
 }
 ```
 
-- [ ] Create `batch_evaluate_response.json`
+- [x] Create `batch_evaluate_response.json`
 
 ```json
 {
@@ -172,7 +172,7 @@
 }
 ```
 
-- [ ] Create `list_flags_response.json`
+- [x] Create `list_flags_response.json`
 
 ```json
 {
@@ -234,7 +234,7 @@
 }
 ```
 
-- [ ] Create `sse_messages.txt`
+- [x] Create `sse_messages.txt`
 
 ```
 event: flag_change
@@ -280,7 +280,7 @@ feat(sdk): add shared contract test fixtures for cross-SDK consistency
 
 ### Steps
 
-- [ ] In `DeploySentryClient.java` line 267, change `"Bearer "` to `"ApiKey "` in the `fetchFlags()` method
+- [x] In `DeploySentryClient.java` line 267, change `"Bearer "` to `"ApiKey "` in the `fetchFlags()` method
 
 ```java
 // Before (line 267):
@@ -290,7 +290,7 @@ feat(sdk): add shared contract test fixtures for cross-SDK consistency
 .header("Authorization", "ApiKey " + options.getApiKey())
 ```
 
-- [ ] In `SSEClient.java` line 94, change `"Bearer "` to `"ApiKey "` in the `streamLoop()` method
+- [x] In `SSEClient.java` line 94, change `"Bearer "` to `"ApiKey "` in the `streamLoop()` method
 
 ```java
 // Before (line 94):
@@ -325,7 +325,7 @@ fix(sdk/java): use ApiKey auth header instead of Bearer
 
 ### Steps
 
-- [ ] In `client.ts` line 144, change `Bearer` to `ApiKey` in the `headers` getter
+- [x] In `client.ts` line 144, change `Bearer` to `ApiKey` in the `headers` getter
 
 ```typescript
 // Before (line 144):
@@ -370,7 +370,7 @@ fix(sdk/react): use ApiKey auth header instead of Bearer
 
 ### Steps
 
-- [ ] In `client.dart` line 42, change `'Bearer $apiKey'` to `'ApiKey $apiKey'` in the `_headers` getter
+- [x] In `client.dart` line 42, change `'Bearer $apiKey'` to `'ApiKey $apiKey'` in the `_headers` getter
 
 ```dart
 // Before (line 42):
@@ -412,8 +412,8 @@ fix(sdk/flutter): use ApiKey auth header instead of Bearer
 
 ### Steps
 
-- [ ] Verify `FlagDetail` already exists in `sdk/react/src/types.ts` (it does, with `value`, `enabled`, `metadata`, `loading`)
-- [ ] Add typed evaluation methods to `DeploySentryClient` in `sdk/react/src/client.ts`, after the `getFlagMetadata` method and before the `// HTTP` section comment
+- [x] Verify `FlagDetail` already exists in `sdk/react/src/types.ts` (it does, with `value`, `enabled`, `metadata`, `loading`)
+- [x] Add typed evaluation methods to `DeploySentryClient` in `sdk/react/src/client.ts`, after the `getFlagMetadata` method and before the `// HTTP` section comment
 
 ```typescript
   // ---------------------------------------------------------------------------
@@ -521,7 +521,7 @@ fix(sdk/flutter): use ApiKey auth header instead of Bearer
   }
 ```
 
-- [ ] Add `FlagDetail` to the import in `client.ts` if not already imported
+- [x] Add `FlagDetail` to the import in `client.ts` if not already imported
 
 ```typescript
 import type {
@@ -553,8 +553,8 @@ feat(sdk/react): add typed evaluation methods (boolValue, stringValue, numberVal
 
 ### Steps
 
-- [ ] Change `maxBackoff` from 60s to 30s
-- [ ] Add jitter function and apply it in `connectLoop`
+- [x] Change `maxBackoff` from 60s to 30s
+- [x] Add jitter function and apply it in `connectLoop`
 
 ```go
 // Before:
@@ -579,7 +579,7 @@ const (
 )
 ```
 
-- [ ] Update `connectLoop` to apply jitter
+- [x] Update `connectLoop` to apply jitter
 
 ```go
 // Before (connectLoop):
@@ -668,8 +668,8 @@ fix(sdk/go): cap SSE max backoff at 30s and add jitter
 
 ### Steps
 
-- [ ] Add jitter to both `SSEClient._run()` and `AsyncSSEClient._run()` methods
-- [ ] Add `import random` to the imports
+- [x] Add jitter to both `SSEClient._run()` and `AsyncSSEClient._run()` methods
+- [x] Add `import random` to the imports
 
 ```python
 # Add to imports:
@@ -682,7 +682,7 @@ def _apply_jitter(delay_ms: float) -> float:
     return delay_ms + jitter
 ```
 
-- [ ] Update `SSEClient._run()` to use jitter
+- [x] Update `SSEClient._run()` to use jitter
 
 ```python
 # Before:
@@ -717,7 +717,7 @@ def _apply_jitter(delay_ms: float) -> float:
                 retry_ms = min(retry_ms * _RETRY_MULTIPLIER, _MAX_RETRY_MS)
 ```
 
-- [ ] Update `AsyncSSEClient._run()` to use jitter
+- [x] Update `AsyncSSEClient._run()` to use jitter
 
 ```python
 # Before:
@@ -774,8 +774,8 @@ fix(sdk/python): add jitter to SSE reconnection backoff
 
 ### Steps
 
-- [ ] Replace the fixed `reconnectDelayMs` with exponential backoff + jitter
-- [ ] Add reconnection state fields and constants
+- [x] Replace the fixed `reconnectDelayMs` with exponential backoff + jitter
+- [x] Add reconnection state fields and constants
 
 ```typescript
 // Before (interface + class fields):
@@ -838,7 +838,7 @@ export class FlagStreamClient {
   }
 ```
 
-- [ ] Update `connect()` to reset retry on success
+- [x] Update `connect()` to reset retry on success
 
 ```typescript
 // In the connect() method, after the response status check succeeds and
@@ -846,7 +846,7 @@ export class FlagStreamClient {
       this.retryMs = SSE_INITIAL_RETRY_MS;
 ```
 
-- [ ] Replace `scheduleReconnect` with backoff + jitter logic
+- [x] Replace `scheduleReconnect` with backoff + jitter logic
 
 ```typescript
 // Before:
@@ -898,8 +898,8 @@ fix(sdk/node): replace fixed 3s SSE reconnect with exponential backoff and jitte
 
 ### Steps
 
-- [ ] Add jitter constant and a `java.util.concurrent.ThreadLocalRandom` import
-- [ ] Apply jitter before the sleep in `streamLoop()`
+- [x] Add jitter constant and a `java.util.concurrent.ThreadLocalRandom` import
+- [x] Apply jitter before the sleep in `streamLoop()`
 
 ```java
 // Add import:
@@ -909,7 +909,7 @@ import java.util.concurrent.ThreadLocalRandom;
     private static final double JITTER_FRACTION = 0.2;
 ```
 
-- [ ] Update the retry sleep in `streamLoop()` to apply jitter
+- [x] Update the retry sleep in `streamLoop()` to apply jitter
 
 ```java
 // Before (lines 149-155):
@@ -953,7 +953,7 @@ fix(sdk/java): add jitter to SSE reconnection backoff
 
 ### Steps
 
-- [ ] The React SDK already has exponential backoff with 30s max. Add jitter to `scheduleReconnect()`
+- [x] The React SDK already has exponential backoff with 30s max. Add jitter to `scheduleReconnect()`
 
 ```typescript
 // Before:
@@ -1007,8 +1007,8 @@ fix(sdk/react): add jitter to SSE reconnection backoff
 
 ### Steps
 
-- [ ] Replace the fixed 5s `reconnectDelay` with exponential backoff + jitter
-- [ ] Add `dart:math` import and state fields
+- [x] Replace the fixed 5s `reconnectDelay` with exponential backoff + jitter
+- [x] Add `dart:math` import and state fields
 
 ```dart
 // Add import:
@@ -1050,14 +1050,14 @@ class FlagStreamClient {
   });
 ```
 
-- [ ] Reset retry on successful connect (add to `_connect()` after the status check)
+- [x] Reset retry on successful connect (add to `_connect()` after the status check)
 
 ```dart
     // After: if (response.statusCode != 200) { ... }
     _currentRetryDelay = _initialRetryDelay; // Reset on successful connect
 ```
 
-- [ ] Update `_scheduleReconnect` with backoff + jitter
+- [x] Update `_scheduleReconnect` with backoff + jitter
 
 ```dart
 // Before:
@@ -1109,7 +1109,7 @@ fix(sdk/flutter): replace fixed 5s SSE reconnect with exponential backoff and ji
 
 ### Steps
 
-- [ ] Update constants and add jitter to `run_loop`
+- [x] Update constants and add jitter to `run_loop`
 
 ```ruby
 # Before:
@@ -1125,7 +1125,7 @@ fix(sdk/flutter): replace fixed 5s SSE reconnect with exponential backoff and ji
     JITTER_FRACTION = 0.2
 ```
 
-- [ ] Update `run_loop` to use new constants and jitter
+- [x] Update `run_loop` to use new constants and jitter
 
 ```ruby
 # Before:
@@ -1195,7 +1195,7 @@ fix(sdk/ruby): standardize SSE reconnection with 1s-30s backoff and jitter
 
 #### Go SDK
 
-- [ ] Add `WithSessionID` option in `sdk/go/client.go`
+- [x] Add `WithSessionID` option in `sdk/go/client.go`
 
 ```go
 // Add field to Client struct:
@@ -1210,7 +1210,7 @@ func WithSessionID(id string) Option {
 }
 ```
 
-- [ ] Update `setAuthHeaders` to include session header when set
+- [x] Update `setAuthHeaders` to include session header when set
 
 ```go
 // Before:
@@ -1229,7 +1229,7 @@ func (c *Client) setAuthHeaders(req *http.Request) {
 }
 ```
 
-- [ ] Add `session_id` to `evaluateRequest` and `batchEvaluateRequest` in `models.go`
+- [x] Add `session_id` to `evaluateRequest` and `batchEvaluateRequest` in `models.go`
 
 ```go
 type evaluateRequest struct {
@@ -1249,7 +1249,7 @@ type batchEvaluateRequest struct {
 }
 ```
 
-- [ ] Update `doEvaluate` in `client.go` to include `SessionID`
+- [x] Update `doEvaluate` in `client.go` to include `SessionID`
 
 ```go
 // In doEvaluate, update body construction:
@@ -1262,7 +1262,7 @@ type batchEvaluateRequest struct {
 	}
 ```
 
-- [ ] Add `RefreshSession` method to `client.go`
+- [x] Add `RefreshSession` method to `client.go`
 
 ```go
 // RefreshSession clears the local flag cache and re-fetches all flags from
@@ -1274,7 +1274,7 @@ func (c *Client) RefreshSession(ctx context.Context) error {
 }
 ```
 
-- [ ] Pass session header to SSE client in streaming.go (add sessionID field to sseClient and set it on the request in `connect()`)
+- [x] Pass session header to SSE client in streaming.go (add sessionID field to sseClient and set it on the request in `connect()`)
 
 ```go
 // Add to sseClient struct:
@@ -1300,7 +1300,7 @@ func newSSEClient(baseURL, apiKey, projectID, environment, sessionID string, htt
 	}
 ```
 
-- [ ] Update `Initialize` in `client.go` to pass sessionID to SSE client
+- [x] Update `Initialize` in `client.go` to pass sessionID to SSE client
 
 ```go
 	c.sse = newSSEClient(c.baseURL, c.apiKey, c.projectID, c.environment, c.sessionID, c.httpClient, func(flag Flag) {
@@ -1310,7 +1310,7 @@ func newSSEClient(baseURL, apiKey, projectID, environment, sessionID string, htt
 
 #### Python SDK
 
-- [ ] Add `session_id` parameter to `DeploySentryClient.__init__`
+- [x] Add `session_id` parameter to `DeploySentryClient.__init__`
 
 ```python
     def __init__(
@@ -1327,7 +1327,7 @@ func newSSEClient(baseURL, apiKey, projectID, environment, sessionID string, htt
         self._session_id = session_id
 ```
 
-- [ ] Update `_auth_headers` to include session header
+- [x] Update `_auth_headers` to include session header
 
 ```python
     def _auth_headers(self) -> Dict[str, str]:
@@ -1340,7 +1340,7 @@ func newSSEClient(baseURL, apiKey, projectID, environment, sessionID string, htt
         return headers
 ```
 
-- [ ] Add `session_id` to `_evaluate` request body
+- [x] Add `session_id` to `_evaluate` request body
 
 ```python
         # In _evaluate, add to body dict:
@@ -1348,7 +1348,7 @@ func newSSEClient(baseURL, apiKey, projectID, environment, sessionID string, htt
             body["session_id"] = self._session_id
 ```
 
-- [ ] Add `refresh_session` method
+- [x] Add `refresh_session` method
 
 ```python
     def refresh_session(self) -> None:
@@ -1361,7 +1361,7 @@ func newSSEClient(baseURL, apiKey, projectID, environment, sessionID string, htt
 
 #### Ruby SDK
 
-- [ ] Add `session_id` parameter to `Client#initialize`
+- [x] Add `session_id` parameter to `Client#initialize`
 
 ```ruby
     def initialize(api_key:, base_url:, environment:, project:, cache_timeout: 30, offline_mode: false, session_id: nil)
@@ -1369,7 +1369,7 @@ func newSSEClient(baseURL, apiKey, projectID, environment, sessionID string, htt
       @session_id = session_id
 ```
 
-- [ ] Update `auth_headers` to include session header
+- [x] Update `auth_headers` to include session header
 
 ```ruby
     def auth_headers
@@ -1383,14 +1383,14 @@ func newSSEClient(baseURL, apiKey, projectID, environment, sessionID string, htt
     end
 ```
 
-- [ ] Add `session_id` to `evaluate_remote` request body
+- [x] Add `session_id` to `evaluate_remote` request body
 
 ```ruby
     # In evaluate_remote, add to body hash:
       body[:session_id] = @session_id if @session_id
 ```
 
-- [ ] Add `refresh_session` method
+- [x] Add `refresh_session` method
 
 ```ruby
     def refresh_session
@@ -1434,7 +1434,7 @@ feat(sdk): add session consistency support to Go, Python, and Ruby SDKs
 
 #### Node SDK
 
-- [ ] Add `sessionId` to `ClientOptions` in `sdk/node/src/types.ts`
+- [x] Add `sessionId` to `ClientOptions` in `sdk/node/src/types.ts`
 
 ```typescript
 export interface ClientOptions {
@@ -1448,7 +1448,7 @@ export interface ClientOptions {
 }
 ```
 
-- [ ] Update `DeploySentryClient` constructor in `sdk/node/src/client.ts` to store `sessionId`
+- [x] Update `DeploySentryClient` constructor in `sdk/node/src/client.ts` to store `sessionId`
 
 ```typescript
   private readonly sessionId: string | undefined;
@@ -1459,7 +1459,7 @@ export interface ClientOptions {
   }
 ```
 
-- [ ] Update `authHeaders()` to include session header
+- [x] Update `authHeaders()` to include session header
 
 ```typescript
   private authHeaders(): Record<string, string> {
@@ -1471,14 +1471,14 @@ export interface ClientOptions {
   }
 ```
 
-- [ ] Add `sessionId` to evaluation request bodies in `evaluate()` and `detail()`
+- [x] Add `sessionId` to evaluation request bodies in `evaluate()` and `detail()`
 
 ```typescript
   // In the post call body, add:
   ...(this.sessionId ? { session_id: this.sessionId } : {}),
 ```
 
-- [ ] Add `refreshSession()` method
+- [x] Add `refreshSession()` method
 
 ```typescript
   /** Clear local cache and re-fetch all flags for a fresh session. */
@@ -1491,7 +1491,7 @@ export interface ClientOptions {
 
 #### Java SDK
 
-- [ ] Add `sessionId` field to `ClientOptions` and its builder
+- [x] Add `sessionId` field to `ClientOptions` and its builder
 
 ```java
 // Add field:
@@ -1512,7 +1512,7 @@ export interface ClientOptions {
     }
 ```
 
-- [ ] Update `DeploySentryClient.fetchFlags()` to include session header
+- [x] Update `DeploySentryClient.fetchFlags()` to include session header
 
 ```java
     // After .header("Authorization", ...):
@@ -1526,7 +1526,7 @@ export interface ClientOptions {
     HttpRequest request = reqBuilder.GET().build();
 ```
 
-- [ ] Update `SSEClient` constructor to accept and send session header
+- [x] Update `SSEClient` constructor to accept and send session header
 
 ```java
     // Add field:
@@ -1539,7 +1539,7 @@ export interface ClientOptions {
     }
 ```
 
-- [ ] Add `refreshSession()` method to `DeploySentryClient`
+- [x] Add `refreshSession()` method to `DeploySentryClient`
 
 ```java
     /**
@@ -1553,7 +1553,7 @@ export interface ClientOptions {
 
 #### React SDK
 
-- [ ] Add `sessionId` to `ProviderProps` in `sdk/react/src/types.ts`
+- [x] Add `sessionId` to `ProviderProps` in `sdk/react/src/types.ts`
 
 ```typescript
 export interface ProviderProps {
@@ -1562,7 +1562,7 @@ export interface ProviderProps {
 }
 ```
 
-- [ ] Add `sessionId` field to `DeploySentryClient` constructor options and store it
+- [x] Add `sessionId` field to `DeploySentryClient` constructor options and store it
 
 ```typescript
   private readonly sessionId: string | undefined;
@@ -1580,7 +1580,7 @@ export interface ProviderProps {
   }
 ```
 
-- [ ] Update `headers` getter to include session header
+- [x] Update `headers` getter to include session header
 
 ```typescript
   private get headers(): Record<string, string> {
@@ -1596,7 +1596,7 @@ export interface ProviderProps {
   }
 ```
 
-- [ ] Add `refreshSession()` method
+- [x] Add `refreshSession()` method
 
 ```typescript
   /** Clear local flag store and re-fetch all flags for a fresh session. */
@@ -1608,7 +1608,7 @@ export interface ProviderProps {
 
 #### Flutter SDK
 
-- [ ] Add `sessionId` parameter to `DeploySentryClient` constructor
+- [x] Add `sessionId` parameter to `DeploySentryClient` constructor
 
 ```dart
   final String? sessionId;
@@ -1624,7 +1624,7 @@ export interface ProviderProps {
   }) {
 ```
 
-- [ ] Update `_headers` getter to include session header
+- [x] Update `_headers` getter to include session header
 
 ```dart
   Map<String, String> get _headers => {
@@ -1635,7 +1635,7 @@ export interface ProviderProps {
       };
 ```
 
-- [ ] Add `refreshSession()` method
+- [x] Add `refreshSession()` method
 
 ```dart
   /// Clear local cache and re-fetch all flags for a fresh session.
@@ -1681,7 +1681,7 @@ feat(sdk): add session consistency support to Node, Java, React, and Flutter SDK
 
 #### Go Tests
 
-- [ ] Create `sdk/go/contract_test.go` — loads shared fixtures, verifies parsing
+- [x] Create `sdk/go/contract_test.go` — loads shared fixtures, verifies parsing
 
 ```go
 package deploysentry
@@ -1756,7 +1756,7 @@ func TestContract_ListFlagsResponseParsing(t *testing.T) {
 }
 ```
 
-- [ ] Create `sdk/go/client_test.go` — unit tests for client init, cache, evaluation, session
+- [x] Create `sdk/go/client_test.go` — unit tests for client init, cache, evaluation, session
 
 ```go
 package deploysentry
@@ -1857,7 +1857,7 @@ func TestBoolValue_Default(t *testing.T) {
 }
 ```
 
-- [ ] Run Go tests
+- [x] Run Go tests
 
 ```bash
 cd sdk/go && go test -v -count=1 ./...
@@ -1865,7 +1865,7 @@ cd sdk/go && go test -v -count=1 ./...
 
 #### Node Tests
 
-- [ ] Create `sdk/node/src/__tests__/contract.test.ts`
+- [x] Create `sdk/node/src/__tests__/contract.test.ts`
 
 ```typescript
 import * as fs from 'fs';
@@ -1913,7 +1913,7 @@ describe('Contract: Batch Evaluate Response', () => {
 });
 ```
 
-- [ ] Create `sdk/node/src/__tests__/client.test.ts` (client init, evaluation, session)
+- [x] Create `sdk/node/src/__tests__/client.test.ts` (client init, evaluation, session)
 
 ```typescript
 import { DeploySentryClient } from '../client';
@@ -1953,7 +1953,7 @@ describe('DeploySentryClient', () => {
 });
 ```
 
-- [ ] Run Node tests
+- [x] Run Node tests
 
 ```bash
 cd sdk/node && npx jest --passWithNoTests
@@ -1961,7 +1961,7 @@ cd sdk/node && npx jest --passWithNoTests
 
 #### Python Tests
 
-- [ ] Create `sdk/python/tests/test_contract.py`
+- [x] Create `sdk/python/tests/test_contract.py`
 
 ```python
 import json
@@ -2001,7 +2001,7 @@ def test_batch_evaluate_response_parsing():
     assert len(fixture["body"]["results"]) == 3
 ```
 
-- [ ] Create `sdk/python/tests/test_client.py`
+- [x] Create `sdk/python/tests/test_client.py`
 
 ```python
 import pytest
@@ -2045,7 +2045,7 @@ def test_string_value_default_in_offline_mode():
     assert client.string_value("missing-flag", default="fallback") == "fallback"
 ```
 
-- [ ] Run Python tests
+- [x] Run Python tests
 
 ```bash
 cd sdk/python && python -m pytest tests/ -v
@@ -2053,7 +2053,7 @@ cd sdk/python && python -m pytest tests/ -v
 
 #### Java Tests
 
-- [ ] Create `sdk/java/src/test/java/io/deploysentry/ContractTest.java`
+- [x] Create `sdk/java/src/test/java/io/deploysentry/ContractTest.java`
 
 ```java
 package io.deploysentry;
@@ -2096,7 +2096,7 @@ class ContractTest {
 }
 ```
 
-- [ ] Create `sdk/java/src/test/java/io/deploysentry/DeploySentryClientTest.java`
+- [x] Create `sdk/java/src/test/java/io/deploysentry/DeploySentryClientTest.java`
 
 ```java
 package io.deploysentry;
@@ -2135,7 +2135,7 @@ class DeploySentryClientTest {
 }
 ```
 
-- [ ] Run Java tests
+- [x] Run Java tests
 
 ```bash
 cd sdk/java && mvn test -q
@@ -2143,7 +2143,7 @@ cd sdk/java && mvn test -q
 
 #### React Tests
 
-- [ ] Create `sdk/react/src/__tests__/client.test.ts`
+- [x] Create `sdk/react/src/__tests__/client.test.ts`
 
 ```typescript
 import { DeploySentryClient } from '../client';
@@ -2199,7 +2199,7 @@ describe('DeploySentryClient', () => {
 });
 ```
 
-- [ ] Run React tests
+- [x] Run React tests
 
 ```bash
 cd sdk/react && npx jest --passWithNoTests
@@ -2207,7 +2207,7 @@ cd sdk/react && npx jest --passWithNoTests
 
 #### Flutter Tests
 
-- [ ] Create `sdk/flutter/test/client_test.dart`
+- [x] Create `sdk/flutter/test/client_test.dart`
 
 ```dart
 import 'package:flutter_test/flutter_test.dart';
@@ -2256,7 +2256,7 @@ void main() {
 }
 ```
 
-- [ ] Run Flutter tests
+- [x] Run Flutter tests
 
 ```bash
 cd sdk/flutter && flutter test
@@ -2264,7 +2264,7 @@ cd sdk/flutter && flutter test
 
 #### Ruby Tests
 
-- [ ] Create `sdk/ruby/test/contract_test.rb`
+- [x] Create `sdk/ruby/test/contract_test.rb`
 
 ```ruby
 # frozen_string_literal: true
@@ -2299,7 +2299,7 @@ class ContractTest < Minitest::Test
 end
 ```
 
-- [ ] Create `sdk/ruby/test/client_test.rb`
+- [x] Create `sdk/ruby/test/client_test.rb`
 
 ```ruby
 # frozen_string_literal: true
@@ -2358,7 +2358,7 @@ class ClientTest < Minitest::Test
 end
 ```
 
-- [ ] Run Ruby tests
+- [x] Run Ruby tests
 
 ```bash
 cd sdk/ruby && ruby -Ilib -Itest test/client_test.rb
@@ -2382,3 +2382,13 @@ ls sdk/ruby/test/*_test.rb
 ```
 test(sdk): add contract and unit tests for all 7 SDKs
 ```
+
+---
+
+## Completion Record
+
+- **Branch**: `main`
+- **Committed**: No (pending)
+- **Pushed**: No
+- **CI Checks**: N/A (no CI configured)
+- **Phase**: Complete — all 15 tasks implemented

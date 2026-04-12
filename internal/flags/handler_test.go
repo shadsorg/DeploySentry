@@ -35,6 +35,12 @@ type mockFlagService struct {
 	listRulesFn         func(ctx context.Context, flagID uuid.UUID) ([]*models.TargetingRule, error)
 	listFlagEnvStatesFn func(ctx context.Context, flagID uuid.UUID) ([]*models.FlagEnvironmentState, error)
 	setFlagEnvStateFn   func(ctx context.Context, state *models.FlagEnvironmentState) error
+	// Segment stubs
+	createSegmentFn func(ctx context.Context, segment *models.Segment) error
+	getSegmentFn    func(ctx context.Context, id uuid.UUID) (*models.Segment, error)
+	listSegmentsFn  func(ctx context.Context, projectID uuid.UUID) ([]*models.Segment, error)
+	updateSegmentFn func(ctx context.Context, segment *models.Segment) error
+	deleteSegmentFn func(ctx context.Context, id uuid.UUID) error
 }
 
 func (m *mockFlagService) CreateFlag(ctx context.Context, flag *models.FeatureFlag) error {
@@ -145,6 +151,41 @@ func (m *mockFlagService) DetectStaleFlags(ctx context.Context, projectID uuid.U
 }
 
 func (m *mockFlagService) WarmCache(ctx context.Context, projectID uuid.UUID) error {
+	return nil
+}
+
+func (m *mockFlagService) CreateSegment(ctx context.Context, segment *models.Segment) error {
+	if m.createSegmentFn != nil {
+		return m.createSegmentFn(ctx, segment)
+	}
+	return nil
+}
+
+func (m *mockFlagService) GetSegment(ctx context.Context, id uuid.UUID) (*models.Segment, error) {
+	if m.getSegmentFn != nil {
+		return m.getSegmentFn(ctx, id)
+	}
+	return &models.Segment{ID: id}, nil
+}
+
+func (m *mockFlagService) ListSegments(ctx context.Context, projectID uuid.UUID) ([]*models.Segment, error) {
+	if m.listSegmentsFn != nil {
+		return m.listSegmentsFn(ctx, projectID)
+	}
+	return []*models.Segment{}, nil
+}
+
+func (m *mockFlagService) UpdateSegment(ctx context.Context, segment *models.Segment) error {
+	if m.updateSegmentFn != nil {
+		return m.updateSegmentFn(ctx, segment)
+	}
+	return nil
+}
+
+func (m *mockFlagService) DeleteSegment(ctx context.Context, id uuid.UUID) error {
+	if m.deleteSegmentFn != nil {
+		return m.deleteSegmentFn(ctx, id)
+	}
 	return nil
 }
 
@@ -1014,4 +1055,46 @@ func TestSetFlagEnvState_ServiceError(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// broadcastEvent helper
+// ---------------------------------------------------------------------------
+
+func TestBroadcastEvent(t *testing.T) {
+	broker := NewSSEBroker()
+	handler := &Handler{sse: broker, service: &mockFlagService{}}
+
+	ch := broker.Subscribe()
+	defer broker.Unsubscribe(ch)
+
+	flagID := uuid.New()
+	handler.broadcastEvent("flag.updated", flagID, "my-flag")
+
+	select {
+	case msg := <-ch:
+		var event struct {
+			Event     string `json:"event"`
+			FlagID    string `json:"flag_id"`
+			FlagKey   string `json:"flag_key"`
+			Timestamp string `json:"timestamp"`
+		}
+		if err := json.Unmarshal([]byte(msg), &event); err != nil {
+			t.Fatalf("failed to unmarshal SSE event: %v", err)
+		}
+		if event.Event != "flag.updated" {
+			t.Errorf("event = %q, want %q", event.Event, "flag.updated")
+		}
+		if event.FlagID != flagID.String() {
+			t.Errorf("flag_id = %q, want %q", event.FlagID, flagID.String())
+		}
+		if event.FlagKey != "my-flag" {
+			t.Errorf("flag_key = %q, want %q", event.FlagKey, "my-flag")
+		}
+		if event.Timestamp == "" {
+			t.Error("timestamp should not be empty")
+		}
+	default:
+		t.Error("expected to receive SSE event")
+	}
 }

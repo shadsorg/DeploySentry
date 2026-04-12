@@ -28,8 +28,8 @@ export default function CreateOrgPage() {
       await entitiesApi.createOrg({ name, slug });
       localStorage.setItem('ds_last_org', slug);
       navigate(`/orgs/${slug}/projects`);
-    } catch (err: unknown) {
-      setError(err.message || 'Failed to create organization');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create organization');
     } finally {
       setSubmitting(false);
     }

@@ -66,6 +66,14 @@ type FlagRepository interface {
 
 	// UpsertFlagEnvState creates or updates a per-environment flag state.
 	UpsertFlagEnvState(ctx context.Context, state *models.FlagEnvironmentState) error
+
+	// Segment operations
+	CreateSegment(ctx context.Context, segment *models.Segment) error
+	GetSegment(ctx context.Context, id uuid.UUID) (*models.Segment, error)
+	GetSegmentByKey(ctx context.Context, projectID uuid.UUID, key string) (*models.Segment, error)
+	ListSegments(ctx context.Context, projectID uuid.UUID) ([]*models.Segment, error)
+	UpdateSegment(ctx context.Context, segment *models.Segment) error
+	DeleteSegment(ctx context.Context, id uuid.UUID) error
 }
 
 // ListOptions controls pagination and filtering for flag list queries.

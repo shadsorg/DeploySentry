@@ -97,7 +97,7 @@ class DashboardService {
   private calculateStats(
     flags: Flag[],
     deployments: Deployment[],
-    healthData: unknown,
+    healthData: Record<string, unknown>,
   ): DashboardStats {
     const now = new Date();
     const expiredFlags = flags.filter(
@@ -121,7 +121,7 @@ class DashboardService {
       flagsByCategory,
       activeDeployments,
       expiredFlags,
-      healthScore: healthData.score || 98.2,
+      healthScore: (healthData.score as number) || 98.2,
     };
   }
 

@@ -29,8 +29,9 @@ type DeployRepository interface {
 
 // ListOptions controls pagination and filtering for list queries.
 type ListOptions struct {
-	Limit         int                  `json:"limit"`
-	Offset        int                  `json:"offset"`
-	EnvironmentID *uuid.UUID           `json:"environment_id,omitempty"`
-	Status        *models.DeployStatus `json:"status,omitempty"`
+	Limit           int                  `json:"limit"`
+	Offset          int                  `json:"offset"`
+	EnvironmentID   *uuid.UUID           `json:"environment_id,omitempty"`
+	Status          *models.DeployStatus `json:"status,omitempty"`
+	ExcludeTerminal bool                 `json:"exclude_terminal,omitempty"`
 }

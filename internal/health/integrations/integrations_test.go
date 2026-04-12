@@ -290,7 +290,7 @@ func TestSentryCheck_Healthy(t *testing.T) {
 			{ID: "2", Count: "3"},
 			{ID: "3", Count: "1"},
 		}
-		json.NewEncoder(w).Encode(issues)
+		_ = json.NewEncoder(w).Encode(issues)
 	}))
 	defer server.Close()
 
@@ -322,7 +322,7 @@ func TestSentryCheck_Unhealthy(t *testing.T) {
 				Count string `json:"count"`
 			}{ID: fmt.Sprintf("%d", i), Count: "1"}
 		}
-		json.NewEncoder(w).Encode(issues)
+		_ = json.NewEncoder(w).Encode(issues)
 	}))
 	defer server.Close()
 
@@ -369,7 +369,7 @@ func TestSentryCheck_ServerError(t *testing.T) {
 
 func TestSentryCheck_ZeroErrors(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(sentryIssuesResponse{})
+		_ = json.NewEncoder(w).Encode(sentryIssuesResponse{})
 	}))
 	defer server.Close()
 
@@ -392,7 +392,7 @@ func TestSentryCheck_ZeroErrors(t *testing.T) {
 
 func TestSentryCheck_ThresholdZero(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(sentryIssuesResponse{})
+		_ = json.NewEncoder(w).Encode(sentryIssuesResponse{})
 	}))
 	defer server.Close()
 

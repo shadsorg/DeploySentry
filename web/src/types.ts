@@ -261,8 +261,11 @@ export interface Group {
 
 export interface OrgEnvironment {
   id: string;
+  org_id: string;
   name: string;
   slug: string;
   is_production: boolean;
+  sort_order: number;
   created_at: string;
+  updated_at: string;
 }

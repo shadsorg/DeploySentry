@@ -131,7 +131,7 @@ func (c *CustomHTTPCheck) Check(ctx context.Context, deploymentID uuid.UUID) (*h
 		result.Message = fmt.Sprintf("request failed: %v", err)
 		return result, nil
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Check if the status code is considered healthy.
 	statusHealthy := c.isHealthyStatus(resp.StatusCode)

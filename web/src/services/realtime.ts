@@ -271,7 +271,7 @@ export function useRealtimeUpdates(
     // Subscribe to connection status updates
     const unsubscribeStatus = realtimeManager.subscribe(['system_alert'], (event) => {
       if (event.data?.connected !== undefined) {
-        setConnected(event.data.connected);
+        setConnected(Boolean(event.data.connected));
       }
     });
 
@@ -352,8 +352,7 @@ export function useAutoRefresh(
     if (enabled) {
       refresh();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled]); // Only run on mount and when enabled changes
+  }, [enabled, refresh]); // Only run on mount and when enabled changes
 
   return { refresh, connected };
 }

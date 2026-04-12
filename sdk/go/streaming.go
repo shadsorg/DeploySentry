@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"net/http"
 	"strings"
 	"time"

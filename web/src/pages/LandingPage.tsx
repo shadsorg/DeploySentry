@@ -3,6 +3,7 @@ import Hero from '@/components/landing/Hero';
 import DeployReleaseFlow from '@/components/landing/DeployReleaseFlow';
 import PillarsSection from '@/components/landing/PillarsSection';
 import CodeContrast from '@/components/landing/CodeContrast';
+import LifecycleStrip from '@/components/landing/LifecycleStrip';
 
 export default function LandingPage() {
   return (
@@ -13,6 +14,7 @@ export default function LandingPage() {
         <DeployReleaseFlow />
         <PillarsSection />
         <CodeContrast />
+        <LifecycleStrip />
       </main>
     </div>
   );

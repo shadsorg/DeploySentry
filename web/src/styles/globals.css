@@ -1867,3 +1867,22 @@ tbody tr:last-child td {
 @media (max-width: 800px) {
   .code-pair { grid-template-columns: 1fr; }
 }
+
+/* Lifecycle */
+.lifecycle { padding: 100px 24px; background: #070b10; border-top: 1px solid #1f2937; }
+.lifecycle-inner { max-width: 1200px; margin: 0 auto; }
+.lifecycle-steps {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; margin-top: 60px;
+}
+.lifecycle-step {
+  background: #0f1419; border: 1px solid #1f2937; border-radius: 8px;
+  padding: 20px 18px;
+}
+.lifecycle-num {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 11px; color: #3b82f6; margin-bottom: 12px; letter-spacing: 0.1em;
+}
+.lifecycle-title { font-size: 15px; color: #f3f4f6; font-weight: 600; margin-bottom: 8px; }
+.lifecycle-body { font-size: 12px; color: #9ca3af; line-height: 1.5; }
+@media (max-width: 1100px) { .lifecycle-steps { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 700px)  { .lifecycle-steps { grid-template-columns: repeat(2, 1fr); } }

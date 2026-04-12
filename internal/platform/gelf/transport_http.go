@@ -56,7 +56,7 @@ func (t *httpTransport) post(data []byte) {
 		log.Printf("gelf http: send error: %v", err)
 		return
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode >= 300 {
 		log.Printf("gelf http: unexpected status %d", resp.StatusCode)
 	}

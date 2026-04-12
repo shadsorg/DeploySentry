@@ -36,13 +36,6 @@ type mockEntityService struct {
 	listEnvironmentsByAppFn func(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error)
 }
 
-func (m *mockEntityService) ListEnvironmentsByApp(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error) {
-	if m.listEnvironmentsByAppFn != nil {
-		return m.listEnvironmentsByAppFn(ctx, appID)
-	}
-	return []*models.Environment{}, nil
-}
-
 func (m *mockEntityService) CreateOrg(ctx context.Context, org *models.Organization, creatorID uuid.UUID) error {
 	if m.createOrgFn != nil {
 		return m.createOrgFn(ctx, org, creatorID)
@@ -125,6 +118,33 @@ func (m *mockEntityService) UpdateApp(ctx context.Context, app *models.Applicati
 		return m.updateAppFn(ctx, app)
 	}
 	return nil
+}
+
+func (m *mockEntityService) ListEnvironmentsByApp(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error) {
+	if m.listEnvironmentsByAppFn != nil {
+		return m.listEnvironmentsByAppFn(ctx, appID)
+	}
+	return []*models.Environment{}, nil
+}
+
+func (m *mockEntityService) CreateEnvironment(ctx context.Context, env *OrgEnvironment) error {
+	return nil
+}
+
+func (m *mockEntityService) GetEnvironmentBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*OrgEnvironment, error) {
+	return nil, nil
+}
+
+func (m *mockEntityService) UpdateEnvironment(ctx context.Context, env *OrgEnvironment) error {
+	return nil
+}
+
+func (m *mockEntityService) DeleteEnvironment(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+
+func (m *mockEntityService) ListEnvironments(ctx context.Context, orgID uuid.UUID) ([]OrgEnvironment, error) {
+	return nil, nil
 }
 
 // ---------------------------------------------------------------------------

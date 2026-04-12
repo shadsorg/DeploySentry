@@ -27,14 +27,21 @@ type EntityService interface {
 	UpdateApp(ctx context.Context, app *models.Application) error
 
 	ListEnvironmentsByApp(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error)
+
+	ListEnvironments(ctx context.Context, orgID uuid.UUID) ([]OrgEnvironment, error)
+	CreateEnvironment(ctx context.Context, env *OrgEnvironment) error
+	GetEnvironmentBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*OrgEnvironment, error)
+	UpdateEnvironment(ctx context.Context, env *OrgEnvironment) error
+	DeleteEnvironment(ctx context.Context, id uuid.UUID) error
 }
 
 type entityService struct {
-	repo EntityRepository
+	repo    EntityRepository
+	envRepo *EnvironmentRepository
 }
 
-func NewEntityService(repo EntityRepository) EntityService {
-	return &entityService{repo: repo}
+func NewEntityService(repo EntityRepository, envRepo *EnvironmentRepository) EntityService {
+	return &entityService{repo: repo, envRepo: envRepo}
 }
 
 func (s *entityService) CreateOrg(ctx context.Context, org *models.Organization, creatorID uuid.UUID) error {
@@ -121,4 +128,24 @@ func (s *entityService) UpdateApp(ctx context.Context, app *models.Application) 
 
 func (s *entityService) ListEnvironmentsByApp(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error) {
 	return s.repo.ListEnvironmentsByApp(ctx, appID)
+}
+
+func (s *entityService) ListEnvironments(ctx context.Context, orgID uuid.UUID) ([]OrgEnvironment, error) {
+	return s.envRepo.ListByOrg(ctx, orgID)
+}
+
+func (s *entityService) CreateEnvironment(ctx context.Context, env *OrgEnvironment) error {
+	return s.envRepo.Create(ctx, env)
+}
+
+func (s *entityService) GetEnvironmentBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*OrgEnvironment, error) {
+	return s.envRepo.GetBySlug(ctx, orgID, slug)
+}
+
+func (s *entityService) UpdateEnvironment(ctx context.Context, env *OrgEnvironment) error {
+	return s.envRepo.Update(ctx, env)
+}
+
+func (s *entityService) DeleteEnvironment(ctx context.Context, id uuid.UUID) error {
+	return s.envRepo.Delete(ctx, id)
 }

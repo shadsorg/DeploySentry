@@ -1,0 +1,21 @@
+{
+  "list": {
+    "settings": {
+      "org": {
+        "default_environment": "production",
+        "require_2fa": false,
+        "audit_log_retention_days": 90
+      },
+      "project": {
+        "deployment_approval_required": true,
+        "auto_rollback_enabled": true,
+        "auto_rollback_threshold": 5
+      },
+      "app": {
+        "health_check_interval": 30,
+        "canary_step_size": 10,
+        "max_surge_percent": 25
+      }
+    }
+  }
+}

@@ -24,6 +24,7 @@ type Client struct {
 	baseURL     string
 	environment string
 	projectID   string
+	sessionID   string
 	offlineMode bool
 	httpClient  *http.Client
 	cache       *flagCache
@@ -72,6 +73,13 @@ func WithHTTPClient(hc *http.Client) Option {
 	return func(c *Client) { c.httpClient = hc }
 }
 
+// WithSessionID sets a session identifier for consistent flag evaluation
+// across multiple requests. This ensures a user sees the same flag values
+// throughout their session.
+func WithSessionID(id string) Option {
+	return func(c *Client) { c.sessionID = id }
+}
+
 // WithLogger sets a custom logger. By default the SDK logs to stderr.
 func WithLogger(l *log.Logger) Option {
 	return func(c *Client) { c.logger = l }
@@ -106,12 +114,20 @@ func (c *Client) Initialize(ctx context.Context) error {
 	}
 
 	// Start SSE streaming in the background.
-	c.sse = newSSEClient(c.baseURL, c.apiKey, c.projectID, c.environment, c.httpClient, func(flag Flag) {
+	c.sse = newSSEClient(c.baseURL, c.apiKey, c.projectID, c.environment, c.sessionID, c.httpClient, func(flag Flag) {
 		c.cache.set(flag)
 	}, c.logger)
 	c.sse.start(ctx)
 
 	return nil
+}
+
+// RefreshSession clears the flag cache and re-fetches all flags from the
+// API. Use this when the session context has changed and you need fresh
+// evaluations.
+func (c *Client) RefreshSession(ctx context.Context) error {
+	c.cache.clear()
+	return c.warmCache(ctx)
 }
 
 // Close stops the SSE streaming connection and releases resources.
@@ -179,6 +195,7 @@ func (c *Client) doEvaluate(ctx context.Context, flagKey string, evalCtx *Evalua
 		Context:     evalCtx,
 		Environment: c.environment,
 		ProjectID:   c.projectID,
+		SessionID:   c.sessionID,
 	}
 
 	respBody, err := c.post(ctx, "/api/v1/flags/evaluate", body)
@@ -231,4 +248,7 @@ func (c *Client) post(ctx context.Context, path string, payload interface{}) ([]
 func (c *Client) setAuthHeaders(req *http.Request) {
 	req.Header.Set("Authorization", "ApiKey "+c.apiKey)
 	req.Header.Set("Accept", "application/json")
+	if c.sessionID != "" {
+		req.Header.Set("X-DeploySentry-Session", c.sessionID)
+	}
 }

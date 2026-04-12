@@ -1,6 +1,8 @@
 import { Navigate } from 'react-router-dom';
 
-interface LegacyRedirectProps { to: string; }
+interface LegacyRedirectProps {
+  to: string;
+}
 
 export default function LegacyRedirect({ to }: LegacyRedirectProps) {
   const lastOrg = localStorage.getItem('ds_last_org') || '';
@@ -12,7 +14,9 @@ export default function LegacyRedirect({ to }: LegacyRedirectProps) {
   if (!lastProject) return <Navigate to={`/orgs/${lastOrg}/projects`} replace />;
 
   if ((to === 'deployments' || to === 'releases') && lastApp) {
-    return <Navigate to={`/orgs/${lastOrg}/projects/${lastProject}/apps/${lastApp}/${to}`} replace />;
+    return (
+      <Navigate to={`/orgs/${lastOrg}/projects/${lastProject}/apps/${lastApp}/${to}`} replace />
+    );
   }
   if (to === 'deployments' || to === 'releases') {
     return <Navigate to={`/orgs/${lastOrg}/projects/${lastProject}/flags`} replace />;

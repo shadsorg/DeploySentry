@@ -163,10 +163,10 @@ func runConfigInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to write configuration file: %w", err)
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Configuration file created: %s\n", configPath)
-	fmt.Fprintf(cmd.OutOrStdout(), "\nEdit the file to set your organization and project, or use:\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  deploysentry config set org <your-org>\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  deploysentry config set project <your-project>\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Configuration file created: %s\n", configPath)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nEdit the file to set your organization and project, or use:\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  deploysentry config set org <your-org>\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  deploysentry config set project <your-project>\n")
 	return nil
 }
 
@@ -213,7 +213,7 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Set %s = %s\n", key, value)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Set %s = %s\n", key, value)
 	return nil
 }
 
@@ -222,10 +222,10 @@ func runConfigGet(cmd *cobra.Command, args []string) error {
 
 	value := viper.Get(key)
 	if value == nil {
-		fmt.Fprintf(cmd.OutOrStdout(), "%s is not set\n", key)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s is not set\n", key)
 		return nil
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "%s = %v\n", key, value)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s = %v\n", key, value)
 	return nil
 }

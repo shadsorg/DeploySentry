@@ -136,6 +136,34 @@ assert client.bool_value("any-flag", default=True) is True
 
 The SDK automatically opens an SSE connection to `/api/v1/flags/stream` after `initialize()`. Flag changes are applied immediately and the evaluation cache is invalidated for updated keys. The SSE client reconnects automatically with exponential backoff on connection loss.
 
+## Authentication
+
+All requests use an API key passed in the `Authorization` header:
+
+```
+Authorization: ApiKey <your-api-key>
+```
+
+Pass the key via the client constructor. The SDK sets the header automatically.
+
+### Session Consistency
+
+Bind evaluations to a session so the server caches results for a consistent user experience:
+
+```python
+client = DeploySentryClient(
+    api_key="ds_key_xxxxxxxxxxxx",
+    environment="production",
+    project="my-project",
+    session_id=f"user:{user_id}",
+)
+client.refresh_session()
+```
+
+- The session ID is sent as an `X-DeploySentry-Session` header on every request.
+- The server caches evaluation results per session for 30 minutes (sliding TTL).
+- Omit the session ID to always get fresh evaluations on each request.
+
 ## License
 
 Apache-2.0

@@ -57,6 +57,8 @@ const (
 	RuleTypeSegment RuleType = "segment"
 	// RuleTypeSchedule activates based on a time window.
 	RuleTypeSchedule RuleType = "schedule"
+	// RuleTypeCompound combines multiple attribute conditions using AND/OR logic.
+	RuleTypeCompound RuleType = "compound"
 )
 
 // FeatureFlag represents a feature flag configuration.
@@ -96,8 +98,10 @@ type TargetingRule struct {
 	Operator   string    `json:"operator,omitempty" db:"operator"`
 	// TargetValues holds the list of values to match against (user IDs, segments, etc.).
 	TargetValues []string   `json:"target_values,omitempty" db:"-"`
-	SegmentID    *uuid.UUID `json:"segment_id,omitempty" db:"segment_id"`
-	StartTime    *time.Time `json:"start_time,omitempty" db:"start_time"`
+	SegmentID    *uuid.UUID          `json:"segment_id,omitempty" db:"segment_id"`
+	Conditions   []CompoundCondition `json:"conditions,omitempty" db:"-"`
+	CombineOp    string              `json:"combine_op,omitempty" db:"combine_op"`
+	StartTime    *time.Time          `json:"start_time,omitempty" db:"start_time"`
 	EndTime      *time.Time `json:"end_time,omitempty" db:"end_time"`
 	Enabled      bool       `json:"enabled" db:"enabled"`
 	CreatedAt    time.Time  `json:"created_at" db:"created_at"`
@@ -121,6 +125,7 @@ type FlagEvaluationResult struct {
 	RuleID      string        `json:"rule_id,omitempty"`
 	VariationID string        `json:"variation_id,omitempty"`
 	Metadata    *FlagMetadata `json:"metadata,omitempty"`
+	Error       string        `json:"error,omitempty"`
 }
 
 // FlagMetadata contains descriptive information about a flag returned alongside
@@ -132,6 +137,13 @@ type FlagMetadata struct {
 	IsPermanent bool         `json:"is_permanent"`
 	ExpiresAt   *time.Time   `json:"expires_at,omitempty"`
 	Tags        []string     `json:"tags,omitempty"`
+}
+
+// CompoundCondition defines a single condition in a compound rule or segment.
+type CompoundCondition struct {
+	Attribute string `json:"attribute"`
+	Operator  string `json:"operator"`
+	Value     string `json:"value"`
 }
 
 // Validate checks that the FeatureFlag has all required fields populated.

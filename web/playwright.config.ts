@@ -30,6 +30,26 @@ export default defineConfig({
       fullyParallel: true,
       retries: 1,
     },
+    {
+      name: 'sdk-setup',
+      testDir: './e2e/sdk',
+      testMatch: /global-setup\.ts/,
+    },
+    {
+      name: 'sdk',
+      testDir: './e2e/sdk',
+      testIgnore: /global-setup\.ts/,
+      dependencies: ['sdk-setup'],
+      timeout: 90_000,
+      use: {
+        baseURL: 'http://localhost:3001',
+        browserName: 'chromium',
+        trace: 'on-first-retry',
+      },
+      fullyParallel: false,
+      workers: 1,
+      retries: 2,
+    },
   ],
 
   webServer: {

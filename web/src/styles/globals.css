@@ -1817,3 +1817,35 @@ tbody tr:last-child td {
     stroke-dashoffset: 0 !important;
   }
 }
+
+/* Pillars */
+.pillars-section { padding: 100px 24px; background: #070b10; border-top: 1px solid #1f2937; }
+.pillars-inner { max-width: 1100px; margin: 0 auto; }
+.pillar-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 60px;
+}
+.pillar-card {
+  background: #0f1419; border: 1px solid #1f2937; border-radius: 10px;
+  padding: 32px 28px; position: relative;
+}
+.pillar-icon {
+  width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: rgba(59,130,246,0.1); color: #3b82f6;
+  font-size: 22px; margin-bottom: 20px;
+}
+.pillar-label {
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 11px; color: #6b7280; letter-spacing: 0.15em; margin-bottom: 8px;
+}
+.pillar-title { font-size: 20px; color: #f3f4f6; margin: 0 0 12px 0; }
+.pillar-body { font-size: 14px; line-height: 1.6; color: #9ca3af; margin: 0; }
+.pillar-tag {
+  display: inline-block; margin-top: 18px;
+  padding: 4px 10px; border-radius: 99px;
+  background: rgba(139,92,246,0.12); color: #a78bfa;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  font-size: 10px; letter-spacing: 0.1em;
+}
+@media (max-width: 900px) {
+  .pillar-grid { grid-template-columns: 1fr; }
+}

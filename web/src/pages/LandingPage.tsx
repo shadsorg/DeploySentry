@@ -1,6 +1,7 @@
 import SiteHeader from '@/components/SiteHeader';
 import Hero from '@/components/landing/Hero';
 import DeployReleaseFlow from '@/components/landing/DeployReleaseFlow';
+import PillarsSection from '@/components/landing/PillarsSection';
 
 export default function LandingPage() {
   return (
@@ -9,6 +10,7 @@ export default function LandingPage() {
       <main className="landing-main">
         <Hero />
         <DeployReleaseFlow />
+        <PillarsSection />
       </main>
     </div>
   );

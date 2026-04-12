@@ -2,7 +2,13 @@ import { spawn, type ChildProcess } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { type Browser, type BrowserContext, type Page } from '@playwright/test';
+
+// ESM-safe __dirname. Playwright loads specs as ES modules, so the
+// CommonJS `__dirname` global is not available.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export interface Observation {
   flagKey: string;
@@ -95,6 +101,12 @@ export async function startReactProbe(
 ): Promise<ReactProbe> {
   const bctx = await browser.newContext();
   const page = await bctx.newPage();
+  page.on('console', (msg) => {
+    process.stderr.write(`[react-probe:${msg.type()}] ${msg.text()}\n`);
+  });
+  page.on('pageerror', (err) => {
+    process.stderr.write(`[react-probe:pageerror] ${err.message}\n`);
+  });
   const qs = new URLSearchParams({
     apiUrl: ctx.apiUrl,
     apiKey: ctx.apiKey,

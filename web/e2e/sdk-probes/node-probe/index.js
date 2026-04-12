@@ -58,7 +58,13 @@ async function tick() {
         const realKey = key.slice('variant:'.length);
         value = await client.stringValue(realKey, 'control', context);
       } else {
-        value = await client.boolValue(key, false, context);
+        // Use detail() so we observe the server-side `enabled` state in
+        // addition to the raw value. The toggle test toggles `enabled`
+        // through the dashboard; the evaluator returns default_value
+        // either way (no targeting rules), so observing `enabled` is the
+        // only way to verify SSE propagation of a toggle.
+        const detail = await client.detail(key, context);
+        value = detail?.enabled ?? false;
       }
       record(key, value);
     } catch (err) {

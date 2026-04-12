@@ -4,6 +4,8 @@ import DeployReleaseFlow from '@/components/landing/DeployReleaseFlow';
 import PillarsSection from '@/components/landing/PillarsSection';
 import CodeContrast from '@/components/landing/CodeContrast';
 import LifecycleStrip from '@/components/landing/LifecycleStrip';
+import CTASection from '@/components/landing/CTASection';
+import Footer from '@/components/landing/Footer';
 
 export default function LandingPage() {
   return (
@@ -15,7 +17,9 @@ export default function LandingPage() {
         <PillarsSection />
         <CodeContrast />
         <LifecycleStrip />
+        <CTASection />
       </main>
+      <Footer />
     </div>
   );
 }

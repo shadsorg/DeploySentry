@@ -13,7 +13,7 @@ test.describe('API Keys Page', () => {
   });
 
   test('create key and reveal token', async ({ page }) => {
-    await page.route('**/api/v1/api-keys', async (route) => {
+    await page.route(/\/api\/v1\/api-keys(\?.*)?$/, async (route) => {
       if (route.request().method() === 'POST') {
         await route.fulfill({
           status: 201,
@@ -27,25 +27,16 @@ test.describe('API Keys Page', () => {
         });
         return;
       }
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          api_keys: [
-            { id: 'key-1', name: 'CI/CD Pipeline Key', prefix: 'ds_live_a1b2c3' },
-            { id: 'key-2', name: 'Read-Only SDK Key', prefix: 'ds_live_d4e5f6' },
-          ],
-        }),
-      });
+      await route.fallback();
     });
 
-    const createBtn = page.getByRole('button', { name: /create|new|generate/i });
+    const createBtn = page.getByRole('button', { name: /create api key/i });
     await createBtn.click();
-    const nameInput = page.getByPlaceholder(/name|key name/i).first();
-    if (await nameInput.isVisible()) {
-      await nameInput.fill('New Test Key');
-    }
-    await page.getByRole('button', { name: /create|save|generate/i }).last().click();
+    const nameInput = page.getByPlaceholder(/production backend/i);
+    await nameInput.fill('New Test Key');
+    // Must select at least one scope for the form to submit
+    await page.getByLabel('flags:read').check();
+    await page.getByRole('button', { name: /create key/i }).click();
 
     // The token should be revealed after creation
     await expect(page.getByText(/ds_live_newkey/i)).toBeVisible();

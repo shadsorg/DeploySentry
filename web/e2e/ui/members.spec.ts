@@ -14,7 +14,7 @@ test.describe('Members Page', () => {
 
   test('add member calls POST API', async ({ page }) => {
     let postCalled = false;
-    await page.route('**/api/v1/orgs/test-org/members', async (route) => {
+    await page.route(/\/api\/v1\/orgs\/test-org\/members(\?.*)?$/, async (route) => {
       if (route.request().method() === 'POST') {
         postCalled = true;
         await route.fulfill({
@@ -29,23 +29,12 @@ test.describe('Members Page', () => {
         });
         return;
       }
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          members: [
-            { id: 'mem-1', name: 'Alice Smith', email: 'alice@example.com', role: 'owner' },
-            { id: 'mem-2', name: 'Bob Johnson', email: 'bob@example.com', role: 'member' },
-          ],
-        }),
-      });
+      await route.fallback();
     });
 
-    const addBtn = page.getByRole('button', { name: /add member|invite/i });
-    await addBtn.click();
-    const emailInput = page.getByPlaceholder(/email/i).first();
+    const emailInput = page.getByPlaceholder(/email/i);
     await emailInput.fill('carol@example.com');
-    await page.getByRole('button', { name: /send invite|add|invite/i }).last().click();
+    await page.getByRole('button', { name: /^add$/i }).click();
     expect(postCalled).toBe(true);
   });
 });

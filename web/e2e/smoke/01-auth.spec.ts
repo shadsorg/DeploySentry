@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { TEST_USER, loginAndSaveState } from '../helpers/auth';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const AUTH_FILE = path.join(__dirname, '..', '.auth', 'user.json');
 
 test.describe.configure({ mode: 'serial' });

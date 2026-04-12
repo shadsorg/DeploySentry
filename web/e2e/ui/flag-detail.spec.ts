@@ -8,32 +8,25 @@ test.describe('Flag Detail Page', () => {
   });
 
   test('renders flag metadata', async ({ page }) => {
-    await expect(page.getByText('Dark Mode')).toBeVisible();
-    await expect(page.getByText('dark-mode')).toBeVisible();
-    await expect(page.getByText(/feature/i)).toBeVisible();
+    await expect(page.locator('.detail-header-title')).toHaveText('Dark Mode');
+    await expect(page.locator('.detail-header-subtitle')).toHaveText('dark-mode');
+    await expect(page.locator(`.badge`).filter({ hasText: 'feature' })).toBeVisible();
   });
 
-  test('toggle calls toggle API', async ({ page }) => {
-    let toggleCalled = false;
-    await page.route('**/api/v1/flags/flag-1/toggle', async (route) => {
-      toggleCalled = true;
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ id: 'flag-1', enabled: false }),
-      });
-    });
-
-    const toggle = page.getByRole('switch').or(page.getByRole('checkbox', { name: /toggle|enabled/i })).first();
-    await toggle.click();
-    expect(toggleCalled).toBe(true);
+  test('toggle changes enabled state', async ({ page }) => {
+    // Initially enabled
+    await expect(page.locator('label.toggle')).toContainText('Enabled');
+    // Click the toggle label
+    await page.locator('label.toggle').click();
+    // Should now show Disabled
+    await expect(page.locator('label.toggle')).toContainText('Disabled');
   });
 
   test('targeting rules tab shows rules', async ({ page }) => {
-    const rulesTab = page.getByRole('tab', { name: /rules|targeting/i });
+    const rulesTab = page.locator('button.detail-tab', { hasText: /targeting rules/i });
     if (await rulesTab.isVisible()) {
       await rulesTab.click();
     }
-    await expect(page.getByText(/percentage|user_target|rule/i).first()).toBeVisible();
+    await expect(page.getByText(/percentage|user_target/i).first()).toBeVisible();
   });
 });

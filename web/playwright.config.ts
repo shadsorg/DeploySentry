@@ -42,7 +42,7 @@ export default defineConfig({
       dependencies: ['sdk-setup'],
       timeout: 90_000,
       use: {
-        baseURL: 'http://localhost:3001',
+        baseURL: 'http://localhost:3002',
         browserName: 'chromium',
         trace: 'on-first-retry',
       },
@@ -52,9 +52,22 @@ export default defineConfig({
     },
   ],
 
-  webServer: {
-    command: 'npm run dev',
-    port: 3001,
-    reuseExistingServer: true,
-  },
+  // Two Vite dev servers run side-by-side so smoke/ui and sdk projects can
+  // each talk to their own backend. Playwright starts every entry on every
+  // `playwright test` invocation; the :3002 instance is lightweight enough
+  // that always-on is simpler than gating via env var.
+  webServer: [
+    {
+      command: 'npm run dev',
+      port: 3001,
+      reuseExistingServer: true,
+      timeout: 60_000,
+    },
+    {
+      command: 'VITE_API_PROXY_TARGET=http://localhost:18080 VITE_DEV_PORT=3002 npm run dev',
+      port: 3002,
+      reuseExistingServer: true,
+      timeout: 60_000,
+    },
+  ],
 });

@@ -228,7 +228,7 @@ func (h *Handler) reportErrors(c *gin.Context) {
 
 	entries := make([]ErrorReportEntry, len(req.Stats))
 	for i, s := range req.Stats {
-		entries[i] = ErrorReportEntry{FlagKey: s.FlagKey, Evaluations: s.Evaluations, Errors: s.Errors}
+		entries[i] = ErrorReportEntry(s)
 	}
 
 	if err := h.service.ReportErrors(c.Request.Context(), req.ProjectID, entries, req.EnvironmentID, req.OrgID); err != nil {

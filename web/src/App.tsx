@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import { AuthProvider, RequireAuth, RedirectIfAuth } from './auth';
 import HierarchyLayout from './components/HierarchyLayout';
 import DefaultRedirect from './components/DefaultRedirect';
@@ -22,12 +23,16 @@ import APIKeysPage from './pages/APIKeysPage';
 import CreateAppPage from './pages/CreateAppPage';
 import ApplicationsListPage from './pages/ApplicationsListPage';
 import CreateProjectPage from './pages/CreateProjectPage';
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const DocsPage = lazy(() => import('./pages/DocsPage'));
 
 export default function App() {
   return (
     <AuthProvider>
+      <Suspense fallback={<div className="page-loading">Loading...</div>}>
       <Routes>
         {/* Public routes */}
+        <Route path="/" element={<LandingPage />} />
         <Route element={<RedirectIfAuth />}>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -35,8 +40,9 @@ export default function App() {
 
         {/* Authenticated routes */}
         <Route element={<RequireAuth />}>
-          {/* Default redirect */}
-          <Route path="/" element={<DefaultRedirect />} />
+          <Route path="/portal" element={<DefaultRedirect />} />
+          <Route path="/docs" element={<DocsPage />} />
+          <Route path="/docs/:slug" element={<DocsPage />} />
 
           {/* Create org (outside HierarchyLayout — no sidebar context yet) */}
           <Route path="/orgs/new" element={<CreateOrgPage />} />
@@ -85,6 +91,7 @@ export default function App() {
           <Route path="/settings" element={<LegacyRedirect to="settings" />} />
         </Route>
       </Routes>
+      </Suspense>
     </AuthProvider>
   );
 }

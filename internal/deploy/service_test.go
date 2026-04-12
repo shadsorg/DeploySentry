@@ -514,24 +514,28 @@ func TestGetActiveDeployments(t *testing.T) {
 
 	// 1. Pending (active)
 	d1 := validDeployment()
+	d1.ID = uuid.New()
 	d1.ApplicationID = appID
 	d1.Status = models.DeployStatusPending
 	_ = repo.CreateDeployment(context.Background(), d1)
 
 	// 2. Running (active)
 	d2 := validDeployment()
+	d2.ID = uuid.New()
 	d2.ApplicationID = appID
 	d2.Status = models.DeployStatusRunning
 	_ = repo.CreateDeployment(context.Background(), d2)
 
 	// 3. Completed (terminal)
 	d3 := validDeployment()
+	d3.ID = uuid.New()
 	d3.ApplicationID = appID
 	d3.Status = models.DeployStatusCompleted
 	_ = repo.CreateDeployment(context.Background(), d3)
 
 	// 4. Failed (terminal)
 	d4 := validDeployment()
+	d4.ID = uuid.New()
 	d4.ApplicationID = appID
 	d4.Status = models.DeployStatusFailed
 	_ = repo.CreateDeployment(context.Background(), d4)

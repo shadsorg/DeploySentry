@@ -11,7 +11,12 @@ export default function CreateOrgPage() {
 
   function handleNameChange(value: string) {
     setName(value);
-    setSlug(value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+    setSlug(
+      value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, ''),
+    );
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -38,16 +43,32 @@ export default function CreateOrgPage() {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label">Organization Name</label>
-            <input type="text" className="form-input" value={name}
-              onChange={(e) => handleNameChange(e.target.value)} placeholder="Acme Corp" required />
+            <input
+              type="text"
+              className="form-input"
+              value={name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              placeholder="Acme Corp"
+              required
+            />
           </div>
           <div className="form-group">
             <label className="form-label">Slug</label>
-            <input type="text" className="form-input" value={slug}
-              onChange={(e) => setSlug(e.target.value)} placeholder="acme-corp" required />
+            <input
+              type="text"
+              className="form-input"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value)}
+              placeholder="acme-corp"
+              required
+            />
           </div>
-          <button type="submit" className="btn btn-primary" style={{ width: '100%' }}
-            disabled={submitting}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            style={{ width: '100%' }}
+            disabled={submitting}
+          >
             {submitting ? 'Creating...' : 'Create Organization'}
           </button>
         </form>

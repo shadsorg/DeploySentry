@@ -35,7 +35,11 @@ interface AnalyticsSummaryData {
   p99_latency_ms: number;
 }
 
-export default function AnalyticsSummary({ projectId, environmentId, timeRange }: AnalyticsSummaryProps) {
+export default function AnalyticsSummary({
+  projectId,
+  environmentId,
+  timeRange,
+}: AnalyticsSummaryProps) {
   const [data, setData] = useState<AnalyticsSummaryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +50,7 @@ export default function AnalyticsSummary({ projectId, environmentId, timeRange }
         setLoading(true);
         setError(null);
         const response = await fetch(
-          `/api/v1/analytics/summary?project_id=${projectId}&environment_id=${environmentId}&time_range=${timeRange}`
+          `/api/v1/analytics/summary?project_id=${projectId}&environment_id=${environmentId}&time_range=${timeRange}`,
         );
 
         if (!response.ok) {
@@ -100,13 +104,13 @@ export default function AnalyticsSummary({ projectId, environmentId, timeRange }
     return <div className="error-message">No data available</div>;
   }
 
-  const successRate = data.total_deployments > 0
-    ? (data.successful_deployments / data.total_deployments * 100).toFixed(1)
-    : '0';
+  const successRate =
+    data.total_deployments > 0
+      ? ((data.successful_deployments / data.total_deployments) * 100).toFixed(1)
+      : '0';
 
-  const apiErrorRate = data.api_requests > 0
-    ? (data.api_errors / data.api_requests * 100).toFixed(3)
-    : '0';
+  const apiErrorRate =
+    data.api_requests > 0 ? ((data.api_errors / data.api_requests) * 100).toFixed(3) : '0';
 
   return (
     <div className="analytics-summary">
@@ -136,7 +140,9 @@ export default function AnalyticsSummary({ projectId, environmentId, timeRange }
             </div>
           </div>
           <div className="summary-footer">
-            <span className="active-flags">{data.active_flags} of {data.total_flags} flags active</span>
+            <span className="active-flags">
+              {data.active_flags} of {data.total_flags} flags active
+            </span>
             <span className={`error-rate ${data.error_rate < 0.1 ? 'good' : 'warning'}`}>
               {data.error_rate.toFixed(2)}% error rate
             </span>
@@ -168,10 +174,10 @@ export default function AnalyticsSummary({ projectId, environmentId, timeRange }
             </div>
           </div>
           <div className="summary-footer">
-            <span className="successful-deployments">
-              {data.successful_deployments} successful
-            </span>
-            <span className={`failed-deployments ${data.failed_deployments > 0 ? 'warning' : 'good'}`}>
+            <span className="successful-deployments">{data.successful_deployments} successful</span>
+            <span
+              className={`failed-deployments ${data.failed_deployments > 0 ? 'warning' : 'good'}`}
+            >
               {data.failed_deployments} failed
             </span>
           </div>
@@ -203,7 +209,11 @@ export default function AnalyticsSummary({ projectId, environmentId, timeRange }
           </div>
           <div className="summary-footer">
             <span className="requests-per-minute">
-              {Math.round(data.api_requests / (timeRange === '24h' ? 1440 : timeRange === '7d' ? 10080 : 43200))} req/min avg
+              {Math.round(
+                data.api_requests /
+                  (timeRange === '24h' ? 1440 : timeRange === '7d' ? 10080 : 43200),
+              )}{' '}
+              req/min avg
             </span>
             <span className={`error-rate ${parseFloat(apiErrorRate) < 0.1 ? 'good' : 'warning'}`}>
               {apiErrorRate}% error rate
@@ -227,7 +237,9 @@ export default function AnalyticsSummary({ projectId, environmentId, timeRange }
             <div className="indicator-value">{data.error_rate.toFixed(2)}% errors</div>
           </div>
 
-          <div className={`health-indicator ${parseFloat(successRate) > 90 ? 'healthy' : 'warning'}`}>
+          <div
+            className={`health-indicator ${parseFloat(successRate) > 90 ? 'healthy' : 'warning'}`}
+          >
             <div className="indicator-icon">🚀</div>
             <div className="indicator-text">
               <div className="indicator-title">Deployments</div>
@@ -238,7 +250,9 @@ export default function AnalyticsSummary({ projectId, environmentId, timeRange }
             <div className="indicator-value">{successRate}% success</div>
           </div>
 
-          <div className={`health-indicator ${parseFloat(apiErrorRate) < 0.1 ? 'healthy' : 'warning'}`}>
+          <div
+            className={`health-indicator ${parseFloat(apiErrorRate) < 0.1 ? 'healthy' : 'warning'}`}
+          >
             <div className="indicator-icon">⚡</div>
             <div className="indicator-text">
               <div className="indicator-title">API Performance</div>

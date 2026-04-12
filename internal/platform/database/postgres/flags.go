@@ -75,6 +75,8 @@ func scanFeatureFlag(row pgx.Row) (*models.FeatureFlag, error) {
 // The SELECT must include columns in the order defined by ruleSelectCols.
 func scanTargetingRule(row pgx.Row) (*models.TargetingRule, error) {
 	var r models.TargetingRule
+	var conditionsBytes []byte
+	var combineOp string
 
 	err := row.Scan(
 		&r.ID,
@@ -92,12 +94,21 @@ func scanTargetingRule(row pgx.Row) (*models.TargetingRule, error) {
 		&r.Enabled,
 		&r.CreatedAt,
 		&r.UpdatedAt,
+		&conditionsBytes,
+		&combineOp,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, err
+	}
+
+	if r.RuleType == "compound" && len(conditionsBytes) > 0 {
+		if err := json.Unmarshal(conditionsBytes, &r.Conditions); err != nil {
+			return nil, fmt.Errorf("scanTargetingRule: unmarshal conditions: %w", err)
+		}
+		r.CombineOp = combineOp
 	}
 
 	return &r, nil
@@ -134,7 +145,9 @@ const ruleSelectCols = `
 	segment_id,
 	start_time, end_time,
 	enabled,
-	created_at, updated_at`
+	created_at, updated_at,
+	COALESCE(conditions, '[]'),
+	COALESCE(combine_op, '')`
 
 // ---------------------------------------------------------------------------
 // FeatureFlag methods
@@ -340,15 +353,26 @@ func (r *FlagRepository) CreateRule(ctx context.Context, rule *models.TargetingR
 	rule.CreatedAt = now
 	rule.UpdatedAt = now
 
+	conditionsJSON := []byte("[]")
+	combineOp := ""
+	if rule.RuleType == "compound" {
+		var err error
+		conditionsJSON, err = json.Marshal(rule.Conditions)
+		if err != nil {
+			return fmt.Errorf("postgres.CreateRule: marshal conditions: %w", err)
+		}
+		combineOp = rule.CombineOp
+	}
+
 	const q = `
 		INSERT INTO flag_targeting_rules
 			(id, flag_id, environment, rule_type, priority, value, percentage,
 			 attribute, operator, target_values, segment_id, start_time, end_time,
-			 enabled, conditions, serve_value, created_at, updated_at)
+			 enabled, conditions, combine_op, serve_value, created_at, updated_at)
 		VALUES
 			($1, $2, '', $3, $4, $5, $6,
 			 $7, $8, $9, $10, $11, $12,
-			 $13, '{}', '{}', $14, $15)`
+			 $13, $14, $15, '{}', $16, $17)`
 
 	_, err := r.pool.Exec(ctx, q,
 		rule.ID,
@@ -364,6 +388,8 @@ func (r *FlagRepository) CreateRule(ctx context.Context, rule *models.TargetingR
 		rule.StartTime,
 		rule.EndTime,
 		rule.Enabled,
+		conditionsJSON,
+		combineOp,
 		rule.CreatedAt,
 		rule.UpdatedAt,
 	)
@@ -414,6 +440,17 @@ func (r *FlagRepository) ListRules(ctx context.Context, flagID uuid.UUID) ([]*mo
 func (r *FlagRepository) UpdateRule(ctx context.Context, rule *models.TargetingRule) error {
 	rule.UpdatedAt = time.Now().UTC()
 
+	conditionsJSON := []byte("[]")
+	combineOp := ""
+	if rule.RuleType == "compound" {
+		var err error
+		conditionsJSON, err = json.Marshal(rule.Conditions)
+		if err != nil {
+			return fmt.Errorf("postgres.UpdateRule: marshal conditions: %w", err)
+		}
+		combineOp = rule.CombineOp
+	}
+
 	const q = `
 		UPDATE flag_targeting_rules SET
 			rule_type     = $2,
@@ -427,7 +464,9 @@ func (r *FlagRepository) UpdateRule(ctx context.Context, rule *models.TargetingR
 			start_time    = $10,
 			end_time      = $11,
 			enabled       = $12,
-			updated_at    = $13
+			conditions    = $13,
+			combine_op    = $14,
+			updated_at    = $15
 		WHERE id = $1`
 
 	tag, err := r.pool.Exec(ctx, q,
@@ -443,6 +482,8 @@ func (r *FlagRepository) UpdateRule(ctx context.Context, rule *models.TargetingR
 		rule.StartTime,
 		rule.EndTime,
 		rule.Enabled,
+		conditionsJSON,
+		combineOp,
 		rule.UpdatedAt,
 	)
 	if err != nil {
@@ -587,12 +628,250 @@ func (r *FlagRepository) WriteEvaluationLog(ctx context.Context, logs []flags.Ev
 	}
 
 	results := r.pool.SendBatch(ctx, batch)
-	defer results.Close()
+	defer func() { _ = results.Close() }()
 
 	for range logs {
 		if _, err := results.Exec(); err != nil {
 			return fmt.Errorf("postgres.WriteEvaluationLog: %w", err)
 		}
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Segment methods
+// ---------------------------------------------------------------------------
+
+// scanSegment reads a single Segment row from the given pgx.Row.
+// The SELECT must include columns: id, project_id, key, name, description, combine_op, created_at, updated_at.
+func scanSegment(row pgx.Row) (*models.Segment, error) {
+	var s models.Segment
+	err := row.Scan(
+		&s.ID,
+		&s.ProjectID,
+		&s.Key,
+		&s.Name,
+		&s.Description,
+		&s.CombineOp,
+		&s.CreatedAt,
+		&s.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &s, nil
+}
+
+const segmentSelectCols = `
+	id, project_id, key, name,
+	COALESCE(description, ''),
+	COALESCE(combine_op, 'and'),
+	created_at, updated_at`
+
+// loadSegmentConditions fetches all conditions for the given segment ID and
+// attaches them to the segment.
+func (r *FlagRepository) loadSegmentConditions(ctx context.Context, seg *models.Segment) error {
+	const q = `
+		SELECT id, segment_id, attribute, operator, value, priority, created_at
+		FROM segment_conditions
+		WHERE segment_id = $1
+		ORDER BY priority ASC`
+
+	rows, err := r.pool.Query(ctx, q, seg.ID)
+	if err != nil {
+		return fmt.Errorf("postgres.loadSegmentConditions: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var c models.SegmentCondition
+		if err := rows.Scan(&c.ID, &c.SegmentID, &c.Attribute, &c.Operator, &c.Value, &c.Priority, &c.CreatedAt); err != nil {
+			return fmt.Errorf("postgres.loadSegmentConditions: %w", err)
+		}
+		seg.Conditions = append(seg.Conditions, c)
+	}
+	return rows.Err()
+}
+
+// CreateSegment inserts a new segment and its conditions into the database
+// within a single transaction.
+func (r *FlagRepository) CreateSegment(ctx context.Context, segment *models.Segment) error {
+	if segment.ID == uuid.Nil {
+		segment.ID = uuid.New()
+	}
+	now := time.Now().UTC()
+	segment.CreatedAt = now
+	segment.UpdatedAt = now
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("postgres.CreateSegment: begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	const q = `
+		INSERT INTO segments (id, project_id, key, name, description, combine_op, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+
+	_, err = tx.Exec(ctx, q,
+		segment.ID, segment.ProjectID, segment.Key, segment.Name,
+		segment.Description, segment.CombineOp, segment.CreatedAt, segment.UpdatedAt,
+	)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return ErrConflict
+		}
+		return fmt.Errorf("postgres.CreateSegment: %w", err)
+	}
+
+	for i := range segment.Conditions {
+		c := &segment.Conditions[i]
+		if c.ID == uuid.Nil {
+			c.ID = uuid.New()
+		}
+		c.SegmentID = segment.ID
+		c.CreatedAt = now
+
+		const cq = `
+			INSERT INTO segment_conditions (id, segment_id, attribute, operator, value, priority, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`
+		if _, err := tx.Exec(ctx, cq, c.ID, c.SegmentID, c.Attribute, c.Operator, c.Value, c.Priority, c.CreatedAt); err != nil {
+			return fmt.Errorf("postgres.CreateSegment condition: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("postgres.CreateSegment: commit: %w", err)
+	}
+	return nil
+}
+
+// GetSegment retrieves a segment by its unique identifier, including conditions.
+func (r *FlagRepository) GetSegment(ctx context.Context, id uuid.UUID) (*models.Segment, error) {
+	q := `SELECT` + segmentSelectCols + ` FROM segments WHERE id = $1`
+	seg, err := scanSegment(r.pool.QueryRow(ctx, q, id))
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("postgres.GetSegment: %w", err)
+	}
+	if err := r.loadSegmentConditions(ctx, seg); err != nil {
+		return nil, fmt.Errorf("postgres.GetSegment: %w", err)
+	}
+	return seg, nil
+}
+
+// GetSegmentByKey retrieves a segment by project ID and key, including conditions.
+func (r *FlagRepository) GetSegmentByKey(ctx context.Context, projectID uuid.UUID, key string) (*models.Segment, error) {
+	q := `SELECT` + segmentSelectCols + ` FROM segments WHERE project_id = $1 AND key = $2`
+	seg, err := scanSegment(r.pool.QueryRow(ctx, q, projectID, key))
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("postgres.GetSegmentByKey: %w", err)
+	}
+	if err := r.loadSegmentConditions(ctx, seg); err != nil {
+		return nil, fmt.Errorf("postgres.GetSegmentByKey: %w", err)
+	}
+	return seg, nil
+}
+
+// ListSegments returns all segments for a project, each with their conditions.
+func (r *FlagRepository) ListSegments(ctx context.Context, projectID uuid.UUID) ([]*models.Segment, error) {
+	q := `SELECT` + segmentSelectCols + ` FROM segments WHERE project_id = $1 ORDER BY created_at DESC`
+	rows, err := r.pool.Query(ctx, q, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("postgres.ListSegments: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*models.Segment
+	for rows.Next() {
+		seg, err := scanSegment(rows)
+		if err != nil {
+			return nil, fmt.Errorf("postgres.ListSegments: %w", err)
+		}
+		result = append(result, seg)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("postgres.ListSegments: %w", err)
+	}
+
+	for _, seg := range result {
+		if err := r.loadSegmentConditions(ctx, seg); err != nil {
+			return nil, fmt.Errorf("postgres.ListSegments: %w", err)
+		}
+	}
+	return result, nil
+}
+
+// UpdateSegment persists changes to an existing segment within a transaction:
+// UPDATE segments, DELETE old conditions, INSERT new conditions.
+func (r *FlagRepository) UpdateSegment(ctx context.Context, segment *models.Segment) error {
+	segment.UpdatedAt = time.Now().UTC()
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("postgres.UpdateSegment: begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	const q = `
+		UPDATE segments SET
+			name        = $2,
+			description = $3,
+			combine_op  = $4,
+			updated_at  = $5
+		WHERE id = $1`
+
+	tag, err := tx.Exec(ctx, q, segment.ID, segment.Name, segment.Description, segment.CombineOp, segment.UpdatedAt)
+	if err != nil {
+		return fmt.Errorf("postgres.UpdateSegment: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+
+	if _, err := tx.Exec(ctx, `DELETE FROM segment_conditions WHERE segment_id = $1`, segment.ID); err != nil {
+		return fmt.Errorf("postgres.UpdateSegment delete conditions: %w", err)
+	}
+
+	now := time.Now().UTC()
+	for i := range segment.Conditions {
+		c := &segment.Conditions[i]
+		if c.ID == uuid.Nil {
+			c.ID = uuid.New()
+		}
+		c.SegmentID = segment.ID
+		c.CreatedAt = now
+
+		const cq = `
+			INSERT INTO segment_conditions (id, segment_id, attribute, operator, value, priority, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`
+		if _, err := tx.Exec(ctx, cq, c.ID, c.SegmentID, c.Attribute, c.Operator, c.Value, c.Priority, c.CreatedAt); err != nil {
+			return fmt.Errorf("postgres.UpdateSegment condition: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("postgres.UpdateSegment: commit: %w", err)
+	}
+	return nil
+}
+
+// DeleteSegment hard-deletes a segment. Conditions are removed via FK cascade.
+func (r *FlagRepository) DeleteSegment(ctx context.Context, id uuid.UUID) error {
+	tag, err := r.pool.Exec(ctx, `DELETE FROM segments WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("postgres.DeleteSegment: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
 	}
 	return nil
 }

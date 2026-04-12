@@ -119,14 +119,14 @@ func (s *spinner) run() {
 		select {
 		case <-s.done:
 			// Clear the spinner line.
-			fmt.Fprintf(os.Stderr, "\r\033[K")
+			_, _ = fmt.Fprintf(os.Stderr, "\r\033[K")
 			return
 		case <-ticker.C:
 			frame := frames[i%len(frames)]
 			if colorEnabled() {
-				fmt.Fprintf(os.Stderr, "\r%s %s", colorCyan(frame), s.message)
+				_, _ = fmt.Fprintf(os.Stderr, "\r%s %s", colorCyan(frame), s.message)
 			} else {
-				fmt.Fprintf(os.Stderr, "\r%s %s", frame, s.message)
+				_, _ = fmt.Fprintf(os.Stderr, "\r%s %s", frame, s.message)
 			}
 			i++
 		}
@@ -145,7 +145,7 @@ func (s *spinner) Stop() {
 // StopWithMessage terminates the spinner and prints a final status message.
 func (s *spinner) StopWithMessage(msg string) {
 	s.Stop()
-	fmt.Fprintln(os.Stderr, msg)
+	_, _ = fmt.Fprintln(os.Stderr, msg)
 }
 
 var rootCmd = &cobra.Command{
@@ -184,10 +184,10 @@ var versionCmd = &cobra.Command{
 	Short: "Print the version information",
 	Long:  `Display the version, commit hash, and build date of the DeploySentry CLI.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Fprintf(cmd.OutOrStdout(), "DeploySentry CLI\n")
-		fmt.Fprintf(cmd.OutOrStdout(), "  Version:    %s\n", version)
-		fmt.Fprintf(cmd.OutOrStdout(), "  Commit:     %s\n", commit)
-		fmt.Fprintf(cmd.OutOrStdout(), "  Build Date: %s\n", buildDate)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "DeploySentry CLI\n")
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Version:    %s\n", version)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Commit:     %s\n", commit)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Build Date: %s\n", buildDate)
 	},
 }
 
@@ -292,7 +292,7 @@ func initConfig() {
 	// Silently ignore missing config files; they are optional.
 	if err := viper.ReadInConfig(); err == nil {
 		if viper.GetBool("verbose") {
-			fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
+			_, _ = fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 		}
 	}
 }

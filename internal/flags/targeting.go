@@ -18,14 +18,6 @@ const (
 	CombineOR CombineOperator = "OR"
 )
 
-// CompoundCondition represents a single condition within a compound rule.
-// Each condition evaluates an attribute against a value using an operator.
-type CompoundCondition struct {
-	Attribute string `json:"attribute"`
-	Operator  string `json:"operator"`
-	Value     string `json:"value"`
-}
-
 // evaluatePercentageRule uses deterministic hashing to determine whether a user
 // falls within the configured traffic percentage. The hash is based on the flag
 // key and user ID, ensuring consistent assignment across evaluations.
@@ -130,44 +122,32 @@ func evaluateScheduleRule(rule *models.TargetingRule) bool {
 	return true
 }
 
-// evaluateCompoundRule evaluates multiple conditions combined with either AND
-// or OR logic. For AND, all conditions must match. For OR, at least one
-// condition must match.
-func evaluateCompoundRule(operator CombineOperator, conditions []CompoundCondition, evalCtx models.EvaluationContext) bool {
+
+// evaluateConditions evaluates a list of compound conditions against an evaluation context.
+// AND mode: all conditions must match (short-circuits on first false).
+// OR mode: any condition must match (short-circuits on first true).
+func evaluateConditions(conditions []models.CompoundCondition, op CombineOperator, evalCtx models.EvaluationContext) bool {
 	if len(conditions) == 0 {
-		return false
+		return op == CombineAND
 	}
 
-	switch operator {
-	case CombineAND:
-		for _, cond := range conditions {
-			if !evaluateSingleCondition(cond, evalCtx) {
-				return false
-			}
+	for _, cond := range conditions {
+		rule := &models.TargetingRule{
+			Attribute: cond.Attribute,
+			Operator:  cond.Operator,
+			Value:     cond.Value,
 		}
-		return true
-	case CombineOR:
-		for _, cond := range conditions {
-			if evaluateSingleCondition(cond, evalCtx) {
-				return true
-			}
-		}
-		return false
-	default:
-		return false
-	}
-}
+		match := evaluateAttributeRule(rule, evalCtx)
 
-// evaluateSingleCondition evaluates a single compound condition against the
-// evaluation context. It reuses the same operator semantics as
-// evaluateAttributeRule by constructing a temporary targeting rule.
-func evaluateSingleCondition(cond CompoundCondition, evalCtx models.EvaluationContext) bool {
-	rule := &models.TargetingRule{
-		Attribute: cond.Attribute,
-		Operator:  cond.Operator,
-		Value:     cond.Value,
+		if op == CombineAND && !match {
+			return false
+		}
+		if op == CombineOR && match {
+			return true
+		}
 	}
-	return evaluateAttributeRule(rule, evalCtx)
+
+	return op == CombineAND
 }
 
 // compareNumeric parses two strings as float64 values and returns:

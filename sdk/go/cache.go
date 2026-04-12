@@ -57,6 +57,14 @@ func (c *flagCache) set(flag Flag) {
 	}
 }
 
+// clear removes all entries from the cache.
+func (c *flagCache) clear() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.entries = make(map[string]cacheEntry)
+}
+
 // setAll replaces the entire cache with the provided flags.
 func (c *flagCache) setAll(flags []Flag) {
 	c.mu.Lock()

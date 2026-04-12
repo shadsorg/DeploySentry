@@ -1,0 +1,24 @@
+{
+  "list": {
+    "members": [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440091",
+        "user_id": "550e8400-e29b-41d4-a716-446655440001",
+        "name": "Alice Smith",
+        "email": "alice@example.com",
+        "avatar_url": null,
+        "role": "owner",
+        "joined_at": "2025-01-15T08:00:00Z"
+      },
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440092",
+        "user_id": "550e8400-e29b-41d4-a716-446655440002",
+        "name": "Bob Johnson",
+        "email": "bob@example.com",
+        "avatar_url": null,
+        "role": "member",
+        "joined_at": "2025-02-10T10:00:00Z"
+      }
+    ]
+  }
+}

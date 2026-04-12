@@ -295,19 +295,19 @@ func runDeployCreate(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	id, _ := resp["id"].(string)
 	status, _ := resp["status"].(string)
-	fmt.Fprintf(cmd.OutOrStdout(), "Deployment created successfully.\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  ID:          %s\n", id)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Release:     %s\n", release)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Environment: %s\n", env)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Strategy:    %s\n", strategy)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Status:      %s\n", status)
-	fmt.Fprintf(cmd.OutOrStdout(), "\nUse 'deploysentry deploy status %s --watch' to monitor progress.\n", id)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Deployment created successfully.\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  ID:          %s\n", id)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Release:     %s\n", release)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Environment: %s\n", env)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Strategy:    %s\n", strategy)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:      %s\n", status)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nUse 'deploysentry deploy status %s --watch' to monitor progress.\n", id)
 	return nil
 }
 
@@ -353,7 +353,7 @@ func runDeployStatus(cmd *cobra.Command, args []string) error {
 
 		if getOutputFormat() == "json" {
 			data, _ := json.MarshalIndent(resp, "", "  ")
-			fmt.Fprintln(cmd.OutOrStdout(), string(data))
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 			return nil
 		}
 
@@ -367,23 +367,23 @@ func runDeployStatus(cmd *cobra.Command, args []string) error {
 
 		if watch {
 			// Clear screen for watch mode.
-			fmt.Fprint(cmd.OutOrStdout(), "\033[2J\033[H")
+			_, _ = fmt.Fprint(cmd.OutOrStdout(), "\033[2J\033[H")
 		}
 
-		fmt.Fprintf(cmd.OutOrStdout(), "Deployment Status\n")
-		fmt.Fprintf(cmd.OutOrStdout(), "  ID:          %s\n", id)
-		fmt.Fprintf(cmd.OutOrStdout(), "  Release:     %s\n", release)
-		fmt.Fprintf(cmd.OutOrStdout(), "  Environment: %s\n", env)
-		fmt.Fprintf(cmd.OutOrStdout(), "  Strategy:    %s\n", strategy)
-		fmt.Fprintf(cmd.OutOrStdout(), "  Status:      %s\n", status)
-		fmt.Fprintf(cmd.OutOrStdout(), "  Progress:    %.0f%%\n", progress)
-		fmt.Fprintf(cmd.OutOrStdout(), "  Created:     %s\n", createdAt)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Deployment Status\n")
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  ID:          %s\n", id)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Release:     %s\n", release)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Environment: %s\n", env)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Strategy:    %s\n", strategy)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:      %s\n", status)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Progress:    %.0f%%\n", progress)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Created:     %s\n", createdAt)
 
 		// Print progress bar.
 		barWidth := 40
 		filled := int(progress / 100.0 * float64(barWidth))
 		bar := strings.Repeat("=", filled) + strings.Repeat("-", barWidth-filled)
-		fmt.Fprintf(cmd.OutOrStdout(), "\n  [%s] %.0f%%\n", bar, progress)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n  [%s] %.0f%%\n", bar, progress)
 
 		return nil
 	}
@@ -409,7 +409,7 @@ func runDeployStatus(cmd *cobra.Command, args []string) error {
 				return err
 			}
 		case <-sigCh:
-			fmt.Fprintln(cmd.OutOrStdout(), "\nStopped watching.")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "\nStopped watching.")
 			return nil
 		}
 	}
@@ -443,15 +443,15 @@ func runDeployPromote(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	status, _ := resp["status"].(string)
 	progress, _ := resp["progress"].(float64)
-	fmt.Fprintf(cmd.OutOrStdout(), "Deployment promoted successfully.\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  Status:   %s\n", status)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Progress: %.0f%%\n", progress)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Deployment promoted successfully.\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:   %s\n", status)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Progress: %.0f%%\n", progress)
 	return nil
 }
 
@@ -489,16 +489,16 @@ func runDeployRollback(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Rollback initiated successfully.\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Rollback initiated successfully.\n")
 	if id, ok := resp["id"].(string); ok {
-		fmt.Fprintf(cmd.OutOrStdout(), "  Deployment ID: %s\n", id)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Deployment ID: %s\n", id)
 	}
 	if status, ok := resp["status"].(string); ok {
-		fmt.Fprintf(cmd.OutOrStdout(), "  Status:        %s\n", status)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:        %s\n", status)
 	}
 	return nil
 }
@@ -531,11 +531,11 @@ func runDeployPause(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Deployment paused.\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Deployment paused.\n")
 	return nil
 }
 
@@ -567,11 +567,11 @@ func runDeployResume(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Deployment resumed.\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Deployment resumed.\n")
 	return nil
 }
 
@@ -616,18 +616,18 @@ func runDeployList(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	deployments, _ := resp["deployments"].([]interface{})
 	if len(deployments) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No deployments found.")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No deployments found.")
 		return nil
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tRELEASE\tENVIRONMENT\tSTRATEGY\tSTATUS\tPROGRESS\tCREATED")
+	_, _ = fmt.Fprintln(w, "ID\tRELEASE\tENVIRONMENT\tSTRATEGY\tSTATUS\tPROGRESS\tCREATED")
 	for _, d := range deployments {
 		dep, ok := d.(map[string]interface{})
 		if !ok {
@@ -641,7 +641,7 @@ func runDeployList(cmd *cobra.Command, args []string) error {
 		progress, _ := dep["progress"].(float64)
 		createdAt, _ := dep["created_at"].(string)
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%.0f%%\t%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%.0f%%\t%s\n",
 			id, release, env, strategy, status, progress, createdAt)
 	}
 	return w.Flush()
@@ -684,13 +684,13 @@ func runDeployLogs(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to log stream: %w", err)
 	}
-	defer resp2.Body.Close()
+	defer func() { _ = resp2.Body.Close() }()
 
 	if resp2.StatusCode != http.StatusOK {
 		return fmt.Errorf("log stream returned status %d", resp2.StatusCode)
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Streaming deployment logs (Ctrl+C to stop)...\n\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Streaming deployment logs (Ctrl+C to stop)...\n\n")
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
@@ -704,16 +704,16 @@ func runDeployLogs(cmd *cobra.Command, args []string) error {
 			line := scanner.Text()
 			// Parse SSE data lines.
 			if strings.HasPrefix(line, "data: ") {
-				fmt.Fprintln(cmd.OutOrStdout(), line[6:])
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), line[6:])
 			}
 		}
 	}()
 
 	select {
 	case <-doneCh:
-		fmt.Fprintln(cmd.OutOrStdout(), "\nLog stream ended.")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "\nLog stream ended.")
 	case <-sigCh:
-		fmt.Fprintln(cmd.OutOrStdout(), "\nStopped streaming logs.")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "\nStopped streaming logs.")
 	}
 	return nil
 }

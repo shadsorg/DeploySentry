@@ -12,7 +12,11 @@ function scopeBadgeClass(scope: string): string {
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 export default function APIKeysPage() {
@@ -60,7 +64,7 @@ export default function APIKeysPage() {
 
   function toggleScope(scope: string) {
     setNewScopes((prev) =>
-      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]
+      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope],
     );
   }
 
@@ -140,7 +144,11 @@ export default function APIKeysPage() {
         </div>
       )}
 
-      {error && <p className="form-error" style={{ marginBottom: 8 }}>{error}</p>}
+      {error && (
+        <p className="form-error" style={{ marginBottom: 8 }}>
+          {error}
+        </p>
+      )}
 
       {loading ? (
         <p className="text-muted">Loading API keys...</p>
@@ -162,11 +170,17 @@ export default function APIKeysPage() {
           <tbody>
             {keys.map((key) => (
               <tr key={key.id}>
-                <td><strong>{key.name}</strong></td>
-                <td><code>{key.prefix}</code></td>
+                <td>
+                  <strong>{key.name}</strong>
+                </td>
+                <td>
+                  <code>{key.prefix}</code>
+                </td>
                 <td>
                   {key.scopes.map((scope) => (
-                    <span key={scope} className={scopeBadgeClass(scope)}>{scope}</span>
+                    <span key={scope} className={scopeBadgeClass(scope)}>
+                      {scope}
+                    </span>
                   ))}
                 </td>
                 <td>
@@ -186,15 +200,24 @@ export default function APIKeysPage() {
                   {confirmRevoke === key.id ? (
                     <span>
                       Are you sure?{' '}
-                      <button className="btn btn-sm btn-danger" onClick={() => handleRevoke(key.id)}>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => handleRevoke(key.id)}
+                      >
                         Yes
                       </button>{' '}
-                      <button className="btn btn-sm btn-secondary" onClick={() => setConfirmRevoke(null)}>
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => setConfirmRevoke(null)}
+                      >
                         No
                       </button>
                     </span>
                   ) : (
-                    <button className="btn btn-sm btn-danger" onClick={() => setConfirmRevoke(key.id)}>
+                    <button
+                      className="btn btn-sm btn-danger"
+                      onClick={() => setConfirmRevoke(key.id)}
+                    >
                       Revoke
                     </button>
                   )}

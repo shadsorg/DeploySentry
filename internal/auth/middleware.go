@@ -101,6 +101,16 @@ func NewAuthMiddleware(jwtSecret string, keyValidator APIKeyValidator) *AuthMidd
 func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
+
+		// Fallback: browser EventSource cannot set custom headers, so
+		// browser-based SDKs pass the API key as a ?token= query param
+		// on SSE connections. Accept it as an ApiKey credential.
+		if authHeader == "" {
+			if token := c.Query("token"); token != "" {
+				authHeader = "ApiKey " + token
+			}
+		}
+
 		if authHeader == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "authorization header required"})
 			return

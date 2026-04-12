@@ -190,7 +190,7 @@ func (w *WebhookChannel) deliver(ctx context.Context, body []byte, signature str
 		result.Error = err.Error()
 		return result
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	result.StatusCode = resp.StatusCode
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))

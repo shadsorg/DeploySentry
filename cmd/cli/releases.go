@@ -180,19 +180,19 @@ func runReleasesCreate(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	id, _ := resp["id"].(string)
 	status, _ := resp["status"].(string)
-	fmt.Fprintf(cmd.OutOrStdout(), "Release created successfully.\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  ID:      %s\n", id)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Version: %s\n", version)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Release created successfully.\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  ID:      %s\n", id)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Version: %s\n", version)
 	if commitSHA != "" {
-		fmt.Fprintf(cmd.OutOrStdout(), "  Commit:  %s\n", commitSHA)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Commit:  %s\n", commitSHA)
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "  Status:  %s\n", status)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:  %s\n", status)
 	return nil
 }
 
@@ -221,18 +221,18 @@ func runReleasesList(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	releases, _ := resp["releases"].([]interface{})
 	if len(releases) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No releases found.")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No releases found.")
 		return nil
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "VERSION\tCOMMIT\tSTATUS\tENVIRONMENTS\tCREATED")
+	_, _ = fmt.Fprintln(w, "VERSION\tCOMMIT\tSTATUS\tENVIRONMENTS\tCREATED")
 	for _, r := range releases {
 		rel, ok := r.(map[string]interface{})
 		if !ok {
@@ -259,7 +259,7 @@ func runReleasesList(cmd *cobra.Command, args []string) error {
 			commit = commit[:8]
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", ver, commit, status, envs, createdAt)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", ver, commit, status, envs, createdAt)
 	}
 	return w.Flush()
 }
@@ -298,26 +298,26 @@ func runReleasesStatus(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	ver, _ := resp["version"].(string)
 	commit, _ := resp["commit"].(string)
-	fmt.Fprintf(cmd.OutOrStdout(), "Release: %s\n", ver)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Release: %s\n", ver)
 	if commit != "" {
-		fmt.Fprintf(cmd.OutOrStdout(), "Commit:  %s\n", commit)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Commit:  %s\n", commit)
 	}
-	fmt.Fprintln(cmd.OutOrStdout())
+	_, _ = fmt.Fprintln(cmd.OutOrStdout())
 
 	envStatuses, _ := resp["environments"].([]interface{})
 	if len(envStatuses) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "Not deployed to any environment.")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Not deployed to any environment.")
 		return nil
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ENVIRONMENT\tSTATUS\tDEPLOYED AT\tSTRATEGY\tPROGRESS")
+	_, _ = fmt.Fprintln(w, "ENVIRONMENT\tSTATUS\tDEPLOYED AT\tSTRATEGY\tPROGRESS")
 	for _, e := range envStatuses {
 		envStatus, ok := e.(map[string]interface{})
 		if !ok {
@@ -329,7 +329,7 @@ func runReleasesStatus(cmd *cobra.Command, args []string) error {
 		strategy, _ := envStatus["strategy"].(string)
 		progress, _ := envStatus["progress"].(float64)
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%.0f%%\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%.0f%%\n",
 			env, status, deployedAt, strategy, progress)
 	}
 	return w.Flush()
@@ -371,16 +371,16 @@ func runReleasesPromote(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	targetEnv, _ := resp["environment"].(string)
 	deployID, _ := resp["deployment_id"].(string)
-	fmt.Fprintf(cmd.OutOrStdout(), "Release promoted successfully.\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  Version:       %s\n", version)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Target Env:    %s\n", targetEnv)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Deployment ID: %s\n", deployID)
-	fmt.Fprintf(cmd.OutOrStdout(), "\nUse 'deploysentry deploy status %s --watch' to monitor.\n", deployID)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Release promoted successfully.\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Version:       %s\n", version)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Target Env:    %s\n", targetEnv)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Deployment ID: %s\n", deployID)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nUse 'deploysentry deploy status %s --watch' to monitor.\n", deployID)
 	return nil
 }

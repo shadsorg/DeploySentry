@@ -26,13 +26,6 @@ const (
 	RollbackStateRolledBack RollbackState = "ROLLED_BACK"
 )
 
-// validRollbackTransitions defines the allowed state transitions.
-var validRollbackTransitions = map[RollbackState][]RollbackState{
-	RollbackStateHealthy:     {RollbackStateEvaluating},
-	RollbackStateEvaluating:  {RollbackStateHealthy, RollbackStateRollingBack},
-	RollbackStateRollingBack: {RollbackStateRolledBack},
-	RollbackStateRolledBack:  {},
-}
 
 // RollbackTriggerConfig holds configurable thresholds that determine when
 // an automatic rollback should be triggered.

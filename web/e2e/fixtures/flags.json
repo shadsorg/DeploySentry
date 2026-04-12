@@ -1,0 +1,125 @@
+{
+  "list": {
+    "flags": [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440041",
+        "project_id": "550e8400-e29b-41d4-a716-446655440020",
+        "application_id": "550e8400-e29b-41d4-a716-446655440030",
+        "environment_id": "550e8400-e29b-41d4-a716-446655440051",
+        "key": "dark-mode",
+        "name": "Dark Mode",
+        "description": "Enable the dark mode UI theme for all users",
+        "flag_type": "boolean",
+        "category": "feature",
+        "purpose": "Allows users to switch to a dark color scheme",
+        "owners": ["alice@example.com"],
+        "is_permanent": true,
+        "expires_at": null,
+        "enabled": true,
+        "default_value": "false",
+        "archived": false,
+        "tags": ["ui", "theme"],
+        "created_by": "550e8400-e29b-41d4-a716-446655440001",
+        "created_at": "2025-03-01T10:00:00Z",
+        "updated_at": "2025-06-15T09:00:00Z"
+      },
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440042",
+        "project_id": "550e8400-e29b-41d4-a716-446655440020",
+        "application_id": "550e8400-e29b-41d4-a716-446655440030",
+        "environment_id": "550e8400-e29b-41d4-a716-446655440051",
+        "key": "checkout-variant",
+        "name": "Checkout Variant",
+        "description": "A/B test for the checkout flow layout",
+        "flag_type": "string",
+        "category": "experiment",
+        "purpose": "Test different checkout UX variants to improve conversion",
+        "owners": ["bob@example.com"],
+        "is_permanent": false,
+        "expires_at": "2026-01-01T00:00:00Z",
+        "enabled": true,
+        "default_value": "control",
+        "archived": false,
+        "tags": ["checkout", "ab-test"],
+        "created_by": "550e8400-e29b-41d4-a716-446655440002",
+        "created_at": "2025-04-10T11:00:00Z",
+        "updated_at": "2025-06-20T16:00:00Z"
+      },
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440043",
+        "project_id": "550e8400-e29b-41d4-a716-446655440020",
+        "application_id": "550e8400-e29b-41d4-a716-446655440030",
+        "environment_id": "550e8400-e29b-41d4-a716-446655440051",
+        "key": "max-items",
+        "name": "Max Items Per Cart",
+        "description": "Maximum number of items allowed in a single cart",
+        "flag_type": "integer",
+        "category": "ops",
+        "purpose": "Throttle cart size to reduce infrastructure load during peak traffic",
+        "owners": ["alice@example.com", "bob@example.com"],
+        "is_permanent": true,
+        "expires_at": null,
+        "enabled": true,
+        "default_value": "50",
+        "archived": false,
+        "tags": ["cart", "limits"],
+        "created_by": "550e8400-e29b-41d4-a716-446655440001",
+        "created_at": "2025-05-05T08:30:00Z",
+        "updated_at": "2025-06-22T10:00:00Z"
+      }
+    ]
+  },
+  "detail": {
+    "id": "550e8400-e29b-41d4-a716-446655440041",
+    "project_id": "550e8400-e29b-41d4-a716-446655440020",
+    "application_id": "550e8400-e29b-41d4-a716-446655440030",
+    "environment_id": "550e8400-e29b-41d4-a716-446655440051",
+    "key": "dark-mode",
+    "name": "Dark Mode",
+    "description": "Enable the dark mode UI theme for all users",
+    "flag_type": "boolean",
+    "category": "feature",
+    "purpose": "Allows users to switch to a dark color scheme",
+    "owners": ["alice@example.com"],
+    "is_permanent": true,
+    "expires_at": null,
+    "enabled": true,
+    "default_value": "false",
+    "archived": false,
+    "tags": ["ui", "theme"],
+    "created_by": "550e8400-e29b-41d4-a716-446655440001",
+    "created_at": "2025-03-01T10:00:00Z",
+    "updated_at": "2025-06-15T09:00:00Z"
+  },
+  "rules": {
+    "rules": [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440061",
+        "flag_id": "550e8400-e29b-41d4-a716-446655440041",
+        "rule_type": "percentage",
+        "priority": 1,
+        "value": "true",
+        "percentage": 25,
+        "enabled": true,
+        "created_at": "2025-03-05T12:00:00Z",
+        "updated_at": "2025-06-01T08:00:00Z"
+      },
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440062",
+        "flag_id": "550e8400-e29b-41d4-a716-446655440041",
+        "rule_type": "user_target",
+        "priority": 2,
+        "value": "true",
+        "attribute": "user_id",
+        "operator": "in",
+        "target_values": [
+          "550e8400-e29b-41d4-a716-446655440001",
+          "550e8400-e29b-41d4-a716-446655440002"
+        ],
+        "enabled": true,
+        "created_at": "2025-03-10T14:00:00Z",
+        "updated_at": "2025-06-01T08:05:00Z"
+      }
+    ]
+  }
+}

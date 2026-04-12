@@ -148,11 +148,11 @@ func (e *EmailChannel) buildMessage(subject, body string) string {
 // content type and recipient list.
 func (e *EmailChannel) buildMessageFull(subject, body, contentType string, recipients []string) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("From: %s <%s>\r\n", e.config.FromName, e.config.FromAddress))
-	sb.WriteString(fmt.Sprintf("To: %s\r\n", strings.Join(recipients, ", ")))
-	sb.WriteString(fmt.Sprintf("Subject: %s\r\n", subject))
+	fmt.Fprintf(&sb, "From: %s <%s>\r\n", e.config.FromName, e.config.FromAddress)
+	fmt.Fprintf(&sb, "To: %s\r\n", strings.Join(recipients, ", "))
+	fmt.Fprintf(&sb, "Subject: %s\r\n", subject)
 	sb.WriteString("MIME-Version: 1.0\r\n")
-	sb.WriteString(fmt.Sprintf("Content-Type: %s; charset=UTF-8\r\n", contentType))
+	fmt.Fprintf(&sb, "Content-Type: %s; charset=UTF-8\r\n", contentType)
 	sb.WriteString("\r\n")
 	sb.WriteString(body)
 	return sb.String()
@@ -200,14 +200,14 @@ func (e *EmailChannel) formatBody(event *Event) string {
 	var sb strings.Builder
 	sb.WriteString(formatEventText(event))
 	sb.WriteString("\n\n")
-	sb.WriteString(fmt.Sprintf("Timestamp: %s\n", event.Timestamp.Format("2006-01-02 15:04:05 UTC")))
-	sb.WriteString(fmt.Sprintf("Organization: %s\n", event.OrgID))
-	sb.WriteString(fmt.Sprintf("Project: %s\n", event.ProjectID))
+	fmt.Fprintf(&sb, "Timestamp: %s\n", event.Timestamp.Format("2006-01-02 15:04:05 UTC"))
+	fmt.Fprintf(&sb, "Organization: %s\n", event.OrgID)
+	fmt.Fprintf(&sb, "Project: %s\n", event.ProjectID)
 
 	if len(event.Data) > 0 {
 		sb.WriteString("\nDetails:\n")
 		for k, v := range event.Data {
-			sb.WriteString(fmt.Sprintf("  %s: %s\n", k, v))
+			fmt.Fprintf(&sb, "  %s: %s\n", k, v)
 		}
 	}
 

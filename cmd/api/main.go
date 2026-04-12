@@ -145,6 +145,18 @@ func run() error {
 	router.Use(middleware.SecurityHeaders(middleware.DefaultSecurityConfig()))
 	router.Use(metrics.InstrumentHandler())
 
+	// CORS must be at the router level so preflight OPTIONS requests
+	// (which don't match any registered route) get handled before Gin's
+	// default 404 response.
+	router.Use(middleware.CORS(middleware.ProductionCORSConfig([]string{
+		"https://www.dr-sentry.com",
+		"https://dr-sentry.com",
+		"http://localhost:3001",
+		"http://localhost:3002", // e2e SDK dashboard instance
+		"http://localhost:4310", // e2e React SDK harness (Vite preview)
+		"http://localhost:8080",
+	})))
+
 	// Health check endpoint.
 	router.GET("/health", func(c *gin.Context) {
 		healthCtx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
@@ -270,16 +282,6 @@ func run() error {
 	// -------------------------------------------------------------------------
 	// Middleware
 	// -------------------------------------------------------------------------
-	apiKeyValidator := &apiKeyValidatorAdapter{service: apiKeyService}
-	authMiddleware := auth.NewAuthMiddleware(cfg.Auth.JWTSecret, apiKeyValidator)
-	corsMiddleware := middleware.CORS(middleware.ProductionCORSConfig([]string{
-		"https://www.dr-sentry.com",
-		"https://dr-sentry.com",
-		"http://localhost:3001",
-		"http://localhost:3002", // e2e SDK dashboard instance
-		"http://localhost:4310", // e2e React SDK harness (Vite preview)
-		"http://localhost:8080",
-	}))
 	rateLimitConfig := middleware.DefaultRateLimitConfig()
 	// The hermetic e2e stack runs many requests in tight bursts (login,
 	// seed, list, toggle) and trips the default 100 req/min limiter,
@@ -291,6 +293,8 @@ func run() error {
 		}
 	}
 	rateLimiter := middleware.NewRateLimiter(rdb.Client, rateLimitConfig)
+	apiKeyValidator := &apiKeyValidatorAdapter{service: apiKeyService}
+	authMiddleware := auth.NewAuthMiddleware(cfg.Auth.JWTSecret, apiKeyValidator)
 
 	// -------------------------------------------------------------------------
 	// Routes
@@ -298,7 +302,6 @@ func run() error {
 
 	// Authenticated API routes.
 	api := router.Group("/api/v1")
-	api.Use(corsMiddleware)
 	api.Use(rateLimiter.Middleware())
 	api.Use(authMiddleware.RequireAuth())
 	orgRoleLookup := postgres.NewOrgRoleLookup(db.Pool)
@@ -323,7 +326,6 @@ func run() error {
 
 	// Public routes (no auth required).
 	public := router.Group("/api/v1")
-	public.Use(corsMiddleware)
 	auth.NewLoginHandler(userRepo, cfg.Auth).RegisterRoutes(public)
 
 	// GitHub webhook integration (public, verified by signature).

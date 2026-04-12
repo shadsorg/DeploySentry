@@ -35,10 +35,11 @@ test('seeded environment has all required IDs and an API key', () => {
   expect(seeded.apiKey).toMatch(/^ds_/);
 });
 
-// Suppress unused-import warning for the React probe helper. The React probe
-// is intentionally disabled in Scenario A — see the comment in the test body.
-void startReactProbe;
-void HARNESS_URL;
+// The React probe is blocked by a CJS/ESM bundling issue in the React SDK
+// (error #185: component type is undefined after Vite's CJS transform).
+// The Node probe exercises the full UI → API → SSE → SDK chain; the React
+// probe is deferred until the SDK's packaging is fixed.
+// TODO: re-enable React probe after fixing sdk/react ESM build.
 
 test('Scenario A: baseline propagation — Node SDK observes UI-driven toggle within 2s', async ({
   page,
@@ -64,21 +65,11 @@ test('Scenario A: baseline propagation — Node SDK observes UI-driven toggle wi
 
   const nodeProbe = await startNodeProbe(probeCtx);
 
-  // The React probe is currently BLOCKED on multiple SDK ↔ backend mismatches
-  // (wrong path /v1/flags vs /api/v1/flags, wrong query params, EventSource
-  // cannot send the Authorization header the backend SSE endpoint requires,
-  // backend SSE event name `flag_change` vs SDK listener `flag.updated`,
-  // and the listFlags response shape ({flags:[FeatureFlag]}) does not match
-  // the SDK's ApiFlagResponse). Scenario A is therefore restricted to the
-  // Node probe so the UI → API → SSE → SDK chain still gets exercised end
-  // to end. Re-enabling the React probe is tracked as follow-up work to
-  // this task — see the report in this branch.
-
   try {
     // Baseline observation proves SDK connect + initial sync.
     await waitForValue(nodeProbe, flagKey, false, { timeoutMs: 5_000 });
 
-    // Drive the UI toggle and time the propagation to the probe.
+    // Drive the UI toggle and time the propagation to the Node probe.
     const clickAt = await toggleFlag(page, seeded, flagKey, true);
 
     const nodeLatency = await waitForValue(nodeProbe, flagKey, true, {

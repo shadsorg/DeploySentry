@@ -49,8 +49,15 @@ function parseQuery(): HarnessConfig {
 function Observer({ flagKey }: { flagKey: string }): null {
   const isVariant = flagKey.startsWith('variant:');
   const realKey = isVariant ? flagKey.slice('variant:'.length) : flagKey;
-  // useFlag returns the cached value directly.
-  const value = useFlag<string | boolean>(realKey, isVariant ? 'control' : false);
+
+  // For boolean flags, useFlag returns `flag.enabled ? flag.value : default`.
+  // We use a sentinel default ("__ds_disabled__") so that when the flag is
+  // disabled we observe the sentinel, and when enabled we observe the actual
+  // value — making toggles visible regardless of the stored default_value.
+  const sentinel = isVariant ? 'control' : '__ds_disabled__';
+  const raw = useFlag<string | boolean>(realKey, sentinel);
+  const value = raw === '__ds_disabled__' ? false : (raw === 'false' ? false : raw === 'true' ? true : raw);
+
   useEffect(() => {
     window.__ds_observations.push({ flagKey, value, ts: Date.now() });
   }, [flagKey, value]);

@@ -1,6 +1,6 @@
 # Landing Page, Shared Header, and In-App Docs Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Add a public dev-tool-minimal landing page at `/`, replace the sidebar's user footer with a shared `SiteHeader` carrying a top-right user menu, and ship an in-app `/docs` route rendered from bundled markdown.
 
@@ -29,14 +29,14 @@
 - Modify: `web/package.json`
 - Modify: `web/package-lock.json`
 
-- [ ] **Step 1: Install runtime deps**
+- [x] **Step 1: Install runtime deps**
 
 ```bash
 cd web
 npm install framer-motion react-markdown remark-gfm rehype-highlight highlight.js
 ```
 
-- [ ] **Step 2: Install Vitest + RTL dev deps**
+- [x] **Step 2: Install Vitest + RTL dev deps**
 
 The spec calls for unit tests on `UserMenu`. The existing project uses Vite, so Vitest (Vite-native, near drop-in for Jest) is the path of least friction.
 
@@ -47,7 +47,7 @@ npm install -D vitest @testing-library/react @testing-library/jest-dom @testing-
 
 (`@vitejs/plugin-react` is already a dep but reinstalling is harmless.)
 
-- [ ] **Step 3: Verify install**
+- [x] **Step 3: Verify install**
 
 ```bash
 cd web
@@ -56,7 +56,7 @@ npm ls framer-motion react-markdown vitest
 
 Expected: each package shown with a version, no `UNMET DEPENDENCY` errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add web/package.json web/package-lock.json
@@ -74,7 +74,7 @@ git commit -m "build(web): add deps for landing page, docs, and unit testing"
 - Modify: `web/package.json` (scripts)
 - Modify: `web/tsconfig.json` (types)
 
-- [ ] **Step 1: Write the failing smoke test**
+- [x] **Step 1: Write the failing smoke test**
 
 `web/src/test/smoke.test.ts`:
 
@@ -88,7 +88,7 @@ describe('vitest smoke', () => {
 });
 ```
 
-- [ ] **Step 2: Create the test setup file**
+- [x] **Step 2: Create the test setup file**
 
 `web/src/test/setup.ts`:
 
@@ -96,7 +96,7 @@ describe('vitest smoke', () => {
 import '@testing-library/jest-dom/vitest';
 ```
 
-- [ ] **Step 3: Create vitest config**
+- [x] **Step 3: Create vitest config**
 
 `web/vitest.config.ts`:
 
@@ -121,7 +121,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 4: Add `test` and `test:watch` scripts**
+- [x] **Step 4: Add `test` and `test:watch` scripts**
 
 In `web/package.json`, inside `"scripts"`, add:
 
@@ -130,7 +130,7 @@ In `web/package.json`, inside `"scripts"`, add:
 "test:watch": "vitest"
 ```
 
-- [ ] **Step 5: Add Vitest globals to tsconfig**
+- [x] **Step 5: Add Vitest globals to tsconfig**
 
 In `web/tsconfig.json` under `compilerOptions.types`, add `"vitest/globals"`. If the `types` array doesn't exist, add it:
 
@@ -138,7 +138,7 @@ In `web/tsconfig.json` under `compilerOptions.types`, add `"vitest/globals"`. If
 "types": ["vitest/globals", "@testing-library/jest-dom"]
 ```
 
-- [ ] **Step 6: Run the smoke test**
+- [x] **Step 6: Run the smoke test**
 
 ```bash
 cd web
@@ -147,7 +147,7 @@ npm test
 
 Expected: `1 passed`, exit 0.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add web/vitest.config.ts web/src/test/setup.ts web/src/test/smoke.test.ts web/package.json web/tsconfig.json
@@ -164,7 +164,7 @@ git commit -m "test(web): add Vitest + Testing Library setup with smoke test"
 
 The `UserMenu` is a button-trigger dropdown showing the authed user's initials, with menu items for Settings and Logout. Closes on outside-click and Escape.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `web/src/components/UserMenu.test.tsx`:
 
@@ -270,7 +270,7 @@ describe('UserMenu', () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 ```bash
 cd web
@@ -279,7 +279,7 @@ npm test -- UserMenu
 
 Expected: FAIL — `Cannot find module './UserMenu'`.
 
-- [ ] **Step 3: Implement `UserMenu`**
+- [x] **Step 3: Implement `UserMenu`**
 
 `web/src/components/UserMenu.tsx`:
 
@@ -363,7 +363,7 @@ export default function UserMenu() {
 }
 ```
 
-- [ ] **Step 4: Add minimal CSS for the menu**
+- [x] **Step 4: Add minimal CSS for the menu**
 
 In `web/src/styles/globals.css`, append:
 
@@ -397,7 +397,7 @@ In `web/src/styles/globals.css`, append:
 .user-menu-item:hover { background: #1a1f2a; }
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 ```bash
 cd web
@@ -406,7 +406,7 @@ npm test -- UserMenu
 
 Expected: 6 tests passing, exit 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/components/UserMenu.tsx web/src/components/UserMenu.test.tsx web/src/styles/globals.css
@@ -423,7 +423,7 @@ git commit -m "feat(web): add UserMenu component with initials avatar and dropdo
 
 `SiteHeader` is presentational (no behavior beyond auth-aware right slot), so no unit tests — Playwright covers it in Task 18.
 
-- [ ] **Step 1: Implement `SiteHeader`**
+- [x] **Step 1: Implement `SiteHeader`**
 
 `web/src/components/SiteHeader.tsx`:
 
@@ -470,7 +470,7 @@ export default function SiteHeader({ variant }: SiteHeaderProps) {
 }
 ```
 
-- [ ] **Step 2: Append header styles**
+- [x] **Step 2: Append header styles**
 
 In `web/src/styles/globals.css`, append:
 
@@ -508,7 +508,7 @@ In `web/src/styles/globals.css`, append:
 .site-header-cta { font-size: 13px !important; padding: 7px 14px !important; }
 ```
 
-- [ ] **Step 3: Run linter to verify TS compiles**
+- [x] **Step 3: Run linter to verify TS compiles**
 
 ```bash
 cd web
@@ -517,7 +517,7 @@ npm run lint
 
 Expected: zero errors related to `SiteHeader`/`UserMenu` files.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add web/src/components/SiteHeader.tsx web/src/styles/globals.css
@@ -533,7 +533,7 @@ git commit -m "feat(web): add shared SiteHeader with auth-aware right slot"
 - Modify: `web/src/components/Sidebar.tsx`
 - Modify: `web/src/styles/globals.css` (adjust `.app-layout` and `.sidebar`)
 
-- [ ] **Step 1: Render `SiteHeader` above the sidebar+content split**
+- [x] **Step 1: Render `SiteHeader` above the sidebar+content split**
 
 Replace the entire return block in `web/src/components/HierarchyLayout.tsx` with:
 
@@ -558,7 +558,7 @@ Add the import at the top:
 import SiteHeader from './SiteHeader';
 ```
 
-- [ ] **Step 2: Remove the sidebar brand and user footer**
+- [x] **Step 2: Remove the sidebar brand and user footer**
 
 In `web/src/components/Sidebar.tsx`:
 
@@ -569,7 +569,7 @@ In `web/src/components/Sidebar.tsx`:
 
 After the edit, `Sidebar.tsx` should no longer call `useAuth()` or `useNavigate()`. Remove those imports.
 
-- [ ] **Step 3: Add `.app-shell` styles, adjust `.app-layout` to flex below the header**
+- [x] **Step 3: Add `.app-shell` styles, adjust `.app-layout` to flex below the header**
 
 In `web/src/styles/globals.css`, add and adjust:
 
@@ -580,7 +580,7 @@ In `web/src/styles/globals.css`, add and adjust:
 
 (Leave the existing `.app-layout` rule alone; this just constrains it inside the shell.)
 
-- [ ] **Step 4: Verify the dev server renders the new layout**
+- [x] **Step 4: Verify the dev server renders the new layout**
 
 ```bash
 cd web
@@ -594,7 +594,7 @@ Open `http://localhost:3001` and log in. Verify:
 
 Stop the dev server (Ctrl-C) before committing.
 
-- [ ] **Step 5: Run lint**
+- [x] **Step 5: Run lint**
 
 ```bash
 cd web
@@ -603,7 +603,7 @@ npm run lint
 
 Expected: zero errors.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/components/HierarchyLayout.tsx web/src/components/Sidebar.tsx web/src/styles/globals.css
@@ -620,7 +620,7 @@ git commit -m "refactor(web): move user menu to shared SiteHeader, slim down sid
 - Modify: `web/src/pages/LoginPage.tsx`
 - Modify: `web/src/styles/globals.css`
 
-- [ ] **Step 1: Create the landing page shell**
+- [x] **Step 1: Create the landing page shell**
 
 `web/src/pages/LandingPage.tsx`:
 
@@ -642,7 +642,7 @@ export default function LandingPage() {
 }
 ```
 
-- [ ] **Step 2: Wire routes in `App.tsx`**
+- [x] **Step 2: Wire routes in `App.tsx`**
 
 In `web/src/App.tsx`:
 
@@ -671,7 +671,7 @@ And the authed block starts with:
 
 (Delete the old `<Route path="/" element={<DefaultRedirect />} />` line.)
 
-- [ ] **Step 3: Update `LoginPage` to default to `/portal` instead of `/`**
+- [x] **Step 3: Update `LoginPage` to default to `/portal` instead of `/`**
 
 In `web/src/pages/LoginPage.tsx:9`, change:
 
@@ -685,7 +685,7 @@ to:
 const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/portal';
 ```
 
-- [ ] **Step 4: Add minimal landing styles**
+- [x] **Step 4: Add minimal landing styles**
 
 In `web/src/styles/globals.css`, append:
 
@@ -702,7 +702,7 @@ In `web/src/styles/globals.css`, append:
 .landing-placeholder p { color: #6b7280; margin: 0; }
 ```
 
-- [ ] **Step 5: Verify routing**
+- [x] **Step 5: Verify routing**
 
 ```bash
 cd web
@@ -717,7 +717,7 @@ Verify:
 
 Stop dev server.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/pages/LandingPage.tsx web/src/App.tsx web/src/pages/LoginPage.tsx web/src/styles/globals.css
@@ -733,7 +733,7 @@ git commit -m "feat(web): add landing page shell at / and /portal redirect targe
 - Modify: `web/src/pages/LandingPage.tsx`
 - Modify: `web/src/styles/globals.css`
 
-- [ ] **Step 1: Implement the hero**
+- [x] **Step 1: Implement the hero**
 
 `web/src/components/landing/Hero.tsx`:
 
@@ -774,7 +774,7 @@ export default function Hero() {
 }
 ```
 
-- [ ] **Step 2: Mount it in `LandingPage`**
+- [x] **Step 2: Mount it in `LandingPage`**
 
 Replace the placeholder section in `web/src/pages/LandingPage.tsx`:
 
@@ -796,7 +796,7 @@ export default function LandingPage() {
 
 Delete the `.landing-placeholder` CSS block from `globals.css` since it's no longer used.
 
-- [ ] **Step 3: Add hero styles**
+- [x] **Step 3: Add hero styles**
 
 In `web/src/styles/globals.css`, append:
 
@@ -832,7 +832,7 @@ In `web/src/styles/globals.css`, append:
 }
 ```
 
-- [ ] **Step 4: Visual smoke**
+- [x] **Step 4: Visual smoke**
 
 ```bash
 cd web
@@ -841,7 +841,7 @@ npm run dev
 
 Visit `http://localhost:3001/`. Verify the hero animates in (eyebrow → headline → sub → buttons), and that `Get started` and `Read the docs` buttons render. Stop dev server.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/components/landing/Hero.tsx web/src/pages/LandingPage.tsx web/src/styles/globals.css
@@ -859,7 +859,7 @@ git commit -m "feat(web): add landing page hero section with animated reveal"
 
 This is the centerpiece visual. Pure SVG + CSS keyframes — no Framer Motion in this component.
 
-- [ ] **Step 1: Implement the diagram**
+- [x] **Step 1: Implement the diagram**
 
 `web/src/components/landing/DeployReleaseFlow.tsx`:
 
@@ -961,7 +961,7 @@ export default function DeployReleaseFlow() {
 }
 ```
 
-- [ ] **Step 2: Add diagram styles + keyframes**
+- [x] **Step 2: Add diagram styles + keyframes**
 
 In `web/src/styles/globals.css`, append:
 
@@ -1038,7 +1038,7 @@ In `web/src/styles/globals.css`, append:
 }
 ```
 
-- [ ] **Step 3: Mount it in `LandingPage` after the hero**
+- [x] **Step 3: Mount it in `LandingPage` after the hero**
 
 ```tsx
 import SiteHeader from '@/components/SiteHeader';
@@ -1058,7 +1058,7 @@ export default function LandingPage() {
 }
 ```
 
-- [ ] **Step 4: Visual smoke**
+- [x] **Step 4: Visual smoke**
 
 ```bash
 cd web
@@ -1067,7 +1067,7 @@ npm run dev
 
 Visit `/`, scroll past the hero, verify the deploy track animates first, then the release track. The diagram should fit at 1280px and 768px viewports.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/components/landing/DeployReleaseFlow.tsx web/src/pages/LandingPage.tsx web/src/styles/globals.css
@@ -1083,7 +1083,7 @@ git commit -m "feat(web): add animated deploy/release flow diagram to landing"
 - Modify: `web/src/pages/LandingPage.tsx`
 - Modify: `web/src/styles/globals.css`
 
-- [ ] **Step 1: Implement pillars**
+- [x] **Step 1: Implement pillars**
 
 `web/src/components/landing/PillarsSection.tsx`:
 
@@ -1156,7 +1156,7 @@ export default function PillarsSection() {
 }
 ```
 
-- [ ] **Step 2: Mount it after `DeployReleaseFlow`**
+- [x] **Step 2: Mount it after `DeployReleaseFlow`**
 
 In `LandingPage.tsx`, import and place after the flow:
 
@@ -1167,7 +1167,7 @@ import PillarsSection from '@/components/landing/PillarsSection';
 <PillarsSection />
 ```
 
-- [ ] **Step 3: Add pillar styles**
+- [x] **Step 3: Add pillar styles**
 
 In `web/src/styles/globals.css`, append:
 
@@ -1205,7 +1205,7 @@ In `web/src/styles/globals.css`, append:
 }
 ```
 
-- [ ] **Step 4: Visual smoke**
+- [x] **Step 4: Visual smoke**
 
 ```bash
 cd web
@@ -1214,7 +1214,7 @@ npm run dev
 
 Verify three cards animate up on scroll-into-view. Test at narrow width (cards should stack).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/components/landing/PillarsSection.tsx web/src/pages/LandingPage.tsx web/src/styles/globals.css
@@ -1230,7 +1230,7 @@ git commit -m "feat(web): add three-pillar section to landing page"
 - Modify: `web/src/pages/LandingPage.tsx`
 - Modify: `web/src/styles/globals.css`
 
-- [ ] **Step 1: Implement the contrast band**
+- [x] **Step 1: Implement the contrast band**
 
 `web/src/components/landing/CodeContrast.tsx`:
 
@@ -1265,7 +1265,7 @@ export default function CodeContrast() {
 }
 ```
 
-- [ ] **Step 2: Mount after `PillarsSection`**
+- [x] **Step 2: Mount after `PillarsSection`**
 
 ```tsx
 import CodeContrast from '@/components/landing/CodeContrast';
@@ -1274,7 +1274,7 @@ import CodeContrast from '@/components/landing/CodeContrast';
 <CodeContrast />
 ```
 
-- [ ] **Step 3: Add styles**
+- [x] **Step 3: Add styles**
 
 ```css
 /* Code contrast */
@@ -1296,11 +1296,11 @@ import CodeContrast from '@/components/landing/CodeContrast';
 }
 ```
 
-- [ ] **Step 4: Visual smoke**
+- [x] **Step 4: Visual smoke**
 
 `npm run dev`, scroll past pillars, verify the two side-by-side code blocks render. Stop server.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/components/landing/CodeContrast.tsx web/src/pages/LandingPage.tsx web/src/styles/globals.css
@@ -1316,7 +1316,7 @@ git commit -m "feat(web): add before/after code contrast band to landing page"
 - Modify: `web/src/pages/LandingPage.tsx`
 - Modify: `web/src/styles/globals.css`
 
-- [ ] **Step 1: Implement the strip**
+- [x] **Step 1: Implement the strip**
 
 `web/src/components/landing/LifecycleStrip.tsx`:
 
@@ -1366,7 +1366,7 @@ export default function LifecycleStrip() {
 }
 ```
 
-- [ ] **Step 2: Mount after `CodeContrast`**
+- [x] **Step 2: Mount after `CodeContrast`**
 
 ```tsx
 import LifecycleStrip from '@/components/landing/LifecycleStrip';
@@ -1375,7 +1375,7 @@ import LifecycleStrip from '@/components/landing/LifecycleStrip';
 <LifecycleStrip />
 ```
 
-- [ ] **Step 3: Add styles**
+- [x] **Step 3: Add styles**
 
 ```css
 /* Lifecycle */
@@ -1398,11 +1398,11 @@ import LifecycleStrip from '@/components/landing/LifecycleStrip';
 @media (max-width: 700px)  { .lifecycle-steps { grid-template-columns: repeat(2, 1fr); } }
 ```
 
-- [ ] **Step 4: Visual smoke**
+- [x] **Step 4: Visual smoke**
 
 `npm run dev`, scroll, verify six step cards animate in left-to-right.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/components/landing/LifecycleStrip.tsx web/src/pages/LandingPage.tsx web/src/styles/globals.css
@@ -1419,7 +1419,7 @@ git commit -m "feat(web): add end-to-end lifecycle strip to landing page"
 - Modify: `web/src/pages/LandingPage.tsx`
 - Modify: `web/src/styles/globals.css`
 
-- [ ] **Step 1: CTA section**
+- [x] **Step 1: CTA section**
 
 `web/src/components/landing/CTASection.tsx`:
 
@@ -1439,7 +1439,7 @@ export default function CTASection() {
 }
 ```
 
-- [ ] **Step 2: Footer**
+- [x] **Step 2: Footer**
 
 `web/src/components/landing/Footer.tsx`:
 
@@ -1476,7 +1476,7 @@ export default function Footer() {
 }
 ```
 
-- [ ] **Step 3: Mount both**
+- [x] **Step 3: Mount both**
 
 `LandingPage.tsx` final shape:
 
@@ -1508,7 +1508,7 @@ export default function LandingPage() {
 }
 ```
 
-- [ ] **Step 4: Add styles**
+- [x] **Step 4: Add styles**
 
 ```css
 /* CTA */
@@ -1552,11 +1552,11 @@ export default function LandingPage() {
 }
 ```
 
-- [ ] **Step 5: Visual smoke**
+- [x] **Step 5: Visual smoke**
 
 `npm run dev`, scroll all the way down, verify CTA + footer render and links are clickable. Stop server.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/components/landing/CTASection.tsx web/src/components/landing/Footer.tsx web/src/pages/LandingPage.tsx web/src/styles/globals.css
@@ -1571,7 +1571,7 @@ git commit -m "feat(web): add CTA section and footer to complete landing page"
 - Create: `web/src/components/docs/MarkdownRenderer.tsx`
 - Modify: `web/src/styles/globals.css`
 
-- [ ] **Step 1: Register highlight.js languages**
+- [x] **Step 1: Register highlight.js languages**
 
 We register only the languages we need to keep the bundle smaller. Add an init module:
 
@@ -1610,7 +1610,7 @@ hljs.registerLanguage('yml', yaml);
 export { hljs };
 ```
 
-- [ ] **Step 2: Implement the renderer**
+- [x] **Step 2: Implement the renderer**
 
 `web/src/components/docs/MarkdownRenderer.tsx`:
 
@@ -1664,7 +1664,7 @@ export default function MarkdownRenderer({ source }: Props) {
 }
 ```
 
-- [ ] **Step 3: Add markdown styles + import highlight.js theme**
+- [x] **Step 3: Add markdown styles + import highlight.js theme**
 
 In `web/src/styles/globals.css`, append:
 
@@ -1696,7 +1696,7 @@ In `web/src/styles/globals.css`, append:
 .markdown-body th { background: #0f1419; color: #f3f4f6; }
 ```
 
-- [ ] **Step 4: Import the highlight.js theme CSS**
+- [x] **Step 4: Import the highlight.js theme CSS**
 
 In `web/src/main.tsx` (or wherever `globals.css` is imported), add:
 
@@ -1704,7 +1704,7 @@ In `web/src/main.tsx` (or wherever `globals.css` is imported), add:
 import 'highlight.js/styles/github-dark.css';
 ```
 
-- [ ] **Step 5: Lint**
+- [x] **Step 5: Lint**
 
 ```bash
 cd web
@@ -1713,7 +1713,7 @@ npm run lint
 
 Expected: zero errors related to the new files.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/components/docs/MarkdownRenderer.tsx web/src/components/docs/highlight-languages.ts web/src/styles/globals.css web/src/main.tsx
@@ -1732,7 +1732,7 @@ git commit -m "feat(web): add MarkdownRenderer with syntax-highlighted code bloc
 - Create: `web/src/docs/index.ts`
 - Modify: `web/vite-env.d.ts` or `web/src/vite-env.d.ts` (declare `?raw` imports)
 
-- [ ] **Step 1: Declare `?raw` markdown imports for TypeScript**
+- [x] **Step 1: Declare `?raw` markdown imports for TypeScript**
 
 In `web/src/vite-env.d.ts`, append:
 
@@ -1743,7 +1743,7 @@ declare module '*.md?raw' {
 }
 ```
 
-- [ ] **Step 2: Create `getting-started.md`**
+- [x] **Step 2: Create `getting-started.md`**
 
 `web/src/docs/getting-started.md`:
 
@@ -1785,7 +1785,7 @@ From the project's Flags page, click **New Flag**. Pick a category (release, fea
 Pick the SDK that matches your stack (see [SDKs](/docs/sdks)) and follow the init pattern. The minimum is one API key and the flag key you just created.
 ```
 
-- [ ] **Step 3: Create `sdks.md`**
+- [x] **Step 3: Create `sdks.md`**
 
 `web/src/docs/sdks.md`:
 
@@ -1832,7 +1832,7 @@ on = ds.is_enabled("new-checkout", {"user_id": "42"})
 See each SDK's README in the [GitHub repo](https://github.com/shadsorg/DeploySentry/tree/main/sdk) for the full reference.
 ```
 
-- [ ] **Step 4: Create `cli.md`**
+- [x] **Step 4: Create `cli.md`**
 
 `web/src/docs/cli.md`:
 
@@ -1880,7 +1880,7 @@ deploysentry flags set new-checkout --env production --on
 ```
 ```
 
-- [ ] **Step 5: Create `ui-features.md`**
+- [x] **Step 5: Create `ui-features.md`**
 
 `web/src/docs/ui-features.md`:
 
@@ -1934,7 +1934,7 @@ Per-flag evaluation counts, error rates, and rollout health.
 Quickstart snippets for every SDK, prefilled with your API key.
 ```
 
-- [ ] **Step 6: Create the manifest**
+- [x] **Step 6: Create the manifest**
 
 `web/src/docs/index.ts`:
 
@@ -1962,7 +1962,7 @@ export function findDoc(slug: string): DocEntry | undefined {
 }
 ```
 
-- [ ] **Step 7: Lint to verify the `?raw` declarations work**
+- [x] **Step 7: Lint to verify the `?raw` declarations work**
 
 ```bash
 cd web
@@ -1971,7 +1971,7 @@ npm run lint
 
 Expected: zero errors.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add web/src/docs/ web/src/vite-env.d.ts
@@ -1988,7 +1988,7 @@ git commit -m "docs(web): add stub markdown content and manifest for in-app docs
 - Modify: `web/src/App.tsx`
 - Modify: `web/src/styles/globals.css`
 
-- [ ] **Step 1: Implement `DocsSidebar`**
+- [x] **Step 1: Implement `DocsSidebar`**
 
 `web/src/components/docs/DocsSidebar.tsx`:
 
@@ -2016,7 +2016,7 @@ export default function DocsSidebar() {
 }
 ```
 
-- [ ] **Step 2: Implement `DocsPage`**
+- [x] **Step 2: Implement `DocsPage`**
 
 `web/src/pages/DocsPage.tsx`:
 
@@ -2053,7 +2053,7 @@ export default function DocsPage() {
 }
 ```
 
-- [ ] **Step 3: Wire docs routes in `App.tsx`**
+- [x] **Step 3: Wire docs routes in `App.tsx`**
 
 Inside the `<RequireAuth />` block, add (just after `/portal`):
 
@@ -2068,7 +2068,7 @@ And import at the top:
 import DocsPage from './pages/DocsPage';
 ```
 
-- [ ] **Step 4: Add docs styles**
+- [x] **Step 4: Add docs styles**
 
 In `web/src/styles/globals.css`, append:
 
@@ -2101,7 +2101,7 @@ In `web/src/styles/globals.css`, append:
 }
 ```
 
-- [ ] **Step 5: Visual smoke**
+- [x] **Step 5: Visual smoke**
 
 ```bash
 cd web
@@ -2116,7 +2116,7 @@ While logged in, visit `/docs`. Verify:
 
 Stop server.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/components/docs/DocsSidebar.tsx web/src/pages/DocsPage.tsx web/src/App.tsx web/src/styles/globals.css
@@ -2130,7 +2130,7 @@ git commit -m "feat(web): add /docs route with markdown renderer and sidebar nav
 **Files:**
 - Modify: `web/src/components/Sidebar.tsx`
 
-- [ ] **Step 1: Add the Help section + Documentation link**
+- [x] **Step 1: Add the Help section + Documentation link**
 
 Inside the `<nav className="sidebar-nav">` block in `web/src/components/Sidebar.tsx`, just before the closing `</nav>`, add:
 
@@ -2147,11 +2147,11 @@ Inside the `<nav className="sidebar-nav">` block in `web/src/components/Sidebar.
 
 The Help link should be visible on every authed view, so place it after the `projectSlug && orgSlug` block (outside its conditional).
 
-- [ ] **Step 2: Visual smoke**
+- [x] **Step 2: Visual smoke**
 
 `npm run dev`. Verify the Documentation link appears in the sidebar at every level (no project, project selected, app selected) and routes to `/docs`.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add web/src/components/Sidebar.tsx
@@ -2165,7 +2165,7 @@ git commit -m "feat(web): add Documentation link to sidebar Help section"
 **Files:**
 - Modify: `web/src/App.tsx`
 
-- [ ] **Step 1: Convert imports to `React.lazy`**
+- [x] **Step 1: Convert imports to `React.lazy`**
 
 At the top of `web/src/App.tsx`, replace:
 
@@ -2182,7 +2182,7 @@ const LandingPage = lazy(() => import('./pages/LandingPage'));
 const DocsPage = lazy(() => import('./pages/DocsPage'));
 ```
 
-- [ ] **Step 2: Wrap the `<Routes>` (or just the lazy routes) in `<Suspense>`**
+- [x] **Step 2: Wrap the `<Routes>` (or just the lazy routes) in `<Suspense>`**
 
 The simplest correct change is to wrap the entire `<Routes>` element:
 
@@ -2194,7 +2194,7 @@ The simplest correct change is to wrap the entire `<Routes>` element:
 </Suspense>
 ```
 
-- [ ] **Step 3: Build to verify code-splitting works**
+- [x] **Step 3: Build to verify code-splitting works**
 
 ```bash
 cd web
@@ -2209,11 +2209,11 @@ ls dist/assets/ | grep -E '(Landing|Docs)'
 
 Expected: at least one matching file per page.
 
-- [ ] **Step 4: Smoke**
+- [x] **Step 4: Smoke**
 
 `npm run dev`. Verify `/`, `/docs`, and the authed app shell still all render.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/App.tsx
@@ -2229,7 +2229,7 @@ git commit -m "perf(web): lazy-load LandingPage and DocsPage chunks"
 
 This spec covers the unauthed landing page, the authed header behavior, and docs navigation. It uses the existing `mock-api.ts` helper for the authed flow.
 
-- [ ] **Step 1: Inspect existing helpers to match the project's mocking pattern**
+- [x] **Step 1: Inspect existing helpers to match the project's mocking pattern**
 
 ```bash
 cd web
@@ -2238,7 +2238,7 @@ sed -n '1,40p' e2e/helpers/mock-api.ts
 
 Look at how other UI specs (e.g. `e2e/ui/api-keys.spec.ts`) set up an authenticated session. Match that pattern in step 2.
 
-- [ ] **Step 2: Write the spec**
+- [x] **Step 2: Write the spec**
 
 `web/e2e/ui/landing-and-header.spec.ts`:
 
@@ -2320,7 +2320,7 @@ test.describe('Docs', () => {
 
 If `loginAsTestUser` does not exist in `mock-api.ts`, use the same login flow used by sibling specs (e.g. `e2e/ui/api-keys.spec.ts`). If the helper has a different name, substitute it.
 
-- [ ] **Step 3: Run the spec**
+- [x] **Step 3: Run the spec**
 
 ```bash
 cd web
@@ -2329,7 +2329,7 @@ npx playwright test e2e/ui/landing-and-header.spec.ts
 
 Expected: all tests pass. If a selector fails because of a missing helper or different login flow, adjust the spec to match the project's existing pattern (mirror what `api-keys.spec.ts` or `members.spec.ts` does).
 
-- [ ] **Step 4: Run the full E2E suite to catch regressions**
+- [x] **Step 4: Run the full E2E suite to catch regressions**
 
 ```bash
 cd web
@@ -2338,7 +2338,7 @@ npm run test:e2e
 
 Expected: all existing specs still pass plus the new one.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/e2e/ui/landing-and-header.spec.ts
@@ -2352,7 +2352,7 @@ git commit -m "test(e2e): cover landing page, header user menu, and docs navigat
 **Files:**
 - Modify: `docs/Current_Initiatives.md` (or whichever current-initiatives file the repo uses — see CLAUDE.md)
 
-- [ ] **Step 1: Run all checks**
+- [x] **Step 1: Run all checks**
 
 ```bash
 cd web
@@ -2363,7 +2363,7 @@ npm run build
 
 Expected: lint clean, vitest green, build succeeds.
 
-- [ ] **Step 2: Manual smoke walkthrough**
+- [x] **Step 2: Manual smoke walkthrough**
 
 ```bash
 cd web
@@ -2381,7 +2381,7 @@ Walk through:
 
 Stop the dev server.
 
-- [ ] **Step 3: Update Current Initiatives**
+- [x] **Step 3: Update Current Initiatives**
 
 The repo's `CLAUDE.md` requires `docs/Current_Initiatives.md` and a Completion Record on the plan file. Update:
 
@@ -2396,7 +2396,7 @@ The repo's `CLAUDE.md` requires `docs/Current_Initiatives.md` and a Completion R
 - **CI Checks**: <Pass/Fail>
 ```
 
-- [ ] **Step 4: Commit completion metadata**
+- [x] **Step 4: Commit completion metadata**
 
 ```bash
 git add docs/Current_Initiatives.md docs/superpowers/plans/2026-04-12-landing-page-and-header.md
@@ -2433,3 +2433,9 @@ git commit -m "docs: mark landing page implementation complete"
 - `findDoc(slug)` returns `DocEntry | undefined` — caller in `DocsPage` checks for `undefined`. ✓
 
 No placeholders, no TODO/TBD. Complete code in every step.
+
+## Completion Record
+- **Branch**: `main`
+- **Committed**: Yes (22 commits, 6a548a6..469bc10)
+- **Pushed**: Yes
+- **CI Checks**: Lint clean, 7 unit tests passing, 8 E2E tests passing. Pre-existing TS errors in authHooks.ts, MembersPage.tsx, realtime.ts (not introduced by this work).

@@ -79,6 +79,8 @@ pre {
 }
 
 /* Layout */
+.app-shell { display: flex; flex-direction: column; min-height: 100vh; }
+.app-shell .app-layout { flex: 1; min-height: 0; }
 .app-layout {
   display: flex;
   height: 100vh;

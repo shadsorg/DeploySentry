@@ -1,26 +1,13 @@
-import { NavLink, useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/authHooks';
+import { NavLink, useParams } from 'react-router-dom';
 import OrgSwitcher from './OrgSwitcher';
 import ProjectSwitcher from './ProjectSwitcher';
 import AppAccordion from './AppAccordion';
 
 export default function Sidebar() {
-  const { user, logout } = useAuth();
   const { orgSlug, projectSlug } = useParams();
-  const navigate = useNavigate();
-
-  function handleLogout() {
-    logout();
-    navigate('/login');
-  }
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-header">
-        <div className="sidebar-logo">DS</div>
-        <span className="sidebar-title">DeploySentry</span>
-      </div>
-
       <div className="sidebar-switchers">
         <OrgSwitcher />
         {projectSlug && <ProjectSwitcher />}
@@ -107,18 +94,6 @@ export default function Sidebar() {
           </>
         )}
       </nav>
-
-      <div className="sidebar-footer">
-        {user && (
-          <div className="sidebar-user">
-            <span className="text-sm">{user.name || user.email}</span>
-            <button className="btn-link text-xs text-muted" onClick={handleLogout}>
-              Sign out
-            </button>
-          </div>
-        )}
-        <div className="nav-item text-xs text-muted">v1.0.0</div>
-      </div>
     </aside>
   );
 }

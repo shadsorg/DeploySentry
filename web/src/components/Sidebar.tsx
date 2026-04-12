@@ -93,6 +93,14 @@ export default function Sidebar() {
             </NavLink>
           </>
         )}
+        <div className="sidebar-section">Help</div>
+        <NavLink
+          to="/docs"
+          className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+        >
+          <span className="nav-icon">?</span>
+          Documentation
+        </NavLink>
       </nav>
     </aside>
   );

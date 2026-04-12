@@ -271,7 +271,7 @@ export function useRealtimeUpdates(
     // Subscribe to connection status updates
     const unsubscribeStatus = realtimeManager.subscribe(['system_alert'], (event) => {
       if (event.data?.connected !== undefined) {
-        setConnected(event.data.connected);
+        setConnected(Boolean(event.data.connected));
       }
     });
 

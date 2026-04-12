@@ -11,14 +11,17 @@ export default function DefaultRedirect() {
       setTarget(`/orgs/${lastOrg}/projects`);
       return;
     }
-    entitiesApi.listOrgs().then((res) => {
-      const orgs = res.organizations ?? [];
-      if (orgs.length > 0) {
-        setTarget(`/orgs/${orgs[0].slug}/projects`);
-      } else {
-        setTarget('/orgs/new');
-      }
-    }).catch(() => setTarget('/orgs/new'));
+    entitiesApi
+      .listOrgs()
+      .then((res) => {
+        const orgs = res.organizations ?? [];
+        if (orgs.length > 0) {
+          setTarget(`/orgs/${orgs[0].slug}/projects`);
+        } else {
+          setTarget('/orgs/new');
+        }
+      })
+      .catch(() => setTarget('/orgs/new'));
   }, []);
 
   if (!target) return <div className="page-loading">Loading...</div>;

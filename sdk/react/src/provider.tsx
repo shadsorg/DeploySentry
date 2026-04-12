@@ -29,6 +29,7 @@ export function DeploySentryProvider({
   environment,
   project,
   user,
+  sessionId,
   children,
 }: ProviderProps): React.ReactElement {
   const [client, setClient] = useState<DeploySentryClient | null>(null);
@@ -40,8 +41,8 @@ export function DeploySentryProvider({
   // Memoise the configuration identity so we only recreate the client when
   // the connection parameters change, not on every render.
   const configKey = useMemo(
-    () => JSON.stringify({ apiKey, baseURL, environment, project }),
-    [apiKey, baseURL, environment, project],
+    () => JSON.stringify({ apiKey, baseURL, environment, project, sessionId }),
+    [apiKey, baseURL, environment, project, sessionId],
   );
 
   useEffect(() => {
@@ -51,6 +52,7 @@ export function DeploySentryProvider({
       environment,
       project,
       user,
+      sessionId,
     });
 
     clientRef.current = instance;
@@ -96,6 +98,16 @@ export function DeploySentryProvider({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userKey, client]);
+
+  // Delay rendering children until the client exists. Hooks like
+  // `useFlag` throw synchronously when the context value is null, which
+  // crashes the whole subtree on the first render — before `init()` has
+  // even had a chance to run. Gating children behind the client's
+  // readiness keeps the external API (a throwing hook that enforces
+  // provider presence) while preventing that race.
+  if (!client) {
+    return <DeploySentryContext.Provider value={null}>{null}</DeploySentryContext.Provider>;
+  }
 
   return (
     <DeploySentryContext.Provider value={client}>

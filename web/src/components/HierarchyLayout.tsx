@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Outlet, useParams } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Breadcrumb from './Breadcrumb';
+import SiteHeader from './SiteHeader';
 import RealtimeManager from '@/services/realtime';
 
 export default function HierarchyLayout() {
@@ -29,16 +30,21 @@ export default function HierarchyLayout() {
     };
 
     initializeRealtime();
-    return () => { RealtimeManager.getInstance().dispose(); };
+    return () => {
+      RealtimeManager.getInstance().dispose();
+    };
   }, []);
 
   return (
-    <div className="app-layout">
-      <Sidebar />
-      <main className="main-content">
-        <Breadcrumb />
-        <Outlet />
-      </main>
+    <div className="app-shell">
+      <SiteHeader variant="app" />
+      <div className="app-layout">
+        <Sidebar />
+        <main className="main-content">
+          <Breadcrumb />
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

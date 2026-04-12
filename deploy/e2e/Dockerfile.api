@@ -1,0 +1,25 @@
+# Dockerfile for the DeploySentry API used by the hermetic e2e SDK test stack
+# (docker-compose.e2e.yml). Kept separate from deploy/selfhost/Dockerfile.api
+# so we can pin the Go toolchain to whatever the current go.mod requires
+# without disturbing the self-host image.
+
+# Build stage
+FROM golang:1.25-alpine AS builder
+RUN apk add --no-cache git ca-certificates tzdata
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags='-w -s' \
+    -o /deploysentry-api \
+    ./cmd/api
+
+# Runtime stage (alpine so the healthcheck can use busybox wget)
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates tzdata wget
+RUN adduser -D -u 1001 deploysentry
+COPY --from=builder /deploysentry-api /deploysentry-api
+USER deploysentry
+EXPOSE 8080
+ENTRYPOINT ["/deploysentry-api"]

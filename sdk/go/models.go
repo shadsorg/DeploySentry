@@ -83,6 +83,7 @@ type evaluateRequest struct {
 	Context     *EvaluationContext `json:"context,omitempty"`
 	Environment string             `json:"environment,omitempty"`
 	ProjectID   string             `json:"project_id,omitempty"`
+	SessionID   string             `json:"session_id,omitempty"`
 }
 
 // evaluateResponse is the JSON body returned from the evaluation endpoint.
@@ -101,6 +102,7 @@ type batchEvaluateRequest struct {
 	Context     *EvaluationContext `json:"context,omitempty"`
 	Environment string             `json:"environment,omitempty"`
 	ProjectID   string             `json:"project_id,omitempty"`
+	SessionID   string             `json:"session_id,omitempty"`
 }
 
 // batchEvaluateResponse is the JSON body returned from the batch evaluation endpoint.

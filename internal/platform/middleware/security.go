@@ -28,7 +28,7 @@ type SecurityConfig struct {
 // DefaultSecurityConfig returns production-ready security header configuration.
 func DefaultSecurityConfig() SecurityConfig {
 	return SecurityConfig{
-		ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self'; frame-ancestors 'none'",
+		ContentSecurityPolicy: "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self'; frame-ancestors 'none'",
 		ReferrerPolicy:        "strict-origin-when-cross-origin",
 		FrameOptions:          "DENY",
 		ContentTypeOptions:    true,

@@ -1,6 +1,6 @@
 # Documentation Updates Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Update README.md with complete API schemas, SSE protocol, and session consistency docs. Fix SDK READMEs.
 
@@ -45,7 +45,7 @@
 
 **Insertion point:** After the existing "API Endpoints for Monitoring" table (around line 506), before the "Observability Integration" section. Add a new section `### Evaluation API`.
 
-- [ ] **Step 1: Add `### Evaluation API` section to README**
+- [x] **Step 1: Add `### Evaluation API` section to README**
 
 Insert the following section between "API Endpoints for Monitoring" and "Observability Integration":
 
@@ -155,7 +155,7 @@ Evaluate multiple flags in a single request. Requires `flags:read` scope.
 
 **Insertion point:** After the new "Evaluation API" section added in Task 1, before "Observability Integration". Add a new section `### SSE Streaming Protocol`.
 
-- [ ] **Step 2: Add `### SSE Streaming Protocol` section to README**
+- [x] **Step 2: Add `### SSE Streaming Protocol` section to README**
 
 ```markdown
 ### SSE Streaming Protocol
@@ -202,7 +202,7 @@ data: {"event": "flag.updated", "flag_id": "abc123", "flag_key": "new-checkout-f
 
 **Insertion point:** In the existing "API Endpoints for Monitoring" table, or immediately after it as a new subsection `### Rule Management Endpoints`. Either extend the table or add a sibling section. Prefer a sibling section to keep the monitoring table focused.
 
-- [ ] **Step 3: Add `### Rule Management Endpoints` section to README**
+- [x] **Step 3: Add `### Rule Management Endpoints` section to README**
 
 Add after the "API Endpoints for Monitoring" table:
 
@@ -248,7 +248,7 @@ Rules are evaluated in `priority` order — lower number wins. First matching ru
 
 **Insertion point:** After "SDK Behavior" section (around line 454), before the "---" separator. Add a new section `### Session Consistency`.
 
-- [ ] **Step 4: Add `### Session Consistency` section to README**
+- [x] **Step 4: Add `### Session Consistency` section to README**
 
 ```markdown
 ### Session Consistency
@@ -318,7 +318,7 @@ The Java, React, and Flutter READMEs incorrectly document the auth header as `Be
 
 **File:** `sdk/java/README.md`
 
-- [ ] **Step 5a-1: Fix auth header documentation in Java README**
+- [x] **Step 5a-1: Fix auth header documentation in Java README**
 
 The Java README does not currently show the auth header explicitly in prose, but the SDK implementation uses `"Bearer "`. Add a new "Authentication" section after "Configuration Options" that documents the correct header:
 
@@ -334,7 +334,7 @@ Authorization: ApiKey <your-api-key>
 Pass the key via `ClientOptions.builder().apiKey("ds_key_xxxxxxxxxxxx")`. The SDK sets the header automatically.
 ```
 
-- [ ] **Step 5a-2: Add session consistency example to Java README**
+- [x] **Step 5a-2: Add session consistency example to Java README**
 
 Add after the "Authentication" section:
 
@@ -368,7 +368,7 @@ The session ID is sent as `X-DeploySentry-Session: user:<userId>`. The server ca
 
 **File:** `sdk/react/README.md`
 
-- [ ] **Step 5b-1: Fix auth header documentation in React README**
+- [x] **Step 5b-1: Fix auth header documentation in React README**
 
 Add an "Authentication" section after the "Provider Props" table:
 
@@ -385,7 +385,7 @@ All API requests use the `Authorization: ApiKey <key>` header. Pass your key via
 ```
 ```
 
-- [ ] **Step 5b-2: Add session consistency example to React README**
+- [x] **Step 5b-2: Add session consistency example to React README**
 
 Add after the existing "Real-Time Updates" section:
 
@@ -421,7 +421,7 @@ Omit `sessionId` to always receive fresh flag evaluations.
 
 **File:** `sdk/flutter/README.md`
 
-- [ ] **Step 5c-1: Fix auth header documentation in Flutter README**
+- [x] **Step 5c-1: Fix auth header documentation in Flutter README**
 
 Add an "Authentication" section after the "API Endpoints" table:
 
@@ -440,7 +440,7 @@ final client = DeploySentryClient(
 ```
 ```
 
-- [ ] **Step 5c-2: Add session consistency example to Flutter README**
+- [x] **Step 5c-2: Add session consistency example to Flutter README**
 
 Add after the new "Authentication" section:
 
@@ -473,7 +473,7 @@ The session ID is sent as `X-DeploySentry-Session`. The server caches results fo
 
 **File:** `sdk/go/README.md`
 
-- [ ] **Step 5d: Add session consistency example to Go README**
+- [x] **Step 5d: Add session consistency example to Go README**
 
 Find the existing "Configuration" or options section and add a "Session Consistency" subsection. Add after the section describing `WithAPIKey` / initialization options:
 
@@ -507,7 +507,7 @@ The session ID is sent as `X-DeploySentry-Session`. The server caches results fo
 
 **File:** `sdk/node/README.md`
 
-- [ ] **Step 5e: Add session consistency example to Node README**
+- [x] **Step 5e: Add session consistency example to Node README**
 
 Add a "Session Consistency" section after the existing "Real-time Updates" or "Configuration" section:
 
@@ -540,7 +540,7 @@ The session ID is sent as `X-DeploySentry-Session`. The server caches results fo
 
 **File:** `sdk/python/README.md`
 
-- [ ] **Step 5f: Add session consistency example to Python README**
+- [x] **Step 5f: Add session consistency example to Python README**
 
 Add a "Session Consistency" section:
 
@@ -573,7 +573,7 @@ The session ID is sent as `X-DeploySentry-Session`. The server caches results fo
 
 **File:** `sdk/ruby/README.md`
 
-- [ ] **Step 5g: Add session consistency example to Ruby README**
+- [x] **Step 5g: Add session consistency example to Ruby README**
 
 Add a "Session Consistency" section:
 
@@ -610,7 +610,7 @@ The session ID is sent as `X-DeploySentry-Session`. The server caches results fo
 
 **Insertion point:** After the existing "Targeting Rules" table and operators list (around line 168), as a new subsection `#### Percentage Rollout Algorithm`.
 
-- [ ] **Step 6: Add percentage rollout algorithm docs to README**
+- [x] **Step 6: Add percentage rollout algorithm docs to README**
 
 Add immediately after the "Attribute operators" line in the Targeting Rules section:
 

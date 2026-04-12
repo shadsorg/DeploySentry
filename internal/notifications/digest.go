@@ -173,10 +173,10 @@ func buildDigestSummary(events []*Event) string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Notification digest: %d events\n\n", len(events)))
+	fmt.Fprintf(&sb, "Notification digest: %d events\n\n", len(events))
 
 	for eventType, count := range counts {
-		sb.WriteString(fmt.Sprintf("  %s: %d\n", eventType, count))
+		fmt.Fprintf(&sb, "  %s: %d\n", eventType, count)
 	}
 
 	return sb.String()

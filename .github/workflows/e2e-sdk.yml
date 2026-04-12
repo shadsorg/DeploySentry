@@ -1,0 +1,107 @@
+name: e2e-sdk
+
+on:
+  pull_request:
+    paths:
+      - 'sdk/node/**'
+      - 'sdk/react/**'
+      - 'internal/flags/**'
+      - 'internal/auth/**'
+      - 'cmd/api/**'
+      - 'web/e2e/sdk/**'
+      - 'web/e2e/sdk-probes/**'
+      - 'web/e2e/helpers/sdk-driver.ts'
+      - 'web/e2e/helpers/seed-via-ui.ts'
+      - 'web/e2e/helpers/flag-ui.ts'
+      - 'docker-compose.e2e.yml'
+      - 'deploy/e2e/**'
+      - 'migrations/**'
+      - '.github/workflows/e2e-sdk.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-sdk:
+    name: E2E SDK Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install migrate CLI
+        run: |
+          curl -fsSL https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz | tar xz
+          sudo mv migrate /usr/local/bin/
+
+      - name: Build Node SDK
+        working-directory: sdk/node
+        run: npm install && npm run build
+
+      - name: Build React SDK
+        working-directory: sdk/react
+        run: npm install && npm run build
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      - name: Install node-probe dependencies
+        working-directory: web/e2e/sdk-probes/node-probe
+        run: npm install
+
+      - name: Build react-harness
+        working-directory: web/e2e/sdk-probes/react-harness
+        run: npm install && npm run build
+
+      - name: Start e2e stack and run migrations
+        run: make e2e-sdk-up
+
+      - name: Run e2e-sdk tests
+        working-directory: web
+        run: npx playwright test --project=sdk
+
+      - name: Tear down e2e stack
+        if: always()
+        run: make e2e-sdk-down
+
+      - name: Dump compose logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.e2e.yml logs --no-color > compose-logs.txt 2>&1 || true
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-sdk-report
+          path: |
+            web/playwright-report/
+            web/test-results/
+          retention-days: 7
+
+      - name: Upload compose logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-logs
+          path: compose-logs.txt
+          retention-days: 7

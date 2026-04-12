@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"time"
@@ -363,7 +364,9 @@ func (s *Service) GetSystemHealthMetrics(ctx context.Context) (*models.SystemHea
 
 	// Database connection count
 	dbQuery := `SELECT count(*) FROM pg_stat_activity WHERE state = 'active'`
-	s.db.QueryRow(ctx, dbQuery).Scan(&metrics.DatabaseConnections)
+	if err := s.db.QueryRow(ctx, dbQuery).Scan(&metrics.DatabaseConnections); err != nil {
+		log.Printf("failed to query database connections: %v", err)
+	}
 
 	return metrics, nil
 }
@@ -462,7 +465,9 @@ func (s *Service) CreateAnalyticsMiddleware() func(http.Handler) http.Handler {
 			go func() {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
-				s.RecordAPIRequest(ctx, metric)
+				if err := s.RecordAPIRequest(ctx, metric); err != nil {
+					log.Printf("failed to record API request metric: %v", err)
+				}
 			}()
 		})
 	}

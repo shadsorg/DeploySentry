@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -122,7 +123,7 @@ func run() error {
 	}
 	defer func() {
 		if gelfClient != nil {
-			gelfClient.Close()
+			_ = gelfClient.Close()
 		}
 	}()
 
@@ -143,6 +144,18 @@ func run() error {
 	router.Use(middleware.RequestSizeLimit(middleware.DefaultRequestSizeConfig()))
 	router.Use(middleware.SecurityHeaders(middleware.DefaultSecurityConfig()))
 	router.Use(metrics.InstrumentHandler())
+
+	// CORS must be at the router level so preflight OPTIONS requests
+	// (which don't match any registered route) get handled before Gin's
+	// default 404 response.
+	router.Use(middleware.CORS(middleware.ProductionCORSConfig([]string{
+		"https://www.dr-sentry.com",
+		"https://dr-sentry.com",
+		"http://localhost:3001",
+		"http://localhost:3002", // e2e SDK dashboard instance
+		"http://localhost:4310", // e2e React SDK harness (Vite preview)
+		"http://localhost:8080",
+	})))
 
 	// Health check endpoint.
 	router.GET("/health", func(c *gin.Context) {
@@ -199,6 +212,7 @@ func run() error {
 	webhookRepo := postgres.NewWebhookRepository(db.Pool)
 	ratingRepo := postgres.NewRatingRepository(db.Pool)
 	entityRepo := postgres.NewEntityRepository(db.Pool)
+	envRepo := entities.NewEnvironmentRepository(db.Pool)
 	settingRepo := postgres.NewSettingRepository(db.Pool)
 	memberRepo := postgres.NewMemberRepository(db.Pool)
 
@@ -214,7 +228,7 @@ func run() error {
 	analyticsService := analytics.NewService(db.Pool, rdb.Client)
 	webhookService := webhooks.NewService(webhookRepo, nc)
 	ratingService := ratings.NewRatingService(ratingRepo)
-	entityService := entities.NewEntityService(entityRepo)
+	entityService := entities.NewEntityService(entityRepo, envRepo)
 	settingService := settings.NewSettingService(settingRepo)
 	memberService := members.NewService(memberRepo)
 
@@ -263,18 +277,24 @@ func run() error {
 		}
 	}()
 
+	prefStore := notifications.NewInMemoryPreferenceStore()
+
 	// -------------------------------------------------------------------------
 	// Middleware
 	// -------------------------------------------------------------------------
+	rateLimitConfig := middleware.DefaultRateLimitConfig()
+	// The hermetic e2e stack runs many requests in tight bursts (login,
+	// seed, list, toggle) and trips the default 100 req/min limiter,
+	// which then causes the React dashboard to drop the user's session.
+	// Allow scaling the limit via DS_RATE_LIMIT_PER_MINUTE for tests.
+	if v := os.Getenv("DS_RATE_LIMIT_PER_MINUTE"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			rateLimitConfig.RequestsPerWindow = n
+		}
+	}
+	rateLimiter := middleware.NewRateLimiter(rdb.Client, rateLimitConfig)
 	apiKeyValidator := &apiKeyValidatorAdapter{service: apiKeyService}
 	authMiddleware := auth.NewAuthMiddleware(cfg.Auth.JWTSecret, apiKeyValidator)
-	corsMiddleware := middleware.CORS(middleware.ProductionCORSConfig([]string{
-		"https://www.dr-sentry.com",
-		"https://dr-sentry.com",
-		"http://localhost:3001",
-		"http://localhost:8080",
-	}))
-	rateLimiter := middleware.NewRateLimiter(rdb.Client, middleware.DefaultRateLimitConfig())
 
 	// -------------------------------------------------------------------------
 	// Routes
@@ -282,7 +302,6 @@ func run() error {
 
 	// Authenticated API routes.
 	api := router.Group("/api/v1")
-	api.Use(corsMiddleware)
 	api.Use(rateLimiter.Middleware())
 	api.Use(authMiddleware.RequireAuth())
 	orgRoleLookup := postgres.NewOrgRoleLookup(db.Pool)
@@ -291,6 +310,7 @@ func run() error {
 	flagHandler := flags.NewHandler(flagService, rbacChecker, webhookService, analyticsService)
 	flagHandler.SetRatingService(ratingService)
 	flagHandler.RegisterRoutes(api)
+	flagHandler.RegisterSegmentRoutes(api)
 	deploy.NewHandler(deployService, webhookService, analyticsService).RegisterRoutes(api, rbacChecker)
 	releases.NewHandler(releaseService).RegisterRoutes(api)
 	analytics.NewHandler(analyticsService).RegisterRoutes(api)
@@ -302,10 +322,10 @@ func run() error {
 	entities.NewHandler(entityService, rbacChecker).RegisterRoutes(api)
 	settings.NewHandler(settingService, rbacChecker).RegisterRoutes(api)
 	members.NewHandler(memberService, entityService, rbacChecker).RegisterRoutes(api)
+	notifications.NewPreferencesHandler(prefStore, notificationService, rbacChecker).RegisterRoutes(api)
 
 	// Public routes (no auth required).
 	public := router.Group("/api/v1")
-	public.Use(corsMiddleware)
 	auth.NewLoginHandler(userRepo, cfg.Auth).RegisterRoutes(public)
 
 	// GitHub webhook integration (public, verified by signature).

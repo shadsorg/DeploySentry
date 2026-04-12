@@ -375,6 +375,26 @@ type OrgRoleLookup interface {
 // This must run before RequirePermission on all authenticated routes.
 func ResolveOrgRole(lookup OrgRoleLookup) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// API key authentication does not carry a user_id, so the
+		// user-centric lookups below don't apply. Map the key's scopes
+		// directly to a role instead. This lets SDK clients that
+		// authenticate with an API key reach the read-only flag
+		// endpoints (listFlags, streamFlags, evaluate) which are
+		// guarded by RequirePermission(PermFlagRead).
+		if method, _ := c.Get("auth_method"); method == "api_key" {
+			if _, exists := c.Get("role"); !exists {
+				scopes, _ := c.Get("api_key_scopes")
+				if scopeSlice, ok := scopes.([]string); ok {
+					role := apiKeyScopesToRole(scopeSlice)
+					if role != "" {
+						c.Set("role", role)
+					}
+				}
+			}
+			c.Next()
+			return
+		}
+
 		userIDValue, exists := c.Get("user_id")
 		if !exists {
 			c.Next()
@@ -417,6 +437,33 @@ func ResolveOrgRole(lookup OrgRoleLookup) gin.HandlerFunc {
 		c.Set("role", Role(role))
 		c.Next()
 	}
+}
+
+// apiKeyScopesToRole maps a set of API key scopes to the least-privilege
+// org role that satisfies them. Used by ResolveOrgRole when authenticating
+// with an API key so scope-checked SDK endpoints can also clear the
+// RequirePermission role-based checks.
+func apiKeyScopesToRole(scopes []string) Role {
+	var write bool
+	var read bool
+	for _, s := range scopes {
+		switch s {
+		case "admin":
+			return RoleOwner
+		case "flag:toggle", "flags:toggle", "flag:create", "flags:create",
+			"flag:update", "flags:update", "flag:write", "flags:write":
+			write = true
+		case "flag:read", "flags:read":
+			read = true
+		}
+	}
+	if write {
+		return RoleDeveloper
+	}
+	if read {
+		return RoleViewer
+	}
+	return ""
 }
 
 // ValidateResourceOwnership returns a Gin middleware that checks whether the

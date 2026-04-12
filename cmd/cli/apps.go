@@ -133,17 +133,17 @@ func runAppsCreate(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	id, _ := resp["id"].(string)
 	respSlug, _ := resp["slug"].(string)
-	fmt.Fprintf(cmd.OutOrStdout(), "Application created successfully.\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  ID:   %s\n", id)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Name: %s\n", name)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Slug: %s\n", respSlug)
-	fmt.Fprintf(cmd.OutOrStdout(), "\nAdd '--app %s' to commands or set it in .deploysentry.yml.\n", respSlug)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Application created successfully.\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  ID:   %s\n", id)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Name: %s\n", name)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Slug: %s\n", respSlug)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nAdd '--app %s' to commands or set it in .deploysentry.yml.\n", respSlug)
 	return nil
 }
 
@@ -170,18 +170,18 @@ func runAppsList(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	apps, _ := resp["apps"].([]interface{})
 	if len(apps) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No applications found.")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No applications found.")
 		return nil
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "SLUG\tNAME\tDESCRIPTION\tREPO\tCREATED")
+	_, _ = fmt.Fprintln(w, "SLUG\tNAME\tDESCRIPTION\tREPO\tCREATED")
 	for _, a := range apps {
 		app, ok := a.(map[string]interface{})
 		if !ok {
@@ -203,7 +203,7 @@ func runAppsList(cmd *cobra.Command, args []string) error {
 			repo = repo[:37] + "..."
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", slug, name, description, repo, createdAt)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", slug, name, description, repo, createdAt)
 	}
 	return w.Flush()
 }
@@ -233,13 +233,13 @@ func runAppsGet(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Application: %s\n\n", slug)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Application: %s\n\n", slug)
 	for key, value := range resp {
-		fmt.Fprintf(cmd.OutOrStdout(), "  %-25s %v\n", key+":", value)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %-25s %v\n", key+":", value)
 	}
 	return nil
 }

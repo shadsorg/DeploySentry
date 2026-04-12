@@ -194,7 +194,7 @@ func refreshToken(creds *credentialsFile) (*credentialsFile, error) {
 	if err != nil {
 		return nil, fmt.Errorf("token refresh request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("token refresh failed (status %d); run 'deploysentry auth login' to re-authenticate", resp.StatusCode)
@@ -266,7 +266,7 @@ func ensureValidToken() (*credentialsFile, error) {
 
 	// Token is expired or about to expire; attempt refresh.
 	if isVerbose() {
-		fmt.Fprintln(os.Stderr, "Access token expired or expiring soon; refreshing...")
+		_, _ = fmt.Fprintln(os.Stderr, "Access token expired or expiring soon; refreshing...")
 	}
 
 	refreshed, err := refreshToken(creds)
@@ -275,7 +275,7 @@ func ensureValidToken() (*credentialsFile, error) {
 	}
 
 	if isVerbose() {
-		fmt.Fprintln(os.Stderr, "Token refreshed successfully.")
+		_, _ = fmt.Fprintln(os.Stderr, "Token refreshed successfully.")
 	}
 
 	return refreshed, nil
@@ -340,7 +340,7 @@ func runAuthLogin(cmd *cobra.Command, args []string) error {
 
 		// Display a success page in the browser.
 		w.Header().Set("Content-Type", "text/html")
-		fmt.Fprint(w, `<!DOCTYPE html><html><body>
+		_, _ = fmt.Fprint(w, `<!DOCTYPE html><html><body>
 			<h2>Authentication successful!</h2>
 			<p>You can close this window and return to the terminal.</p>
 			<script>window.close();</script>
@@ -362,17 +362,17 @@ func runAuthLogin(cmd *cobra.Command, args []string) error {
 		apiURL, callbackURL, state,
 	)
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Opening browser for authentication...\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "If the browser does not open, visit:\n  %s\n\n", authURL)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Opening browser for authentication...\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "If the browser does not open, visit:\n  %s\n\n", authURL)
 
 	// Attempt to open the browser.
 	if err := openBrowser(authURL); err != nil {
 		if isVerbose() {
-			fmt.Fprintf(cmd.ErrOrStderr(), "Could not open browser: %v\n", err)
+			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "Could not open browser: %v\n", err)
 		}
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Waiting for authentication...\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Waiting for authentication...\n")
 
 	// Wait for the callback or timeout.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
@@ -384,8 +384,8 @@ func runAuthLogin(cmd *cobra.Command, args []string) error {
 		if err := saveCredentials(creds); err != nil {
 			return fmt.Errorf("authenticated successfully but failed to save credentials: %w", err)
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "Authenticated as %s (%s)\n", creds.User, creds.Email)
-		fmt.Fprintf(cmd.OutOrStdout(), "Credentials saved to %s\n", mustCredentialsPath())
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Authenticated as %s (%s)\n", creds.User, creds.Email)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Credentials saved to %s\n", mustCredentialsPath())
 		return nil
 	case err := <-errCh:
 		_ = server.Shutdown(context.Background())
@@ -404,12 +404,12 @@ func runAuthLogout(cmd *cobra.Command, args []string) error {
 	}
 	if err := os.Remove(path); err != nil {
 		if os.IsNotExist(err) {
-			fmt.Fprintf(cmd.OutOrStdout(), "No credentials found; already logged out.\n")
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "No credentials found; already logged out.\n")
 			return nil
 		}
 		return fmt.Errorf("failed to remove credentials: %w", err)
 	}
-	fmt.Fprintf(cmd.OutOrStdout(), "Logged out successfully. Credentials removed.\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Logged out successfully. Credentials removed.\n")
 	return nil
 }
 
@@ -417,8 +417,8 @@ func runAuthLogout(cmd *cobra.Command, args []string) error {
 func runAuthStatus(cmd *cobra.Command, args []string) error {
 	creds, err := loadCredentials()
 	if err != nil {
-		fmt.Fprintf(cmd.OutOrStdout(), "Status: Not authenticated\n")
-		fmt.Fprintf(cmd.OutOrStdout(), "Run 'deploysentry auth login' to authenticate.\n")
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Status: Not authenticated\n")
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Run 'deploysentry auth login' to authenticate.\n")
 		return nil
 	}
 
@@ -434,17 +434,17 @@ func runAuthStatus(cmd *cobra.Command, args []string) error {
 			"expired":       expired,
 		}
 		data, _ := json.MarshalIndent(status, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Status:     Authenticated\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "User:       %s\n", creds.User)
-	fmt.Fprintf(cmd.OutOrStdout(), "Email:      %s\n", creds.Email)
-	fmt.Fprintf(cmd.OutOrStdout(), "Token Type: %s\n", creds.TokenType)
-	fmt.Fprintf(cmd.OutOrStdout(), "Expires At: %s\n", creds.ExpiresAt.Format(time.RFC3339))
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Status:     Authenticated\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "User:       %s\n", creds.User)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Email:      %s\n", creds.Email)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Token Type: %s\n", creds.TokenType)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Expires At: %s\n", creds.ExpiresAt.Format(time.RFC3339))
 	if expired {
-		fmt.Fprintf(cmd.OutOrStdout(), "WARNING:    Token has expired. Run 'deploysentry auth login' to re-authenticate.\n")
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "WARNING:    Token has expired. Run 'deploysentry auth login' to re-authenticate.\n")
 	}
 	return nil
 }

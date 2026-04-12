@@ -147,17 +147,17 @@ func runProjectsCreate(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	id, _ := resp["id"].(string)
 	slug, _ := resp["slug"].(string)
-	fmt.Fprintf(cmd.OutOrStdout(), "Project created successfully.\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  ID:   %s\n", id)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Name: %s\n", name)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Slug: %s\n", slug)
-	fmt.Fprintf(cmd.OutOrStdout(), "\nAdd '--project %s' to commands or set it in .deploysentry.yml.\n", slug)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Project created successfully.\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  ID:   %s\n", id)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Name: %s\n", name)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Slug: %s\n", slug)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nAdd '--project %s' to commands or set it in .deploysentry.yml.\n", slug)
 	return nil
 }
 
@@ -180,18 +180,18 @@ func runProjectsList(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	projects, _ := resp["projects"].([]interface{})
 	if len(projects) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No projects found.")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No projects found.")
 		return nil
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "SLUG\tNAME\tDESCRIPTION\tENVIRONMENTS\tCREATED")
+	_, _ = fmt.Fprintln(w, "SLUG\tNAME\tDESCRIPTION\tENVIRONMENTS\tCREATED")
 	for _, p := range projects {
 		proj, ok := p.(map[string]interface{})
 		if !ok {
@@ -223,7 +223,7 @@ func runProjectsList(cmd *cobra.Command, args []string) error {
 			description = description[:37] + "..."
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", slug, name, description, envs, createdAt)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", slug, name, description, envs, createdAt)
 	}
 	return w.Flush()
 }
@@ -271,11 +271,11 @@ func runProjectsConfig(cmd *cobra.Command, args []string) error {
 
 		if getOutputFormat() == "json" {
 			data, _ := json.MarshalIndent(resp, "", "  ")
-			fmt.Fprintln(cmd.OutOrStdout(), string(data))
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 			return nil
 		}
 
-		fmt.Fprintln(cmd.OutOrStdout(), "Project configuration updated.")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Project configuration updated.")
 		return nil
 	}
 
@@ -288,13 +288,13 @@ func runProjectsConfig(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Project Configuration: %s\n\n", project)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Project Configuration: %s\n\n", project)
 	for key, value := range resp {
-		fmt.Fprintf(cmd.OutOrStdout(), "  %-25s %v\n", key+":", value)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %-25s %v\n", key+":", value)
 	}
 	return nil
 }

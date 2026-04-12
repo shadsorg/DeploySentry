@@ -137,8 +137,7 @@ func (r *RatingRepository) GetErrorSummary(ctx context.Context, flagID uuid.UUID
 	if totalEvals > 0 {
 		pct = float64(errorCount) / float64(totalEvals) * 100
 	}
-	//nolint:ineffassign
-	periodStr := "7d"
+	var periodStr string
 	switch {
 	case period <= 24*time.Hour:
 		periodStr = "24h"

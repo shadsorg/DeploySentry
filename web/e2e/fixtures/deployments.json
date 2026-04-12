@@ -1,0 +1,57 @@
+{
+  "list": {
+    "deployments": [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440071",
+        "application_id": "550e8400-e29b-41d4-a716-446655440030",
+        "environment_id": "550e8400-e29b-41d4-a716-446655440051",
+        "version": "1.4.2",
+        "commit_sha": "a3f9b12c4e7d81f0b23c456d7e89f012a3b4c5d6",
+        "artifact": "registry.example.com/test-app:1.4.2",
+        "strategy": "canary",
+        "status": "running",
+        "traffic_percent": 25,
+        "health_score": 98,
+        "created_by": "550e8400-e29b-41d4-a716-446655440001",
+        "created_at": "2025-06-20T10:00:00Z",
+        "updated_at": "2025-06-20T10:15:00Z",
+        "started_at": "2025-06-20T10:05:00Z",
+        "completed_at": null
+      },
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440072",
+        "application_id": "550e8400-e29b-41d4-a716-446655440030",
+        "environment_id": "550e8400-e29b-41d4-a716-446655440051",
+        "version": "1.4.1",
+        "commit_sha": "b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0",
+        "artifact": "registry.example.com/test-app:1.4.1",
+        "strategy": "rolling",
+        "status": "completed",
+        "traffic_percent": 100,
+        "health_score": 100,
+        "created_by": "550e8400-e29b-41d4-a716-446655440001",
+        "created_at": "2025-06-18T09:00:00Z",
+        "updated_at": "2025-06-18T09:45:00Z",
+        "started_at": "2025-06-18T09:05:00Z",
+        "completed_at": "2025-06-18T09:45:00Z"
+      }
+    ]
+  },
+  "detail": {
+    "id": "550e8400-e29b-41d4-a716-446655440071",
+    "application_id": "550e8400-e29b-41d4-a716-446655440030",
+    "environment_id": "550e8400-e29b-41d4-a716-446655440051",
+    "version": "1.4.2",
+    "commit_sha": "a3f9b12c4e7d81f0b23c456d7e89f012a3b4c5d6",
+    "artifact": "registry.example.com/test-app:1.4.2",
+    "strategy": "canary",
+    "status": "running",
+    "traffic_percent": 25,
+    "health_score": 98,
+    "created_by": "550e8400-e29b-41d4-a716-446655440001",
+    "created_at": "2025-06-20T10:00:00Z",
+    "updated_at": "2025-06-20T10:15:00Z",
+    "started_at": "2025-06-20T10:05:00Z",
+    "completed_at": null
+  }
+}

@@ -107,17 +107,17 @@ func runOrgsCreate(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	id, _ := resp["id"].(string)
 	retSlug, _ := resp["slug"].(string)
-	fmt.Fprintf(cmd.OutOrStdout(), "Organization created successfully.\n")
-	fmt.Fprintf(cmd.OutOrStdout(), "  ID:   %s\n", id)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Name: %s\n", name)
-	fmt.Fprintf(cmd.OutOrStdout(), "  Slug: %s\n", retSlug)
-	fmt.Fprintf(cmd.OutOrStdout(), "\nRun 'deploysentry orgs set %s' to make it your active organization.\n", retSlug)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Organization created successfully.\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  ID:   %s\n", id)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Name: %s\n", name)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Slug: %s\n", retSlug)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nRun 'deploysentry orgs set %s' to make it your active organization.\n", retSlug)
 	return nil
 }
 
@@ -134,18 +134,18 @@ func runOrgsList(cmd *cobra.Command, args []string) error {
 
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Fprintln(cmd.OutOrStdout(), string(data))
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
 
 	orgs, _ := resp["orgs"].([]interface{})
 	if len(orgs) == 0 {
-		fmt.Fprintln(cmd.OutOrStdout(), "No organizations found.")
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No organizations found.")
 		return nil
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "SLUG\tNAME\tPLAN\tCREATED")
+	_, _ = fmt.Fprintln(w, "SLUG\tNAME\tPLAN\tCREATED")
 	for _, o := range orgs {
 		org, ok := o.(map[string]interface{})
 		if !ok {
@@ -155,7 +155,7 @@ func runOrgsList(cmd *cobra.Command, args []string) error {
 		name, _ := org["name"].(string)
 		plan, _ := org["plan"].(string)
 		createdAt, _ := org["created_at"].(string)
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", slug, name, plan, createdAt)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", slug, name, plan, createdAt)
 	}
 	return w.Flush()
 }
@@ -172,6 +172,6 @@ func runOrgsSet(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Fprintf(cmd.OutOrStdout(), "Active organization set to %q in .deploysentry.yml.\n", slug)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Active organization set to %q in .deploysentry.yml.\n", slug)
 	return nil
 }

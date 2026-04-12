@@ -211,7 +211,7 @@ func TestDefaultRateLimitConfig_Returns100RequestsPerMinute(t *testing.T) {
 
 func TestNewRateLimiter_SetsDefaultKeyPrefixIfEmpty(t *testing.T) {
 	client := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	cfg := RateLimitConfig{
 		RequestsPerWindow: 50,
@@ -224,7 +224,7 @@ func TestNewRateLimiter_SetsDefaultKeyPrefixIfEmpty(t *testing.T) {
 
 func TestNewRateLimiter_PreservesCustomKeyPrefix(t *testing.T) {
 	client := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	cfg := RateLimitConfig{
 		RequestsPerWindow: 50,
@@ -241,7 +241,7 @@ func TestNewRateLimiter_PreservesCustomKeyPrefix(t *testing.T) {
 
 func TestKeyFor_WithAPIKeyID_ReturnsKeyPrefix(t *testing.T) {
 	client := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	rl := NewRateLimiter(client, DefaultRateLimitConfig())
 
@@ -256,7 +256,7 @@ func TestKeyFor_WithAPIKeyID_ReturnsKeyPrefix(t *testing.T) {
 
 func TestKeyFor_WithUserID_ReturnsUserPrefix(t *testing.T) {
 	client := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	rl := NewRateLimiter(client, DefaultRateLimitConfig())
 
@@ -271,7 +271,7 @@ func TestKeyFor_WithUserID_ReturnsUserPrefix(t *testing.T) {
 
 func TestKeyFor_WithoutKeyOrUser_ReturnsIPPrefix(t *testing.T) {
 	client := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	rl := NewRateLimiter(client, DefaultRateLimitConfig())
 
@@ -286,7 +286,7 @@ func TestKeyFor_WithoutKeyOrUser_ReturnsIPPrefix(t *testing.T) {
 
 func TestKeyFor_APIKeyTakesPrecedenceOverUserID(t *testing.T) {
 	client := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	rl := NewRateLimiter(client, DefaultRateLimitConfig())
 
@@ -307,7 +307,7 @@ func TestKeyFor_APIKeyTakesPrecedenceOverUserID(t *testing.T) {
 
 func TestRateLimitByKey_CreatesValidMiddleware(t *testing.T) {
 	client := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	rl := NewRateLimiter(client, DefaultRateLimitConfig())
 
@@ -321,7 +321,7 @@ func TestRateLimitByKey_CreatesValidMiddleware(t *testing.T) {
 
 func TestRateLimiter_Middleware_CreatesValidHandlerFunc(t *testing.T) {
 	client := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	rl := NewRateLimiter(client, DefaultRateLimitConfig())
 	mw := rl.Middleware()
@@ -331,7 +331,7 @@ func TestRateLimiter_Middleware_CreatesValidHandlerFunc(t *testing.T) {
 func TestRateLimiter_Middleware_AllowsOnRedisError(t *testing.T) {
 	// Use a Redis client with a bad address so pipeline fails.
 	client := redis.NewClient(&redis.Options{Addr: "localhost:1"})
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	rl := NewRateLimiter(client, DefaultRateLimitConfig())
 
@@ -351,7 +351,7 @@ func TestRateLimiter_Middleware_AllowsOnRedisError(t *testing.T) {
 
 func TestRateLimitByKey_AllowsOnRedisError(t *testing.T) {
 	client := redis.NewClient(&redis.Options{Addr: "localhost:1"})
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	rl := NewRateLimiter(client, DefaultRateLimitConfig())
 

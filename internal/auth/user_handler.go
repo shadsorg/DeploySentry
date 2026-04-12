@@ -77,8 +77,6 @@ func (h *UserHandler) RegisterRoutes(rg *gin.RouterGroup) {
 		users.GET("/:id", h.getUser)
 		users.DELETE("/:id", h.deleteUser)
 	}
-
-	// Member routes moved to internal/members/handler.go
 }
 
 // ---------------------------------------------------------------------------
@@ -183,30 +181,6 @@ func (h *UserHandler) deleteUser(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"status": "deleted"})
 }
-
-// ---------------------------------------------------------------------------
-// Organization membership endpoints
-// ---------------------------------------------------------------------------
-
-
-// inviteOrgMemberRequest is the JSON body for inviting a user to an organization.
-
-
-// changeOrgRoleRequest is the JSON body for changing a user's organization role.
-
-
-
-// ---------------------------------------------------------------------------
-// Project membership endpoints
-// ---------------------------------------------------------------------------
-
-
-// addProjectMemberRequest is the JSON body for adding a user to a project.
-
-
-// changeProjectRoleRequest is the JSON body for changing a user's project role.
-
-
 
 // ---------------------------------------------------------------------------
 // Helpers

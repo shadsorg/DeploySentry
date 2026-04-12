@@ -389,7 +389,7 @@ func (h *OAuthHandler) fetchGitHubUser(ctx context.Context, token *oauth2.Token)
 	if err != nil {
 		return nil, fmt.Errorf("fetching github user: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var ghUser githubUserResponse
 	if err := json.NewDecoder(resp.Body).Decode(&ghUser); err != nil {
@@ -419,7 +419,7 @@ func (h *OAuthHandler) fetchGoogleUser(ctx context.Context, token *oauth2.Token)
 	if err != nil {
 		return nil, fmt.Errorf("fetching google user: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var gUser googleUserResponse
 	if err := json.NewDecoder(resp.Body).Decode(&gUser); err != nil {

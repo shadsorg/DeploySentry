@@ -40,6 +40,9 @@ class AsyncDeploySentryClient:
     offline_mode:
         When ``True`` the client will not make any network requests.  All
         evaluations return the supplied default values.
+    session_id:
+        Optional session identifier for consistent flag evaluation.  When set
+        the header ``X-DeploySentry-Session`` is sent with every request.
     """
 
     def __init__(
@@ -50,12 +53,14 @@ class AsyncDeploySentryClient:
         project: str = "",
         cache_timeout: float = 30,
         offline_mode: bool = False,
+        session_id: Optional[str] = None,
     ) -> None:
         self._api_key = api_key
         self._base_url = base_url.rstrip("/")
         self._environment = environment
         self._project = project
         self._offline_mode = offline_mode
+        self._session_id = session_id
 
         self._cache = TTLCache(default_ttl=cache_timeout)
         self._flags: Dict[str, Flag] = {}
@@ -68,10 +73,13 @@ class AsyncDeploySentryClient:
     # ------------------------------------------------------------------
 
     def _auth_headers(self) -> Dict[str, str]:
-        return {
+        headers = {
             "Authorization": f"ApiKey {self._api_key}",
             "Content-Type": "application/json",
         }
+        if self._session_id:
+            headers["X-DeploySentry-Session"] = self._session_id
+        return headers
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -163,6 +171,8 @@ class AsyncDeploySentryClient:
         }
         if self._project:
             body["project_id"] = self._project
+        if self._session_id:
+            body["session_id"] = self._session_id
         if context is not None:
             body["context"] = context.to_dict()
 
@@ -270,3 +280,18 @@ class AsyncDeploySentryClient:
         self._flags[flag.key] = flag
         self._cache.delete(f"eval:{flag.key}")
         logger.debug("Flag updated via SSE: %s", flag.key)
+
+    # ------------------------------------------------------------------
+    # Session helpers
+    # ------------------------------------------------------------------
+
+    async def refresh_session(self) -> None:
+        """Clear the local cache and flag store, then re-fetch all flags.
+
+        Use this after changing session context to ensure evaluations reflect
+        the latest server state.
+        """
+        self._cache.clear()
+        self._flags.clear()
+        if not self._offline_mode and self._http is not None:
+            await self._fetch_flags()

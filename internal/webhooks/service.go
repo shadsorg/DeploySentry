@@ -3,6 +3,7 @@ package webhooks
 import (
 	"bytes"
 	"context"
+	"log"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -94,13 +95,15 @@ func (s *Service) CreateWebhook(ctx context.Context, orgID uuid.UUID, req models
 	}
 
 	// Publish webhook created event
-	_ = s.publishEvent(ctx, models.EventAuditLog, orgID, req.ProjectID, map[string]interface{}{
+	if err := s.publishEvent(ctx, models.EventAuditLog, orgID, req.ProjectID, map[string]interface{}{
 		"action":     "webhook.created",
 		"webhook_id": webhook.ID,
 		"name":       webhook.Name,
 		"url":        webhook.URL,
 		"events":     webhook.Events,
-	}, userID)
+	}, userID); err != nil {
+		log.Printf("failed to publish webhook created event: %v", err)
+	}
 
 	return webhook, nil
 }
@@ -161,12 +164,14 @@ func (s *Service) UpdateWebhook(ctx context.Context, id uuid.UUID, req models.Up
 	}
 
 	// Publish webhook updated event
-	_ = s.publishEvent(ctx, models.EventAuditLog, webhook.OrgID, webhook.ProjectID, map[string]interface{}{
+	if err := s.publishEvent(ctx, models.EventAuditLog, webhook.OrgID, webhook.ProjectID, map[string]interface{}{
 		"action":     "webhook.updated",
 		"webhook_id": webhook.ID,
 		"name":       webhook.Name,
 		"changes":    req,
-	}, userID)
+	}, userID); err != nil {
+		log.Printf("failed to publish webhook updated event: %v", err)
+	}
 
 	return webhook, nil
 }
@@ -183,11 +188,13 @@ func (s *Service) DeleteWebhook(ctx context.Context, id uuid.UUID, userID *uuid.
 	}
 
 	// Publish webhook deleted event
-	_ = s.publishEvent(ctx, models.EventAuditLog, webhook.OrgID, webhook.ProjectID, map[string]interface{}{
+	if err := s.publishEvent(ctx, models.EventAuditLog, webhook.OrgID, webhook.ProjectID, map[string]interface{}{
 		"action":     "webhook.deleted",
 		"webhook_id": webhook.ID,
 		"name":       webhook.Name,
-	}, userID)
+	}, userID); err != nil {
+		log.Printf("failed to publish webhook deleted event: %v", err)
+	}
 
 	return nil
 }
@@ -309,7 +316,7 @@ func (s *Service) deliverWebhook(ctx context.Context, webhook *models.Webhook, d
 	if err != nil {
 		return fmt.Errorf("failed to send webhook: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Read response
 	responseBody, _ := io.ReadAll(resp.Body)

@@ -89,8 +89,8 @@ func TestLoad_ReturnsConfigWithDefaults(t *testing.T) {
 	for _, env := range envVars {
 		original, wasSet := os.LookupEnv(env)
 		if wasSet {
-			os.Unsetenv(env)
-			defer os.Setenv(env, original)
+			_ = os.Unsetenv(env)
+			defer func() { _ = os.Setenv(env, original) }()
 		}
 	}
 
@@ -109,9 +109,9 @@ func TestLoad_ReturnsConfigWithDefaults(t *testing.T) {
 
 func TestLoad_DefaultServerPortIs8080(t *testing.T) {
 	original, wasSet := os.LookupEnv("DS_SERVER_PORT")
-	os.Unsetenv("DS_SERVER_PORT")
+	_ = os.Unsetenv("DS_SERVER_PORT")
 	if wasSet {
-		defer os.Setenv("DS_SERVER_PORT", original)
+		defer func() { _ = os.Setenv("DS_SERVER_PORT", original) }()
 	}
 
 	cfg, err := Load()
@@ -121,9 +121,9 @@ func TestLoad_DefaultServerPortIs8080(t *testing.T) {
 
 func TestLoad_DefaultDatabaseHostIsLocalhost(t *testing.T) {
 	original, wasSet := os.LookupEnv("DS_DATABASE_HOST")
-	os.Unsetenv("DS_DATABASE_HOST")
+	_ = os.Unsetenv("DS_DATABASE_HOST")
 	if wasSet {
-		defer os.Setenv("DS_DATABASE_HOST", original)
+		defer func() { _ = os.Setenv("DS_DATABASE_HOST", original) }()
 	}
 
 	cfg, err := Load()
@@ -133,9 +133,9 @@ func TestLoad_DefaultDatabaseHostIsLocalhost(t *testing.T) {
 
 func TestLoad_DefaultRedisPortIs6379(t *testing.T) {
 	original, wasSet := os.LookupEnv("DS_REDIS_PORT")
-	os.Unsetenv("DS_REDIS_PORT")
+	_ = os.Unsetenv("DS_REDIS_PORT")
 	if wasSet {
-		defer os.Setenv("DS_REDIS_PORT", original)
+		defer func() { _ = os.Setenv("DS_REDIS_PORT", original) }()
 	}
 
 	cfg, err := Load()
@@ -145,9 +145,9 @@ func TestLoad_DefaultRedisPortIs6379(t *testing.T) {
 
 func TestLoad_DefaultDatabasePort(t *testing.T) {
 	original, wasSet := os.LookupEnv("DS_DATABASE_PORT")
-	os.Unsetenv("DS_DATABASE_PORT")
+	_ = os.Unsetenv("DS_DATABASE_PORT")
 	if wasSet {
-		defer os.Setenv("DS_DATABASE_PORT", original)
+		defer func() { _ = os.Setenv("DS_DATABASE_PORT", original) }()
 	}
 
 	cfg, err := Load()
@@ -157,9 +157,9 @@ func TestLoad_DefaultDatabasePort(t *testing.T) {
 
 func TestLoad_DefaultLogLevel(t *testing.T) {
 	original, wasSet := os.LookupEnv("DS_LOG_LEVEL")
-	os.Unsetenv("DS_LOG_LEVEL")
+	_ = os.Unsetenv("DS_LOG_LEVEL")
 	if wasSet {
-		defer os.Setenv("DS_LOG_LEVEL", original)
+		defer func() { _ = os.Setenv("DS_LOG_LEVEL", original) }()
 	}
 
 	cfg, err := Load()
@@ -169,9 +169,9 @@ func TestLoad_DefaultLogLevel(t *testing.T) {
 
 func TestLoad_DefaultLogFormat(t *testing.T) {
 	original, wasSet := os.LookupEnv("DS_LOG_FORMAT")
-	os.Unsetenv("DS_LOG_FORMAT")
+	_ = os.Unsetenv("DS_LOG_FORMAT")
 	if wasSet {
-		defer os.Setenv("DS_LOG_FORMAT", original)
+		defer func() { _ = os.Setenv("DS_LOG_FORMAT", original) }()
 	}
 
 	cfg, err := Load()

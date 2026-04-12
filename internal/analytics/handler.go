@@ -344,9 +344,9 @@ func (h *Handler) exportAnalytics(c *gin.Context) {
 
 	var exports []map[string]interface{}
 	for rows.Next() {
-		var record map[string]interface{} = make(map[string]interface{})
-		var values []interface{} = make([]interface{}, 11)
-		var pointers []interface{} = make([]interface{}, 11)
+		record := make(map[string]interface{})
+		values := make([]interface{}, 11)
+		pointers := make([]interface{}, 11)
 
 		for i := range values {
 			pointers[i] = &values[i]
@@ -383,5 +383,3 @@ func (h *Handler) exportAnalytics(c *gin.Context) {
 		})
 	}
 }
-
-// Helper function to check if a slice contains a string

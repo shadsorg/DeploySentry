@@ -72,19 +72,21 @@ class DashboardService {
       const [flagsResponse, deploymentsResponse, healthResponse] = await Promise.allSettled([
         this.flagsApi.list(this.projectId),
         this.deploymentsApi.list(this.projectId),
-        this.analyticsApi.getSystemHealth().catch(() => ({ score: 98.2 })) // fallback
+        this.analyticsApi.getSystemHealth().catch(() => ({ score: 98.2 })), // fallback
       ]);
 
       const flags = flagsResponse.status === 'fulfilled' ? flagsResponse.value.flags : [];
-      const deployments = deploymentsResponse.status === 'fulfilled' ? deploymentsResponse.value.deployments : [];
-      const healthData = healthResponse.status === 'fulfilled' ? healthResponse.value : { score: 98.2 };
+      const deployments =
+        deploymentsResponse.status === 'fulfilled' ? deploymentsResponse.value.deployments : [];
+      const healthData =
+        healthResponse.status === 'fulfilled' ? healthResponse.value : { score: 98.2 };
 
       return {
         stats: this.calculateStats(flags, deployments, healthData),
         flagsByCategory: this.groupFlagsByCategory(flags),
         expiringFlags: this.getExpiringFlags(flags),
         activeDeployments: this.getActiveDeployments(deployments),
-        recentActivity: await this.getRecentActivity(flags, deployments)
+        recentActivity: await this.getRecentActivity(flags, deployments),
       };
     } catch (error) {
       console.error('[DashboardService] Error fetching dashboard data:', error);
@@ -92,42 +94,54 @@ class DashboardService {
     }
   }
 
-  private calculateStats(flags: Flag[], deployments: Deployment[], healthData: unknown): DashboardStats {
+  private calculateStats(
+    flags: Flag[],
+    deployments: Deployment[],
+    healthData: Record<string, unknown>,
+  ): DashboardStats {
     const now = new Date();
-    const expiredFlags = flags.filter(flag =>
-      flag.expires_at && new Date(flag.expires_at) < now
+    const expiredFlags = flags.filter(
+      (flag) => flag.expires_at && new Date(flag.expires_at) < now,
     ).length;
 
-    const activeDeployments = deployments.filter(dep =>
-      dep.status === 'running' || dep.status === 'pending' || dep.status === 'promoting'
+    const activeDeployments = deployments.filter(
+      (dep) => dep.status === 'running' || dep.status === 'pending' || dep.status === 'promoting',
     ).length;
 
-    const flagsByCategory = flags.reduce((acc, flag) => {
-      acc[flag.category] = (acc[flag.category] || 0) + 1;
-      return acc;
-    }, {} as { [key: string]: number });
+    const flagsByCategory = flags.reduce(
+      (acc, flag) => {
+        acc[flag.category] = (acc[flag.category] || 0) + 1;
+        return acc;
+      },
+      {} as { [key: string]: number },
+    );
 
     return {
       totalFlags: flags.length,
       flagsByCategory,
       activeDeployments,
       expiredFlags,
-      healthScore: healthData.score || 98.2
+      healthScore: (healthData.score as number) || 98.2,
     };
   }
 
-  private groupFlagsByCategory(flags: Flag[]): { category: string; count: number; percentage: number }[] {
-    const categoryCount = flags.reduce((acc, flag) => {
-      acc[flag.category] = (acc[flag.category] || 0) + 1;
-      return acc;
-    }, {} as { [key: string]: number });
+  private groupFlagsByCategory(
+    flags: Flag[],
+  ): { category: string; count: number; percentage: number }[] {
+    const categoryCount = flags.reduce(
+      (acc, flag) => {
+        acc[flag.category] = (acc[flag.category] || 0) + 1;
+        return acc;
+      },
+      {} as { [key: string]: number },
+    );
 
     const total = flags.length;
 
     return Object.entries(categoryCount).map(([category, count]) => ({
       category,
       count,
-      percentage: total > 0 ? (count / total) * 100 : 0
+      percentage: total > 0 ? (count / total) * 100 : 0,
     }));
   }
 
@@ -136,14 +150,16 @@ class DashboardService {
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
     return flags
-      .filter(flag => {
+      .filter((flag) => {
         if (!flag.expires_at) return false;
         const expiresAt = new Date(flag.expires_at);
         return expiresAt > now && expiresAt <= thirtyDaysFromNow;
       })
-      .map(flag => {
+      .map((flag) => {
         const expiresAt = new Date(flag.expires_at!);
-        const daysRemaining = Math.ceil((expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+        const daysRemaining = Math.ceil(
+          (expiresAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000),
+        );
 
         return {
           id: flag.id,
@@ -151,7 +167,7 @@ class DashboardService {
           category: flag.category,
           owner: flag.created_by || 'Unknown',
           expiresAt: flag.expires_at!,
-          daysRemaining
+          daysRemaining,
         };
       })
       .sort((a, b) => a.daysRemaining - b.daysRemaining);
@@ -159,21 +175,30 @@ class DashboardService {
 
   private getActiveDeployments(deployments: Deployment[]): Deployment[] {
     return deployments
-      .filter(dep => dep.status === 'running' || dep.status === 'pending' || dep.status === 'promoting')
+      .filter(
+        (dep) => dep.status === 'running' || dep.status === 'pending' || dep.status === 'promoting',
+      )
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }
 
-  private async getRecentActivity(flags: Flag[], deployments: Deployment[]): Promise<ActivityEvent[]> {
+  private async getRecentActivity(
+    flags: Flag[],
+    deployments: Deployment[],
+  ): Promise<ActivityEvent[]> {
     const activities: ActivityEvent[] = [];
 
     // Add recent flag activities
     const recentFlags = flags
-      .sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime())
+      .sort(
+        (a, b) =>
+          new Date(b.updated_at || b.created_at).getTime() -
+          new Date(a.updated_at || a.created_at).getTime(),
+      )
       .slice(0, 3);
 
-    recentFlags.forEach(flag => {
+    recentFlags.forEach((flag) => {
       const updatedAt = new Date(flag.updated_at || flag.created_at);
-      const isRecent = (Date.now() - updatedAt.getTime()) < 24 * 60 * 60 * 1000; // Within 24 hours
+      const isRecent = Date.now() - updatedAt.getTime() < 24 * 60 * 60 * 1000; // Within 24 hours
 
       if (isRecent) {
         activities.push({
@@ -182,7 +207,7 @@ class DashboardService {
           actor: flag.created_by || 'Unknown',
           timestamp: this.formatRelativeTime(updatedAt),
           type: 'flag',
-          warning: !flag.enabled && flag.category === 'release'
+          warning: !flag.enabled && flag.category === 'release',
         });
       }
     });
@@ -192,9 +217,9 @@ class DashboardService {
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 3);
 
-    recentDeployments.forEach(deployment => {
+    recentDeployments.forEach((deployment) => {
       const createdAt = new Date(deployment.created_at);
-      const isRecent = (Date.now() - createdAt.getTime()) < 24 * 60 * 60 * 1000; // Within 24 hours
+      const isRecent = Date.now() - createdAt.getTime() < 24 * 60 * 60 * 1000; // Within 24 hours
 
       if (isRecent) {
         activities.push({
@@ -203,26 +228,28 @@ class DashboardService {
           actor: deployment.created_by || 'ci/deploy-bot',
           timestamp: this.formatRelativeTime(createdAt),
           type: 'deployment',
-          warning: deployment.status === 'failed' || deployment.status === 'rolled_back'
+          warning: deployment.status === 'failed' || deployment.status === 'rolled_back',
         });
       }
     });
 
     // Check for expired flags that need attention
-    const expiredFlags = flags.filter(flag => {
-      if (!flag.expires_at) return false;
-      const expiresAt = new Date(flag.expires_at);
-      return expiresAt < new Date();
-    }).slice(0, 2);
+    const expiredFlags = flags
+      .filter((flag) => {
+        if (!flag.expires_at) return false;
+        const expiresAt = new Date(flag.expires_at);
+        return expiresAt < new Date();
+      })
+      .slice(0, 2);
 
-    expiredFlags.forEach(flag => {
+    expiredFlags.forEach((flag) => {
       activities.push({
         id: `expired-${flag.id}`,
         description: `Flag ${flag.key} expired — needs cleanup`,
         actor: 'system',
         timestamp: this.formatRelativeTime(new Date(flag.expires_at!)),
         type: 'system',
-        warning: true
+        warning: true,
       });
     });
 
@@ -253,13 +280,13 @@ class DashboardService {
     if (timeStr === 'just now') return now;
 
     const minMatch = timeStr.match(/(\d+) min ago/);
-    if (minMatch) return now - (parseInt(minMatch[1]) * 60 * 1000);
+    if (minMatch) return now - parseInt(minMatch[1]) * 60 * 1000;
 
     const hourMatch = timeStr.match(/(\d+) hours? ago/);
-    if (hourMatch) return now - (parseInt(hourMatch[1]) * 60 * 60 * 1000);
+    if (hourMatch) return now - parseInt(hourMatch[1]) * 60 * 60 * 1000;
 
     const dayMatch = timeStr.match(/(\d+) days? ago/);
-    if (dayMatch) return now - (parseInt(dayMatch[1]) * 24 * 60 * 60 * 1000);
+    if (dayMatch) return now - parseInt(dayMatch[1]) * 24 * 60 * 60 * 1000;
 
     return now;
   }

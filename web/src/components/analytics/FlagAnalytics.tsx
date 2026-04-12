@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 
 interface FlagAnalyticsProps {
@@ -118,8 +118,8 @@ export default function FlagAnalytics({ projectId, environmentId, timeRange }: F
         total_evaluations: 8534,
         unique_users: 423,
         result_distribution: {
-          'true': 6827,
-          'false': 1707,
+          true: 6827,
+          false: 1707,
         },
         avg_latency_ms: 12.3,
         cache_hit_rate: 96.7,
@@ -167,12 +167,16 @@ export default function FlagAnalytics({ projectId, environmentId, timeRange }: F
     }
   };
 
-  const sortedStats = [...flagStats].sort((a, b) => {
-    const aValue = a[sortBy];
-    const bValue = b[sortBy];
-    const multiplier = sortOrder === 'asc' ? 1 : -1;
-    return (aValue > bValue ? 1 : -1) * multiplier;
-  });
+  // Performance Optimization: Memoize the sorted results to prevent O(n log n) sorting
+  // on every render (e.g. when state other than sort options or data changes).
+  const sortedStats = useMemo(() => {
+    return [...flagStats].sort((a, b) => {
+      const aValue = a[sortBy];
+      const bValue = b[sortBy];
+      const multiplier = sortOrder === 'asc' ? 1 : -1;
+      return (aValue > bValue ? 1 : -1) * multiplier;
+    });
+  }, [flagStats, sortBy, sortOrder]);
 
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -191,11 +195,7 @@ export default function FlagAnalytics({ projectId, environmentId, timeRange }: F
           <div className="section-header">
             <h2>Flag Performance ({timeRange})</h2>
             <div className="section-actions">
-              <input
-                type="text"
-                className="search-input"
-                placeholder="Search flags..."
-              />
+              <input type="text" className="search-input" placeholder="Search flags..." />
             </div>
           </div>
 
@@ -254,7 +254,9 @@ export default function FlagAnalytics({ projectId, environmentId, timeRange }: F
                     <td className="number">{formatNumber(stat.unique_users)}</td>
                     <td className="number">{stat.avg_latency_ms.toFixed(1)}ms</td>
                     <td className="number">
-                      <span className={`cache-rate ${stat.cache_hit_rate > 90 ? 'good' : 'warning'}`}>
+                      <span
+                        className={`cache-rate ${stat.cache_hit_rate > 90 ? 'good' : 'warning'}`}
+                      >
                         {stat.cache_hit_rate.toFixed(1)}%
                       </span>
                     </td>
@@ -283,10 +285,7 @@ export default function FlagAnalytics({ projectId, environmentId, timeRange }: F
       ) : (
         <div className="flag-detail-view">
           <div className="section-header">
-            <button
-              className="btn btn-secondary"
-              onClick={() => setSelectedFlag(null)}
-            >
+            <button className="btn btn-secondary" onClick={() => setSelectedFlag(null)}>
               ← Back to List
             </button>
             <h2>Flag Analytics: {selectedFlag}</h2>
@@ -344,7 +343,9 @@ export default function FlagAnalytics({ projectId, environmentId, timeRange }: F
                     {/* Simplified bar chart */}
                     <div className="chart-bars">
                       {(flagUsage.hourly_evaluations || []).slice(-12).map((point, i) => {
-                        const maxValue = Math.max(...(flagUsage.hourly_evaluations || []).map(p => p.value));
+                        const maxValue = Math.max(
+                          ...(flagUsage.hourly_evaluations || []).map((p) => p.value),
+                        );
                         const height = (point.value / maxValue) * 100;
                         return (
                           <div key={i} className="chart-bar">

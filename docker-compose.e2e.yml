@@ -1,0 +1,89 @@
+name: deploysentry-e2e
+
+# Hermetic Docker Compose stack for end-to-end SDK tests.
+#
+# Uses disjoint host ports from `make dev-up` (deploy/docker-compose.yml) so
+# developers can run both stacks simultaneously:
+#   - postgres: 15432  (dev: 5432)
+#   - redis:    16379  (dev: 6379)
+#   - nats:     14222  (dev: 4222)
+#   - api:      18080  (dev: n/a)
+#
+# Bring up:
+#   docker compose -f docker-compose.e2e.yml up -d --wait
+# Tear down (and wipe volumes):
+#   docker compose -f docker-compose.e2e.yml down -v
+#
+# NOTE: This file only stands up infrastructure + the API binary. Database
+# migrations are run as a separate step (see Task 2 in the e2e plan).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: deploysentry
+      POSTGRES_PASSWORD: deploysentry
+      POSTGRES_DB: deploysentry
+    ports:
+      - "15432:5432"
+    volumes:
+      - deploysentry-e2e-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U deploysentry -d deploysentry"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--maxmemory-policy", "allkeys-lru"]
+    ports:
+      - "16379:6379"
+    volumes:
+      - deploysentry-e2e-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  nats:
+    image: nats:2-alpine
+    command: ["-js", "-sd", "/data", "-m", "8222"]
+    ports:
+      - "14222:4222"
+    volumes:
+      - deploysentry-e2e-nats:/data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  api:
+    build:
+      context: .
+      dockerfile: deploy/e2e/Dockerfile.api
+    env_file:
+      - deploy/e2e/api.env
+    ports:
+      - "18080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/ready"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+      start_period: 10s
+
+volumes:
+  deploysentry-e2e-pg:
+  deploysentry-e2e-redis:
+  deploysentry-e2e-nats:

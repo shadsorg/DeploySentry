@@ -495,6 +495,94 @@ func TestHashPercentage_DifferentInputsDifferentOutputs(t *testing.T) {
 		"different inputs should produce at least 2 distinct hash values")
 }
 
+// ---------------------------------------------------------------------------
+// evaluateConditions
+// ---------------------------------------------------------------------------
+
+func TestEvaluateConditions(t *testing.T) {
+	tests := []struct {
+		name       string
+		conditions []models.CompoundCondition
+		op         CombineOperator
+		evalCtx    models.EvaluationContext
+		want       bool
+	}{
+		{
+			name: "AND all match",
+			conditions: []models.CompoundCondition{
+				{Attribute: "plan", Operator: "eq", Value: "enterprise"},
+				{Attribute: "region", Operator: "eq", Value: "US"},
+			},
+			op:      CombineAND,
+			evalCtx: models.EvaluationContext{Attributes: map[string]string{"plan": "enterprise", "region": "US"}},
+			want:    true,
+		},
+		{
+			name: "AND one mismatch",
+			conditions: []models.CompoundCondition{
+				{Attribute: "plan", Operator: "eq", Value: "enterprise"},
+				{Attribute: "region", Operator: "eq", Value: "EU"},
+			},
+			op:      CombineAND,
+			evalCtx: models.EvaluationContext{Attributes: map[string]string{"plan": "enterprise", "region": "US"}},
+			want:    false,
+		},
+		{
+			name: "OR one matches",
+			conditions: []models.CompoundCondition{
+				{Attribute: "plan", Operator: "eq", Value: "enterprise"},
+				{Attribute: "plan", Operator: "eq", Value: "pro"},
+			},
+			op:      CombineOR,
+			evalCtx: models.EvaluationContext{Attributes: map[string]string{"plan": "pro"}},
+			want:    true,
+		},
+		{
+			name: "OR none match",
+			conditions: []models.CompoundCondition{
+				{Attribute: "plan", Operator: "eq", Value: "enterprise"},
+				{Attribute: "plan", Operator: "eq", Value: "pro"},
+			},
+			op:      CombineOR,
+			evalCtx: models.EvaluationContext{Attributes: map[string]string{"plan": "free"}},
+			want:    false,
+		},
+		{
+			name:       "empty conditions AND returns true",
+			conditions: []models.CompoundCondition{},
+			op:         CombineAND,
+			evalCtx:    models.EvaluationContext{},
+			want:       true,
+		},
+		{
+			name:       "empty conditions OR returns false",
+			conditions: []models.CompoundCondition{},
+			op:         CombineOR,
+			evalCtx:    models.EvaluationContext{},
+			want:       false,
+		},
+		{
+			name: "AND with in operator",
+			conditions: []models.CompoundCondition{
+				{Attribute: "region", Operator: "in", Value: "US,EU,UK"},
+				{Attribute: "plan", Operator: "eq", Value: "enterprise"},
+			},
+			op:      CombineAND,
+			evalCtx: models.EvaluationContext{Attributes: map[string]string{"region": "EU", "plan": "enterprise"}},
+			want:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := evaluateConditions(tt.conditions, tt.op, tt.evalCtx)
+			if got != tt.want {
+				t.Errorf("evaluateConditions() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestHashPercentage_DifferentFlagKeyChangesOutput(t *testing.T) {
 	h1 := HashPercentage("flag-a", "user-1")
 	h2 := HashPercentage("flag-b", "user-1")

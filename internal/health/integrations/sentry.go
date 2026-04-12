@@ -125,7 +125,7 @@ func (s *SentryCheck) getRecentErrorCount(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("querying sentry: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("sentry returned status %d", resp.StatusCode)
@@ -209,8 +209,7 @@ func (r *SentryWebhookReceiver) HandleWebhook(ctx context.Context, req *http.Req
 
 	// Compute a health score based on the event type.
 	// New issues and regressions have a bigger impact on health.
-	//nolint:ineffassign
-	score := 1.0
+	var score float64
 	switch {
 	case event.Data.Issue.IsRegression:
 		score = 0.2

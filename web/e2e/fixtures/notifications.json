@@ -1,0 +1,21 @@
+{
+  "preferences": {
+    "channels": {
+      "slack": {
+        "enabled": true,
+        "webhook_url": "https://hooks.slack.com/services/T00/B00/example",
+        "events": ["deployment.completed", "deployment.failed"]
+      },
+      "email": {
+        "enabled": true,
+        "recipients": ["alice@example.com", "bob@example.com"],
+        "events": ["deployment.failed", "rollback.triggered"]
+      },
+      "pagerduty": {
+        "enabled": false,
+        "integration_key": "",
+        "events": []
+      }
+    }
+  }
+}

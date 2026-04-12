@@ -87,7 +87,7 @@ func (c *apiClient) do(req *http.Request) (map[string]interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if isVerbose() {
 		fmt.Printf("<-- %d %s\n", resp.StatusCode, resp.Status)
@@ -245,7 +245,7 @@ func (c *apiClient) exchangeAuthCode(code, redirectURI string) (*credentialsFile
 	if err != nil {
 		return nil, fmt.Errorf("token exchange request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		data, _ := io.ReadAll(resp.Body)

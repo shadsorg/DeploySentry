@@ -1,4 +1,5 @@
 import { Routes, Route } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import { AuthProvider, RequireAuth, RedirectIfAuth } from './auth';
 import HierarchyLayout from './components/HierarchyLayout';
 import DefaultRedirect from './components/DefaultRedirect';
@@ -22,12 +23,13 @@ import APIKeysPage from './pages/APIKeysPage';
 import CreateAppPage from './pages/CreateAppPage';
 import ApplicationsListPage from './pages/ApplicationsListPage';
 import CreateProjectPage from './pages/CreateProjectPage';
-import LandingPage from './pages/LandingPage';
-import DocsPage from './pages/DocsPage';
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const DocsPage = lazy(() => import('./pages/DocsPage'));
 
 export default function App() {
   return (
     <AuthProvider>
+      <Suspense fallback={<div className="page-loading">Loading...</div>}>
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<LandingPage />} />
@@ -89,6 +91,7 @@ export default function App() {
           <Route path="/settings" element={<LegacyRedirect to="settings" />} />
         </Route>
       </Routes>
+      </Suspense>
     </AuthProvider>
   );
 }

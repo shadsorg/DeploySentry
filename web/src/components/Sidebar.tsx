@@ -1,5 +1,5 @@
 import { NavLink, useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/auth';
+import { useAuth } from '@/authHooks';
 import OrgSwitcher from './OrgSwitcher';
 import ProjectSwitcher from './ProjectSwitcher';
 import AppAccordion from './AppAccordion';

@@ -270,7 +270,7 @@ export function useRealtimeUpdates(
   useEffect(() => {
     // Subscribe to connection status updates
     const unsubscribeStatus = realtimeManager.subscribe(['system_alert'], (event) => {
-      if (event.data?.connected !== undefined) {
+      if (event.data && typeof event.data === 'object' && 'connected' in event.data && typeof event.data.connected === 'boolean') {
         setConnected(event.data.connected);
       }
     });

@@ -53,7 +53,7 @@ export default function MembersPage() {
       setNewEmail('');
       setNewRole('member');
     } catch (err) {
-      setActionError(err.message || 'Failed to add member');
+      setActionError(err instanceof Error ? err.message : 'Failed to add member');
     }
   }
 
@@ -66,7 +66,7 @@ export default function MembersPage() {
         prev.map((m) => (m.user_id === userId ? { ...m, role: role as Member['role'] } : m)),
       );
     } catch (err) {
-      setActionError(err.message || 'Failed to update role');
+      setActionError(err instanceof Error ? err.message : 'Failed to update role');
     }
   }
 
@@ -78,7 +78,7 @@ export default function MembersPage() {
       setMembers((prev) => prev.filter((m) => m.user_id !== userId));
       setConfirmDelete(null);
     } catch (err) {
-      setActionError(err.message || 'Failed to remove member');
+      setActionError(err instanceof Error ? err.message : 'Failed to remove member');
       setConfirmDelete(null);
     }
   }

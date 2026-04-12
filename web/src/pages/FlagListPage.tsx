@@ -142,7 +142,7 @@ export default function FlagListPage() {
                     <span className="badge badge-disabled">disabled</span>
                   )}
                 </td>
-                <td>{flag.owners.join(', ')}</td>
+                <td>{(flag.owners ?? []).join(', ')}</td>
                 <td>
                   {flag.is_permanent
                     ? 'Permanent'

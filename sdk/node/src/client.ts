@@ -126,8 +126,17 @@ export class DeploySentryClient {
     defaultValue: boolean,
     context?: EvaluationContext,
   ): Promise<boolean> {
-    const result = await this.evaluate<boolean>(key, defaultValue, context);
-    return typeof result === 'boolean' ? result : defaultValue;
+    const result: unknown = await this.evaluate<boolean>(key, defaultValue, context);
+    if (typeof result === 'boolean') return result;
+    // The backend stores `default_value` as a string, so the evaluation
+    // endpoint commonly returns "true"/"false". Coerce so SDK callers see
+    // a real boolean instead of falling back to the literal default.
+    if (typeof result === 'string') {
+      const lowered = result.toLowerCase();
+      if (lowered === 'true') return true;
+      if (lowered === 'false') return false;
+    }
+    return defaultValue;
   }
 
   /** Evaluate a flag as a string. */

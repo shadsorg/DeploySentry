@@ -42,7 +42,6 @@ export class DeploySentryClient {
   private readonly project: string;
   private readonly sessionId: string | undefined;
   private user: UserContext | undefined;
-  private readonly sessionId: string | undefined;
 
   /** In-memory flag store keyed by flag key. */
   private readonly flags = new Map<string, Flag>();
@@ -78,7 +77,6 @@ export class DeploySentryClient {
     this.project = options.project;
     this.sessionId = options.sessionId;
     this.user = options.user;
-    this.sessionId = options.sessionId;
   }
 
   // ---------------------------------------------------------------------------
@@ -107,15 +105,6 @@ export class DeploySentryClient {
   /** Update the user context and re-fetch flags. */
   async identify(user: UserContext | undefined): Promise<void> {
     this.user = user;
-    await this.fetchFlags();
-  }
-
-  /**
-   * Clear the local flag store and re-fetch all flags from the API.
-   * Useful when a new session starts and fresh flag state is required.
-   */
-  async refreshSession(): Promise<void> {
-    this.flags.clear();
     await this.fetchFlags();
   }
 
@@ -278,8 +267,8 @@ export class DeploySentryClient {
 
   private buildQueryParams(): URLSearchParams {
     const params = new URLSearchParams({
-      environment: this.environment,
-      project: this.project,
+      project_id: this.project,
+      environment_id: this.environment,
     });
     if (this.user?.id) {
       params.set('userId', this.user.id);
@@ -291,7 +280,8 @@ export class DeploySentryClient {
   }
 
   private async fetchFlags(): Promise<void> {
-    const url = `${this.baseURL}/v1/flags?${this.buildQueryParams().toString()}`;
+    // Match the backend `listFlags` endpoint, which only requires a project_id.
+    const url = `${this.baseURL}/api/v1/flags?project_id=${encodeURIComponent(this.project)}`;
 
     const response = await fetch(url, {
       method: 'GET',
@@ -324,7 +314,7 @@ export class DeploySentryClient {
     if (typeof EventSource === 'undefined') return; // SSR guard
 
     const params = this.buildQueryParams();
-    const url = `${this.baseURL}/v1/flags/stream?${params.toString()}`;
+    const url = `${this.baseURL}/api/v1/flags/stream?${params.toString()}`;
 
     // EventSource does not support custom headers natively. We pass the
     // API key as a query parameter for SSE connections.
@@ -333,28 +323,27 @@ export class DeploySentryClient {
 
     const es = new EventSource(sseUrl.toString());
 
-    es.addEventListener('flag.updated', (event: MessageEvent) => {
-      this.handleSSEMessage(event);
-    });
-
-    es.addEventListener('flag.created', (event: MessageEvent) => {
-      this.handleSSEMessage(event);
-    });
-
-    es.addEventListener('flag.deleted', (event: MessageEvent) => {
+    // The backend sends all flag change events with SSE event type
+    // "flag_change". The JSON payload's inner "event" field distinguishes
+    // the specific action (flag.updated, flag.toggled, flag.deleted, etc.).
+    es.addEventListener('flag_change', (event: MessageEvent) => {
       try {
-        const data = JSON.parse(event.data);
-        if (data?.flag?.key) {
-          this.flags.delete(data.flag.key);
+        const outer = JSON.parse(event.data);
+        // event.data is a double-encoded JSON string from SSEvent():
+        // the outer layer is the SSE data field, inner is the SSEEvent struct.
+        const data = typeof outer === 'string' ? JSON.parse(outer) : outer;
+        if (data?.event === 'flag.deleted' && data?.flag_key) {
+          this.flags.delete(data.flag_key);
           this.emit();
+        } else {
+          // For all other events (updated, toggled, created, rule changes),
+          // re-fetch the full flag set to get the current state.
+          this.fetchFlags();
         }
       } catch {
-        // Ignore malformed messages.
+        // Malformed event — trigger a full refresh as a fallback.
+        this.fetchFlags();
       }
-    });
-
-    es.addEventListener('message', (event: MessageEvent) => {
-      this.handleSSEMessage(event);
     });
 
     es.onerror = () => {

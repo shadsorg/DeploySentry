@@ -152,6 +152,24 @@ The SDK communicates with these DeploySentry API endpoints:
 
 Authentication uses the `Authorization: ApiKey <key>` header.
 
+### Session Consistency
+
+Bind evaluations to a session so the server caches results for a consistent user experience:
+
+```typescript
+const client = new DeploySentryClient({
+  apiKey: 'ds_key_xxxxxxxxxxxx',
+  environment: 'production',
+  project: 'my-project',
+  sessionId: `user:${userId}`,
+});
+await client.refreshSession();
+```
+
+- The session ID is sent as an `X-DeploySentry-Session` header on every request.
+- The server caches evaluation results per session for 30 minutes (sliding TTL).
+- Omit the session ID to always get fresh evaluations on each request.
+
 ## License
 
 Apache-2.0

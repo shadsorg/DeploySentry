@@ -32,7 +32,9 @@ export default function OrgSwitcher() {
   return (
     <div className="switcher" ref={ref}>
       <button className="switcher-btn" onClick={() => setOpen(!open)}>
-        <span className="switcher-label">{orgSlug ? orgs.find(o => o.slug === orgSlug)?.name ?? orgSlug : 'Select Org'}</span>
+        <span className="switcher-label">
+          {orgSlug ? (orgs.find((o) => o.slug === orgSlug)?.name ?? orgSlug) : 'Select Org'}
+        </span>
         <span className="switcher-arrow">{open ? '\u25B4' : '\u25BE'}</span>
       </button>
       {open && (
@@ -49,7 +51,10 @@ export default function OrgSwitcher() {
           <div className="switcher-divider" />
           <button
             className="switcher-option switcher-option-action"
-            onClick={() => { setOpen(false); navigate('/orgs/new'); }}
+            onClick={() => {
+              setOpen(false);
+              navigate('/orgs/new');
+            }}
           >
             + Create Organization
           </button>

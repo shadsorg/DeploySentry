@@ -109,7 +109,8 @@ const DeploymentsPage: React.FC = () => {
     setLoading(true);
     setError(null);
 
-    entitiesApi.getApp(orgSlug, projectSlug, appSlug)
+    entitiesApi
+      .getApp(orgSlug, projectSlug, appSlug)
       .then((app) => deploymentsApi.list(app.id))
       .then((result) => setDeployments(result.deployments))
       .catch((err) => setError(err.message))
@@ -222,9 +223,7 @@ const DeploymentsPage: React.FC = () => {
                       <code className="font-mono text-sm">{dep.version}</code>
                     </td>
                     <td>
-                      <span className={strategyBadgeClass(dep.strategy)}>
-                        {dep.strategy}
-                      </span>
+                      <span className={strategyBadgeClass(dep.strategy)}>{dep.strategy}</span>
                     </td>
                     <td>
                       <span className={statusBadgeClass(dep.status)}>

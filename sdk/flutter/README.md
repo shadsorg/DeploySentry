@@ -134,6 +134,35 @@ The SDK communicates with the following DeploySentry API endpoints:
 | POST | `/api/v1/flags/evaluate` | Evaluate a single flag |
 | GET | `/api/v1/flags/stream` | SSE stream for real-time updates |
 
+## Authentication
+
+All requests use an API key passed in the `Authorization` header:
+
+```
+Authorization: ApiKey <your-api-key>
+```
+
+Pass the key via the client constructor. The SDK sets the header automatically.
+
+### Session Consistency
+
+Bind evaluations to a session so the server caches results for a consistent user experience:
+
+```dart
+final client = DeploySentryClient(
+  apiKey: 'ds_key_xxxxxxxxxxxx',
+  baseUrl: 'https://deploysentry.example.com',
+  environment: 'production',
+  project: 'my-project',
+  sessionId: 'user:$userId',
+);
+await client.refreshSession();
+```
+
+- The session ID is sent as an `X-DeploySentry-Session` header on every request.
+- The server caches evaluation results per session for 30 minutes (sliding TTL).
+- Omit the session ID to always get fresh evaluations on each request.
+
 ## License
 
 Apache-2.0

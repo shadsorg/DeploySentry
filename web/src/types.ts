@@ -1,7 +1,15 @@
 export type FlagCategory = 'release' | 'feature' | 'experiment' | 'ops' | 'permission';
 export type FlagType = 'boolean' | 'string' | 'integer' | 'json';
 export type DeployStrategy = 'canary' | 'blue-green' | 'rolling';
-export type DeployStatus = 'pending' | 'running' | 'promoting' | 'paused' | 'completed' | 'failed' | 'rolled_back' | 'cancelled';
+export type DeployStatus =
+  | 'pending'
+  | 'running'
+  | 'promoting'
+  | 'paused'
+  | 'completed'
+  | 'failed'
+  | 'rolled_back'
+  | 'cancelled';
 export type ReleaseStatus = 'draft' | 'rolling_out' | 'paused' | 'completed' | 'rolled_back';
 export type RuleType = 'percentage' | 'user_target' | 'attribute' | 'segment' | 'schedule';
 
@@ -253,8 +261,11 @@ export interface Group {
 
 export interface OrgEnvironment {
   id: string;
+  org_id: string;
   name: string;
   slug: string;
   is_production: boolean;
+  sort_order: number;
   created_at: string;
+  updated_at: string;
 }

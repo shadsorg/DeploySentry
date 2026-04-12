@@ -77,7 +77,8 @@ const ReleasesPage: React.FC = () => {
     setLoading(true);
     setError(null);
 
-    entitiesApi.getApp(orgSlug, projectSlug, appSlug)
+    entitiesApi
+      .getApp(orgSlug, projectSlug, appSlug)
       .then((app) => releasesApi.list(app.id))
       .then((result) => setReleases(result.releases))
       .catch((err) => setError(err.message))

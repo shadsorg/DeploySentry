@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { Flag, FlagCategory } from '@/types';
 import { entitiesApi, flagsApi } from '@/api';
@@ -16,15 +16,20 @@ function formatDate(iso: string): string {
 export default function FlagListPage() {
   const { orgSlug, projectSlug, appSlug } = useParams();
   const contextName = appSlug ?? projectSlug ?? '';
-  const heading = appSlug ? `${contextName} — Flags` : contextName ? `${contextName} — Feature Flags` : 'Feature Flags';
+  const heading = appSlug
+    ? `${contextName} — Flags`
+    : contextName
+      ? `${contextName} — Feature Flags`
+      : 'Feature Flags';
 
   const createPath = appSlug
     ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags/new`
     : `/orgs/${orgSlug}/projects/${projectSlug}/flags/new`;
 
-  const flagDetailPath = (flagId: string) => appSlug
-    ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags/${flagId}`
-    : `/orgs/${orgSlug}/projects/${projectSlug}/flags/${flagId}`;
+  const flagDetailPath = (flagId: string) =>
+    appSlug
+      ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags/${flagId}`
+      : `/orgs/${orgSlug}/projects/${projectSlug}/flags/${flagId}`;
 
   const [flags, setFlags] = useState<Flag[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,34 +43,37 @@ export default function FlagListPage() {
     setLoading(true);
     setError(null);
 
-    entitiesApi.getProject(orgSlug, projectSlug)
+    entitiesApi
+      .getProject(orgSlug, projectSlug)
       .then((project) => flagsApi.list(project.id))
       .then((result) => setFlags(result.flags))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [orgSlug, projectSlug]);
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-
-  const filtered = flags.filter((flag) => {
-    if (search) {
-      const q = search.toLowerCase();
-      if (
-        !flag.name.toLowerCase().includes(q) &&
-        !flag.key.toLowerCase().includes(q)
-      ) {
+  // Performance Optimization: Memoize the filtered flags so we don't run expensive
+  // string ops (.toLowerCase().includes()) on every render, especially when the search
+  // input updates or other unrelated state changes.
+  const filtered = useMemo(() => {
+    return flags.filter((flag) => {
+      if (search) {
+        const q = search.toLowerCase();
+        if (!flag.name.toLowerCase().includes(q) && !flag.key.toLowerCase().includes(q)) {
+          return false;
+        }
+      }
+      if (categoryFilter !== 'all' && flag.category !== categoryFilter) {
         return false;
       }
-    }
-    if (categoryFilter !== 'all' && flag.category !== categoryFilter) {
-      return false;
-    }
-    if (statusFilter === 'enabled' && (!flag.enabled || flag.archived)) return false;
-    if (statusFilter === 'disabled' && (flag.enabled || flag.archived)) return false;
-    if (statusFilter === 'archived' && !flag.archived) return false;
-    return true;
-  });
+      if (statusFilter === 'enabled' && (!flag.enabled || flag.archived)) return false;
+      if (statusFilter === 'disabled' && (flag.enabled || flag.archived)) return false;
+      if (statusFilter === 'archived' && !flag.archived) return false;
+      return true;
+    });
+  }, [flags, search, categoryFilter, statusFilter]);
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
 
   return (
     <div>
@@ -128,9 +136,7 @@ export default function FlagListPage() {
                   <div className="font-mono text-muted">{flag.key}</div>
                 </td>
                 <td>
-                  <span className={`badge badge-${flag.category}`}>
-                    {flag.category}
-                  </span>
+                  <span className={`badge badge-${flag.category}`}>{flag.category}</span>
                 </td>
                 <td>
                   {flag.archived ? (
@@ -141,7 +147,7 @@ export default function FlagListPage() {
                     <span className="badge badge-disabled">disabled</span>
                   )}
                 </td>
-                <td>{flag.owners.join(', ')}</td>
+                <td>{(flag.owners ?? []).join(', ')}</td>
                 <td>
                   {flag.is_permanent
                     ? 'Permanent'

@@ -1,17 +1,11 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import { authApi, type AuthUser } from './api';
-
-interface AuthContextValue {
-  user: AuthUser | null;
-  loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
-  logout: () => void;
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null);
-
+import { AuthContext } from './authContext';
+import { useAuth } from './authHooks';
+/**
+ * AuthProvider provides authentication context to the application.
+ */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,7 +18,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    authApi.me()
+    authApi
+      .me()
       .then(setUser)
       .catch(() => {
         localStorage.removeItem('ds_token');
@@ -56,12 +51,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
-}
 
 export function RequireAuth() {
   const { user, loading } = useAuth();

@@ -1,14 +1,12 @@
 import SiteHeader from '@/components/SiteHeader';
+import Hero from '@/components/landing/Hero';
 
 export default function LandingPage() {
   return (
     <div className="landing">
       <SiteHeader variant="landing" />
       <main className="landing-main">
-        <section className="landing-placeholder">
-          <h1>DeploySentry</h1>
-          <p>Landing content coming in subsequent tasks.</p>
-        </section>
+        <Hero />
       </main>
     </div>
   );

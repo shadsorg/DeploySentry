@@ -34,6 +34,7 @@ type mockEntityService struct {
 	listAppsByProjectFn func(ctx context.Context, projectID uuid.UUID) ([]*models.Application, error)
 	updateAppFn         func(ctx context.Context, app *models.Application) error
 	listEnvironmentsByAppFn func(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error)
+
 }
 
 func (m *mockEntityService) CreateOrg(ctx context.Context, org *models.Organization, creatorID uuid.UUID) error {

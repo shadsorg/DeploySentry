@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 
 interface FlagAnalyticsProps {
@@ -167,12 +167,16 @@ export default function FlagAnalytics({ projectId, environmentId, timeRange }: F
     }
   };
 
-  const sortedStats = [...flagStats].sort((a, b) => {
-    const aValue = a[sortBy];
-    const bValue = b[sortBy];
-    const multiplier = sortOrder === 'asc' ? 1 : -1;
-    return (aValue > bValue ? 1 : -1) * multiplier;
-  });
+  // Performance Optimization: Memoize the sorted results to prevent O(n log n) sorting
+  // on every render (e.g. when state other than sort options or data changes).
+  const sortedStats = useMemo(() => {
+    return [...flagStats].sort((a, b) => {
+      const aValue = a[sortBy];
+      const bValue = b[sortBy];
+      const multiplier = sortOrder === 'asc' ? 1 : -1;
+      return (aValue > bValue ? 1 : -1) * multiplier;
+    });
+  }, [flagStats, sortBy, sortOrder]);
 
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';

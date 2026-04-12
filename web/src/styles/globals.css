@@ -1679,3 +1679,35 @@ tbody tr:last-child td {
   text-decoration: none; font-family: inherit;
 }
 .user-menu-item:hover { background: #1a1f2a; }
+
+/* Site header */
+.site-header {
+  position: sticky; top: 0; z-index: 50;
+  height: 60px;
+  display: flex; align-items: center;
+  padding: 0 24px;
+  background: #0a0e14;
+  border-bottom: 1px solid #1f2937;
+  gap: 32px;
+}
+.site-header-brand {
+  display: inline-flex; align-items: center; gap: 10px;
+  color: #e5e7eb; text-decoration: none;
+  font-weight: 600;
+}
+.site-header-logo {
+  width: 28px; height: 28px; border-radius: 6px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.5px;
+}
+.site-header-wordmark { font-size: 15px; }
+.site-header-nav { display: flex; gap: 24px; flex: 1; }
+.site-header-link {
+  color: #9ca3af; text-decoration: none; font-size: 13px;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+}
+.site-header-link:hover { color: #e5e7eb; }
+.site-header-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.site-header-cta { font-size: 13px !important; padding: 7px 14px !important; }

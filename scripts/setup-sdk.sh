@@ -120,3 +120,65 @@ if [ -z "$LANG_DETECTED" ]; then
 fi
 
 echo "Detected language: $LANG_DETECTED"
+
+# ---------------------------------------------------------------------------
+# SDK installation
+# ---------------------------------------------------------------------------
+
+install_sdk() {
+  case "$LANG_DETECTED" in
+    node)
+      echo "Installing @deploysentry/node..."
+      npm install @deploysentry/node
+      ;;
+    react)
+      echo "Installing @deploysentry/react..."
+      npm install @deploysentry/react
+      ;;
+    go)
+      echo "Installing deploysentry-go..."
+      go get github.com/shadsorg/deploysentry-go
+      ;;
+    python)
+      echo "Installing deploysentry (pip)..."
+      pip install deploysentry
+      if [ -f "requirements.txt" ]; then
+        if ! grep -q "^deploysentry" requirements.txt 2>/dev/null; then
+          echo "deploysentry" >> requirements.txt
+          echo "Added deploysentry to requirements.txt"
+        fi
+      fi
+      ;;
+    java)
+      echo ""
+      echo "Java/Kotlin detected. Add the following dependency to your build file:"
+      echo ""
+      echo "Maven (pom.xml):"
+      echo "  <dependency>"
+      echo "    <groupId>io.deploysentry</groupId>"
+      echo "    <artifactId>deploysentry-java</artifactId>"
+      echo "    <version>LATEST</version>"
+      echo "  </dependency>"
+      echo ""
+      echo "Gradle (build.gradle):"
+      echo "  implementation 'io.deploysentry:deploysentry-java:LATEST'"
+      echo ""
+      ;;
+    ruby)
+      if [ -f "Gemfile" ]; then
+        if ! grep -q "deploysentry" Gemfile 2>/dev/null; then
+          echo "gem 'deploysentry'" >> Gemfile
+          echo "Added deploysentry gem to Gemfile"
+        fi
+      fi
+      echo "Running bundle install..."
+      bundle install
+      ;;
+    flutter)
+      echo "Adding deploysentry Flutter package..."
+      flutter pub add deploysentry
+      ;;
+  esac
+}
+
+install_sdk

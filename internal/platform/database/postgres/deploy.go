@@ -15,12 +15,13 @@ import (
 
 // DeployRepository implements deploy.DeployRepository using a PostgreSQL connection pool.
 type DeployRepository struct {
+	q    querier
 	pool *pgxpool.Pool
 }
 
 // NewDeployRepository creates a new DeployRepository backed by the given pool.
 func NewDeployRepository(pool *pgxpool.Pool) *DeployRepository {
-	return &DeployRepository{pool: pool}
+	return &DeployRepository{q: pool, pool: pool}
 }
 
 // ---------------------------------------------------------------------------
@@ -94,7 +95,7 @@ func (r *DeployRepository) CreateDeployment(ctx context.Context, d *models.Deplo
 			 $9, $10, $11, $12, $13,
 			 $14, $15)`
 
-	_, err := r.pool.Exec(ctx, q,
+	_, err := r.q.Exec(ctx, q,
 		d.ID,
 		d.ApplicationID,
 		d.EnvironmentID,
@@ -120,7 +121,7 @@ func (r *DeployRepository) CreateDeployment(ctx context.Context, d *models.Deplo
 // GetDeployment retrieves a deployment by its unique identifier.
 func (r *DeployRepository) GetDeployment(ctx context.Context, id uuid.UUID) (*models.Deployment, error) {
 	q := `SELECT` + deploymentSelectCols + ` FROM deployments WHERE id = $1`
-	d, err := scanDeployment(r.pool.QueryRow(ctx, q, id))
+	d, err := scanDeployment(r.q.QueryRow(ctx, q, id))
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return nil, ErrNotFound
@@ -150,7 +151,7 @@ func (r *DeployRepository) ListDeployments(ctx context.Context, applicationID uu
 
 	q := `SELECT` + deploymentSelectCols + ` FROM deployments` + whereClause + ` ORDER BY created_at DESC` + pagClause
 
-	rows, err := r.pool.Query(ctx, q, args...)
+	rows, err := r.q.Query(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("postgres.ListDeployments: %w", err)
 	}
@@ -183,7 +184,7 @@ func (r *DeployRepository) UpdateDeployment(ctx context.Context, d *models.Deplo
 			updated_at      = $6
 		WHERE id = $1`
 
-	tag, err := r.pool.Exec(ctx, q,
+	tag, err := r.q.Exec(ctx, q,
 		d.ID,
 		d.Status,
 		d.TrafficPercent,
@@ -208,7 +209,7 @@ func (r *DeployRepository) GetLatestDeployment(ctx context.Context, applicationI
 		ORDER BY created_at DESC
 		LIMIT 1`
 
-	d, err := scanDeployment(r.pool.QueryRow(ctx, q, applicationID, environmentID))
+	d, err := scanDeployment(r.q.QueryRow(ctx, q, applicationID, environmentID))
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return nil, ErrNotFound
@@ -272,7 +273,7 @@ func (r *DeployRepository) CreatePhase(ctx context.Context, phase *models.Deploy
 			 $6, $7, $8,
 			 $9, $10)`
 
-	_, err := r.pool.Exec(ctx, q,
+	_, err := r.q.Exec(ctx, q,
 		phase.ID,
 		phase.DeploymentID,
 		phase.Name,
@@ -297,7 +298,7 @@ func (r *DeployRepository) ListPhases(ctx context.Context, deploymentID uuid.UUI
 		WHERE deployment_id = $1
 		ORDER BY sort_order ASC`
 
-	rows, err := r.pool.Query(ctx, q, deploymentID)
+	rows, err := r.q.Query(ctx, q, deploymentID)
 	if err != nil {
 		return nil, fmt.Errorf("postgres.ListPhases: %w", err)
 	}
@@ -326,7 +327,7 @@ func (r *DeployRepository) UpdatePhase(ctx context.Context, phase *models.Deploy
 			completed_at = $4
 		WHERE id = $1`
 
-	tag, err := r.pool.Exec(ctx, q,
+	tag, err := r.q.Exec(ctx, q,
 		phase.ID,
 		phase.Status,
 		phase.StartedAt,
@@ -348,7 +349,7 @@ func (r *DeployRepository) GetActivePhase(ctx context.Context, deploymentID uuid
 		WHERE deployment_id = $1 AND status = 'active'
 		LIMIT 1`
 
-	p, err := scanPhase(r.pool.QueryRow(ctx, q, deploymentID))
+	p, err := scanPhase(r.q.QueryRow(ctx, q, deploymentID))
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return nil, ErrNotFound
@@ -367,7 +368,7 @@ func (r *DeployRepository) GetLatestCompletedDeployment(ctx context.Context, app
 		ORDER BY completed_at DESC
 		LIMIT 1`
 
-	d, err := scanDeployment(r.pool.QueryRow(ctx, q, applicationID, environmentID))
+	d, err := scanDeployment(r.q.QueryRow(ctx, q, applicationID, environmentID))
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return nil, ErrNotFound
@@ -432,7 +433,7 @@ func (r *DeployRepository) CreateRollbackRecord(ctx context.Context, record *mod
 			 $5, $6, $7,
 			 $8, $9, $10)`
 
-	_, err := r.pool.Exec(ctx, q,
+	_, err := r.q.Exec(ctx, q,
 		record.ID,
 		record.DeploymentID,
 		record.TargetDeploymentID,
@@ -457,7 +458,7 @@ func (r *DeployRepository) ListRollbackRecords(ctx context.Context, deploymentID
 		WHERE deployment_id = $1
 		ORDER BY created_at DESC`
 
-	rows, err := r.pool.Query(ctx, q, deploymentID)
+	rows, err := r.q.Query(ctx, q, deploymentID)
 	if err != nil {
 		return nil, fmt.Errorf("postgres.ListRollbackRecords: %w", err)
 	}
@@ -475,4 +476,28 @@ func (r *DeployRepository) ListRollbackRecords(ctx context.Context, deploymentID
 		return nil, fmt.Errorf("postgres.ListRollbackRecords: %w", err)
 	}
 	return result, nil
+}
+
+// ---------------------------------------------------------------------------
+// Transaction support
+// ---------------------------------------------------------------------------
+
+// WithTx executes fn inside a database transaction. If fn returns an error the
+// transaction is rolled back; otherwise it is committed.
+func (r *DeployRepository) WithTx(ctx context.Context, fn deploy.TxFunc) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("postgres.WithTx: begin: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	txRepo := &DeployRepository{q: tx, pool: r.pool}
+	if err := fn(txRepo); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("postgres.WithTx: commit: %w", err)
+	}
+	return nil
 }

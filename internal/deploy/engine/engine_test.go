@@ -164,6 +164,10 @@ func (r *mockEngineRepo) ListRollbackRecords(_ context.Context, _ uuid.UUID) ([]
 	return nil, nil
 }
 
+func (r *mockEngineRepo) WithTx(_ context.Context, fn deploy.TxFunc) error {
+	return fn(r)
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------

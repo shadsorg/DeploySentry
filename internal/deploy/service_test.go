@@ -109,6 +109,10 @@ func (m *mockDeployRepo) ListRollbackRecords(_ context.Context, _ uuid.UUID) ([]
 	return nil, nil
 }
 
+func (m *mockDeployRepo) WithTx(_ context.Context, fn TxFunc) error {
+	return fn(m)
+}
+
 // mockPublisher implements MessagePublisher and records every call.
 type mockPublisher struct {
 	mu        sync.Mutex

@@ -47,7 +47,20 @@ type DeployRepository interface {
 
 	// ListRollbackRecords returns rollback history for a deployment.
 	ListRollbackRecords(ctx context.Context, deploymentID uuid.UUID) ([]*models.RollbackRecord, error)
+
+	// WithTx executes fn inside a database transaction backed by this repository.
+	WithTx(ctx context.Context, fn TxFunc) error
 }
+
+// TxRepository is a subset of DeployRepository scoped to a database transaction.
+type TxRepository interface {
+	UpdateDeployment(ctx context.Context, d *models.Deployment) error
+	UpdatePhase(ctx context.Context, phase *models.DeploymentPhase) error
+	CreateRollbackRecord(ctx context.Context, record *models.RollbackRecord) error
+}
+
+// TxFunc is a function executed inside a database transaction.
+type TxFunc func(tx TxRepository) error
 
 // ListOptions controls pagination and filtering for list queries.
 type ListOptions struct {

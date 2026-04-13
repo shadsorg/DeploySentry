@@ -11,10 +11,13 @@ import (
 type BlueGreenConfig struct {
 	// WarmupDuration is how long the inactive environment is given to warm up
 	// before traffic is switched.
-	WarmupDuration    time.Duration `json:"warmup_duration"`
-	HealthCheckURL    string        `json:"health_check_url"`
-	HealthThreshold   float64       `json:"health_threshold"`
-	RollbackOnFailure bool          `json:"rollback_on_failure"`
+	WarmupDuration time.Duration `json:"warmup_duration"`
+	// HealthCheckDuration is how long to observe health metrics before cutting
+	// over traffic. Defaults to 30s when zero.
+	HealthCheckDuration time.Duration `json:"health_check_duration"`
+	HealthCheckURL      string        `json:"health_check_url"`
+	HealthThreshold     float64       `json:"health_threshold"`
+	RollbackOnFailure   bool          `json:"rollback_on_failure"`
 	// AutoPromote controls whether traffic is switched automatically after
 	// WarmupDuration elapses and health checks pass, or if it waits for a
 	// manual gate.
@@ -24,10 +27,11 @@ type BlueGreenConfig struct {
 // defaultBlueGreenConfig is the package-level default used by DefaultBlueGreenConfig.
 // Tests may override this via SetDefaultBlueGreenConfigForTest.
 var defaultBlueGreenConfig = BlueGreenConfig{
-	WarmupDuration:    2 * time.Minute,
-	HealthThreshold:   0.95,
-	RollbackOnFailure: true,
-	AutoPromote:       true,
+	WarmupDuration:      2 * time.Minute,
+	HealthCheckDuration: 30 * time.Second,
+	HealthThreshold:     0.95,
+	RollbackOnFailure:   true,
+	AutoPromote:         true,
 }
 
 // DefaultBlueGreenConfig returns a sensible default configuration for

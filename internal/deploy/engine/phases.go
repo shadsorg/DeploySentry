@@ -66,7 +66,7 @@ func BuildBlueGreenPhases(deploymentID uuid.UUID, config strategies.BlueGreenCon
 			Name:           "health-check",
 			Status:         models.PhaseStatusPending,
 			TrafficPercent: 0,
-			Duration:       30,
+			Duration:       int(config.HealthCheckDuration.Seconds()),
 			SortOrder:      1,
 			AutoPromote:    config.AutoPromote,
 		},

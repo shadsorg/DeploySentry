@@ -42,8 +42,8 @@ func TestBuildRollingPhases_SingleBatch(t *testing.T) {
 func TestBuildBlueGreenPhases(t *testing.T) {
 	depID := uuid.New()
 	config := strategies.BlueGreenConfig{
-		WarmupDuration: 2 * time.Minute, HealthThreshold: 0.95,
-		RollbackOnFailure: true, AutoPromote: true,
+		WarmupDuration: 2 * time.Minute, HealthCheckDuration: 30 * time.Second,
+		HealthThreshold: 0.95, RollbackOnFailure: true, AutoPromote: true,
 	}
 	phases := BuildBlueGreenPhases(depID, config)
 	require.Len(t, phases, 3)

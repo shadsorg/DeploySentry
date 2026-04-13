@@ -516,13 +516,12 @@ func (r *DeployRepository) AdvisoryUnlock(ctx context.Context, deploymentID uuid
 // ListNonTerminalDeployments
 // ---------------------------------------------------------------------------
 
-// ListNonTerminalDeployments returns all canary deployments in a non-terminal
+// ListNonTerminalDeployments returns all deployments in a non-terminal
 // state (pending, running, paused, promoting), ordered by created_at ASC.
 func (r *DeployRepository) ListNonTerminalDeployments(ctx context.Context) ([]*models.Deployment, error) {
 	q := `SELECT` + deploymentSelectCols + `
 		FROM deployments
 		WHERE status IN ('pending', 'running', 'paused', 'promoting')
-		  AND strategy = 'canary'
 		ORDER BY created_at ASC`
 
 	rows, err := r.q.Query(ctx, q)

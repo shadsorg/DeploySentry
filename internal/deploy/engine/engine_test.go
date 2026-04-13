@@ -181,7 +181,7 @@ func (r *mockEngineRepo) ListNonTerminalDeployments(_ context.Context) ([]*model
 	defer r.mu.RUnlock()
 	var result []*models.Deployment
 	for _, d := range r.deployments {
-		if !d.IsTerminal() && d.Strategy == models.DeployStrategyCanary {
+		if !d.IsTerminal() {
 			copy := *d
 			result = append(result, &copy)
 		}
@@ -575,5 +575,97 @@ func TestDriveDeployment_AdvisoryLockPreventsDoubleProcessing(t *testing.T) {
 	d, _ := repo.GetDeployment(context.Background(), depID)
 	if d.Status != models.DeployStatusPending {
 		t.Errorf("deployment should still be pending when lock not acquired, got %s", d.Status)
+	}
+}
+
+func TestDriveDeployment_RollingHappyPath(t *testing.T) {
+	strategies.SetDefaultRollingConfigForTest(strategies.RollingConfig{
+		BatchCount: 2, BatchDelay: 0, HealthThreshold: 0.95,
+		RollbackOnFailure: true, AutoPromote: true,
+	})
+	defer strategies.SetDefaultRollingConfigForTest(strategies.DefaultRollingConfig())
+
+	depID := uuid.New()
+	repo := newMockEngineRepo()
+	repo.deployments[depID] = &models.Deployment{
+		ID: depID, Strategy: models.DeployStrategyRolling, Status: models.DeployStatusPending,
+		Artifact: "test:v2", Version: "v2", ApplicationID: uuid.New(), EnvironmentID: uuid.New(),
+	}
+
+	pub := &mockPublisher{}
+	eng := engine.New(repo, pub, nil, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := eng.DriveDeploymentForTest(ctx, depID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	d, _ := repo.GetDeployment(ctx, depID)
+	if d.Status != models.DeployStatusCompleted {
+		t.Errorf("expected completed, got %s", d.Status)
+	}
+	if d.TrafficPercent != 100 {
+		t.Errorf("expected 100%%, got %d%%", d.TrafficPercent)
+	}
+
+	phases := repo.phases[depID]
+	if len(phases) != 2 {
+		t.Fatalf("expected 2 phases, got %d", len(phases))
+	}
+	if phases[0].Name != "rolling-batch-1" {
+		t.Errorf("expected rolling-batch-1, got %s", phases[0].Name)
+	}
+	for _, p := range phases {
+		if p.Status != models.PhaseStatusPassed {
+			t.Errorf("phase %s should be passed, got %s", p.Name, p.Status)
+		}
+	}
+}
+
+func TestDriveDeployment_BlueGreenHappyPath(t *testing.T) {
+	strategies.SetDefaultBlueGreenConfigForTest(strategies.BlueGreenConfig{
+		WarmupDuration: 0, HealthThreshold: 0.95, RollbackOnFailure: true, AutoPromote: true,
+	})
+	defer strategies.SetDefaultBlueGreenConfigForTest(strategies.DefaultBlueGreenConfig())
+
+	depID := uuid.New()
+	repo := newMockEngineRepo()
+	repo.deployments[depID] = &models.Deployment{
+		ID: depID, Strategy: models.DeployStrategyBlueGreen, Status: models.DeployStatusPending,
+		Artifact: "test:v2", Version: "v2", ApplicationID: uuid.New(), EnvironmentID: uuid.New(),
+	}
+
+	pub := &mockPublisher{}
+	eng := engine.New(repo, pub, nil, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := eng.DriveDeploymentForTest(ctx, depID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	d, _ := repo.GetDeployment(ctx, depID)
+	if d.Status != models.DeployStatusCompleted {
+		t.Errorf("expected completed, got %s", d.Status)
+	}
+	if d.TrafficPercent != 100 {
+		t.Errorf("expected 100%%, got %d%%", d.TrafficPercent)
+	}
+
+	phases := repo.phases[depID]
+	if len(phases) != 3 {
+		t.Fatalf("expected 3 phases, got %d", len(phases))
+	}
+	if phases[0].Name != "deploy-green" {
+		t.Errorf("expected deploy-green, got %s", phases[0].Name)
+	}
+	if phases[1].Name != "health-check" {
+		t.Errorf("expected health-check, got %s", phases[1].Name)
+	}
+	if phases[2].Name != "switch-traffic" {
+		t.Errorf("expected switch-traffic, got %s", phases[2].Name)
 	}
 }

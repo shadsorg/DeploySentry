@@ -211,11 +211,6 @@ func (e *Engine) driveDeployment(ctx context.Context, deploymentID uuid.UUID) er
 		return fmt.Errorf("driveDeployment: get deployment: %w", err)
 	}
 
-	// 2. Only process canary deployments.
-	if d.Strategy != models.DeployStrategyCanary {
-		return nil
-	}
-
 	// 3. If pending, transition to running.
 	if d.Status == models.DeployStatusPending {
 		if err := d.TransitionTo(models.DeployStatusRunning); err != nil {
@@ -237,8 +232,11 @@ func (e *Engine) driveDeployment(ctx context.Context, deploymentID uuid.UUID) er
 		return fmt.Errorf("driveDeployment: list phases: %w", err)
 	}
 	if len(phases) == 0 {
-		config := strategies.DefaultCanaryConfig()
-		phases = BuildPhases(deploymentID, config)
+		phases = BuildPhasesForStrategy(deploymentID, d.Strategy)
+		if len(phases) == 0 {
+			e.logger.Warn("engine: no phases generated for strategy", "strategy", d.Strategy, "deployment_id", deploymentID)
+			return nil
+		}
 		for _, ph := range phases {
 			if err := e.repo.CreatePhase(ctx, ph); err != nil {
 				return fmt.Errorf("driveDeployment: create phase: %w", err)
@@ -261,7 +259,15 @@ func (e *Engine) driveDeployment(ctx context.Context, deploymentID uuid.UUID) er
 		prevDeployment, _ = e.repo.GetDeployment(ctx, *d.PreviousDeploymentID)
 	}
 
-	config := strategies.DefaultCanaryConfig()
+	rollbackOnFailure := true
+	switch d.Strategy {
+	case models.DeployStrategyCanary:
+		rollbackOnFailure = strategies.DefaultCanaryConfig().RollbackOnFailure
+	case models.DeployStrategyRolling:
+		rollbackOnFailure = strategies.DefaultRollingConfig().RollbackOnFailure
+	case models.DeployStrategyBlueGreen:
+		rollbackOnFailure = strategies.DefaultBlueGreenConfig().RollbackOnFailure
+	}
 
 	// 6. Iterate from start.
 	for i := startIdx; i < len(phases); i++ {
@@ -315,7 +321,7 @@ func (e *Engine) driveDeployment(ctx context.Context, deploymentID uuid.UUID) er
 			h, err := e.healthMonitor.GetHealth(deploymentID)
 			if err == nil && !h.Healthy {
 				// f. Unhealthy + RollbackOnFailure: rollback.
-				if config.RollbackOnFailure {
+				if rollbackOnFailure {
 					ph.Status = models.PhaseStatusFailed
 					completedAt := time.Now().UTC()
 					ph.CompletedAt = &completedAt

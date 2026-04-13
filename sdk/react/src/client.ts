@@ -1,8 +1,10 @@
 import type {
   ApiFlagResponse,
+  EvaluationContext,
   Flag,
   FlagDetail,
   FlagMetadata,
+  Registration,
   UserContext,
 } from './types';
 
@@ -45,6 +47,9 @@ export class DeploySentryClient {
 
   /** In-memory flag store keyed by flag key. */
   private readonly flags = new Map<string, Flag>();
+
+  /** Registry of operation handlers for the register/dispatch pattern. */
+  private registry: Map<string, Registration[]> = new Map();
 
   /** Subscribed listeners notified on any flag change. */
   private readonly listeners = new Set<FlagChangeListener>();
@@ -143,6 +148,69 @@ export class DeploySentryClient {
       expiresAt: flag.expiresAt,
       tags: flag.tags,
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Register / dispatch
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Register a handler for the given operation name.
+   *
+   * When `flagKey` is provided the handler is used only when that flag is
+   * enabled. Omit `flagKey` to register the default (fallback) handler.
+   */
+  register<T extends (...args: any[]) => any>(
+    operation: string,
+    handler: T,
+    flagKey?: string,
+  ): void {
+    let list = this.registry.get(operation);
+    if (!list) {
+      list = [];
+      this.registry.set(operation, list);
+    }
+    if (flagKey === undefined) {
+      const idx = list.findIndex((r) => r.flagKey === undefined);
+      if (idx !== -1) list[idx] = { handler };
+      else list.push({ handler });
+    } else {
+      list.push({ handler, flagKey });
+    }
+  }
+
+  /**
+   * Dispatch the appropriate handler for the given operation.
+   *
+   * Returns the first registered handler whose flag is enabled. Falls back
+   * to the default (no-flagKey) handler if no flagged handler matches.
+   *
+   * @throws If no handlers are registered for the operation.
+   * @throws If no flagged handler matches and no default is registered.
+   */
+  dispatch<T extends (...args: any[]) => any>(
+    operation: string,
+    _context?: EvaluationContext,
+  ): T {
+    const list = this.registry.get(operation);
+    if (!list || list.length === 0) {
+      throw new Error(
+        `No handlers registered for operation '${operation}'. Call register() before dispatch().`,
+      );
+    }
+    for (const reg of list) {
+      if (reg.flagKey !== undefined) {
+        const flag = this.flags.get(reg.flagKey);
+        if (flag && flag.enabled) return reg.handler as T;
+      }
+    }
+    const defaultReg = list.find((r) => r.flagKey === undefined);
+    if (!defaultReg) {
+      throw new Error(
+        `No matching handler for operation '${operation}' and no default registered. Register a default handler (no flagKey) as the last registration.`,
+      );
+    }
+    return defaultReg.handler as T;
   }
 
   // ---------------------------------------------------------------------------

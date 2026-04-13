@@ -161,6 +161,28 @@ export function useFlagsByCategory(category: FlagCategory): Flag[] {
 }
 
 /**
+ * Return the dispatch function for the given operation name.
+ *
+ * Reads the client from context and calls {@link DeploySentryClient.dispatch},
+ * which selects the appropriate handler based on currently enabled flags.
+ *
+ * @param operation - The name of the registered operation.
+ * @returns The resolved handler function.
+ *
+ * @throws If no handlers are registered for the operation.
+ *
+ * @example
+ * ```tsx
+ * const checkout = useDispatch<() => void>('checkout');
+ * checkout();
+ * ```
+ */
+export function useDispatch<T extends (...args: any[]) => any>(operation: string): T {
+  const client = useDeploySentry();
+  return client.dispatch<T>(operation);
+}
+
+/**
  * Return all non-permanent flags whose `expiresAt` date is in the past.
  *
  * This is useful for building admin dashboards that surface stale flags

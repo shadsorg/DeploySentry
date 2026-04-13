@@ -32,11 +32,11 @@ func (r *WebhookRepository) CreateWebhook(ctx context.Context, webhook *models.W
 
 	query := `
 		INSERT INTO webhooks (
-			id, org_id, project_id, name, url, secret, events, is_active,
+			id, org_id, project_id, name, url, secret, encrypted, events, is_active,
 			retry_attempts, timeout_seconds, created_at, updated_at,
 			created_by, updated_by
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
 		)`
 
 	_, err := r.db.Exec(ctx, query,
@@ -46,6 +46,7 @@ func (r *WebhookRepository) CreateWebhook(ctx context.Context, webhook *models.W
 		webhook.Name,
 		webhook.URL,
 		webhook.Secret,
+		webhook.Encrypted,
 		pq.Array(webhook.Events),
 		webhook.IsActive,
 		webhook.RetryAttempts,
@@ -65,7 +66,7 @@ func (r *WebhookRepository) GetWebhook(ctx context.Context, id uuid.UUID) (*mode
 
 	query := `
 		SELECT
-			id, org_id, project_id, name, url, secret, events, is_active,
+			id, org_id, project_id, name, url, secret, encrypted, events, is_active,
 			retry_attempts, timeout_seconds, created_at, updated_at,
 			created_by, updated_by
 		FROM webhooks
@@ -79,6 +80,7 @@ func (r *WebhookRepository) GetWebhook(ctx context.Context, id uuid.UUID) (*mode
 		&webhook.Name,
 		&webhook.URL,
 		&webhook.Secret,
+		&webhook.Encrypted,
 		pq.Array(&webhook.Events),
 		&webhook.IsActive,
 		&webhook.RetryAttempts,
@@ -120,7 +122,7 @@ func (r *WebhookRepository) GetWebhooksByOrg(ctx context.Context, orgID uuid.UUI
 
 	query := `
 		SELECT
-			id, org_id, project_id, name, url, secret, events, is_active,
+			id, org_id, project_id, name, url, secret, encrypted, events, is_active,
 			retry_attempts, timeout_seconds, created_at, updated_at,
 			created_by, updated_by
 		FROM webhooks` + whereClause + `
@@ -131,7 +133,7 @@ func (r *WebhookRepository) GetWebhooksByOrg(ctx context.Context, orgID uuid.UUI
 			query, args = paginationClause(opts.Limit, opts.Offset, args)
 			query = `
 		SELECT
-			id, org_id, project_id, name, url, secret, events, is_active,
+			id, org_id, project_id, name, url, secret, encrypted, events, is_active,
 			retry_attempts, timeout_seconds, created_at, updated_at,
 			created_by, updated_by
 		FROM webhooks` + whereClause + `
@@ -159,6 +161,7 @@ func (r *WebhookRepository) GetWebhooksByOrg(ctx context.Context, orgID uuid.UUI
 			&webhook.Name,
 			&webhook.URL,
 			&webhook.Secret,
+			&webhook.Encrypted,
 			pq.Array(&webhook.Events),
 			&webhook.IsActive,
 			&webhook.RetryAttempts,

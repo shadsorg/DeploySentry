@@ -20,6 +20,12 @@ type Config struct {
 	Log           LogConfig
 	Notifications NotificationsConfig
 	GitHub        GitHubConfig
+	Security      SecurityConfig
+}
+
+// SecurityConfig holds security-related configuration.
+type SecurityConfig struct {
+	EncryptionKey string `mapstructure:"encryption_key"`
 }
 
 // NotificationsConfig holds configuration for all notification channels.
@@ -265,6 +271,9 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("github.auto_deploy", false)
 	v.SetDefault("github.deploy_branches", []string{"main"})
 	v.SetDefault("github.default_strategy", "rolling")
+
+	// Security defaults.
+	v.SetDefault("security.encryption_key", "")
 
 	// Notification defaults (all disabled by default).
 	v.SetDefault("notifications.slack.enabled", false)

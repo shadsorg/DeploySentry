@@ -1,0 +1,1 @@
+ALTER TABLE webhooks ADD COLUMN encrypted BOOLEAN NOT NULL DEFAULT false;

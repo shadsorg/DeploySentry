@@ -16,6 +16,7 @@ type Webhook struct {
 	Name            string         `json:"name" db:"name"`
 	URL             string         `json:"url" db:"url"`
 	Secret          string         `json:"-" db:"secret"` // Hidden from JSON for security
+	Encrypted       bool           `json:"-" db:"encrypted"`
 	Events          pq.StringArray `json:"events" db:"events"`
 	IsActive        bool           `json:"is_active" db:"is_active"`
 	RetryAttempts   int            `json:"retry_attempts" db:"retry_attempts"`

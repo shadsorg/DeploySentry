@@ -229,7 +229,7 @@ func run() error {
 	apiKeyService := auth.NewAPIKeyService(apiKeyRepo)
 	rbacChecker := auth.NewRBACChecker()
 	analyticsService := analytics.NewService(db.Pool, rdb.Client)
-	webhookService := webhooks.NewService(webhookRepo, nc)
+	webhookService := webhooks.NewService(webhookRepo, nc, []byte(cfg.Security.EncryptionKey))
 	ratingService := ratings.NewRatingService(ratingRepo)
 	entityService := entities.NewEntityService(entityRepo, envRepo)
 	settingService := settings.NewSettingService(settingRepo)

@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -634,8 +635,11 @@ func TestWebhookChannel_Send_SetsCorrectHeaders(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, VerifySignature(body, sig, secret))
 
-		// Verify delivery attempt header.
-		assert.Equal(t, "1", r.Header.Get("X-DeploySentry-Delivery"))
+		// Verify delivery ID header is a valid UUID.
+		delivery := r.Header.Get("X-DeploySentry-Delivery")
+		assert.NotEmpty(t, delivery)
+		_, parseErr := uuid.Parse(delivery)
+		assert.NoError(t, parseErr, "X-DeploySentry-Delivery should be a valid UUID")
 
 		w.WriteHeader(http.StatusOK)
 	}))

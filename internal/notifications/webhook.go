@@ -10,7 +10,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // WebhookConfig holds configuration for the webhook notification channel.
@@ -183,7 +186,8 @@ func (w *WebhookChannel) deliver(ctx context.Context, body []byte, signature str
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-DeploySentry-Signature", signature)
-	req.Header.Set("X-DeploySentry-Delivery", fmt.Sprintf("%d", attempt))
+	req.Header.Set("X-DeploySentry-Delivery", uuid.New().String())
+	req.Header.Set("X-DeploySentry-Timestamp", strconv.FormatInt(time.Now().Unix(), 10))
 
 	resp, err := w.client.Do(req)
 	if err != nil {

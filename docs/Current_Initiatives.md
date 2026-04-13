@@ -14,6 +14,7 @@ These are implemented in the codebase but their plan checklists were never updat
 
 | Initiative | Plan/Spec File | Status |
 | SDK Register & Dispatch | [Plan](./superpowers/plans/2026-04-12-sdk-register-dispatch.md) / [Spec](./superpowers/specs/2026-04-12-sdk-register-dispatch-design.md) | All 7 SDKs + docs updated, 56+ tests |
+| SDK Onboarding & Flag Docs | [Plan](./superpowers/plans/2026-04-12-sdk-onboarding-and-flag-docs.md) / [Spec](./superpowers/specs/2026-04-12-sdk-onboarding-and-flag-docs-design.md) | Setup script + CLAUDE.md prompt + flag-management docs |
 |---|---|---|
 | Landing Page, Header & In-App Docs | [Plan](./archives/2026-04-12-landing-page-and-header.md) / [Spec](./archives/2026-04-12-landing-page-and-header-design.md) | All 19 tasks done, archived |
 | Playwright E2E Testing | [Plan](./superpowers/plans/2026-04-10-playwright-e2e-testing.md) | Infrastructure + 6 smoke tests + 9 UI tests + 13 fixtures |

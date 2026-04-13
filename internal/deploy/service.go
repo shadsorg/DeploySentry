@@ -74,6 +74,13 @@ func (s *deployService) CreateDeployment(ctx context.Context, d *models.Deployme
 		return fmt.Errorf("validation failed: %w", err)
 	}
 
+	// Look up the previous completed deployment for this app+env
+	prev, err := s.repo.GetLatestCompletedDeployment(ctx, d.ApplicationID, d.EnvironmentID)
+	if err == nil && prev != nil {
+		d.PreviousDeploymentID = &prev.ID
+	}
+	// If no previous deployment found, PreviousDeploymentID stays nil — that's fine for first deployment
+
 	if err := s.repo.CreateDeployment(ctx, d); err != nil {
 		return fmt.Errorf("creating deployment: %w", err)
 	}

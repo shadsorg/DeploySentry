@@ -1,11 +1,12 @@
 # Current Initiatives
 
-> Last updated: 2026-04-12
+> Last updated: 2026-04-13
 
 ## Active (not yet complete)
 
 | Initiative | Phase | Plan/Spec File | Notes |
 |---|---|---|---|
+| Canary Rollout E2E | Implementation | [Spec](./superpowers/specs/2026-04-13-canary-rollout-e2e-design.md) / [Plan](./superpowers/plans/2026-04-13-canary-rollout-e2e.md) | 18 tasks: phase engine, desired-state API, rollback completion, UI wiring, GitHub E2E, reference consumer |
 | E2E SDK Flag Delivery | Implementation | [Plan](./superpowers/plans/2026-04-12-e2e-sdk-flag-delivery.md) | 5 tests passing (Node-only); React probe deferred pending sdk/react ESM fix; fault injection + required-gate pending |
 
 ## Completed (archive candidates)

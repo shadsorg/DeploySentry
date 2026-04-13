@@ -1,7 +1,7 @@
 # All-Strategy Engine Support + Live Polling — Design Spec
 
 **Date:** 2026-04-13
-**Status:** Approved
+**Status:** Complete
 **Depends on:** `2026-04-13-canary-rollout-e2e-design.md`, `2026-04-13-engine-reliability-hardening-design.md`
 
 ## Overview

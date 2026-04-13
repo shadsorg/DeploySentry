@@ -19,6 +19,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/analytics"
 	"github.com/deploysentry/deploysentry/internal/auth"
 	"github.com/deploysentry/deploysentry/internal/deploy"
+	"github.com/deploysentry/deploysentry/internal/deploy/engine"
 	"github.com/deploysentry/deploysentry/internal/entities"
 	"github.com/deploysentry/deploysentry/internal/flags"
 	"github.com/deploysentry/deploysentry/internal/members"
@@ -35,8 +36,10 @@ import (
 	"github.com/deploysentry/deploysentry/internal/platform/metrics"
 	"github.com/deploysentry/deploysentry/internal/ratings"
 	"github.com/deploysentry/deploysentry/internal/releases"
+	"github.com/deploysentry/deploysentry/internal/rollback"
 	"github.com/deploysentry/deploysentry/internal/settings"
 	"github.com/deploysentry/deploysentry/internal/webhooks"
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 func main() {
@@ -269,11 +272,25 @@ func run() error {
 		log.Println("pagerduty notification channel enabled")
 	}
 
+	// -------------------------------------------------------------------------
+	// Phase Engine (canary rollout)
+	// -------------------------------------------------------------------------
+	phaseEngine := engine.New(deployRepo, nc, nil, nil)
+
 	// Start event subscriber to bridge NATS events to notifications
 	eventSubscriber := notifications.NewEventSubscriber(nc, notificationService)
 	go func() {
 		if err := eventSubscriber.Start(ctx, notifications.DefaultSubscriberConfig()); err != nil {
 			log.Printf("warning: notification subscriber failed to start: %v", err)
+		}
+	}()
+
+	// Start the phase engine in the background. It subscribes to
+	// deployments.deployment.created and drives canary phases.
+	engineSubscriber := &natsEngineSubscriber{nats: nc, ctx: ctx}
+	go func() {
+		if err := phaseEngine.Start(ctx, engineSubscriber); err != nil && err != context.Canceled {
+			log.Printf("warning: phase engine stopped: %v", err)
 		}
 	}()
 
@@ -311,7 +328,7 @@ func run() error {
 	flagHandler.SetRatingService(ratingService)
 	flagHandler.RegisterRoutes(api)
 	flagHandler.RegisterSegmentRoutes(api)
-	deploy.NewHandler(deployService, webhookService, analyticsService).RegisterRoutes(api, rbacChecker)
+	deploy.NewHandler(deployService, webhookService, analyticsService, phaseEngine).RegisterRoutes(api, rbacChecker)
 	releases.NewHandler(releaseService).RegisterRoutes(api)
 	analytics.NewHandler(analyticsService).RegisterRoutes(api)
 	webhooks.NewHandler(webhookService).RegisterRoutes(api)
@@ -323,6 +340,16 @@ func run() error {
 	settings.NewHandler(settingService, rbacChecker).RegisterRoutes(api)
 	members.NewHandler(memberService, entityService, rbacChecker).RegisterRoutes(api)
 	notifications.NewPreferencesHandler(prefStore, notificationService, rbacChecker).RegisterRoutes(api)
+
+	// Rollback handler: manual rollback triggers and rollback history.
+	rollbackExecutor := &deployServiceRollbackExecutor{service: deployService}
+	rollbackController := rollback.NewRollbackController(
+		rollbackExecutor,
+		rollback.NewImmediateRollbackStrategy(),
+		0.95,           // healthThreshold
+		2*time.Minute,  // evaluationWindow
+	)
+	rollback.NewHandler(rollbackController).RegisterRoutes(api)
 
 	// Public routes (no auth required).
 	public := router.Group("/api/v1")
@@ -419,6 +446,66 @@ func version() string {
 		return "dev"
 	}
 	return v
+}
+
+// natsEngineSubscriber adapts *messaging.NATS to the engine.MessageSubscriber
+// interface. The engine's Subscribe signature is:
+//
+//	Subscribe(subject string, handler func(msg []byte)) error
+//
+// whereas the NATS wrapper exposes a JetStream-based Subscribe that requires a
+// stream name, durable consumer name, and a jetstream.Msg handler. This adapter
+// bridges the two by ensuring the DEPLOYSENTRY stream exists and creating a
+// durable consumer named "engine-<sanitized-subject>".
+type natsEngineSubscriber struct {
+	nats *messaging.NATS
+	ctx  context.Context
+}
+
+func (s *natsEngineSubscriber) Subscribe(subject string, handler func(msg []byte)) error {
+	// Ensure the stream covers the subject. The stream may already exist from
+	// the notification subscriber; CreateOrUpdateStream is idempotent.
+	_, err := s.nats.EnsureStream(s.ctx, jetstream.StreamConfig{
+		Name:     "DEPLOYSENTRY",
+		Subjects: []string{"deployments.>", "flags.>", "releases.>", "health.>"},
+	})
+	if err != nil {
+		return fmt.Errorf("natsEngineSubscriber: ensure stream: %w", err)
+	}
+
+	consumerName := "engine-" + sanitizeNATSConsumerName(subject)
+	_, err = s.nats.Subscribe(s.ctx, "DEPLOYSENTRY", consumerName, subject, func(msg jetstream.Msg) {
+		handler(msg.Data())
+		_ = msg.Ack()
+	})
+	return err
+}
+
+// sanitizeNATSConsumerName converts a NATS subject into a valid durable
+// consumer name by replacing dots and wildcards with dashes.
+func sanitizeNATSConsumerName(subject string) string {
+	result := make([]byte, 0, len(subject))
+	for i := 0; i < len(subject); i++ {
+		switch subject[i] {
+		case '.', '>', '*':
+			result = append(result, '-')
+		default:
+			result = append(result, subject[i])
+		}
+	}
+	return string(result)
+}
+
+// deployServiceRollbackExecutor adapts *deploy.DeployService to the
+// rollback.RollbackExecutor interface. It delegates to RollbackDeployment,
+// which handles state transition and event publishing, and ignores the
+// strategy parameter since the service manages its own rollback logic.
+type deployServiceRollbackExecutor struct {
+	service deploy.DeployService
+}
+
+func (a *deployServiceRollbackExecutor) Execute(ctx context.Context, deploymentID uuid.UUID, _ rollback.RollbackStrategy) error {
+	return a.service.RollbackDeployment(ctx, deploymentID)
 }
 
 // apiKeyValidatorAdapter adapts *auth.APIKeyService to the auth.APIKeyValidator

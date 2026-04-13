@@ -310,6 +310,7 @@ func (s *Service) deliverWebhook(ctx context.Context, webhook *models.Webhook, d
 	req.Header.Set("X-DeploySentry-Event", string(payload.Event))
 	req.Header.Set("X-DeploySentry-Timestamp", timestamp)
 	req.Header.Set("X-DeploySentry-Signature", signature)
+	req.Header.Set("X-DeploySentry-Delivery", uuid.New().String())
 
 	// Send request
 	resp, err := client.Do(req)

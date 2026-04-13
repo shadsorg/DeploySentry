@@ -69,8 +69,9 @@ const (
 	EventDeploymentCompleted  WebhookEvent = "deployment.completed"
 	EventDeploymentFailed     WebhookEvent = "deployment.failed"
 	EventDeploymentRolledback WebhookEvent = "deployment.rolledback"
-	EventDeploymentPaused     WebhookEvent = "deployment.paused"
-	EventDeploymentResumed    WebhookEvent = "deployment.resumed"
+	EventDeploymentPaused        WebhookEvent = "deployment.paused"
+	EventDeploymentResumed       WebhookEvent = "deployment.resumed"
+	EventDeploymentPhaseChanged  WebhookEvent = "deployment.phase_changed"
 
 	// Release events
 	EventReleaseCreated  WebhookEvent = "release.created"
@@ -99,6 +100,7 @@ func AllWebhookEvents() []WebhookEvent {
 		EventDeploymentRolledback,
 		EventDeploymentPaused,
 		EventDeploymentResumed,
+		EventDeploymentPhaseChanged,
 		EventReleaseCreated,
 		EventReleasePromoted,
 		EventSystemAlert,

@@ -1,6 +1,7 @@
 import type {
   Flag,
   Deployment,
+  DeploymentPhase,
   Release,
   ApiKey,
   CreateFlagRequest,
@@ -85,6 +86,11 @@ export const deploymentsApi = {
   rollback: (id: string) => request<Deployment>(`/deployments/${id}/rollback`, { method: 'POST' }),
   pause: (id: string) => request<Deployment>(`/deployments/${id}/pause`, { method: 'POST' }),
   resume: (id: string) => request<Deployment>(`/deployments/${id}/resume`, { method: 'POST' }),
+  cancel: (id: string) => request<Deployment>(`/deployments/${id}/cancel`, { method: 'POST' }),
+  advance: (id: string) => request<Deployment>(`/deployments/${id}/advance`, { method: 'POST' }),
+  desiredState: (id: string) => request<any>(`/deployments/${id}/desired-state`),
+  rollbackHistory: (id: string) => request<{ rollbacks: any[] }>(`/deployments/${id}/rollback-history`),
+  phases: (id: string) => request<{ phases: DeploymentPhase[] }>(`/deployments/${id}/phases`),
 };
 
 // Releases

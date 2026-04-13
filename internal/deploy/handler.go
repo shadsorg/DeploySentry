@@ -14,19 +14,28 @@ import (
 	"github.com/google/uuid"
 )
 
+// PhaseAdvancer is implemented by any engine that can advance a deployment
+// through its next phase (e.g. the canary rollout engine).
+type PhaseAdvancer interface {
+	Advance(ctx context.Context, deploymentID uuid.UUID) error
+}
+
 // Handler provides HTTP endpoints for managing deployments.
 type Handler struct {
 	service      DeployService
 	webhookSvc   *webhooks.Service
 	analyticsSvc *analytics.Service
+	engine       PhaseAdvancer
 }
 
 // NewHandler creates a new deployment HTTP handler.
-func NewHandler(service DeployService, webhookSvc *webhooks.Service, analyticsSvc *analytics.Service) *Handler {
+// engine may be nil; when nil the /advance endpoint returns 503.
+func NewHandler(service DeployService, webhookSvc *webhooks.Service, analyticsSvc *analytics.Service, engine PhaseAdvancer) *Handler {
 	return &Handler{
 		service:      service,
 		webhookSvc:   webhookSvc,
 		analyticsSvc: analyticsSvc,
+		engine:       engine,
 	}
 }
 
@@ -44,12 +53,18 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, rbac *auth.RBACChecker) {
 		deployments.POST("/:id/rollback", mw(rbac, auth.PermDeployRollback), h.rollbackDeployment)
 		deployments.POST("/:id/pause", mw(rbac, auth.PermDeployManage), h.pauseDeployment)
 		deployments.POST("/:id/resume", mw(rbac, auth.PermDeployManage), h.resumeDeployment)
+		deployments.POST("/:id/cancel", mw(rbac, auth.PermDeployManage), h.cancelDeployment)
+		deployments.GET("/:id/desired-state", mw(rbac, auth.PermDeployRead), h.getDesiredState)
+		deployments.POST("/:id/advance", mw(rbac, auth.PermDeployPromote), h.advanceDeployment)
+		deployments.GET("/:id/rollback-history", mw(rbac, auth.PermDeployRead), h.getRollbackHistory)
+		deployments.GET("/:id/phases", mw(rbac, auth.PermDeployRead), h.listPhases)
 	}
 
 	// Application-scoped routes.
 	applications := rg.Group("/applications")
 	{
 		applications.GET("/:app_id/deployments/active", mw(rbac, auth.PermDeployRead), h.getActiveDeployments)
+		applications.GET("/:app_id/desired-state", mw(rbac, auth.PermDeployRead), h.getAppDesiredState)
 	}
 }
 
@@ -415,6 +430,21 @@ func (h *Handler) resumeDeployment(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "running"})
 }
 
+func (h *Handler) cancelDeployment(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid deployment id"})
+		return
+	}
+
+	if err := h.service.CancelDeployment(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "cancelled"})
+}
+
 // getActiveDeployments returns all non-terminal deployments for the application
 // identified by the :app_id URL parameter.
 func (h *Handler) getActiveDeployments(c *gin.Context) {
@@ -431,4 +461,63 @@ func (h *Handler) getActiveDeployments(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"deployments": deployments})
+}
+
+// advanceDeployment handles POST /deployments/:id/advance.
+// It delegates to the PhaseAdvancer engine to move the deployment to its next
+// phase. Returns 503 when no engine is configured.
+func (h *Handler) advanceDeployment(c *gin.Context) {
+	if h.engine == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "phase advance engine not available"})
+		return
+	}
+
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid deployment id"})
+		return
+	}
+
+	if err := h.engine.Advance(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "advanced"})
+}
+
+// getRollbackHistory handles GET /deployments/:id/rollback-history.
+// It returns the rollback records associated with the given deployment.
+func (h *Handler) getRollbackHistory(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid deployment id"})
+		return
+	}
+
+	records, err := h.service.ListRollbackRecords(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list rollback history"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"rollbacks": records})
+}
+
+// listPhases handles GET /deployments/:id/phases.
+// It returns all phases (in sort order) for the given deployment.
+func (h *Handler) listPhases(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid deployment id"})
+		return
+	}
+
+	phases, err := h.service.ListPhases(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list phases"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"phases": phases})
 }

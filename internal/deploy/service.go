@@ -40,8 +40,17 @@ type DeployService interface {
 	// ResumeDeployment resumes a paused deployment.
 	ResumeDeployment(ctx context.Context, id uuid.UUID) error
 
+	// CancelDeployment cancels a pending or paused deployment.
+	CancelDeployment(ctx context.Context, id uuid.UUID) error
+
 	// GetActiveDeployments returns all non-terminal deployments for an application.
 	GetActiveDeployments(ctx context.Context, applicationID uuid.UUID) ([]*models.Deployment, error)
+
+	// ListPhases returns all phases for a deployment, ordered by sort_order ascending.
+	ListPhases(ctx context.Context, deploymentID uuid.UUID) ([]*models.DeploymentPhase, error)
+
+	// ListRollbackRecords returns the rollback history for a deployment.
+	ListRollbackRecords(ctx context.Context, deploymentID uuid.UUID) ([]*models.RollbackRecord, error)
 }
 
 // deployService is the concrete implementation of DeployService.
@@ -73,6 +82,13 @@ func (s *deployService) CreateDeployment(ctx context.Context, d *models.Deployme
 	if err := d.Validate(); err != nil {
 		return fmt.Errorf("validation failed: %w", err)
 	}
+
+	// Look up the previous completed deployment for this app+env
+	prev, err := s.repo.GetLatestCompletedDeployment(ctx, d.ApplicationID, d.EnvironmentID)
+	if err == nil && prev != nil {
+		d.PreviousDeploymentID = &prev.ID
+	}
+	// If no previous deployment found, PreviousDeploymentID stays nil — that's fine for first deployment
 
 	if err := s.repo.CreateDeployment(ctx, d); err != nil {
 		return fmt.Errorf("creating deployment: %w", err)
@@ -195,6 +211,24 @@ func (s *deployService) ResumeDeployment(ctx context.Context, id uuid.UUID) erro
 	return nil
 }
 
+func (s *deployService) CancelDeployment(ctx context.Context, id uuid.UUID) error {
+	d, err := s.repo.GetDeployment(ctx, id)
+	if err != nil {
+		return fmt.Errorf("getting deployment for cancel: %w", err)
+	}
+
+	if err := d.TransitionTo(models.DeployStatusCancelled); err != nil {
+		return err
+	}
+
+	if err := s.repo.UpdateDeployment(ctx, d); err != nil {
+		return fmt.Errorf("updating deployment for cancel: %w", err)
+	}
+
+	s.publishEvent(ctx, "deployment.cancelled", d.ID)
+	return nil
+}
+
 // GetActiveDeployments returns all non-terminal deployments (pending, running,
 // paused, promoting) for the given application.
 func (s *deployService) GetActiveDeployments(ctx context.Context, applicationID uuid.UUID) ([]*models.Deployment, error) {
@@ -209,6 +243,24 @@ func (s *deployService) GetActiveDeployments(ctx context.Context, applicationID 
 	}
 
 	return active, nil
+}
+
+// ListPhases returns all phases for a deployment, ordered by sort_order.
+func (s *deployService) ListPhases(ctx context.Context, deploymentID uuid.UUID) ([]*models.DeploymentPhase, error) {
+	phases, err := s.repo.ListPhases(ctx, deploymentID)
+	if err != nil {
+		return nil, fmt.Errorf("listing phases: %w", err)
+	}
+	return phases, nil
+}
+
+// ListRollbackRecords returns the rollback history for a deployment.
+func (s *deployService) ListRollbackRecords(ctx context.Context, deploymentID uuid.UUID) ([]*models.RollbackRecord, error) {
+	records, err := s.repo.ListRollbackRecords(ctx, deploymentID)
+	if err != nil {
+		return nil, fmt.Errorf("listing rollback records: %w", err)
+	}
+	return records, nil
 }
 
 // publishEvent is a fire-and-forget helper that publishes a domain event.

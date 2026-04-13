@@ -14,7 +14,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -48,6 +50,7 @@ public final class DeploySentryClient implements AutoCloseable {
     private final HttpClient httpClient;
     private final FlagCache cache;
     private final AtomicBoolean initialized = new AtomicBoolean(false);
+    private final ConcurrentHashMap<String, List<Registration<?>>> registry = new ConcurrentHashMap<>();
 
     private SSEClient sseClient;
 
@@ -262,13 +265,97 @@ public final class DeploySentryClient implements AutoCloseable {
         return flag.getMetadata().getOwners();
     }
 
+    // --------------------------------------------------- register / dispatch API
+
     /**
-     * Clears the flag cache and re-fetches all flags from the API.
-     * Useful when the session context changes and a full refresh is needed.
+     * Registers a flag-gated handler for the given {@code operation}.
+     * When {@code flagKey} is non-null, this handler is selected only when the
+     * corresponding flag is enabled in the cache.
+     *
+     * @param operation the logical operation name (e.g. "send-email")
+     * @param handler   the supplier that executes the operation
+     * @param flagKey   the feature flag that gates this handler; {@code null}
+     *                  means this is the default handler
+     * @param <T>       the return type
      */
-    public void refreshSession() {
-        cache.clear();
-        fetchFlags();
+    public <T> void register(String operation, Supplier<T> handler, String flagKey) {
+        registry.compute(operation, (k, list) -> {
+            if (list == null) list = new ArrayList<>();
+            list.add(new Registration<>(handler, flagKey));
+            return list;
+        });
+    }
+
+    /**
+     * Registers a default (unflagged) handler for the given {@code operation}.
+     * If a default handler already exists it is replaced; otherwise the handler
+     * is appended to the list.
+     *
+     * @param operation the logical operation name
+     * @param handler   the default supplier to execute
+     * @param <T>       the return type
+     */
+    public <T> void register(String operation, Supplier<T> handler) {
+        registry.compute(operation, (k, list) -> {
+            if (list == null) list = new ArrayList<>();
+            for (int i = 0; i < list.size(); i++) {
+                if (list.get(i).flagKey == null) {
+                    list.set(i, new Registration<>(handler, null));
+                    return list;
+                }
+            }
+            list.add(new Registration<>(handler, null));
+            return list;
+        });
+    }
+
+    /**
+     * Selects and returns the best-matching handler for the given
+     * {@code operation}.
+     *
+     * <p>Resolution order:
+     * <ol>
+     *   <li>First registered handler whose flag is present and enabled in the
+     *       cache.</li>
+     *   <li>The registered default handler (no flag key).</li>
+     * </ol>
+     *
+     * @param operation the logical operation name
+     * @param context   the evaluation context (currently unused but reserved for
+     *                  future targeting evaluation)
+     * @param <T>       the return type of the handler
+     * @return the matching {@link Supplier}
+     * @throws IllegalStateException if no handlers are registered for the
+     *                               operation, or if no flagged handler matches
+     *                               and no default has been registered
+     */
+    @SuppressWarnings("unchecked")
+    public <T> Supplier<T> dispatch(String operation, EvaluationContext context) {
+        var list = registry.get(operation);
+        if (list == null || list.isEmpty()) {
+            throw new IllegalStateException(
+                "No handlers registered for operation '" + operation + "'. Call register() before dispatch()."
+            );
+        }
+        // First pass: find an enabled flagged handler
+        for (var reg : list) {
+            if (reg.flagKey != null) {
+                var flag = cache.get(reg.flagKey);
+                if (flag != null && flag.isEnabled()) {
+                    return (Supplier<T>) reg.handler;
+                }
+            }
+        }
+        // Second pass: fall back to default handler
+        for (var reg : list) {
+            if (reg.flagKey == null) {
+                return (Supplier<T>) reg.handler;
+            }
+        }
+        throw new IllegalStateException(
+            "No matching handler for operation '" + operation + "' and no default registered. " +
+            "Register a default handler (no flagKey) as the last registration."
+        );
     }
 
     // --------------------------------------------------------- internal helpers

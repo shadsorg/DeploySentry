@@ -181,4 +181,148 @@ class DeploySentryClientTest {
                 .build();
         return new DeploySentryClient(options);
     }
+
+    // ------------------------------------------------------------------
+    // register / dispatch helpers
+    // ------------------------------------------------------------------
+
+    private DeploySentryClient newTestClient() {
+        return new DeploySentryClient(
+            ClientOptions.builder()
+                .apiKey("test-key")
+                .environment("test")
+                .project("test")
+                .enableSSE(false)
+                .build()
+        );
+    }
+
+    /**
+     * Seeds a flag directly into the client's cache via reflection so tests
+     * don't require a running server.
+     */
+    private void seedFlag(DeploySentryClient client, String key, boolean enabled) {
+        try {
+            java.lang.reflect.Field field = DeploySentryClient.class.getDeclaredField("cache");
+            field.setAccessible(true);
+            FlagCache cache = (FlagCache) field.get(client);
+            Flag flag = Flag.builder()
+                    .key(key)
+                    .enabled(enabled)
+                    .value(String.valueOf(enabled))
+                    .type("boolean")
+                    .build();
+            cache.put(key, flag);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // register / dispatch tests
+    // ------------------------------------------------------------------
+
+    @Test
+    void dispatchesFlaggedHandlerWhenOn() {
+        DeploySentryClient client = newTestClient();
+        seedFlag(client, "new-algo", true);
+
+        client.register("process", () -> "new", "new-algo");
+        client.register("process", () -> "default");
+
+        String result = client.<String>dispatch("process", null).get();
+        assertEquals("new", result, "Should dispatch flagged handler when flag is enabled");
+        client.close();
+    }
+
+    @Test
+    void dispatchesDefaultWhenFlagOff() {
+        DeploySentryClient client = newTestClient();
+        seedFlag(client, "new-algo", false);
+
+        client.register("process", () -> "new", "new-algo");
+        client.register("process", () -> "default");
+
+        String result = client.<String>dispatch("process", null).get();
+        assertEquals("default", result, "Should fall back to default when flag is disabled");
+        client.close();
+    }
+
+    @Test
+    void firstMatchWins() {
+        DeploySentryClient client = newTestClient();
+        seedFlag(client, "flag-a", true);
+        seedFlag(client, "flag-b", true);
+
+        client.register("op", () -> "first", "flag-a");
+        client.register("op", () -> "second", "flag-b");
+        client.register("op", () -> "default");
+
+        String result = client.<String>dispatch("op", null).get();
+        assertEquals("first", result, "First registered matching handler should win");
+        client.close();
+    }
+
+    @Test
+    void defaultOnly() {
+        DeploySentryClient client = newTestClient();
+
+        client.register("op", () -> "only-default");
+
+        String result = client.<String>dispatch("op", null).get();
+        assertEquals("only-default", result, "Default handler should be returned when no flags registered");
+        client.close();
+    }
+
+    @Test
+    void operationsIsolated() {
+        DeploySentryClient client = newTestClient();
+        seedFlag(client, "feature-x", true);
+
+        client.register("op-a", () -> "a-flagged", "feature-x");
+        client.register("op-a", () -> "a-default");
+        client.register("op-b", () -> "b-default");
+
+        assertEquals("a-flagged", client.<String>dispatch("op-a", null).get());
+        assertEquals("b-default", client.<String>dispatch("op-b", null).get());
+        client.close();
+    }
+
+    @Test
+    void throwsOnUnregistered() {
+        DeploySentryClient client = newTestClient();
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> client.dispatch("never-registered", null));
+        assertTrue(ex.getMessage().contains("never-registered"),
+                "Exception message should mention the operation name");
+        client.close();
+    }
+
+    @Test
+    void throwsNoMatchNoDefault() {
+        DeploySentryClient client = newTestClient();
+        seedFlag(client, "inactive-flag", false);
+
+        client.register("op", () -> "flagged", "inactive-flag");
+        // No default registered
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> client.dispatch("op", null));
+        assertTrue(ex.getMessage().contains("op"),
+                "Exception message should mention the operation name");
+        client.close();
+    }
+
+    @Test
+    void replacesDefault() {
+        DeploySentryClient client = newTestClient();
+
+        client.register("op", () -> "old-default");
+        client.register("op", () -> "new-default"); // should replace the default
+
+        String result = client.<String>dispatch("op", null).get();
+        assertEquals("new-default", result, "Second register() call without flagKey should replace the default");
+        client.close();
+    }
 }

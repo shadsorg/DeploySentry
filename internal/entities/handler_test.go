@@ -114,10 +114,6 @@ func (m *mockEntityService) ListAppsByProject(ctx context.Context, projectID uui
 	return []*models.Application{}, nil
 }
 
-func (m *mockEntityService) ListEnvironmentsByApp(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error) {
-	return nil, nil
-}
-
 func (m *mockEntityService) UpdateApp(ctx context.Context, app *models.Application) error {
 	if m.updateAppFn != nil {
 		return m.updateAppFn(ctx, app)

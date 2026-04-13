@@ -50,6 +50,17 @@ type DeployRepository interface {
 
 	// WithTx executes fn inside a database transaction backed by this repository.
 	WithTx(ctx context.Context, fn TxFunc) error
+
+	// TryAdvisoryLock attempts to acquire a PostgreSQL advisory lock for the
+	// given deployment. Returns true if acquired, false if already held.
+	TryAdvisoryLock(ctx context.Context, deploymentID uuid.UUID) (bool, error)
+
+	// AdvisoryUnlock releases a previously acquired advisory lock.
+	AdvisoryUnlock(ctx context.Context, deploymentID uuid.UUID) error
+
+	// ListNonTerminalDeployments returns all canary deployments in a non-terminal
+	// state (pending, running, paused, promoting), ordered by created_at ASC.
+	ListNonTerminalDeployments(ctx context.Context) ([]*models.Deployment, error)
 }
 
 // TxRepository is a subset of DeployRepository scoped to a database transaction.

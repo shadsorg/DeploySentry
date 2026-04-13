@@ -113,6 +113,18 @@ func (m *mockDeployRepo) WithTx(_ context.Context, fn TxFunc) error {
 	return fn(m)
 }
 
+func (m *mockDeployRepo) TryAdvisoryLock(_ context.Context, _ uuid.UUID) (bool, error) {
+	return true, nil
+}
+
+func (m *mockDeployRepo) AdvisoryUnlock(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
+func (m *mockDeployRepo) ListNonTerminalDeployments(_ context.Context) ([]*models.Deployment, error) {
+	return nil, nil
+}
+
 // mockPublisher implements MessagePublisher and records every call.
 type mockPublisher struct {
 	mu        sync.Mutex

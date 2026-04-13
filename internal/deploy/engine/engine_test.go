@@ -168,6 +168,27 @@ func (r *mockEngineRepo) WithTx(_ context.Context, fn deploy.TxFunc) error {
 	return fn(r)
 }
 
+func (r *mockEngineRepo) TryAdvisoryLock(_ context.Context, _ uuid.UUID) (bool, error) {
+	return true, nil
+}
+
+func (r *mockEngineRepo) AdvisoryUnlock(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
+func (r *mockEngineRepo) ListNonTerminalDeployments(_ context.Context) ([]*models.Deployment, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var result []*models.Deployment
+	for _, d := range r.deployments {
+		if !d.IsTerminal() && d.Strategy == models.DeployStrategyCanary {
+			copy := *d
+			result = append(result, &copy)
+		}
+	}
+	return result, nil
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------

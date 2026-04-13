@@ -479,6 +479,70 @@ func (r *DeployRepository) ListRollbackRecords(ctx context.Context, deploymentID
 }
 
 // ---------------------------------------------------------------------------
+// Advisory lock methods
+// ---------------------------------------------------------------------------
+
+// advisoryLockKey derives a stable int64 key from the first 8 bytes of a UUID.
+func advisoryLockKey(id uuid.UUID) int64 {
+	b := id[:]
+	return int64(b[0])<<56 | int64(b[1])<<48 | int64(b[2])<<40 | int64(b[3])<<32 |
+		int64(b[4])<<24 | int64(b[5])<<16 | int64(b[6])<<8 | int64(b[7])
+}
+
+// TryAdvisoryLock attempts to acquire a PostgreSQL session-level advisory lock
+// for the given deployment. Returns true if the lock was acquired, false if it
+// is already held by another session.
+func (r *DeployRepository) TryAdvisoryLock(ctx context.Context, deploymentID uuid.UUID) (bool, error) {
+	key := advisoryLockKey(deploymentID)
+	var locked bool
+	err := r.pool.QueryRow(ctx, "SELECT pg_try_advisory_lock($1)", key).Scan(&locked)
+	if err != nil {
+		return false, fmt.Errorf("postgres.TryAdvisoryLock: %w", err)
+	}
+	return locked, nil
+}
+
+// AdvisoryUnlock releases a previously acquired session-level advisory lock.
+func (r *DeployRepository) AdvisoryUnlock(ctx context.Context, deploymentID uuid.UUID) error {
+	key := advisoryLockKey(deploymentID)
+	_, err := r.pool.Exec(ctx, "SELECT pg_advisory_unlock($1)", key)
+	if err != nil {
+		return fmt.Errorf("postgres.AdvisoryUnlock: %w", err)
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// ListNonTerminalDeployments
+// ---------------------------------------------------------------------------
+
+// ListNonTerminalDeployments returns all canary deployments in a non-terminal
+// state (pending, running, paused, promoting), ordered by created_at ASC.
+func (r *DeployRepository) ListNonTerminalDeployments(ctx context.Context) ([]*models.Deployment, error) {
+	q := `SELECT` + deploymentSelectCols + `
+		FROM deployments
+		WHERE status IN ('pending', 'running', 'paused', 'promoting')
+		  AND strategy = 'canary'
+		ORDER BY created_at ASC`
+
+	rows, err := r.q.Query(ctx, q)
+	if err != nil {
+		return nil, fmt.Errorf("postgres.ListNonTerminalDeployments: %w", err)
+	}
+	defer rows.Close()
+
+	var deployments []*models.Deployment
+	for rows.Next() {
+		d, err := scanDeployment(rows)
+		if err != nil {
+			return nil, fmt.Errorf("postgres.ListNonTerminalDeployments: scan: %w", err)
+		}
+		deployments = append(deployments, d)
+	}
+	return deployments, rows.Err()
+}
+
+// ---------------------------------------------------------------------------
 // Transaction support
 // ---------------------------------------------------------------------------
 

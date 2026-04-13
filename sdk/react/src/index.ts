@@ -5,6 +5,7 @@ export { DeploySentryProvider } from './provider';
 // Hooks
 export {
   useDeploySentry,
+  useDispatch,
   useExpiredFlags,
   useFlag,
   useFlagDetail,
@@ -17,11 +18,13 @@ export { DeploySentryClient } from './client';
 // Types
 export type {
   ApiFlagResponse,
+  EvaluationContext,
   Flag,
   FlagCategory,
   FlagDetail,
   FlagMetadata,
   ProviderProps,
+  Registration,
   SSEFlagUpdate,
   UserContext,
 } from './types';

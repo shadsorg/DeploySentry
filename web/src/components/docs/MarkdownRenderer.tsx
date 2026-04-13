@@ -36,11 +36,7 @@ export default function MarkdownRenderer({ source }: Props) {
             if (href && href.startsWith('/')) {
               return <Link to={href}>{children}</Link>;
             }
-            return (
-              <a href={href} target="_blank" rel="noreferrer">
-                {children}
-              </a>
-            );
+            return <a href={href} target="_blank" rel="noreferrer">{children}</a>;
           },
         }}
       >

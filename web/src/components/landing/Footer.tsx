@@ -18,9 +18,7 @@ export default function Footer() {
         </div>
         <div className="landing-footer-col">
           <div className="landing-footer-heading">Project</div>
-          <a href="https://github.com/shadsorg/DeploySentry" target="_blank" rel="noreferrer">
-            GitHub
-          </a>
+          <a href="https://github.com/shadsorg/DeploySentry" target="_blank" rel="noreferrer">GitHub</a>
         </div>
       </div>
       <div className="landing-footer-bottom">

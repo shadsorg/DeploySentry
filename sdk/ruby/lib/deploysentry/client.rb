@@ -27,6 +27,8 @@ module DeploySentry
       @cache = Cache.new(ttl: cache_timeout)
       @sse_client = nil
       @initialized = false
+      @registry = {}
+      @registry_mutex = Mutex.new
     end
 
     def initialize!
@@ -127,6 +129,39 @@ module DeploySentry
 
         flag.metadata.owners
       end
+    end
+
+    def register(operation, handler, flag_key: nil)
+      @registry_mutex.synchronize do
+        list = @registry[operation] ||= []
+        if flag_key.nil?
+          idx = list.index { |r| r[:flag_key].nil? }
+          if idx
+            list[idx] = { handler: handler, flag_key: nil }
+          else
+            list.push({ handler: handler, flag_key: nil })
+          end
+        else
+          list.push({ handler: handler, flag_key: flag_key })
+        end
+      end
+    end
+
+    def dispatch(operation, context: nil)
+      list = @registry[operation]
+      if list.nil? || list.empty?
+        raise "No handlers registered for operation '#{operation}'. Call register() before dispatch()."
+      end
+      list.each do |reg|
+        next if reg[:flag_key].nil?
+        flag = @flags[reg[:flag_key]]
+        return reg[:handler] if flag&.enabled
+      end
+      default_reg = list.find { |r| r[:flag_key].nil? }
+      unless default_reg
+        raise "No matching handler for operation '#{operation}' and no default registered. Register a default handler (no flag_key) as the last registration."
+      end
+      default_reg[:handler]
     end
 
     private

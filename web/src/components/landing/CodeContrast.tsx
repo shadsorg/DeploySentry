@@ -19,12 +19,8 @@ export default function CodeContrast() {
           The SDK becomes the single source of truth for which function runs and when.
         </p>
         <div className="code-pair">
-          <pre className="code-block code-before">
-            <code>{BEFORE}</code>
-          </pre>
-          <pre className="code-block code-after">
-            <code>{AFTER}</code>
-          </pre>
+          <pre className="code-block code-before"><code>{BEFORE}</code></pre>
+          <pre className="code-block code-after"><code>{AFTER}</code></pre>
         </div>
       </div>
     </section>

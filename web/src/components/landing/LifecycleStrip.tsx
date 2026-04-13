@@ -19,7 +19,9 @@ export default function LifecycleStrip() {
     <section className="lifecycle">
       <div className="lifecycle-inner">
         <h2 className="section-heading">From idea to retirement</h2>
-        <p className="section-sub">The full lifecycle, in six steps, on one page.</p>
+        <p className="section-sub">
+          The full lifecycle, in six steps, on one page.
+        </p>
         <motion.div
           className="lifecycle-steps"
           initial="hidden"

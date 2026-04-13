@@ -105,3 +105,69 @@ class TestClientOfflineMode(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestRegisterDispatch:
+    def setup_method(self):
+        self.client = DeploySentryClient(
+            api_key="test-key",
+            base_url="http://localhost:8080",
+            environment="test",
+            project="test-project",
+        )
+
+    def _seed_flag(self, key, enabled):
+        from deploysentry.models import Flag, FlagMetadata
+        flag = Flag(key=key, enabled=enabled, value=str(enabled), metadata=FlagMetadata(category="feature"))
+        self.client._flags[key] = flag
+
+    def test_dispatches_flagged_handler_when_on(self):
+        self.client.register("op", lambda: "feature", flag_key="my-flag")
+        self.client.register("op", lambda: "default")
+        self._seed_flag("my-flag", True)
+        assert self.client.dispatch("op")() == "feature"
+
+    def test_dispatches_default_when_flag_off(self):
+        self.client.register("op", lambda: "feature", flag_key="my-flag")
+        self.client.register("op", lambda: "default")
+        self._seed_flag("my-flag", False)
+        assert self.client.dispatch("op")() == "default"
+
+    def test_first_match_wins(self):
+        self.client.register("op", lambda: "first", flag_key="flag-a")
+        self.client.register("op", lambda: "second", flag_key="flag-b")
+        self.client.register("op", lambda: "default")
+        self._seed_flag("flag-a", True)
+        self._seed_flag("flag-b", True)
+        assert self.client.dispatch("op")() == "first"
+
+    def test_default_only(self):
+        self.client.register("op", lambda: "default")
+        assert self.client.dispatch("op")() == "default"
+
+    def test_operations_isolated(self):
+        self.client.register("cart", lambda: "cart")
+        self.client.register("pay", lambda: "pay")
+        assert self.client.dispatch("cart")() == "cart"
+        assert self.client.dispatch("pay")() == "pay"
+
+    def test_throws_on_unregistered(self):
+        import pytest
+        with pytest.raises(RuntimeError, match="No handlers registered"):
+            self.client.dispatch("unknown")
+
+    def test_throws_no_match_no_default(self):
+        import pytest
+        self.client.register("op", lambda: "feat", flag_key="my-flag")
+        self._seed_flag("my-flag", False)
+        with pytest.raises(RuntimeError, match="no default registered"):
+            self.client.dispatch("op")
+
+    def test_replaces_default(self):
+        self.client.register("op", lambda: "first")
+        self.client.register("op", lambda: "second")
+        assert self.client.dispatch("op")() == "second"
+
+    def test_passes_caller_args(self):
+        self.client.register("add", lambda a, b: a + b)
+        assert self.client.dispatch("add")(3, 4) == 7

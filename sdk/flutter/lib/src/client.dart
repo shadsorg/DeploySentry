@@ -19,13 +19,13 @@ class DeploySentryClient {
   final String? sessionId;
   final Duration cacheTimeout;
   final bool offlineMode;
-  final String? sessionId;
 
   late final FlagCache _cache;
   late final http.Client _httpClient;
   FlagStreamClient? _streamClient;
   StreamSubscription<Flag>? _streamSubscription;
   bool _initialized = false;
+  final Map<String, List<_Registration>> _registry = {};
 
   DeploySentryClient({
     required this.apiKey,
@@ -35,7 +35,6 @@ class DeploySentryClient {
     this.sessionId,
     this.cacheTimeout = const Duration(minutes: 5),
     this.offlineMode = false,
-    this.sessionId,
   }) {
     _cache = FlagCache(timeout: cacheTimeout);
     _httpClient = http.Client();
@@ -300,4 +299,62 @@ class DeploySentryClient {
       _cache.put(flag);
     });
   }
+
+  // ---------------------------------------------------------------------------
+  // Test helpers (package-internal)
+  // ---------------------------------------------------------------------------
+
+  /// Seed a flag directly into the cache. Intended for use in unit tests only.
+  void seedFlagForTesting(Flag flag) {
+    _cache.put(flag);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Register / dispatch
+  // ---------------------------------------------------------------------------
+
+  void register<T extends Function>(String operation, T handler, {String? flagKey}) {
+    final list = _registry.putIfAbsent(operation, () => []);
+    if (flagKey == null) {
+      final idx = list.indexWhere((r) => r.flagKey == null);
+      if (idx != -1) {
+        list[idx] = _Registration(handler: handler);
+      } else {
+        list.add(_Registration(handler: handler));
+      }
+    } else {
+      list.add(_Registration(handler: handler, flagKey: flagKey));
+    }
+  }
+
+  T dispatch<T extends Function>(String operation, {EvaluationContext? context}) {
+    final list = _registry[operation];
+    if (list == null || list.isEmpty) {
+      throw StateError(
+        "No handlers registered for operation '$operation'. Call register() before dispatch().",
+      );
+    }
+    for (final reg in list) {
+      if (reg.flagKey != null) {
+        final flag = _cache.get(reg.flagKey!);
+        if (flag != null && flag.enabled) return reg.handler as T;
+      }
+    }
+    final defaultReg = list.cast<_Registration?>().firstWhere(
+      (r) => r!.flagKey == null,
+      orElse: () => null,
+    );
+    if (defaultReg == null) {
+      throw StateError(
+        "No matching handler for operation '$operation' and no default registered.",
+      );
+    }
+    return defaultReg.handler as T;
+  }
+}
+
+class _Registration {
+  final Function handler;
+  final String? flagKey;
+  _Registration({required this.handler, this.flagKey});
 }

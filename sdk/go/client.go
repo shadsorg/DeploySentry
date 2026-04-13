@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -30,6 +31,8 @@ type Client struct {
 	cache       *flagCache
 	sse         *sseClient
 	logger      *log.Logger
+	registry    map[string][]registration
+	registryMu  sync.RWMutex
 }
 
 // Option configures a Client. Pass options to NewClient.
@@ -93,6 +96,7 @@ func NewClient(opts ...Option) *Client {
 		httpClient: &http.Client{Timeout: 10 * time.Second},
 		cache:      newFlagCache(defaultCacheTimeout),
 		logger:     log.New(os.Stderr, "", log.LstdFlags),
+		registry:   make(map[string][]registration),
 	}
 
 	for _, opt := range opts {
@@ -242,6 +246,62 @@ func (c *Client) post(ctx context.Context, path string, payload interface{}) ([]
 	}
 
 	return respBody, nil
+}
+
+// Register associates a handler with an operation name and an optional flag key.
+// When Dispatch is called for the operation, the handler is returned if its
+// associated flag is enabled. If no flagKey is provided the handler becomes the
+// default, returned when no flagged handler matches. Registering a new default
+// replaces the previous one.
+func (c *Client) Register(operation string, handler any, flagKey ...string) {
+	key := ""
+	if len(flagKey) > 0 {
+		key = flagKey[0]
+	}
+	c.registryMu.Lock()
+	defer c.registryMu.Unlock()
+	list := c.registry[operation]
+	if key == "" {
+		for i, r := range list {
+			if r.flagKey == "" {
+				list[i] = registration{handler: handler, flagKey: ""}
+				c.registry[operation] = list
+				return
+			}
+		}
+		list = append(list, registration{handler: handler, flagKey: ""})
+	} else {
+		list = append(list, registration{handler: handler, flagKey: key})
+	}
+	c.registry[operation] = list
+}
+
+// Dispatch returns the handler registered for the given operation whose
+// associated flag is currently enabled. If no flagged handler matches the
+// default handler (registered without a flagKey) is returned. Dispatch panics
+// if no handlers are registered for the operation or if no handler matches and
+// no default is registered.
+func (c *Client) Dispatch(operation string, ctx ...EvaluationContext) any {
+	c.registryMu.RLock()
+	list, ok := c.registry[operation]
+	c.registryMu.RUnlock()
+	if !ok || len(list) == 0 {
+		panic(fmt.Sprintf("No handlers registered for operation '%s'. Call Register() before Dispatch().", operation))
+	}
+	for _, reg := range list {
+		if reg.flagKey != "" {
+			f, found, _ := c.cache.get(reg.flagKey)
+			if found && f.Enabled {
+				return reg.handler
+			}
+		}
+	}
+	for _, reg := range list {
+		if reg.flagKey == "" {
+			return reg.handler
+		}
+	}
+	panic(fmt.Sprintf("No matching handler for operation '%s' and no default registered. Register a default handler (no flagKey) as the last registration.", operation))
 }
 
 // setAuthHeaders adds the authorization and common headers to a request.

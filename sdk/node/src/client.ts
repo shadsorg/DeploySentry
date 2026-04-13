@@ -6,6 +6,7 @@ import {
   FlagCategory,
   FlagMetadata,
 } from './types';
+import type { Registration } from './types';
 import { FlagCache } from './cache';
 import { FlagStreamClient } from './streaming';
 
@@ -40,6 +41,7 @@ export class DeploySentryClient {
   private readonly cache: FlagCache;
   private streamClient: FlagStreamClient | null = null;
   private _initialized = false;
+  private registry: Map<string, Registration[]> = new Map();
 
   constructor(options: ClientOptions) {
     if (!options.apiKey) throw new Error('apiKey is required');
@@ -232,14 +234,52 @@ export class DeploySentryClient {
     return this.cache.getAll();
   }
 
-  /**
-   * Clear the local cache and re-fetch all flags from the API.
-   * Useful when a new session starts and fresh flag state is required.
-   */
-  async refreshSession(): Promise<void> {
-    this.cache.clear();
-    const flags = await this.fetchAllFlags();
-    this.cache.setMany(flags);
+  // ---------------------------------------------------------------------------
+  // Register / Dispatch
+  // ---------------------------------------------------------------------------
+
+  register<T extends (...args: any[]) => any>(
+    operation: string,
+    handler: T,
+    flagKey?: string,
+  ): void {
+    let list = this.registry.get(operation);
+    if (!list) {
+      list = [];
+      this.registry.set(operation, list);
+    }
+    if (flagKey === undefined) {
+      const idx = list.findIndex((r) => r.flagKey === undefined);
+      if (idx !== -1) list[idx] = { handler };
+      else list.push({ handler });
+    } else {
+      list.push({ handler, flagKey });
+    }
+  }
+
+  dispatch<T extends (...args: any[]) => any>(
+    operation: string,
+    context?: EvaluationContext,
+  ): T {
+    const list = this.registry.get(operation);
+    if (!list || list.length === 0) {
+      throw new Error(
+        `No handlers registered for operation '${operation}'. Call register() before dispatch().`,
+      );
+    }
+    for (const reg of list) {
+      if (reg.flagKey !== undefined) {
+        const flag = this.cache.get(reg.flagKey);
+        if (flag && flag.enabled) return reg.handler as T;
+      }
+    }
+    const defaultReg = list.find((r) => r.flagKey === undefined);
+    if (!defaultReg) {
+      throw new Error(
+        `No matching handler for operation '${operation}' and no default registered. Register a default handler (no flagKey) as the last registration.`,
+      );
+    }
+    return defaultReg.handler as T;
   }
 
   // ---------------------------------------------------------------------------

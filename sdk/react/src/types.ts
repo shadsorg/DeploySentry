@@ -110,3 +110,18 @@ export interface SSEFlagUpdate {
   type: 'flag.updated' | 'flag.created' | 'flag.deleted';
   flag: ApiFlagResponse;
 }
+
+/**
+ * A registered handler entry used by {@link DeploySentryClient.register} and
+ * {@link DeploySentryClient.dispatch}.
+ */
+export interface Registration<T extends (...args: any[]) => any = (...args: any[]) => any> {
+  handler: T;
+  flagKey?: string;
+}
+
+/** Optional evaluation context passed to {@link DeploySentryClient.dispatch}. */
+export interface EvaluationContext {
+  userId?: string;
+  attributes?: Record<string, string>;
+}

@@ -352,19 +352,12 @@ export const entitiesApi = {
   // Org-level environments
   listOrgEnvironments: (orgSlug: string) =>
     request<{ environments: OrgEnvironment[] }>(`/orgs/${orgSlug}/environments`),
-  createEnvironment: (
-    orgSlug: string,
-    data: { name: string; slug: string; is_production: boolean },
-  ) =>
+  createEnvironment: (orgSlug: string, data: { name: string; slug: string; is_production: boolean }) =>
     request<OrgEnvironment>(`/orgs/${orgSlug}/environments`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  updateEnvironment: (
-    orgSlug: string,
-    envSlug: string,
-    data: Partial<{ name: string; slug: string; is_production: boolean; sort_order: number }>,
-  ) =>
+  updateEnvironment: (orgSlug: string, envSlug: string, data: Partial<{ name: string; slug: string; is_production: boolean; sort_order: number }>) =>
     request<OrgEnvironment>(`/orgs/${orgSlug}/environments/${envSlug}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -398,12 +391,14 @@ export const webhooksApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  delete: (id: string) => request<{ deleted: boolean }>(`/webhooks/${id}`, { method: 'DELETE' }),
+  delete: (id: string) =>
+    request<{ deleted: boolean }>(`/webhooks/${id}`, { method: 'DELETE' }),
   test: (id: string) =>
     request<{ success: boolean; status_code: number }>(`/webhooks/${id}/test`, {
       method: 'POST',
     }),
-  deliveries: (id: string) => request<{ deliveries: unknown[] }>(`/webhooks/${id}/deliveries`),
+  deliveries: (id: string) =>
+    request<{ deliveries: unknown[] }>(`/webhooks/${id}/deliveries`),
 };
 
 // Notifications
@@ -426,7 +421,8 @@ export interface NotificationPreferences {
 }
 
 export const notificationsApi = {
-  getPreferences: () => request<NotificationPreferences>('/notifications/preferences'),
+  getPreferences: () =>
+    request<NotificationPreferences>('/notifications/preferences'),
   savePreferences: (data: {
     channels?: Record<string, Partial<ChannelConfig>>;
     event_routing?: Record<string, string[]>;

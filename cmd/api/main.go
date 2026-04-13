@@ -532,5 +532,6 @@ func (a *apiKeyValidatorAdapter) ValidateAPIKey(ctx context.Context, key string)
 		ApplicationID: apiKey.ApplicationID,
 		EnvironmentID: apiKey.EnvironmentID,
 		Scopes:        scopes,
+		AllowedCIDRs:  apiKey.AllowedCIDRs,
 	}, nil
 }

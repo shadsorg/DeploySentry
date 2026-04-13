@@ -77,6 +77,7 @@ type APIKeyInfo struct {
 	ApplicationID *uuid.UUID `json:"application_id,omitempty"`
 	EnvironmentID *uuid.UUID `json:"environment_id,omitempty"`
 	Scopes        []string   `json:"scopes"`
+	AllowedCIDRs  []string   `json:"allowed_cidrs,omitempty"`
 }
 
 // AuthMiddleware provides Gin middleware for authenticating requests via
@@ -207,6 +208,14 @@ func (m *AuthMiddleware) authenticateAPIKey(c *gin.Context, key string) bool {
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid API key"})
 		return false
+	}
+
+	if len(info.AllowedCIDRs) > 0 {
+		clientIP := c.ClientIP()
+		if !CheckIPAllowed(clientIP, info.AllowedCIDRs) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "request IP not in API key allowlist"})
+			return false
+		}
 	}
 
 	if info.OrgID != nil {

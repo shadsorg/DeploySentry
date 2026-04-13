@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/deploysentry/deploysentry/internal/models"
@@ -30,6 +31,28 @@ const (
 	// argon2SaltLen is the salt length for argon2id.
 	argon2SaltLen = 16
 )
+
+// CheckIPAllowed verifies that clientIP falls within at least one of the
+// allowed CIDRs. Returns true if allowedCIDRs is empty (no restriction).
+func CheckIPAllowed(clientIP string, allowedCIDRs []string) bool {
+	if len(allowedCIDRs) == 0 {
+		return true
+	}
+	ip := net.ParseIP(clientIP)
+	if ip == nil {
+		return false
+	}
+	for _, cidr := range allowedCIDRs {
+		_, network, err := net.ParseCIDR(cidr)
+		if err != nil {
+			continue
+		}
+		if network.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
 
 // APIKeyRepository defines the persistence interface for API key operations.
 type APIKeyRepository interface {
@@ -76,7 +99,7 @@ type GenerateKeyResult struct {
 // GenerateKey creates a new API key with a cryptographically secure random
 // value. The plaintext key is returned only once at creation time. The key
 // hash is stored using argon2id.
-func (s *APIKeyService) GenerateKey(ctx context.Context, orgID *uuid.UUID, projectID *uuid.UUID, name string, scopes []models.APIKeyScope, createdBy uuid.UUID, envID *uuid.UUID, expiresAt *time.Time) (*GenerateKeyResult, error) {
+func (s *APIKeyService) GenerateKey(ctx context.Context, orgID *uuid.UUID, projectID *uuid.UUID, name string, scopes []models.APIKeyScope, createdBy uuid.UUID, envID *uuid.UUID, expiresAt *time.Time, allowedCIDRs []string) (*GenerateKeyResult, error) {
 	// Generate cryptographically secure random bytes.
 	rawKey := make([]byte, apiKeyByteLen)
 	if _, err := rand.Read(rawKey); err != nil {
@@ -93,17 +116,18 @@ func (s *APIKeyService) GenerateKey(ctx context.Context, orgID *uuid.UUID, proje
 
 	now := time.Now().UTC()
 	apiKey := &models.APIKey{
-		ID:        uuid.New(),
-		OrgID:     orgID,
-		ProjectID: projectID,
+		ID:            uuid.New(),
+		OrgID:         orgID,
+		ProjectID:     projectID,
 		EnvironmentID: envID,
-		Name:      name,
-		KeyPrefix: prefix,
-		KeyHash:   keyHash,
-		Scopes:    scopes,
-		ExpiresAt: expiresAt,
-		CreatedBy: createdBy,
-		CreatedAt: now,
+		Name:          name,
+		KeyPrefix:     prefix,
+		KeyHash:       keyHash,
+		Scopes:        scopes,
+		AllowedCIDRs:  allowedCIDRs,
+		ExpiresAt:     expiresAt,
+		CreatedBy:     createdBy,
+		CreatedAt:     now,
 	}
 
 	if err := apiKey.Validate(); err != nil {
@@ -268,6 +292,7 @@ func (s *APIKeyService) RotateKey(ctx context.Context, oldKeyID uuid.UUID, creat
 		createdBy,
 		oldKey.EnvironmentID,
 		oldKey.ExpiresAt,
+		oldKey.AllowedCIDRs,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("generating rotated key: %w", err)

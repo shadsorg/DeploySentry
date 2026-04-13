@@ -34,10 +34,11 @@ func (h *APIKeyHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // createAPIKeyRequest is the JSON body for creating a new API key.
 type createAPIKeyRequest struct {
-	Name      string              `json:"name" binding:"required"`
-	ProjectID *uuid.UUID          `json:"project_id"`
-	Scopes    []models.APIKeyScope `json:"scopes" binding:"required"`
-	ExpiresAt *time.Time          `json:"expires_at"`
+	Name         string               `json:"name" binding:"required"`
+	ProjectID    *uuid.UUID           `json:"project_id"`
+	Scopes       []models.APIKeyScope `json:"scopes" binding:"required"`
+	ExpiresAt    *time.Time           `json:"expires_at"`
+	AllowedCIDRs []string             `json:"allowed_cidrs"`
 }
 
 func (h *APIKeyHandler) createAPIKey(c *gin.Context) {
@@ -86,6 +87,7 @@ func (h *APIKeyHandler) createAPIKey(c *gin.Context) {
 		createdBy,
 		nil,
 		req.ExpiresAt,
+		req.AllowedCIDRs,
 	)
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})

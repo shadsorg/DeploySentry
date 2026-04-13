@@ -11,9 +11,9 @@ export type DocEntry = {
 
 export const docsManifest: readonly DocEntry[] = [
   { slug: 'getting-started', title: 'Getting Started', source: gettingStarted },
-  { slug: 'sdks',            title: 'SDKs',            source: sdks },
-  { slug: 'cli',             title: 'CLI',             source: cli },
-  { slug: 'ui-features',     title: 'UI Features',     source: uiFeatures },
+  { slug: 'sdks', title: 'SDKs', source: sdks },
+  { slug: 'cli', title: 'CLI', source: cli },
+  { slug: 'ui-features', title: 'UI Features', source: uiFeatures },
 ] as const;
 
 export function findDoc(slug: string): DocEntry | undefined {

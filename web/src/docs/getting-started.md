@@ -95,8 +95,11 @@ ALWAYS use register + dispatch so the flag engine selects the right implementati
 
   const result = ds.dispatch('createCart', { user_id: user.id })(cart, user);
 
-Register all variants at startup (one register call per implementation). The last
-register call with no flag key is the default fallback. Dispatch at each call site.
+**All register calls MUST live in a single file** (e.g. `flags.ts`, `flags.go`, `flags.py`).
+This file is the single source of truth for every flag-gated operation in the application.
+Never scatter register calls across modules. Dispatch calls go at each call site, but
+registration is centralized so any developer or LLM can read one file to see every flag,
+every operation, and every code path the flag controls.
 
 ### Flag Categories
 

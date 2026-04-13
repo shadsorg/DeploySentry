@@ -410,8 +410,11 @@ final result = fn(cart, user);"
   printf '%s\n' "$REGISTER_SNIPPET" >> CLAUDE.md
   printf '\n%s\n' "$DISPATCH_SNIPPET" >> CLAUDE.md
   printf '```\n' >> CLAUDE.md
-  printf '\nRegister all variants at startup (one register call per implementation). The last\n' >> CLAUDE.md
-  printf 'register call with no flag key is the default fallback. Dispatch at each call site.\n' >> CLAUDE.md
+  printf '\n**All register calls MUST live in a single file** (e.g. flags.ts, flags.go, flags.py).\n' >> CLAUDE.md
+  printf 'This file is the single source of truth for every flag-gated operation in the application.\n' >> CLAUDE.md
+  printf 'Never scatter register calls across modules. Dispatch calls go at each call site, but\n' >> CLAUDE.md
+  printf 'registration is centralized so any developer or LLM can read one file to see every flag,\n' >> CLAUDE.md
+  printf 'every operation, and every code path the flag controls.\n' >> CLAUDE.md
 
   printf '\n### Flag Categories\n' >> CLAUDE.md
   printf '\n| Category   | Lifecycle            | Notes                                     |\n' >> CLAUDE.md

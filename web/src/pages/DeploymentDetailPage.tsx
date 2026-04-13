@@ -213,6 +213,20 @@ export default function DeploymentDetailPage() {
     }
   }
 
+  // Poll for updates while deployment is active
+  useEffect(() => {
+    if (!id || !dep) return;
+
+    const terminalStatuses = ['completed', 'failed', 'rolled_back', 'cancelled'];
+    if (terminalStatuses.includes(dep.status)) return;
+
+    const interval = setInterval(() => {
+      deploymentsApi.get(id).then(setDep).catch(() => {});
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [id, dep?.status]);
+
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
   if (!dep) return <div>Deployment not found.</div>;

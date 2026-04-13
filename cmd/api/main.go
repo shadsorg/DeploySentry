@@ -36,6 +36,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/platform/metrics"
 	"github.com/deploysentry/deploysentry/internal/ratings"
 	"github.com/deploysentry/deploysentry/internal/releases"
+	"github.com/deploysentry/deploysentry/internal/rollback"
 	"github.com/deploysentry/deploysentry/internal/settings"
 	"github.com/deploysentry/deploysentry/internal/webhooks"
 	"github.com/nats-io/nats.go/jetstream"
@@ -340,6 +341,16 @@ func run() error {
 	members.NewHandler(memberService, entityService, rbacChecker).RegisterRoutes(api)
 	notifications.NewPreferencesHandler(prefStore, notificationService, rbacChecker).RegisterRoutes(api)
 
+	// Rollback handler: manual rollback triggers and rollback history.
+	rollbackExecutor := &deployServiceRollbackExecutor{service: deployService}
+	rollbackController := rollback.NewRollbackController(
+		rollbackExecutor,
+		rollback.NewImmediateRollbackStrategy(),
+		0.95,           // healthThreshold
+		2*time.Minute,  // evaluationWindow
+	)
+	rollback.NewHandler(rollbackController).RegisterRoutes(api)
+
 	// Public routes (no auth required).
 	public := router.Group("/api/v1")
 	auth.NewLoginHandler(userRepo, cfg.Auth).RegisterRoutes(public)
@@ -483,6 +494,18 @@ func sanitizeNATSConsumerName(subject string) string {
 		}
 	}
 	return string(result)
+}
+
+// deployServiceRollbackExecutor adapts *deploy.DeployService to the
+// rollback.RollbackExecutor interface. It delegates to RollbackDeployment,
+// which handles state transition and event publishing, and ignores the
+// strategy parameter since the service manages its own rollback logic.
+type deployServiceRollbackExecutor struct {
+	service deploy.DeployService
+}
+
+func (a *deployServiceRollbackExecutor) Execute(ctx context.Context, deploymentID uuid.UUID, _ rollback.RollbackStrategy) error {
+	return a.service.RollbackDeployment(ctx, deploymentID)
 }
 
 // apiKeyValidatorAdapter adapts *auth.APIKeyService to the auth.APIKeyValidator

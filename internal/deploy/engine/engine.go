@@ -79,6 +79,9 @@ func (e *Engine) Start(ctx context.Context, subscriber MessageSubscriber) error 
 }
 
 // Advance manually advances a paused deployment past its current gate.
+// It marks the currently active (gated) phase as passed before resuming so
+// that driveDeployment continues from the next phase rather than re-entering
+// the same manual gate.
 func (e *Engine) Advance(ctx context.Context, deploymentID uuid.UUID) error {
 	d, err := e.repo.GetDeployment(ctx, deploymentID)
 	if err != nil {
@@ -87,6 +90,21 @@ func (e *Engine) Advance(ctx context.Context, deploymentID uuid.UUID) error {
 	if d.Status != models.DeployStatusPaused {
 		return fmt.Errorf("engine.Advance: deployment is not paused (status=%s)", d.Status)
 	}
+
+	// Mark the active (gated) phase as passed so driveDeployment skips it.
+	activePhase, err := e.repo.GetActivePhase(ctx, deploymentID)
+	if err != nil {
+		return fmt.Errorf("engine.Advance: get active phase: %w", err)
+	}
+	if activePhase != nil {
+		now := time.Now().UTC()
+		activePhase.Status = models.PhaseStatusPassed
+		activePhase.CompletedAt = &now
+		if err := e.repo.UpdatePhase(ctx, activePhase); err != nil {
+			return fmt.Errorf("engine.Advance: mark phase passed: %w", err)
+		}
+	}
+
 	if err := d.TransitionTo(models.DeployStatusRunning); err != nil {
 		return fmt.Errorf("engine.Advance: transition to running: %w", err)
 	}

@@ -114,3 +114,10 @@ type batchEvaluateResponse struct {
 type listFlagsResponse struct {
 	Flags []Flag `json:"flags"`
 }
+
+// registration associates a handler with an optional flag key for use by the
+// Register/Dispatch mechanism. A flagKey of "" denotes the default handler.
+type registration struct {
+	handler any
+	flagKey string // empty string = default
+}

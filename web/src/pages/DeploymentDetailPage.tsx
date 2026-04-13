@@ -140,6 +140,20 @@ export default function DeploymentDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  // Poll for updates while deployment is active
+  useEffect(() => {
+    if (!id || !dep) return;
+
+    const terminalStatuses = ['completed', 'failed', 'rolled_back', 'cancelled'];
+    if (terminalStatuses.includes(dep.status)) return;
+
+    const interval = setInterval(() => {
+      fetchDeployment()?.catch(() => {});
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [id, dep?.status]);
+
   async function executeAction() {
     if (!dep || !confirmAction) return;
     setActionLoading(true);

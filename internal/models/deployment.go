@@ -42,6 +42,17 @@ const (
 	DeployStrategyRolling DeployStrategyType = "rolling"
 )
 
+// PhaseStatus represents the lifecycle state of a deployment phase.
+type PhaseStatus string
+
+const (
+	PhaseStatusPending PhaseStatus = "pending"
+	PhaseStatusActive  PhaseStatus = "active"
+	PhaseStatusPassed  PhaseStatus = "passed"
+	PhaseStatusFailed  PhaseStatus = "failed"
+	PhaseStatusSkipped PhaseStatus = "skipped"
+)
+
 // validTransitions defines which status transitions are allowed.
 var validTransitions = map[DeployStatus][]DeployStatus{
 	DeployStatusPending:    {DeployStatusRunning, DeployStatusCancelled},
@@ -63,9 +74,10 @@ type Deployment struct {
 	Status         DeployStatus       `json:"status" db:"status"`
 	Artifact       string             `json:"artifact" db:"artifact"`
 	Version        string             `json:"version" db:"version"`
-	CommitSHA      string             `json:"commit_sha,omitempty" db:"commit_sha"`
-	TrafficPercent int                `json:"traffic_percent" db:"traffic_percent"`
-	CreatedBy      uuid.UUID          `json:"created_by" db:"created_by"`
+	CommitSHA            string             `json:"commit_sha,omitempty" db:"commit_sha"`
+	TrafficPercent       int                `json:"traffic_percent" db:"traffic_percent"`
+	PreviousDeploymentID *uuid.UUID        `json:"previous_deployment_id,omitempty" db:"previous_deployment_id"`
+	CreatedBy            uuid.UUID          `json:"created_by" db:"created_by"`
 	StartedAt      *time.Time         `json:"started_at,omitempty" db:"started_at"`
 	CompletedAt    *time.Time         `json:"completed_at,omitempty" db:"completed_at"`
 	CreatedAt      time.Time          `json:"created_at" db:"created_at"`
@@ -75,15 +87,30 @@ type Deployment struct {
 // DeploymentPhase represents a discrete step within a deployment rollout,
 // such as an incremental canary traffic increase.
 type DeploymentPhase struct {
-	ID             uuid.UUID    `json:"id" db:"id"`
-	DeploymentID   uuid.UUID    `json:"deployment_id" db:"deployment_id"`
-	Name           string       `json:"name" db:"name"`
-	Status         DeployStatus `json:"status" db:"status"`
-	TrafficPercent int          `json:"traffic_percent" db:"traffic_percent"`
-	Duration       int          `json:"duration_seconds" db:"duration_seconds"`
-	SortOrder      int          `json:"sort_order" db:"sort_order"`
-	StartedAt      *time.Time   `json:"started_at,omitempty" db:"started_at"`
-	CompletedAt    *time.Time   `json:"completed_at,omitempty" db:"completed_at"`
+	ID             uuid.UUID  `json:"id" db:"id"`
+	DeploymentID   uuid.UUID  `json:"deployment_id" db:"deployment_id"`
+	Name           string     `json:"name" db:"name"`
+	Status         PhaseStatus `json:"status" db:"status"`
+	TrafficPercent int        `json:"traffic_percent" db:"traffic_percent"`
+	Duration       int        `json:"duration_seconds" db:"duration_seconds"`
+	SortOrder      int        `json:"sort_order" db:"sort_order"`
+	AutoPromote    bool       `json:"auto_promote" db:"auto_promote"`
+	StartedAt      *time.Time `json:"started_at,omitempty" db:"started_at"`
+	CompletedAt    *time.Time `json:"completed_at,omitempty" db:"completed_at"`
+}
+
+// RollbackRecord stores a historical record of a deployment rollback.
+type RollbackRecord struct {
+	ID                 uuid.UUID  `json:"id" db:"id"`
+	DeploymentID       uuid.UUID  `json:"deployment_id" db:"deployment_id"`
+	TargetDeploymentID *uuid.UUID `json:"target_deployment_id,omitempty" db:"target_deployment_id"`
+	Reason             string     `json:"reason" db:"reason"`
+	HealthScore        *float64   `json:"health_score,omitempty" db:"health_score"`
+	Automatic          bool       `json:"automatic" db:"automatic"`
+	Strategy           string     `json:"strategy" db:"strategy"`
+	StartedAt          time.Time  `json:"started_at" db:"started_at"`
+	CompletedAt        *time.Time `json:"completed_at,omitempty" db:"completed_at"`
+	CreatedAt          time.Time  `json:"created_at" db:"created_at"`
 }
 
 // ValidateTransition checks whether moving from the deployment's current status

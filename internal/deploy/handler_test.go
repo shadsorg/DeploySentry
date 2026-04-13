@@ -20,14 +20,16 @@ import (
 // ---------------------------------------------------------------------------
 
 type mockDeployService struct {
-	createFn    func(ctx context.Context, d *models.Deployment) error
-	getFn       func(ctx context.Context, id uuid.UUID) (*models.Deployment, error)
-	listFn      func(ctx context.Context, applicationID uuid.UUID, opts ListOptions) ([]*models.Deployment, error)
-	promoteFn   func(ctx context.Context, id uuid.UUID) error
-	rollbackFn  func(ctx context.Context, id uuid.UUID) error
-	pauseFn     func(ctx context.Context, id uuid.UUID) error
-	resumeFn    func(ctx context.Context, id uuid.UUID) error
-	getActiveFn func(ctx context.Context, applicationID uuid.UUID) ([]*models.Deployment, error)
+	createFn            func(ctx context.Context, d *models.Deployment) error
+	getFn               func(ctx context.Context, id uuid.UUID) (*models.Deployment, error)
+	listFn              func(ctx context.Context, applicationID uuid.UUID, opts ListOptions) ([]*models.Deployment, error)
+	promoteFn           func(ctx context.Context, id uuid.UUID) error
+	rollbackFn          func(ctx context.Context, id uuid.UUID) error
+	pauseFn             func(ctx context.Context, id uuid.UUID) error
+	resumeFn            func(ctx context.Context, id uuid.UUID) error
+	getActiveFn         func(ctx context.Context, applicationID uuid.UUID) ([]*models.Deployment, error)
+	listPhasesFn        func(ctx context.Context, deploymentID uuid.UUID) ([]*models.DeploymentPhase, error)
+	listRollbacksFn     func(ctx context.Context, deploymentID uuid.UUID) ([]*models.RollbackRecord, error)
 }
 
 func (m *mockDeployService) CreateDeployment(ctx context.Context, d *models.Deployment) error {
@@ -86,6 +88,20 @@ func (m *mockDeployService) GetActiveDeployments(ctx context.Context, applicatio
 	return []*models.Deployment{}, nil
 }
 
+func (m *mockDeployService) ListPhases(ctx context.Context, deploymentID uuid.UUID) ([]*models.DeploymentPhase, error) {
+	if m.listPhasesFn != nil {
+		return m.listPhasesFn(ctx, deploymentID)
+	}
+	return []*models.DeploymentPhase{}, nil
+}
+
+func (m *mockDeployService) ListRollbackRecords(ctx context.Context, deploymentID uuid.UUID) ([]*models.RollbackRecord, error) {
+	if m.listRollbacksFn != nil {
+		return m.listRollbacksFn(ctx, deploymentID)
+	}
+	return []*models.RollbackRecord{}, nil
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -93,7 +109,7 @@ func (m *mockDeployService) GetActiveDeployments(ctx context.Context, applicatio
 func setupDeployRouter(svc DeployService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	handler := NewHandler(svc, nil, nil)
+	handler := NewHandler(svc, nil, nil, nil)
 	// Pass nil for RBAC to disable permission checks in unit tests.
 	handler.RegisterRoutes(router.Group("/api"), nil)
 	return router

@@ -42,6 +42,12 @@ type DeployService interface {
 
 	// GetActiveDeployments returns all non-terminal deployments for an application.
 	GetActiveDeployments(ctx context.Context, applicationID uuid.UUID) ([]*models.Deployment, error)
+
+	// ListPhases returns all phases for a deployment, ordered by sort_order ascending.
+	ListPhases(ctx context.Context, deploymentID uuid.UUID) ([]*models.DeploymentPhase, error)
+
+	// ListRollbackRecords returns the rollback history for a deployment.
+	ListRollbackRecords(ctx context.Context, deploymentID uuid.UUID) ([]*models.RollbackRecord, error)
 }
 
 // deployService is the concrete implementation of DeployService.
@@ -216,6 +222,24 @@ func (s *deployService) GetActiveDeployments(ctx context.Context, applicationID 
 	}
 
 	return active, nil
+}
+
+// ListPhases returns all phases for a deployment, ordered by sort_order.
+func (s *deployService) ListPhases(ctx context.Context, deploymentID uuid.UUID) ([]*models.DeploymentPhase, error) {
+	phases, err := s.repo.ListPhases(ctx, deploymentID)
+	if err != nil {
+		return nil, fmt.Errorf("listing phases: %w", err)
+	}
+	return phases, nil
+}
+
+// ListRollbackRecords returns the rollback history for a deployment.
+func (s *deployService) ListRollbackRecords(ctx context.Context, deploymentID uuid.UUID) ([]*models.RollbackRecord, error) {
+	records, err := s.repo.ListRollbackRecords(ctx, deploymentID)
+	if err != nil {
+		return nil, fmt.Errorf("listing rollback records: %w", err)
+	}
+	return records, nil
 }
 
 // publishEvent is a fire-and-forget helper that publishes a domain event.

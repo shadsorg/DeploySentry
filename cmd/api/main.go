@@ -311,7 +311,7 @@ func run() error {
 	flagHandler.SetRatingService(ratingService)
 	flagHandler.RegisterRoutes(api)
 	flagHandler.RegisterSegmentRoutes(api)
-	deploy.NewHandler(deployService, webhookService, analyticsService).RegisterRoutes(api, rbacChecker)
+	deploy.NewHandler(deployService, webhookService, analyticsService, nil).RegisterRoutes(api, rbacChecker)
 	releases.NewHandler(releaseService).RegisterRoutes(api)
 	analytics.NewHandler(analyticsService).RegisterRoutes(api)
 	webhooks.NewHandler(webhookService).RegisterRoutes(api)

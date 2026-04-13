@@ -435,6 +435,113 @@ func (r *lockingMockRepo) TryAdvisoryLock(_ context.Context, _ uuid.UUID) (bool,
 	return r.lockResult, nil
 }
 
+func TestResumeInFlight_PicksUpRunningDeployments(t *testing.T) {
+	strategies.SetDefaultCanaryConfigForTest(strategies.CanaryConfig{
+		Steps: []strategies.CanaryStep{
+			{TrafficPercent: 50, Duration: 0},
+			{TrafficPercent: 100, Duration: 0},
+		},
+		AutoPromote:       true,
+		RollbackOnFailure: true,
+		HealthThreshold:   0.95,
+	})
+
+	depID := uuid.New()
+	repo := newMockEngineRepo()
+	repo.deployments[depID] = &models.Deployment{
+		ID:            depID,
+		Strategy:      models.DeployStrategyCanary,
+		Status:        models.DeployStatusRunning,
+		Artifact:      "test:v1",
+		Version:       "v1",
+		ApplicationID: uuid.New(),
+		EnvironmentID: uuid.New(),
+	}
+
+	pub := &mockPublisher{}
+	eng := engine.New(repo, pub, nil, nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// DriveDeploymentForTest simulates what resumeInFlight does per deployment
+	err := eng.DriveDeploymentForTest(ctx, depID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	d, _ := repo.GetDeployment(ctx, depID)
+	if d.Status != models.DeployStatusCompleted {
+		t.Errorf("expected completed, got %s", d.Status)
+	}
+}
+
+func TestDriveDeployment_ResumesFromActivePhase(t *testing.T) {
+	strategies.SetDefaultCanaryConfigForTest(strategies.CanaryConfig{
+		Steps: []strategies.CanaryStep{
+			{TrafficPercent: 25, Duration: 0},
+			{TrafficPercent: 75, Duration: 0},
+			{TrafficPercent: 100, Duration: 0},
+		},
+		AutoPromote:       true,
+		RollbackOnFailure: true,
+		HealthThreshold:   0.95,
+	})
+
+	depID := uuid.New()
+	repo := newMockEngineRepo()
+	repo.deployments[depID] = &models.Deployment{
+		ID:            depID,
+		Strategy:      models.DeployStrategyCanary,
+		Status:        models.DeployStatusRunning,
+		Artifact:      "test:v1",
+		Version:       "v1",
+		ApplicationID: uuid.New(),
+		EnvironmentID: uuid.New(),
+	}
+
+	// Pre-create phases: first passed, second active (simulating crash mid-phase)
+	startedAt := time.Now().Add(-10 * time.Minute)
+	completedAt := time.Now().Add(-9 * time.Minute)
+	phase1 := &models.DeploymentPhase{
+		ID: uuid.New(), DeploymentID: depID, Name: "canary-25%",
+		Status: models.PhaseStatusPassed, TrafficPercent: 25,
+		Duration: 0, SortOrder: 0, AutoPromote: true,
+		StartedAt: &startedAt, CompletedAt: &completedAt,
+	}
+	phase2 := &models.DeploymentPhase{
+		ID: uuid.New(), DeploymentID: depID, Name: "canary-75%",
+		Status: models.PhaseStatusActive, TrafficPercent: 75,
+		Duration: 60, SortOrder: 1, AutoPromote: true,
+		StartedAt: &startedAt, // started 10 min ago, duration was 60s — long expired
+	}
+	phase3 := &models.DeploymentPhase{
+		ID: uuid.New(), DeploymentID: depID, Name: "canary-100%",
+		Status: models.PhaseStatusPending, TrafficPercent: 100,
+		Duration: 0, SortOrder: 2, AutoPromote: true,
+	}
+	repo.phases[depID] = []*models.DeploymentPhase{phase1, phase2, phase3}
+
+	pub := &mockPublisher{}
+	eng := engine.New(repo, pub, nil, nil)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err := eng.DriveDeploymentForTest(ctx, depID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	d, _ := repo.GetDeployment(ctx, depID)
+	if d.Status != models.DeployStatusCompleted {
+		t.Errorf("expected completed, got %s", d.Status)
+	}
+	if d.TrafficPercent != 100 {
+		t.Errorf("expected 100%% traffic, got %d%%", d.TrafficPercent)
+	}
+}
+
 func TestDriveDeployment_AdvisoryLockPreventsDoubleProcessing(t *testing.T) {
 	strategies.SetDefaultCanaryConfigForTest(strategies.CanaryConfig{
 		Steps: []strategies.CanaryStep{

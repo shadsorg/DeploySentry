@@ -49,9 +49,50 @@ func New(repo deploy.DeployRepository, publisher MessagePublisher, healthMonitor
 	}
 }
 
+// resumeInFlight queries all non-terminal canary deployments and spawns a
+// driveDeployment goroutine for each. The advisory lock prevents double-processing.
+func (e *Engine) resumeInFlight(ctx context.Context) {
+	deps, err := e.repo.ListNonTerminalDeployments(ctx)
+	if err != nil {
+		e.logger.Error("engine: resumeInFlight query failed", "error", err)
+		return
+	}
+	if len(deps) > 0 {
+		e.logger.Info("engine: resuming in-flight deployments", "count", len(deps))
+	}
+	for _, d := range deps {
+		id := d.ID
+		go func() {
+			if err := e.driveDeployment(ctx, id); err != nil {
+				e.logger.Error("engine: resume driveDeployment error", "deployment_id", id, "error", err)
+			}
+		}()
+	}
+}
+
+// startSweep runs resumeInFlight periodically to catch orphaned deployments.
+func (e *Engine) startSweep(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			e.resumeInFlight(ctx)
+		}
+	}
+}
+
 // Start subscribes to the deployment.created event and begins processing
 // canary deployments. It blocks until ctx is cancelled.
 func (e *Engine) Start(ctx context.Context, subscriber MessageSubscriber) error {
+	// Resume any deployments left in non-terminal state from a previous run.
+	e.resumeInFlight(ctx)
+
+	// Start periodic sweep to catch orphaned deployments.
+	go e.startSweep(ctx, 60*time.Second)
+
 	if err := subscriber.Subscribe("deployments.deployment.created", func(msg []byte) {
 		var payload struct {
 			DeploymentID string `json:"deployment_id"`
@@ -227,9 +268,12 @@ func (e *Engine) driveDeployment(ctx context.Context, deploymentID uuid.UUID) er
 		ph := phases[i]
 
 		// a+b. Atomically set phase active and update deployment traffic.
+		// Preserve StartedAt if the phase was already active (crash recovery).
 		now := time.Now().UTC()
 		ph.Status = models.PhaseStatusActive
-		ph.StartedAt = &now
+		if ph.StartedAt == nil {
+			ph.StartedAt = &now
+		}
 		d.TrafficPercent = ph.TrafficPercent
 		d.UpdatedAt = time.Now().UTC()
 
@@ -247,16 +291,23 @@ func (e *Engine) driveDeployment(ctx context.Context, deploymentID uuid.UUID) er
 			e.logger.Warn("engine: failed to publish phase_changed", "error", err)
 		}
 
-		// d. Wait phase duration.
+		// d. Wait remaining phase duration (accounts for crash recovery).
 		if ph.Duration > 0 {
 			dur := time.Duration(ph.Duration) * time.Second
-			timer := time.NewTimer(dur)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return ctx.Err()
-			case <-timer.C:
+			if ph.StartedAt != nil {
+				elapsed := time.Since(*ph.StartedAt)
+				dur -= elapsed
 			}
+			if dur > 0 {
+				timer := time.NewTimer(dur)
+				select {
+				case <-ctx.Done():
+					timer.Stop()
+					return ctx.Err()
+				case <-timer.C:
+				}
+			}
+			// If dur <= 0, phase duration already elapsed — proceed immediately
 		}
 
 		// e. Check health if monitor is available.

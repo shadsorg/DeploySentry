@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import httpx
 
@@ -65,6 +65,7 @@ class DeploySentryClient:
 
         self._cache = TTLCache(default_ttl=cache_timeout)
         self._flags: Dict[str, Flag] = {}
+        self._registry: dict[str, list[dict]] = {}
         self._http: Optional[httpx.Client] = None
         self._sse: Optional[SSEClient] = None
         self._initialized = False
@@ -289,6 +290,43 @@ class DeploySentryClient:
         # Invalidate the evaluation cache for this key.
         self._cache.delete(f"eval:{flag.key}")
         logger.debug("Flag updated via SSE: %s", flag.key)
+
+    # ------------------------------------------------------------------
+    # Register / dispatch
+    # ------------------------------------------------------------------
+
+    def register(self, operation: str, handler: Callable, flag_key: str | None = None) -> None:
+        """Register a handler for an operation, optionally gated by a flag."""
+        lst = self._registry.setdefault(operation, [])
+        if flag_key is None:
+            for i, reg in enumerate(lst):
+                if reg["flag_key"] is None:
+                    lst[i] = {"handler": handler, "flag_key": None}
+                    return
+            lst.append({"handler": handler, "flag_key": None})
+        else:
+            lst.append({"handler": handler, "flag_key": flag_key})
+
+    def dispatch(self, operation: str, context: EvaluationContext | None = None) -> Callable:
+        """Evaluate flags and return the matching handler for the operation."""
+        lst = self._registry.get(operation)
+        if not lst:
+            raise RuntimeError(
+                f"No handlers registered for operation '{operation}'. "
+                "Call register() before dispatch()."
+            )
+        for reg in lst:
+            if reg["flag_key"] is not None:
+                flag = self._flags.get(reg["flag_key"])
+                if flag and flag.enabled:
+                    return reg["handler"]
+        for reg in lst:
+            if reg["flag_key"] is None:
+                return reg["handler"]
+        raise RuntimeError(
+            f"No matching handler for operation '{operation}' and no default registered. "
+            "Register a default handler (no flag_key) as the last registration."
+        )
 
     # ------------------------------------------------------------------
     # Session helpers

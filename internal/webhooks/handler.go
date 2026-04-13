@@ -46,6 +46,11 @@ func (h *Handler) CreateWebhook(c *gin.Context) {
 		return
 	}
 
+	if err := ValidateWebhookURL(req.URL); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	// Get organization from context
 	orgID, exists := c.Get(auth.ContextKeyOrgID)
 	if !exists {
@@ -162,6 +167,13 @@ func (h *Handler) UpdateWebhook(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request body", err)
 		return
+	}
+
+	if req.URL != nil && *req.URL != "" {
+		if err := ValidateWebhookURL(*req.URL); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 	}
 
 	// Get user ID from context

@@ -1,7 +1,7 @@
 # Engine Reliability Hardening — Design Spec
 
 **Date:** 2026-04-13
-**Status:** Approved
+**Status:** Complete
 **Depends on:** `2026-04-13-canary-rollout-e2e-design.md` (implemented on `feature/canary-rollout-e2e`)
 
 ## Overview

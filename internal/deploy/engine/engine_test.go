@@ -421,3 +421,52 @@ type mockSubscriber struct {
 func (m *mockSubscriber) Subscribe(subject string, handler func(msg []byte)) error {
 	return m.onSubscribe(subject, handler)
 }
+
+// ---------------------------------------------------------------------------
+// Advisory lock concurrency test
+// ---------------------------------------------------------------------------
+
+type lockingMockRepo struct {
+	*mockEngineRepo
+	lockResult bool
+}
+
+func (r *lockingMockRepo) TryAdvisoryLock(_ context.Context, _ uuid.UUID) (bool, error) {
+	return r.lockResult, nil
+}
+
+func TestDriveDeployment_AdvisoryLockPreventsDoubleProcessing(t *testing.T) {
+	strategies.SetDefaultCanaryConfigForTest(strategies.CanaryConfig{
+		Steps: []strategies.CanaryStep{
+			{TrafficPercent: 50, Duration: 0},
+			{TrafficPercent: 100, Duration: 0},
+		},
+		AutoPromote:       true,
+		RollbackOnFailure: true,
+		HealthThreshold:   0.95,
+	})
+
+	depID := uuid.New()
+	repo := newMockEngineRepo()
+	repo.deployments[depID] = &models.Deployment{
+		ID:       depID,
+		Strategy: models.DeployStrategyCanary,
+		Status:   models.DeployStatusPending,
+		Artifact: "test:v1",
+		Version:  "v1",
+	}
+
+	lockRepo := &lockingMockRepo{mockEngineRepo: repo, lockResult: false}
+	pub := &mockPublisher{}
+	eng := engine.New(lockRepo, pub, nil, nil)
+
+	err := eng.DriveDeploymentForTest(context.Background(), depID)
+	if err != nil {
+		t.Fatalf("expected nil error, got: %v", err)
+	}
+
+	d, _ := repo.GetDeployment(context.Background(), depID)
+	if d.Status != models.DeployStatusPending {
+		t.Errorf("deployment should still be pending when lock not acquired, got %s", d.Status)
+	}
+}

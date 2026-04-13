@@ -140,9 +140,30 @@ func BuildPhases(deploymentID uuid.UUID, config strategies.CanaryConfig) []*mode
 	return phases
 }
 
+// DriveDeploymentForTest exposes driveDeployment for testing.
+func (e *Engine) DriveDeploymentForTest(ctx context.Context, id uuid.UUID) error {
+	return e.driveDeployment(ctx, id)
+}
+
 // driveDeployment is the main loop that advances a single deployment through
 // all of its canary phases.
 func (e *Engine) driveDeployment(ctx context.Context, deploymentID uuid.UUID) error {
+	// Acquire advisory lock — if another goroutine is already processing
+	// this deployment, skip silently.
+	locked, err := e.repo.TryAdvisoryLock(ctx, deploymentID)
+	if err != nil {
+		return fmt.Errorf("driveDeployment: advisory lock: %w", err)
+	}
+	if !locked {
+		e.logger.Debug("engine: deployment already locked, skipping", "deployment_id", deploymentID)
+		return nil
+	}
+	defer func() {
+		if err := e.repo.AdvisoryUnlock(ctx, deploymentID); err != nil {
+			e.logger.Warn("engine: failed to release advisory lock", "deployment_id", deploymentID, "error", err)
+		}
+	}()
+
 	// 1. Get deployment.
 	d, err := e.repo.GetDeployment(ctx, deploymentID)
 	if err != nil {
@@ -205,19 +226,20 @@ func (e *Engine) driveDeployment(ctx context.Context, deploymentID uuid.UUID) er
 	for i := startIdx; i < len(phases); i++ {
 		ph := phases[i]
 
-		// a. Set phase active.
+		// a+b. Atomically set phase active and update deployment traffic.
 		now := time.Now().UTC()
 		ph.Status = models.PhaseStatusActive
 		ph.StartedAt = &now
-		if err := e.repo.UpdatePhase(ctx, ph); err != nil {
-			return fmt.Errorf("driveDeployment: update phase active: %w", err)
-		}
-
-		// b. Update deployment traffic percent.
 		d.TrafficPercent = ph.TrafficPercent
 		d.UpdatedAt = time.Now().UTC()
-		if err := e.repo.UpdateDeployment(ctx, d); err != nil {
-			return fmt.Errorf("driveDeployment: update deployment traffic: %w", err)
+
+		if err := e.repo.WithTx(ctx, func(tx deploy.TxRepository) error {
+			if err := tx.UpdatePhase(ctx, ph); err != nil {
+				return fmt.Errorf("update phase active: %w", err)
+			}
+			return tx.UpdateDeployment(ctx, d)
+		}); err != nil {
+			return fmt.Errorf("driveDeployment: activate phase tx: %w", err)
 		}
 
 		// c. Publish phase_changed event.
@@ -267,8 +289,10 @@ func (e *Engine) driveDeployment(ctx context.Context, deploymentID uuid.UUID) er
 		ph.Status = models.PhaseStatusPassed
 		completedAt := time.Now().UTC()
 		ph.CompletedAt = &completedAt
-		if err := e.repo.UpdatePhase(ctx, ph); err != nil {
-			return fmt.Errorf("driveDeployment: update phase passed: %w", err)
+		if err := e.repo.WithTx(ctx, func(tx deploy.TxRepository) error {
+			return tx.UpdatePhase(ctx, ph)
+		}); err != nil {
+			return fmt.Errorf("driveDeployment: complete phase tx: %w", err)
 		}
 	}
 
@@ -277,8 +301,10 @@ func (e *Engine) driveDeployment(ctx context.Context, deploymentID uuid.UUID) er
 	if err := d.TransitionTo(models.DeployStatusCompleted); err != nil {
 		return fmt.Errorf("driveDeployment: transition to completed: %w", err)
 	}
-	if err := e.repo.UpdateDeployment(ctx, d); err != nil {
-		return fmt.Errorf("driveDeployment: update deployment completed: %w", err)
+	if err := e.repo.WithTx(ctx, func(tx deploy.TxRepository) error {
+		return tx.UpdateDeployment(ctx, d)
+	}); err != nil {
+		return fmt.Errorf("driveDeployment: complete deployment tx: %w", err)
 	}
 
 	// Publish completed event.
@@ -307,9 +333,6 @@ func (e *Engine) triggerRollback(ctx context.Context, d *models.Deployment, h *h
 		return fmt.Errorf("triggerRollback: transition: %w", err)
 	}
 	d.TrafficPercent = 0
-	if err := e.repo.UpdateDeployment(ctx, d); err != nil {
-		return fmt.Errorf("triggerRollback: update deployment: %w", err)
-	}
 
 	// 2. Create RollbackRecord.
 	var healthScore *float64
@@ -328,8 +351,14 @@ func (e *Engine) triggerRollback(ctx context.Context, d *models.Deployment, h *h
 		StartedAt:          time.Now().UTC(),
 		CreatedAt:          time.Now().UTC(),
 	}
-	if err := e.repo.CreateRollbackRecord(ctx, record); err != nil {
-		e.logger.Warn("engine: failed to create rollback record", "error", err)
+
+	if err := e.repo.WithTx(ctx, func(tx deploy.TxRepository) error {
+		if err := tx.UpdateDeployment(ctx, d); err != nil {
+			return err
+		}
+		return tx.CreateRollbackRecord(ctx, record)
+	}); err != nil {
+		return fmt.Errorf("triggerRollback: tx: %w", err)
 	}
 
 	// 3. Publish phase_changed event (traffic 0).
@@ -358,16 +387,16 @@ func (e *Engine) triggerRollback(ctx context.Context, d *models.Deployment, h *h
 // phaseChangedPayload is the JSON structure published to
 // deployments.deployment.phase_changed.
 type phaseChangedPayload struct {
-	DeploymentID         string             `json:"deployment_id"`
-	ApplicationID        string             `json:"application_id"`
-	EnvironmentID        string             `json:"environment_id"`
-	Artifact             string             `json:"artifact"`
-	Version              string             `json:"version"`
-	DesiredTrafficPercent int               `json:"desired_traffic_percent"`
-	Status               string             `json:"status"`
-	Timestamp            time.Time          `json:"timestamp"`
-	CurrentPhase         *phaseInfo         `json:"current_phase,omitempty"`
-	PreviousDeployment   *prevDeployInfo    `json:"previous_deployment,omitempty"`
+	DeploymentID          string          `json:"deployment_id"`
+	ApplicationID         string          `json:"application_id"`
+	EnvironmentID         string          `json:"environment_id"`
+	Artifact              string          `json:"artifact"`
+	Version               string          `json:"version"`
+	DesiredTrafficPercent int             `json:"desired_traffic_percent"`
+	Status                string          `json:"status"`
+	Timestamp             time.Time       `json:"timestamp"`
+	CurrentPhase          *phaseInfo      `json:"current_phase,omitempty"`
+	PreviousDeployment    *prevDeployInfo `json:"previous_deployment,omitempty"`
 }
 
 type phaseInfo struct {

@@ -274,7 +274,7 @@ func TestRequirePermission_InvalidRoleFormat(t *testing.T) {
 const testJWTSecret = "test-jwt-secret-key-for-unit-tests"
 
 func TestRequireAuth_NoAuthHeader(t *testing.T) {
-	mw := NewAuthMiddleware(testJWTSecret, nil)
+	mw := NewAuthMiddleware(testJWTSecret, nil, nil)
 	w := httptest.NewRecorder()
 	_, r := gin.CreateTestContext(w)
 
@@ -291,7 +291,7 @@ func TestRequireAuth_NoAuthHeader(t *testing.T) {
 }
 
 func TestRequireAuth_InvalidScheme(t *testing.T) {
-	mw := NewAuthMiddleware(testJWTSecret, nil)
+	mw := NewAuthMiddleware(testJWTSecret, nil, nil)
 	w := httptest.NewRecorder()
 	_, r := gin.CreateTestContext(w)
 
@@ -309,7 +309,7 @@ func TestRequireAuth_InvalidScheme(t *testing.T) {
 }
 
 func TestRequireAuth_ValidJWT(t *testing.T) {
-	mw := NewAuthMiddleware(testJWTSecret, nil)
+	mw := NewAuthMiddleware(testJWTSecret, nil, nil)
 	userID := uuid.New()
 	email := "user@example.com"
 
@@ -347,7 +347,7 @@ func TestRequireAuth_ValidJWT(t *testing.T) {
 }
 
 func TestRequireAuth_ExpiredJWT(t *testing.T) {
-	mw := NewAuthMiddleware(testJWTSecret, nil)
+	mw := NewAuthMiddleware(testJWTSecret, nil, nil)
 
 	claims := &TokenClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -378,7 +378,7 @@ func TestRequireAuth_ExpiredJWT(t *testing.T) {
 
 func TestRequireAuth_InvalidJWTSignature(t *testing.T) {
 	// Sign with a different secret.
-	mw := NewAuthMiddleware(testJWTSecret, nil)
+	mw := NewAuthMiddleware(testJWTSecret, nil, nil)
 
 	claims := &TokenClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -406,7 +406,7 @@ func TestRequireAuth_InvalidJWTSignature(t *testing.T) {
 }
 
 func TestRequireAuth_WrongSigningMethod(t *testing.T) {
-	mw := NewAuthMiddleware(testJWTSecret, nil)
+	mw := NewAuthMiddleware(testJWTSecret, nil, nil)
 
 	// Create a token with RSA "none" signing method (unsigned).
 	claims := &TokenClaims{
@@ -449,7 +449,7 @@ func TestRequireAuth_ValidAPIKey(t *testing.T) {
 		},
 		err: nil,
 	}
-	mw := NewAuthMiddleware(testJWTSecret, validator)
+	mw := NewAuthMiddleware(testJWTSecret, validator, nil)
 
 	w := httptest.NewRecorder()
 	_, r := gin.CreateTestContext(w)
@@ -479,7 +479,7 @@ func TestRequireAuth_InvalidAPIKey(t *testing.T) {
 		info: nil,
 		err:  errors.New("key not found"),
 	}
-	mw := NewAuthMiddleware(testJWTSecret, validator)
+	mw := NewAuthMiddleware(testJWTSecret, validator, nil)
 
 	w := httptest.NewRecorder()
 	_, r := gin.CreateTestContext(w)
@@ -498,7 +498,7 @@ func TestRequireAuth_InvalidAPIKey(t *testing.T) {
 }
 
 func TestRequireAuth_APIKeyValidatorNil(t *testing.T) {
-	mw := NewAuthMiddleware(testJWTSecret, nil) // no validator
+	mw := NewAuthMiddleware(testJWTSecret, nil, nil) // no validator
 
 	w := httptest.NewRecorder()
 	_, r := gin.CreateTestContext(w)
@@ -521,7 +521,7 @@ func TestRequireAuth_APIKeyValidatorNil(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRequireScope_JWTAuthMethod(t *testing.T) {
-	mw := NewAuthMiddleware(testJWTSecret, nil)
+	mw := NewAuthMiddleware(testJWTSecret, nil, nil)
 	w := httptest.NewRecorder()
 	_, r := gin.CreateTestContext(w)
 
@@ -539,7 +539,7 @@ func TestRequireScope_JWTAuthMethod(t *testing.T) {
 }
 
 func TestRequireScope_APIKeyWithMatchingScope(t *testing.T) {
-	mw := NewAuthMiddleware(testJWTSecret, nil)
+	mw := NewAuthMiddleware(testJWTSecret, nil, nil)
 	w := httptest.NewRecorder()
 	_, r := gin.CreateTestContext(w)
 
@@ -558,7 +558,7 @@ func TestRequireScope_APIKeyWithMatchingScope(t *testing.T) {
 }
 
 func TestRequireScope_APIKeyWithAdminScope(t *testing.T) {
-	mw := NewAuthMiddleware(testJWTSecret, nil)
+	mw := NewAuthMiddleware(testJWTSecret, nil, nil)
 	w := httptest.NewRecorder()
 	_, r := gin.CreateTestContext(w)
 
@@ -577,7 +577,7 @@ func TestRequireScope_APIKeyWithAdminScope(t *testing.T) {
 }
 
 func TestRequireScope_APIKeyWithoutMatchingScope(t *testing.T) {
-	mw := NewAuthMiddleware(testJWTSecret, nil)
+	mw := NewAuthMiddleware(testJWTSecret, nil, nil)
 	w := httptest.NewRecorder()
 	_, r := gin.CreateTestContext(w)
 
@@ -598,7 +598,7 @@ func TestRequireScope_APIKeyWithoutMatchingScope(t *testing.T) {
 }
 
 func TestRequireScope_APIKeyNoScopesSet(t *testing.T) {
-	mw := NewAuthMiddleware(testJWTSecret, nil)
+	mw := NewAuthMiddleware(testJWTSecret, nil, nil)
 	w := httptest.NewRecorder()
 	_, r := gin.CreateTestContext(w)
 
@@ -883,7 +883,7 @@ func TestCompleteAuth_ResolverError(t *testing.T) {
 }
 
 func TestRequireAuth_JWTWithOrgID(t *testing.T) {
-	mw := NewAuthMiddleware(testJWTSecret, nil)
+	mw := NewAuthMiddleware(testJWTSecret, nil, nil)
 	userID := uuid.New()
 
 	claims := &TokenClaims{
@@ -915,7 +915,7 @@ func TestRequireAuth_JWTWithOrgID(t *testing.T) {
 }
 
 func TestRequireScope_APIKeyBadScopesType(t *testing.T) {
-	mw := NewAuthMiddleware(testJWTSecret, nil)
+	mw := NewAuthMiddleware(testJWTSecret, nil, nil)
 	w := httptest.NewRecorder()
 	_, r := gin.CreateTestContext(w)
 

@@ -1990,3 +1990,32 @@ tbody tr:last-child td {
   .docs-sidebar { width: auto; border-right: none; border-bottom: 1px solid #1f2937; padding: 16px; }
   .docs-content { padding: 32px 24px; }
 }
+
+/* ConfirmDialog */
+.confirm-dialog {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0;
+  max-width: 420px;
+  background: var(--color-bg-surface);
+  color: var(--color-text);
+}
+.confirm-dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+.confirm-dialog-content { padding: 1.5rem; }
+.confirm-dialog-title { margin: 0 0 0.5rem; font-size: 1.1rem; }
+.confirm-dialog-message { margin: 0 0 1.5rem; color: var(--color-text-muted); }
+.confirm-dialog-actions { display: flex; gap: 0.75rem; justify-content: flex-end; }
+
+/* Deployment Phases */
+.phases-section { margin-top: 2rem; }
+.phases-title { font-size: 1.1rem; margin-bottom: 1rem; }
+.phases-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.phase-item { padding: 0.75rem 1rem; border: 1px solid var(--color-border); border-radius: 6px; }
+.phase-item.phase-active { border-color: var(--color-primary); background: var(--color-bg-highlight); }
+.phase-item.phase-passed { opacity: 0.7; }
+.phase-item.phase-failed { border-color: var(--color-danger); }
+.phase-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }
+.phase-name { font-weight: 600; }
+.phase-details { font-size: 0.85rem; color: var(--color-text-muted); display: flex; gap: 1rem; }
+.phase-progress { height: 4px; background: var(--color-border); border-radius: 2px; margin-top: 0.5rem; }
+.phase-progress-fill { height: 100%; background: var(--color-primary); border-radius: 2px; transition: width 1s linear; }

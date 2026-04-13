@@ -269,3 +269,18 @@ export interface OrgEnvironment {
   created_at: string;
   updated_at: string;
 }
+
+export type PhaseStatus = 'pending' | 'active' | 'passed' | 'failed' | 'skipped';
+
+export interface DeploymentPhase {
+  id: string;
+  deployment_id: string;
+  name: string;
+  status: PhaseStatus;
+  traffic_percent: number;
+  duration_seconds: number;
+  sort_order: number;
+  auto_promote: boolean;
+  started_at?: string;
+  completed_at?: string;
+}

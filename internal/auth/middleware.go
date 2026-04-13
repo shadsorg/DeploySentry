@@ -85,14 +85,16 @@ type APIKeyInfo struct {
 type AuthMiddleware struct {
 	jwtSecret    []byte
 	keyValidator APIKeyValidator
+	sessionMgr   *SessionManager
 }
 
-// NewAuthMiddleware creates a new AuthMiddleware with the given JWT secret
-// and optional API key validator.
-func NewAuthMiddleware(jwtSecret string, keyValidator APIKeyValidator) *AuthMiddleware {
+// NewAuthMiddleware creates a new AuthMiddleware with the given JWT secret,
+// optional API key validator, and optional session manager for token blacklist checks.
+func NewAuthMiddleware(jwtSecret string, keyValidator APIKeyValidator, sessionMgr *SessionManager) *AuthMiddleware {
 	return &AuthMiddleware{
 		jwtSecret:    []byte(jwtSecret),
 		keyValidator: keyValidator,
+		sessionMgr:   sessionMgr,
 	}
 }
 
@@ -185,6 +187,15 @@ func (m *AuthMiddleware) authenticateJWT(c *gin.Context, tokenStr string) bool {
 	if err != nil || !token.Valid {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
 		return false
+	}
+
+	// Check token blacklist for immediate revocation
+	if claims.ID != "" && m.sessionMgr != nil {
+		blacklisted, err := m.sessionMgr.IsTokenBlacklisted(c.Request.Context(), claims.ID)
+		if err == nil && blacklisted {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token has been revoked"})
+			return false
+		}
 	}
 
 	c.Set(ContextKeyUserID, claims.UserID)

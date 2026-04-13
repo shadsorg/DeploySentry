@@ -260,7 +260,7 @@ func setDefaults(v *viper.Viper) {
 
 	// Auth defaults.
 	v.SetDefault("auth.jwt_secret", "change-me-in-production")
-	v.SetDefault("auth.jwt_expiration", 24*time.Hour)
+	v.SetDefault("auth.jwt_expiration", 30*time.Minute)
 	v.SetDefault("auth.session_ttl", 30*time.Minute)
 
 	// Log defaults.

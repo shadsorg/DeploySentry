@@ -311,7 +311,8 @@ func run() error {
 	}
 	rateLimiter := middleware.NewRateLimiter(rdb.Client, rateLimitConfig)
 	apiKeyValidator := &apiKeyValidatorAdapter{service: apiKeyService}
-	authMiddleware := auth.NewAuthMiddleware(cfg.Auth.JWTSecret, apiKeyValidator)
+	sessionMgr := auth.NewSessionManager(rdb, cfg.Auth.SessionTTL)
+	authMiddleware := auth.NewAuthMiddleware(cfg.Auth.JWTSecret, apiKeyValidator, sessionMgr)
 
 	// -------------------------------------------------------------------------
 	// Routes

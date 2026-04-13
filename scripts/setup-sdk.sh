@@ -181,7 +181,7 @@ install_sdk() {
   esac
 }
 
-install_sdk
+install_sdk || echo "Warning: SDK installation failed. You may need to install it manually. Continuing..."
 
 # ---------------------------------------------------------------------------
 # CLAUDE.md generation

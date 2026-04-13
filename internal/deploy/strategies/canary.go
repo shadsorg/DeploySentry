@@ -60,6 +60,21 @@ type CanaryConfig struct {
 	RollbackOnFailure bool         `json:"rollback_on_failure"`
 }
 
+// defaultCanaryConfig is the package-level default used by DefaultCanaryConfig.
+// Tests may override this via SetDefaultCanaryConfigForTest.
+var defaultCanaryConfig = CanaryConfig{
+	Steps: []CanaryStep{
+		{TrafficPercent: 1, Duration: 5 * time.Minute},
+		{TrafficPercent: 5, Duration: 5 * time.Minute},
+		{TrafficPercent: 25, Duration: 10 * time.Minute},
+		{TrafficPercent: 50, Duration: 10 * time.Minute},
+		{TrafficPercent: 100, Duration: 0},
+	},
+	HealthThreshold:   0.95,
+	AutoPromote:       true,
+	RollbackOnFailure: true,
+}
+
 // DefaultCanaryConfig returns a sensible default canary configuration
 // with five incremental traffic phases matching the deploy checklist:
 //
@@ -69,18 +84,13 @@ type CanaryConfig struct {
 //	Phase 4 — 50%  traffic, 10 min monitoring
 //	Phase 5 — 100% traffic, full promotion
 func DefaultCanaryConfig() CanaryConfig {
-	return CanaryConfig{
-		Steps: []CanaryStep{
-			{TrafficPercent: 1, Duration: 5 * time.Minute},
-			{TrafficPercent: 5, Duration: 5 * time.Minute},
-			{TrafficPercent: 25, Duration: 10 * time.Minute},
-			{TrafficPercent: 50, Duration: 10 * time.Minute},
-			{TrafficPercent: 100, Duration: 0},
-		},
-		HealthThreshold:   0.95,
-		AutoPromote:       false,
-		RollbackOnFailure: true,
-	}
+	return defaultCanaryConfig
+}
+
+// SetDefaultCanaryConfigForTest overrides the default canary config.
+// This function is intended for test use only.
+func SetDefaultCanaryConfigForTest(config CanaryConfig) {
+	defaultCanaryConfig = config
 }
 
 // IsAutoPromote reports whether the step should auto-promote. It falls

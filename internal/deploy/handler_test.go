@@ -102,6 +102,10 @@ func (m *mockDeployService) ListRollbackRecords(ctx context.Context, deploymentI
 	return []*models.RollbackRecord{}, nil
 }
 
+func (m *mockDeployService) CancelDeployment(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

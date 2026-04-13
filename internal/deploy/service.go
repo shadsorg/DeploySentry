@@ -40,6 +40,9 @@ type DeployService interface {
 	// ResumeDeployment resumes a paused deployment.
 	ResumeDeployment(ctx context.Context, id uuid.UUID) error
 
+	// CancelDeployment cancels a pending or paused deployment.
+	CancelDeployment(ctx context.Context, id uuid.UUID) error
+
 	// GetActiveDeployments returns all non-terminal deployments for an application.
 	GetActiveDeployments(ctx context.Context, applicationID uuid.UUID) ([]*models.Deployment, error)
 
@@ -205,6 +208,24 @@ func (s *deployService) ResumeDeployment(ctx context.Context, id uuid.UUID) erro
 	}
 
 	s.publishEvent(ctx, "deployment.resumed", d.ID)
+	return nil
+}
+
+func (s *deployService) CancelDeployment(ctx context.Context, id uuid.UUID) error {
+	d, err := s.repo.GetDeployment(ctx, id)
+	if err != nil {
+		return fmt.Errorf("getting deployment for cancel: %w", err)
+	}
+
+	if err := d.TransitionTo(models.DeployStatusCancelled); err != nil {
+		return err
+	}
+
+	if err := s.repo.UpdateDeployment(ctx, d); err != nil {
+		return fmt.Errorf("updating deployment for cancel: %w", err)
+	}
+
+	s.publishEvent(ctx, "deployment.cancelled", d.ID)
 	return nil
 }
 

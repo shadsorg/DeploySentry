@@ -53,6 +53,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, rbac *auth.RBACChecker) {
 		deployments.POST("/:id/rollback", mw(rbac, auth.PermDeployRollback), h.rollbackDeployment)
 		deployments.POST("/:id/pause", mw(rbac, auth.PermDeployManage), h.pauseDeployment)
 		deployments.POST("/:id/resume", mw(rbac, auth.PermDeployManage), h.resumeDeployment)
+		deployments.POST("/:id/cancel", mw(rbac, auth.PermDeployManage), h.cancelDeployment)
 		deployments.GET("/:id/desired-state", mw(rbac, auth.PermDeployRead), h.getDesiredState)
 		deployments.POST("/:id/advance", mw(rbac, auth.PermDeployPromote), h.advanceDeployment)
 		deployments.GET("/:id/rollback-history", mw(rbac, auth.PermDeployRead), h.getRollbackHistory)
@@ -427,6 +428,21 @@ func (h *Handler) resumeDeployment(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "running"})
+}
+
+func (h *Handler) cancelDeployment(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid deployment id"})
+		return
+	}
+
+	if err := h.service.CancelDeployment(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "cancelled"})
 }
 
 // getActiveDeployments returns all non-terminal deployments for the application

@@ -314,14 +314,14 @@ export default function DeploymentDetailPage() {
                         className="phase-progress-fill"
                         style={{
                           width:
-                            phase.started_at
+                            phase.started_at && phase.duration_seconds > 0
                               ? `${Math.min(
                                   100,
                                   ((Date.now() - new Date(phase.started_at).getTime()) /
                                     (phase.duration_seconds * 1000)) *
                                     100,
                                 )}%`
-                              : '0%',
+                              : '100%',
                         }}
                       />
                     </div>

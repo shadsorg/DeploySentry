@@ -423,7 +423,7 @@ func (r *DeployRepository) CreateRollbackRecord(ctx context.Context, record *mod
 	record.CreatedAt = now
 
 	const q = `
-		INSERT INTO rollback_records
+		INSERT INTO rollback_history
 			(id, deployment_id, target_deployment_id, reason,
 			 health_score, automatic, strategy,
 			 started_at, completed_at, created_at)
@@ -453,7 +453,7 @@ func (r *DeployRepository) CreateRollbackRecord(ctx context.Context, record *mod
 // ListRollbackRecords returns rollback history for a deployment, ordered by created_at DESC.
 func (r *DeployRepository) ListRollbackRecords(ctx context.Context, deploymentID uuid.UUID) ([]*models.RollbackRecord, error) {
 	q := `SELECT` + rollbackSelectCols + `
-		FROM rollback_records
+		FROM rollback_history
 		WHERE deployment_id = $1
 		ORDER BY created_at DESC`
 

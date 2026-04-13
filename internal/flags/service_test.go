@@ -3,6 +3,7 @@ package flags
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -182,6 +183,7 @@ func (m *mockFlagRepo) DeleteSegment(ctx context.Context, id uuid.UUID) error {
 
 // mockCache is a test double for Cache.
 type mockCache struct {
+	mu    sync.Mutex
 	flags map[string]*models.FeatureFlag   // key: "projectID:envID:key"
 	rules map[uuid.UUID][]*models.TargetingRule
 }
@@ -198,6 +200,8 @@ func cacheKey(projectID, environmentID uuid.UUID, key string) string {
 }
 
 func (c *mockCache) GetFlag(ctx context.Context, projectID, environmentID uuid.UUID, key string) (*models.FeatureFlag, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	f, ok := c.flags[cacheKey(projectID, environmentID, key)]
 	if !ok {
 		return nil, nil
@@ -206,11 +210,15 @@ func (c *mockCache) GetFlag(ctx context.Context, projectID, environmentID uuid.U
 }
 
 func (c *mockCache) SetFlag(ctx context.Context, flag *models.FeatureFlag, ttl time.Duration) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.flags[cacheKey(flag.ProjectID, flag.EnvironmentID, flag.Key)] = flag
 	return nil
 }
 
 func (c *mockCache) GetRules(ctx context.Context, flagID uuid.UUID) ([]*models.TargetingRule, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	r, ok := c.rules[flagID]
 	if !ok {
 		return nil, nil

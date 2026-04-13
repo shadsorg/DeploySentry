@@ -228,8 +228,6 @@ export default function DeploymentDetailPage() {
       })()
     : undefined;
 
-  const activePhase = phases.find((p) => p.status === 'active');
-
   return (
     <div className="page">
       <div className="detail-header">

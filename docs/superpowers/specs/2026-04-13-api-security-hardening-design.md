@@ -1,7 +1,7 @@
 # API Security Hardening — Design Spec
 
 **Date:** 2026-04-13
-**Status:** Approved
+**Status:** Complete
 
 ## Overview
 

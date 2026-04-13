@@ -30,6 +30,8 @@ Inside your organization, create a project and an application. Projects group re
 
 From the project's Flags page, click **New Flag**. Pick a category (release, feature, experiment, ops, or permission) and define a key.
 
+For detailed guidance on flag creation, targeting rules, permanent vs temporary flags, and the full lifecycle, see [Flag Management](/docs/flag-management).
+
 ## Wire up an SDK
 
 Pick the SDK that matches your stack (see [SDKs](/docs/sdks)) and follow the init pattern. The minimum is one API key and the flag key you just created.

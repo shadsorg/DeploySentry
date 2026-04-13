@@ -25,6 +25,28 @@ type DeployRepository interface {
 
 	// GetLatestDeployment returns the most recent deployment for an application and environment.
 	GetLatestDeployment(ctx context.Context, applicationID, environmentID uuid.UUID) (*models.Deployment, error)
+
+	// CreatePhase persists a new deployment phase record.
+	CreatePhase(ctx context.Context, phase *models.DeploymentPhase) error
+
+	// ListPhases returns all phases for a deployment, ordered by sort_order ascending.
+	ListPhases(ctx context.Context, deploymentID uuid.UUID) ([]*models.DeploymentPhase, error)
+
+	// UpdatePhase persists changes to a deployment phase.
+	UpdatePhase(ctx context.Context, phase *models.DeploymentPhase) error
+
+	// GetActivePhase returns the currently active phase for a deployment, or nil if none.
+	GetActivePhase(ctx context.Context, deploymentID uuid.UUID) (*models.DeploymentPhase, error)
+
+	// GetLatestCompletedDeployment returns the most recent completed deployment
+	// for an application and environment. Used to populate previous_deployment_id.
+	GetLatestCompletedDeployment(ctx context.Context, applicationID, environmentID uuid.UUID) (*models.Deployment, error)
+
+	// CreateRollbackRecord persists a rollback history entry.
+	CreateRollbackRecord(ctx context.Context, record *models.RollbackRecord) error
+
+	// ListRollbackRecords returns rollback history for a deployment.
+	ListRollbackRecords(ctx context.Context, deploymentID uuid.UUID) ([]*models.RollbackRecord, error)
 }
 
 // ListOptions controls pagination and filtering for list queries.

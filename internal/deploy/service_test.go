@@ -81,6 +81,34 @@ func (m *mockDeployRepo) GetLatestDeployment(_ context.Context, _, _ uuid.UUID) 
 	return nil, fmt.Errorf("no deployments found")
 }
 
+func (m *mockDeployRepo) CreatePhase(_ context.Context, _ *models.DeploymentPhase) error {
+	return nil
+}
+
+func (m *mockDeployRepo) ListPhases(_ context.Context, _ uuid.UUID) ([]*models.DeploymentPhase, error) {
+	return nil, nil
+}
+
+func (m *mockDeployRepo) UpdatePhase(_ context.Context, _ *models.DeploymentPhase) error {
+	return nil
+}
+
+func (m *mockDeployRepo) GetActivePhase(_ context.Context, _ uuid.UUID) (*models.DeploymentPhase, error) {
+	return nil, fmt.Errorf("no active phase found")
+}
+
+func (m *mockDeployRepo) GetLatestCompletedDeployment(_ context.Context, _, _ uuid.UUID) (*models.Deployment, error) {
+	return nil, fmt.Errorf("no completed deployments found")
+}
+
+func (m *mockDeployRepo) CreateRollbackRecord(_ context.Context, _ *models.RollbackRecord) error {
+	return nil
+}
+
+func (m *mockDeployRepo) ListRollbackRecords(_ context.Context, _ uuid.UUID) ([]*models.RollbackRecord, error) {
+	return nil, nil
+}
+
 // mockPublisher implements MessagePublisher and records every call.
 type mockPublisher struct {
 	mu        sync.Mutex

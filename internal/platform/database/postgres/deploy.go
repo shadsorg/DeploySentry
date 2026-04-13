@@ -30,7 +30,7 @@ func NewDeployRepository(pool *pgxpool.Pool) *DeployRepository {
 const deploymentSelectCols = `
 	id, application_id, environment_id, strategy, status,
 	artifact, version, COALESCE(commit_sha, ''),
-	traffic_percent, created_by, started_at, completed_at,
+	traffic_percent, previous_deployment_id, created_by, started_at, completed_at,
 	created_at, updated_at`
 
 // ---------------------------------------------------------------------------
@@ -52,6 +52,7 @@ func scanDeployment(row pgx.Row) (*models.Deployment, error) {
 		&d.Version,
 		&d.CommitSHA,
 		&d.TrafficPercent,
+		&d.PreviousDeploymentID,
 		&d.CreatedBy,
 		&d.StartedAt,
 		&d.CompletedAt,
@@ -85,13 +86,13 @@ func (r *DeployRepository) CreateDeployment(ctx context.Context, d *models.Deplo
 		INSERT INTO deployments
 			(id, application_id, environment_id, strategy, status,
 			 artifact, version, commit_sha,
-			 traffic_percent, created_by, started_at, completed_at,
+			 traffic_percent, previous_deployment_id, created_by, started_at, completed_at,
 			 created_at, updated_at)
 		VALUES
 			($1, $2, $3, $4, $5,
 			 $6, $7, $8,
-			 $9, $10, $11, $12,
-			 $13, $14)`
+			 $9, $10, $11, $12, $13,
+			 $14, $15)`
 
 	_, err := r.pool.Exec(ctx, q,
 		d.ID,
@@ -103,6 +104,7 @@ func (r *DeployRepository) CreateDeployment(ctx context.Context, d *models.Deplo
 		d.Version,
 		d.CommitSHA,
 		d.TrafficPercent,
+		d.PreviousDeploymentID,
 		d.CreatedBy,
 		d.StartedAt,
 		d.CompletedAt,
@@ -214,4 +216,263 @@ func (r *DeployRepository) GetLatestDeployment(ctx context.Context, applicationI
 		return nil, fmt.Errorf("postgres.GetLatestDeployment: %w", err)
 	}
 	return d, nil
+}
+
+// ---------------------------------------------------------------------------
+// Phase column list and scan helper
+// ---------------------------------------------------------------------------
+
+const phaseSelectCols = `
+	id, deployment_id, name, status, traffic_percent,
+	duration_seconds, sort_order, auto_promote,
+	started_at, completed_at`
+
+// scanPhase reads a single DeploymentPhase row from the given pgx.Row.
+// The SELECT must include columns in the order defined by phaseSelectCols.
+func scanPhase(row pgx.Row) (*models.DeploymentPhase, error) {
+	var p models.DeploymentPhase
+	err := row.Scan(
+		&p.ID,
+		&p.DeploymentID,
+		&p.Name,
+		&p.Status,
+		&p.TrafficPercent,
+		&p.Duration,
+		&p.SortOrder,
+		&p.AutoPromote,
+		&p.StartedAt,
+		&p.CompletedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &p, nil
+}
+
+// ---------------------------------------------------------------------------
+// Phase methods
+// ---------------------------------------------------------------------------
+
+// CreatePhase inserts a new deployment phase record into the database.
+func (r *DeployRepository) CreatePhase(ctx context.Context, phase *models.DeploymentPhase) error {
+	if phase.ID == uuid.Nil {
+		phase.ID = uuid.New()
+	}
+
+	const q = `
+		INSERT INTO deployment_phases
+			(id, deployment_id, name, status, traffic_percent,
+			 duration_seconds, sort_order, auto_promote,
+			 started_at, completed_at)
+		VALUES
+			($1, $2, $3, $4, $5,
+			 $6, $7, $8,
+			 $9, $10)`
+
+	_, err := r.pool.Exec(ctx, q,
+		phase.ID,
+		phase.DeploymentID,
+		phase.Name,
+		phase.Status,
+		phase.TrafficPercent,
+		phase.Duration,
+		phase.SortOrder,
+		phase.AutoPromote,
+		phase.StartedAt,
+		phase.CompletedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("postgres.CreatePhase: %w", err)
+	}
+	return nil
+}
+
+// ListPhases returns all phases for a deployment ordered by sort_order ascending.
+func (r *DeployRepository) ListPhases(ctx context.Context, deploymentID uuid.UUID) ([]*models.DeploymentPhase, error) {
+	q := `SELECT` + phaseSelectCols + `
+		FROM deployment_phases
+		WHERE deployment_id = $1
+		ORDER BY sort_order ASC`
+
+	rows, err := r.pool.Query(ctx, q, deploymentID)
+	if err != nil {
+		return nil, fmt.Errorf("postgres.ListPhases: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*models.DeploymentPhase
+	for rows.Next() {
+		p, err := scanPhase(rows)
+		if err != nil {
+			return nil, fmt.Errorf("postgres.ListPhases: %w", err)
+		}
+		result = append(result, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("postgres.ListPhases: %w", err)
+	}
+	return result, nil
+}
+
+// UpdatePhase persists status, started_at, and completed_at changes for a phase.
+func (r *DeployRepository) UpdatePhase(ctx context.Context, phase *models.DeploymentPhase) error {
+	const q = `
+		UPDATE deployment_phases SET
+			status       = $2,
+			started_at   = $3,
+			completed_at = $4
+		WHERE id = $1`
+
+	tag, err := r.pool.Exec(ctx, q,
+		phase.ID,
+		phase.Status,
+		phase.StartedAt,
+		phase.CompletedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("postgres.UpdatePhase: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// GetActivePhase returns the currently active phase for a deployment, or ErrNotFound if none.
+func (r *DeployRepository) GetActivePhase(ctx context.Context, deploymentID uuid.UUID) (*models.DeploymentPhase, error) {
+	q := `SELECT` + phaseSelectCols + `
+		FROM deployment_phases
+		WHERE deployment_id = $1 AND status = 'active'
+		LIMIT 1`
+
+	p, err := scanPhase(r.pool.QueryRow(ctx, q, deploymentID))
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("postgres.GetActivePhase: %w", err)
+	}
+	return p, nil
+}
+
+// GetLatestCompletedDeployment returns the most recent completed deployment for
+// an application and environment. Used to populate previous_deployment_id.
+func (r *DeployRepository) GetLatestCompletedDeployment(ctx context.Context, applicationID, environmentID uuid.UUID) (*models.Deployment, error) {
+	q := `SELECT` + deploymentSelectCols + `
+		FROM deployments
+		WHERE application_id = $1 AND environment_id = $2 AND status = 'completed'
+		ORDER BY completed_at DESC
+		LIMIT 1`
+
+	d, err := scanDeployment(r.pool.QueryRow(ctx, q, applicationID, environmentID))
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("postgres.GetLatestCompletedDeployment: %w", err)
+	}
+	return d, nil
+}
+
+// ---------------------------------------------------------------------------
+// Rollback record column list and scan helper
+// ---------------------------------------------------------------------------
+
+const rollbackSelectCols = `
+	id, deployment_id, target_deployment_id, reason,
+	health_score, automatic, strategy,
+	started_at, completed_at, created_at`
+
+// scanRollbackRecord reads a single RollbackRecord row from the given pgx.Row.
+func scanRollbackRecord(row pgx.Row) (*models.RollbackRecord, error) {
+	var rec models.RollbackRecord
+	err := row.Scan(
+		&rec.ID,
+		&rec.DeploymentID,
+		&rec.TargetDeploymentID,
+		&rec.Reason,
+		&rec.HealthScore,
+		&rec.Automatic,
+		&rec.Strategy,
+		&rec.StartedAt,
+		&rec.CompletedAt,
+		&rec.CreatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return &rec, nil
+}
+
+// ---------------------------------------------------------------------------
+// Rollback record methods
+// ---------------------------------------------------------------------------
+
+// CreateRollbackRecord inserts a new rollback history entry into the database.
+func (r *DeployRepository) CreateRollbackRecord(ctx context.Context, record *models.RollbackRecord) error {
+	if record.ID == uuid.Nil {
+		record.ID = uuid.New()
+	}
+	now := time.Now().UTC()
+	record.CreatedAt = now
+
+	const q = `
+		INSERT INTO rollback_records
+			(id, deployment_id, target_deployment_id, reason,
+			 health_score, automatic, strategy,
+			 started_at, completed_at, created_at)
+		VALUES
+			($1, $2, $3, $4,
+			 $5, $6, $7,
+			 $8, $9, $10)`
+
+	_, err := r.pool.Exec(ctx, q,
+		record.ID,
+		record.DeploymentID,
+		record.TargetDeploymentID,
+		record.Reason,
+		record.HealthScore,
+		record.Automatic,
+		record.Strategy,
+		record.StartedAt,
+		record.CompletedAt,
+		record.CreatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("postgres.CreateRollbackRecord: %w", err)
+	}
+	return nil
+}
+
+// ListRollbackRecords returns rollback history for a deployment, ordered by created_at DESC.
+func (r *DeployRepository) ListRollbackRecords(ctx context.Context, deploymentID uuid.UUID) ([]*models.RollbackRecord, error) {
+	q := `SELECT` + rollbackSelectCols + `
+		FROM rollback_records
+		WHERE deployment_id = $1
+		ORDER BY created_at DESC`
+
+	rows, err := r.pool.Query(ctx, q, deploymentID)
+	if err != nil {
+		return nil, fmt.Errorf("postgres.ListRollbackRecords: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*models.RollbackRecord
+	for rows.Next() {
+		rec, err := scanRollbackRecord(rows)
+		if err != nil {
+			return nil, fmt.Errorf("postgres.ListRollbackRecords: %w", err)
+		}
+		result = append(result, rec)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("postgres.ListRollbackRecords: %w", err)
+	}
+	return result, nil
 }

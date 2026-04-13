@@ -85,3 +85,8 @@ export interface ApiError {
   message: string;
   code?: string;
 }
+
+export interface Registration<T extends (...args: any[]) => any = (...args: any[]) => any> {
+  handler: T;
+  flagKey?: string;
+}

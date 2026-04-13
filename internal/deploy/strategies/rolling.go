@@ -11,6 +11,8 @@ import (
 
 // RollingConfig holds configuration for a rolling deployment strategy.
 type RollingConfig struct {
+	// BatchCount is the number of batches to divide instances into.
+	BatchCount int `json:"batch_count"`
 	// BatchSize is the number of instances to update simultaneously.
 	BatchSize int `json:"batch_size"`
 	// BatchDelay is the delay between successive batch updates.
@@ -26,22 +28,38 @@ type RollingConfig struct {
 	HealthCheckURL    string  `json:"health_check_url"`
 	HealthThreshold   float64 `json:"health_threshold"`
 	RollbackOnFailure bool    `json:"rollback_on_failure"`
+	// AutoPromote controls whether batches are promoted automatically after
+	// their BatchDelay elapses and health checks pass, or if they wait for a
+	// manual gate.
+	AutoPromote bool `json:"auto_promote"`
 	// TotalInstances is the total number of instances to update.
 	TotalInstances int `json:"total_instances"`
+}
+
+// defaultRollingConfig is the package-level default used by DefaultRollingConfig.
+// Tests may override this via SetDefaultRollingConfigForTest.
+var defaultRollingConfig = RollingConfig{
+	BatchCount:        3,
+	BatchSize:         1,
+	BatchDelay:        30 * time.Second,
+	MaxUnavailable:    1,
+	MaxSurge:          1,
+	HealthThreshold:   0.95,
+	RollbackOnFailure: true,
+	AutoPromote:       true,
+	TotalInstances:    3,
 }
 
 // DefaultRollingConfig returns a sensible default configuration for
 // rolling deployments.
 func DefaultRollingConfig() RollingConfig {
-	return RollingConfig{
-		BatchSize:         1,
-		BatchDelay:        30 * time.Second,
-		MaxUnavailable:    1,
-		MaxSurge:          1,
-		HealthThreshold:   0.95,
-		RollbackOnFailure: true,
-		TotalInstances:    3,
-	}
+	return defaultRollingConfig
+}
+
+// SetDefaultRollingConfigForTest overrides the default rolling config.
+// This function is intended for test use only.
+func SetDefaultRollingConfigForTest(config RollingConfig) {
+	defaultRollingConfig = config
 }
 
 // RollingStrategy implements the DeployStrategy interface using a rolling

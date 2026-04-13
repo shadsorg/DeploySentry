@@ -15,16 +15,31 @@ type BlueGreenConfig struct {
 	HealthCheckURL    string        `json:"health_check_url"`
 	HealthThreshold   float64       `json:"health_threshold"`
 	RollbackOnFailure bool          `json:"rollback_on_failure"`
+	// AutoPromote controls whether traffic is switched automatically after
+	// WarmupDuration elapses and health checks pass, or if it waits for a
+	// manual gate.
+	AutoPromote bool `json:"auto_promote"`
+}
+
+// defaultBlueGreenConfig is the package-level default used by DefaultBlueGreenConfig.
+// Tests may override this via SetDefaultBlueGreenConfigForTest.
+var defaultBlueGreenConfig = BlueGreenConfig{
+	WarmupDuration:    2 * time.Minute,
+	HealthThreshold:   0.95,
+	RollbackOnFailure: true,
+	AutoPromote:       true,
 }
 
 // DefaultBlueGreenConfig returns a sensible default configuration for
 // blue-green deployments.
 func DefaultBlueGreenConfig() BlueGreenConfig {
-	return BlueGreenConfig{
-		WarmupDuration:    2 * time.Minute,
-		HealthThreshold:   0.95,
-		RollbackOnFailure: true,
-	}
+	return defaultBlueGreenConfig
+}
+
+// SetDefaultBlueGreenConfigForTest overrides the default blue-green config.
+// This function is intended for test use only.
+func SetDefaultBlueGreenConfigForTest(config BlueGreenConfig) {
+	defaultBlueGreenConfig = config
 }
 
 // BlueGreenStrategy implements the DeployStrategy interface using a blue-green

@@ -56,6 +56,87 @@ The script will:
 - Write a `CLAUDE.md` with the register/dispatch pattern and flag management instructions
 - Print next steps
 
+### What gets added to CLAUDE.md
+
+The script writes a language-specific prompt that teaches LLMs how to use DeploySentry in your project. Here's what it looks like (Node.js example — other languages follow the same structure):
+
+```markdown
+## DeploySentry Feature Flags
+
+### Connection
+
+| Setting     | Value |
+|-------------|-------|
+| API Key     | `DS_API_KEY` env var |
+| Environment | production |
+| Project     | my-project |
+| Base URL    | https://dr-sentry.com |
+
+### Initialization
+
+  import { DeploySentryClient } from '@deploysentry/node';
+  const ds = new DeploySentryClient({
+    apiKey: process.env.DS_API_KEY!,
+    environment: 'production',
+    project: 'my-project',
+  });
+  await ds.initialize();
+
+### Register / Dispatch Pattern (REQUIRED)
+
+NEVER evaluate a flag as a plain boolean to branch between old and new code:
+
+  if (await ds.boolValue('my-flag', false, ctx)) { newFn(); } else { oldFn(); }
+
+ALWAYS use register + dispatch so the flag engine selects the right implementation:
+
+  ds.register('createCart', createCartWithMembership, 'membership-lookup');
+  ds.register('createCart', createCart); // default — always last
+
+  const result = ds.dispatch('createCart', { user_id: user.id })(cart, user);
+
+Register all variants at startup (one register call per implementation). The last
+register call with no flag key is the default fallback. Dispatch at each call site.
+
+### Flag Categories
+
+| Category   | Lifecycle            | Notes                                     |
+|------------|----------------------|-------------------------------------------|
+| release    | Temporary            | Remove after rollout is complete           |
+| feature    | Can be permanent     | Permanent if it controls a toggle-able UX  |
+| experiment | Temporary            | Remove after experiment concludes          |
+| ops        | Can be permanent     | Permanent for operational controls         |
+| permission | Typically permanent  | Gates access by role/plan/attribute        |
+
+### Creating Flags
+
+  # Permanent flag
+  deploysentry flags create --project my-project --key my-feature --category feature --is-permanent
+
+  # Temporary flag
+  deploysentry flags create --project my-project --key my-release --category release --expires-at 2026-12-31
+
+### Context Requirements
+
+Every dispatch call must supply context so targeting rules can be evaluated:
+- user_id — unique user identifier (required)
+- session_id — current session identifier (recommended)
+- Custom attributes — any key/value pairs used in targeting rules (e.g. plan, country)
+
+### Retiring a Flag (temporary flags only)
+
+Permanent flags (is_permanent = true) are never retired.
+
+For temporary flags, once the rollout or experiment is complete:
+1. Remove all register calls for the flag key
+2. Remove all dispatch call sites — replace with a direct call to the winning implementation
+3. Delete or archive the losing implementation
+4. Delete the flag via CLI
+5. Remove any targeting rules or segments associated with the flag
+```
+
+The snippets are tailored to your detected language — Go, Python, Java, Ruby, React, and Flutter each get idiomatic examples.
+
 ## Create your first flag
 
 From the project's Flags page, click **New Flag**. Pick a category (release, feature, experiment, ops, or permission) and define a key. Or use the CLI:

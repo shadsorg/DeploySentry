@@ -1945,7 +1945,18 @@ tbody tr:last-child td {
 .markdown-body pre {
   background: #0f1419; border: 1px solid #1f2937; border-radius: 8px;
   padding: 18px 20px; overflow-x: auto; margin: 0 0 20px 0;
+  position: relative;
 }
+.code-copy-btn {
+  position: absolute; top: 8px; right: 8px;
+  width: 28px; height: 28px; border-radius: 5px;
+  background: #1a1f2a; border: 1px solid #374151;
+  color: #9ca3af; font-size: 14px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.15s;
+}
+.markdown-body pre:hover .code-copy-btn { opacity: 1; }
+.code-copy-btn:hover { background: #2a3441; color: #e5e7eb; }
 .markdown-body pre code { background: none; padding: 0; font-size: 13px; line-height: 1.6; }
 .markdown-body table { width: 100%; border-collapse: collapse; margin: 0 0 20px 0; }
 .markdown-body th, .markdown-body td {

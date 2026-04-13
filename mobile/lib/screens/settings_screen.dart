@@ -22,7 +22,7 @@ class SettingsScreen extends StatelessWidget {
             subtitle: const Text('Manage your profile and preferences'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
-              // TODO: Navigate to profile
+              context.push('/profile');
             },
           ),
           ListTile(

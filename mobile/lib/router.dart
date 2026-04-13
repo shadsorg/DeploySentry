@@ -9,6 +9,7 @@ import 'screens/releases_screen.dart';
 import 'screens/analytics_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/profile_screen.dart';
 import 'widgets/app_shell.dart';
 
 final GoRouter appRouter = GoRouter(
@@ -69,6 +70,11 @@ final GoRouter appRouter = GoRouter(
           path: '/settings',
           name: 'settings',
           builder: (context, state) => const SettingsScreen(),
+        ),
+        GoRoute(
+          path: '/profile',
+          name: 'profile',
+          builder: (context, state) => const ProfileScreen(),
         ),
       ],
     ),

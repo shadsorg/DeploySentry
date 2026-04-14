@@ -44,6 +44,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			projects.GET("", h.listProjects)
 			projects.GET("/:projectSlug", h.getProject)
 			projects.PUT("/:projectSlug", auth.RequirePermission(h.rbac, auth.PermProjectManage), h.updateProject)
+			projects.DELETE("/:projectSlug", auth.RequirePermission(h.rbac, auth.PermProjectManage), h.softDeleteProject)
+			projects.DELETE("/:projectSlug/permanent", auth.RequirePermission(h.rbac, auth.PermOrgManage), h.hardDeleteProject)
+			projects.POST("/:projectSlug/restore", auth.RequirePermission(h.rbac, auth.PermProjectManage), h.restoreProject)
 
 			apps := projects.Group("/:projectSlug/apps")
 			{
@@ -184,7 +187,8 @@ func (h *Handler) listProjects(c *gin.Context) {
 		return
 	}
 
-	projects, err := h.service.ListProjectsByOrg(c.Request.Context(), org.ID)
+	includeDeleted := c.Query("include_deleted") == "true"
+	projects, err := h.service.ListProjectsByOrg(c.Request.Context(), org.ID, includeDeleted)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -244,6 +248,78 @@ func (h *Handler) updateProject(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
+	c.JSON(http.StatusOK, project)
+}
+
+func (h *Handler) softDeleteProject(c *gin.Context) {
+	org, err := h.service.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
+	if err != nil || org == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		return
+	}
+
+	activeFlags, err := h.service.SoftDeleteProject(c.Request.Context(), org.ID, c.Param("projectSlug"))
+	if err != nil {
+		if err.Error() == "project not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		if err.Error() == "project has flags with recent activity" {
+			c.JSON(http.StatusConflict, gin.H{
+				"error":        err.Error(),
+				"active_flags": activeFlags,
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func (h *Handler) hardDeleteProject(c *gin.Context) {
+	org, err := h.service.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
+	if err != nil || org == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		return
+	}
+
+	eligibleAt, err := h.service.HardDeleteProject(c.Request.Context(), org.ID, c.Param("projectSlug"))
+	if err != nil {
+		if err.Error() == "project not found" {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		if eligibleAt != nil {
+			c.JSON(http.StatusConflict, gin.H{
+				"error":       err.Error(),
+				"eligible_at": eligibleAt,
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func (h *Handler) restoreProject(c *gin.Context) {
+	org, err := h.service.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
+	if err != nil || org == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		return
+	}
+
+	if err := h.service.RestoreProject(c.Request.Context(), org.ID, c.Param("projectSlug")); err != nil {
+		if err.Error() == "project not found" || err.Error() == "project is not deleted" {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	project, _ := h.service.GetProjectBySlug(c.Request.Context(), org.ID, c.Param("projectSlug"))
 	c.JSON(http.StatusOK, project)
 }
 

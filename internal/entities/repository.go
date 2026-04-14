@@ -16,8 +16,11 @@ type EntityRepository interface {
 
 	CreateProject(ctx context.Context, project *models.Project) error
 	GetProjectBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error)
-	ListProjectsByOrg(ctx context.Context, orgID uuid.UUID) ([]*models.Project, error)
+	ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool) ([]*models.Project, error)
 	UpdateProject(ctx context.Context, project *models.Project) error
+	SoftDeleteProject(ctx context.Context, id uuid.UUID) error
+	HardDeleteProject(ctx context.Context, id uuid.UUID) error
+	RestoreProject(ctx context.Context, id uuid.UUID) error
 
 	CreateApp(ctx context.Context, app *models.Application) error
 	GetAppBySlug(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)

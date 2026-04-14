@@ -19,7 +19,7 @@ interface SettingsPageProps {
 function defaultTab(level: string, tab?: string): SettingsTab {
   const validTabs: Record<string, SettingsTab[]> = {
     org: ['environments', 'webhooks', 'notifications'],
-    project: ['general'],
+    project: ['general', 'danger'],
     app: ['general', 'danger'],
   };
   const levelTabs = validTabs[level] || [];
@@ -45,7 +45,10 @@ function getTabsForLevel(level: string): { key: SettingsTab; label: string }[] {
         { key: 'notifications', label: 'Notifications' },
       ];
     case 'project':
-      return [{ key: 'general', label: 'Project Settings' }];
+      return [
+        { key: 'general', label: 'Project Settings' },
+        { key: 'danger', label: 'Danger Zone' },
+      ];
     case 'app':
       return [
         { key: 'general', label: 'General' },
@@ -118,6 +121,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
   const [staleThreshold, setStaleThreshold] = useState('30d');
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
+  const [projectDescription, setProjectDescription] = useState('');
+  const [projectRepoUrl, setProjectRepoUrl] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [activeFlags, setActiveFlags] = useState<{ key: string; name: string; last_evaluated: string }[]>([]);
+  const [deletionBlocked, setDeletionBlocked] = useState(false);
 
   // ---------------------------------------------------------------------------
   // App form state — Task 10
@@ -272,13 +280,54 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
     if (!orgSlug || !projectSlug) return;
     setSettingsSaving(true);
     try {
-      await entitiesApi.updateProject(orgSlug, projectSlug, { name: projectName });
+      await entitiesApi.updateProject(orgSlug, projectSlug, {
+        name: projectName,
+        description: projectDescription,
+        repo_url: projectRepoUrl,
+      });
       setSettingsSuccess(true);
       setTimeout(() => setSettingsSuccess(false), 3000);
     } catch (err) {
       console.error('Failed to save project settings:', err);
     } finally {
       setSettingsSaving(false);
+    }
+  };
+
+  const handleSoftDeleteProject = async () => {
+    if (!orgSlug || !projectSlug) return;
+    if (!window.confirm('Are you sure you want to delete this project? It can be restored within 7 days.')) return;
+    setDeleteLoading(true);
+    try {
+      await entitiesApi.softDeleteProject(orgSlug, projectSlug);
+      window.location.href = `/orgs/${orgSlug}/projects`;
+    } catch (err: any) {
+      try {
+        const body = typeof err === 'object' && err.active_flags ? err : null;
+        if (body?.active_flags) {
+          setActiveFlags(body.active_flags);
+          setDeletionBlocked(true);
+        }
+      } catch {
+        // ignore parse errors
+      }
+      console.error('Failed to delete project:', err);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleHardDeleteProject = async () => {
+    if (!orgSlug || !projectSlug) return;
+    if (!window.confirm('This will PERMANENTLY delete the project and all associated data. This cannot be undone. Are you sure?')) return;
+    setDeleteLoading(true);
+    try {
+      await entitiesApi.hardDeleteProject(orgSlug, projectSlug);
+      window.location.href = `/orgs/${orgSlug}/projects`;
+    } catch (err) {
+      console.error('Failed to permanently delete project:', err);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -754,6 +803,27 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
           </div>
 
           <div className="form-group">
+            <label className="form-label">Description</label>
+            <textarea
+              className="form-input"
+              rows={3}
+              value={projectDescription}
+              onChange={(e) => setProjectDescription(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Repository URL</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="https://github.com/org/repo"
+              value={projectRepoUrl}
+              onChange={(e) => setProjectRepoUrl(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
             <label className="form-label">Default Environment</label>
             <select
               className="form-select"
@@ -786,7 +856,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
               onClick={handleSaveProjectSettings}
               disabled={settingsSaving}
             >
-              {settingsSaving ? 'Saving…' : 'Save'}
+              {settingsSaving ? 'Saving\u2026' : 'Save'}
             </button>
             {settingsSuccess && <span className="text-sm text-success">Settings saved.</span>}
           </div>
@@ -857,9 +927,58 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
       )}
 
       {/* ------------------------------------------------------------------ */}
+      {/* Danger Zone tab (project level) — Task 12                           */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Danger Zone — project level */}
+      {activeTab === 'danger' && level === 'project' && (
+        <div className="danger-zone">
+          <h3>Delete Project</h3>
+          {deletionBlocked && activeFlags.length > 0 && (
+            <div className="danger-zone-warning" style={{ marginBottom: 16 }}>
+              <p style={{ fontWeight: 500, marginBottom: 8 }}>
+                Cannot delete: the following flags have been evaluated in the last 14 days.
+              </p>
+              <ul style={{ margin: 0, paddingLeft: 20 }}>
+                {activeFlags.map((flag) => (
+                  <li key={flag.key}>
+                    <strong>{flag.name}</strong> ({flag.key}) &mdash; last evaluated{' '}
+                    {new Date(flag.last_evaluated).toLocaleDateString()}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <p>
+            Deleting this project will remove all its applications, flags, deployments, and releases.
+            The project can be restored within 7 days.
+          </p>
+          <button
+            className="btn btn-danger"
+            onClick={handleSoftDeleteProject}
+            disabled={deleteLoading || deletionBlocked}
+          >
+            {deleteLoading ? 'Deleting\u2026' : 'Delete Project'}
+          </button>
+          <hr style={{ margin: '16px 0', border: 'none', borderTop: '1px solid var(--color-border)' }} />
+          <h3>Permanent Deletion</h3>
+          <p>
+            Permanently delete this project and all associated data. This action cannot be undone.
+          </p>
+          <button
+            className="btn btn-danger"
+            onClick={handleHardDeleteProject}
+            disabled={deleteLoading}
+          >
+            {deleteLoading ? 'Deleting\u2026' : 'Permanently Delete'}
+          </button>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
       {/* Danger Zone tab (app level) — Task 10                               */}
       {/* ------------------------------------------------------------------ */}
-      {activeTab === 'danger' && (
+      {/* Danger Zone — app level */}
+      {activeTab === 'danger' && level === 'app' && (
         <div className="danger-zone">
           <h3>Delete Application</h3>
           <p>

@@ -3,10 +3,21 @@ package entities
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/deploysentry/deploysentry/internal/models"
 	"github.com/google/uuid"
+)
+
+// FlagActivityChecker checks for recent flag evaluation activity.
+type FlagActivityChecker interface {
+	HasRecentFlagActivity(ctx context.Context, projectID uuid.UUID, since time.Time) ([]models.FlagActivitySummary, error)
+}
+
+const (
+	recentActivityWindow    = 14 * 24 * time.Hour
+	hardDeleteEligibleAfter = 7 * 24 * time.Hour
 )
 
 // EntityService defines the interface for entity management.
@@ -18,8 +29,11 @@ type EntityService interface {
 
 	CreateProject(ctx context.Context, project *models.Project) error
 	GetProjectBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error)
-	ListProjectsByOrg(ctx context.Context, orgID uuid.UUID) ([]*models.Project, error)
+	ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool) ([]*models.Project, error)
 	UpdateProject(ctx context.Context, project *models.Project) error
+	SoftDeleteProject(ctx context.Context, orgID uuid.UUID, slug string) ([]models.FlagActivitySummary, error)
+	HardDeleteProject(ctx context.Context, orgID uuid.UUID, slug string) (*time.Time, error)
+	RestoreProject(ctx context.Context, orgID uuid.UUID, slug string) error
 
 	CreateApp(ctx context.Context, app *models.Application) error
 	GetAppBySlug(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
@@ -36,12 +50,13 @@ type EntityService interface {
 }
 
 type entityService struct {
-	repo    EntityRepository
-	envRepo *EnvironmentRepository
+	repo         EntityRepository
+	envRepo      *EnvironmentRepository
+	flagActivity FlagActivityChecker
 }
 
-func NewEntityService(repo EntityRepository, envRepo *EnvironmentRepository) EntityService {
-	return &entityService{repo: repo, envRepo: envRepo}
+func NewEntityService(repo EntityRepository, envRepo *EnvironmentRepository, flagActivity FlagActivityChecker) EntityService {
+	return &entityService{repo: repo, envRepo: envRepo, flagActivity: flagActivity}
 }
 
 func (s *entityService) CreateOrg(ctx context.Context, org *models.Organization, creatorID uuid.UUID) error {
@@ -93,13 +108,71 @@ func (s *entityService) GetProjectBySlug(ctx context.Context, orgID uuid.UUID, s
 	return s.repo.GetProjectBySlug(ctx, orgID, slug)
 }
 
-func (s *entityService) ListProjectsByOrg(ctx context.Context, orgID uuid.UUID) ([]*models.Project, error) {
-	return s.repo.ListProjectsByOrg(ctx, orgID)
+func (s *entityService) ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool) ([]*models.Project, error) {
+	return s.repo.ListProjectsByOrg(ctx, orgID, includeDeleted)
 }
 
 func (s *entityService) UpdateProject(ctx context.Context, project *models.Project) error {
 	project.UpdatedAt = time.Now().UTC()
 	return s.repo.UpdateProject(ctx, project)
+}
+
+func (s *entityService) SoftDeleteProject(ctx context.Context, orgID uuid.UUID, slug string) ([]models.FlagActivitySummary, error) {
+	project, err := s.repo.GetProjectBySlug(ctx, orgID, slug)
+	if err != nil {
+		return nil, err
+	}
+	if project == nil {
+		return nil, errors.New("project not found")
+	}
+	if project.DeletedAt != nil {
+		return nil, errors.New("project is already deleted")
+	}
+
+	since := time.Now().UTC().Add(-recentActivityWindow)
+	activeFlags, err := s.flagActivity.HasRecentFlagActivity(ctx, project.ID, since)
+	if err != nil {
+		return nil, fmt.Errorf("checking flag activity: %w", err)
+	}
+	if len(activeFlags) > 0 {
+		return activeFlags, errors.New("project has flags with recent activity")
+	}
+
+	return nil, s.repo.SoftDeleteProject(ctx, project.ID)
+}
+
+func (s *entityService) HardDeleteProject(ctx context.Context, orgID uuid.UUID, slug string) (*time.Time, error) {
+	project, err := s.repo.GetProjectBySlug(ctx, orgID, slug)
+	if err != nil {
+		return nil, err
+	}
+	if project == nil {
+		return nil, errors.New("project not found")
+	}
+	if project.DeletedAt == nil {
+		return nil, errors.New("project must be soft-deleted first")
+	}
+
+	eligibleAt := project.DeletedAt.Add(hardDeleteEligibleAfter)
+	if time.Now().UTC().Before(eligibleAt) {
+		return &eligibleAt, errors.New("project must be soft-deleted for at least 7 days")
+	}
+
+	return nil, s.repo.HardDeleteProject(ctx, project.ID)
+}
+
+func (s *entityService) RestoreProject(ctx context.Context, orgID uuid.UUID, slug string) error {
+	project, err := s.repo.GetProjectBySlug(ctx, orgID, slug)
+	if err != nil {
+		return err
+	}
+	if project == nil {
+		return errors.New("project not found")
+	}
+	if project.DeletedAt == nil {
+		return errors.New("project is not deleted")
+	}
+	return s.repo.RestoreProject(ctx, project.ID)
 }
 
 func (s *entityService) CreateApp(ctx context.Context, app *models.Application) error {

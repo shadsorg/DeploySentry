@@ -313,16 +313,29 @@ export const entitiesApi = {
     request<Organization>(`/orgs/${slug}`, { method: 'PUT', body: JSON.stringify(data) }),
 
   // Projects
-  listProjects: (orgSlug: string) => request<{ projects: Project[] }>(`/orgs/${orgSlug}/projects`),
+  listProjects: (orgSlug: string, includeDeleted = false) =>
+    request<{ projects: Project[] }>(
+      `/orgs/${orgSlug}/projects${includeDeleted ? '?include_deleted=true' : ''}`,
+    ),
   getProject: (orgSlug: string, projectSlug: string) =>
     request<Project>(`/orgs/${orgSlug}/projects/${projectSlug}`),
   createProject: (orgSlug: string, data: { name: string; slug: string }) =>
     request<Project>(`/orgs/${orgSlug}/projects`, { method: 'POST', body: JSON.stringify(data) }),
-  updateProject: (orgSlug: string, projectSlug: string, data: { name: string }) =>
+  updateProject: (
+    orgSlug: string,
+    projectSlug: string,
+    data: { name?: string; description?: string; repo_url?: string },
+  ) =>
     request<Project>(`/orgs/${orgSlug}/projects/${projectSlug}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+  softDeleteProject: (orgSlug: string, projectSlug: string) =>
+    request<void>(`/orgs/${orgSlug}/projects/${projectSlug}`, { method: 'DELETE' }),
+  hardDeleteProject: (orgSlug: string, projectSlug: string) =>
+    request<void>(`/orgs/${orgSlug}/projects/${projectSlug}/permanent`, { method: 'DELETE' }),
+  restoreProject: (orgSlug: string, projectSlug: string) =>
+    request<Project>(`/orgs/${orgSlug}/projects/${projectSlug}/restore`, { method: 'POST' }),
 
   // Apps
   listApps: (orgSlug: string, projectSlug: string) =>

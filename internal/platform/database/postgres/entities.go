@@ -134,14 +134,16 @@ func (r *EntityRepository) UpdateOrg(ctx context.Context, org *models.Organizati
 // CreateProject inserts a new project into the database.
 func (r *EntityRepository) CreateProject(ctx context.Context, project *models.Project) error {
 	const q = `
-		INSERT INTO projects (id, org_id, name, slug, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)`
+		INSERT INTO projects (id, org_id, name, slug, description, repo_url, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 
 	_, err := r.pool.Exec(ctx, q,
 		project.ID,
 		project.OrgID,
 		project.Name,
 		project.Slug,
+		project.Description,
+		project.RepoURL,
 		project.CreatedAt,
 		project.UpdatedAt,
 	)
@@ -158,7 +160,7 @@ func (r *EntityRepository) CreateProject(ctx context.Context, project *models.Pr
 // Returns nil, nil when no row is found.
 func (r *EntityRepository) GetProjectBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error) {
 	const q = `
-		SELECT id, org_id, name, slug, created_at, updated_at
+		SELECT id, org_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), created_at, updated_at, deleted_at
 		FROM projects WHERE org_id = $1 AND slug = $2`
 
 	var p models.Project
@@ -167,8 +169,11 @@ func (r *EntityRepository) GetProjectBySlug(ctx context.Context, orgID uuid.UUID
 		&p.OrgID,
 		&p.Name,
 		&p.Slug,
+		&p.Description,
+		&p.RepoURL,
 		&p.CreatedAt,
 		&p.UpdatedAt,
+		&p.DeletedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -180,10 +185,14 @@ func (r *EntityRepository) GetProjectBySlug(ctx context.Context, orgID uuid.UUID
 }
 
 // ListProjectsByOrg returns all projects for an organization, ordered by name.
-func (r *EntityRepository) ListProjectsByOrg(ctx context.Context, orgID uuid.UUID) ([]*models.Project, error) {
-	const q = `
-		SELECT id, org_id, name, slug, created_at, updated_at
-		FROM projects WHERE org_id = $1 ORDER BY name`
+// When includeDeleted is false, soft-deleted projects are excluded.
+func (r *EntityRepository) ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool) ([]*models.Project, error) {
+	q := `SELECT id, org_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), created_at, updated_at, deleted_at
+		FROM projects WHERE org_id = $1`
+	if !includeDeleted {
+		q += ` AND deleted_at IS NULL`
+	}
+	q += ` ORDER BY name`
 
 	rows, err := r.pool.Query(ctx, q, orgID)
 	if err != nil {
@@ -199,8 +208,11 @@ func (r *EntityRepository) ListProjectsByOrg(ctx context.Context, orgID uuid.UUI
 			&p.OrgID,
 			&p.Name,
 			&p.Slug,
+			&p.Description,
+			&p.RepoURL,
 			&p.CreatedAt,
 			&p.UpdatedAt,
+			&p.DeletedAt,
 		); err != nil {
 			return nil, fmt.Errorf("postgres.ListProjectsByOrg: %w", err)
 		}
@@ -212,13 +224,52 @@ func (r *EntityRepository) ListProjectsByOrg(ctx context.Context, orgID uuid.UUI
 	return result, nil
 }
 
-// UpdateProject updates the name and updated_at fields of a project.
+// UpdateProject updates the name, description, repo_url, and updated_at fields of a project.
 func (r *EntityRepository) UpdateProject(ctx context.Context, project *models.Project) error {
-	const q = `UPDATE projects SET name = $1, updated_at = $2 WHERE id = $3`
+	const q = `UPDATE projects SET name = $1, description = $2, repo_url = $3, updated_at = $4 WHERE id = $5 AND deleted_at IS NULL`
 
-	tag, err := r.pool.Exec(ctx, q, project.Name, project.UpdatedAt, project.ID)
+	tag, err := r.pool.Exec(ctx, q, project.Name, project.Description, project.RepoURL, project.UpdatedAt, project.ID)
 	if err != nil {
 		return fmt.Errorf("postgres.UpdateProject: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// SoftDeleteProject marks a project as deleted by setting deleted_at.
+func (r *EntityRepository) SoftDeleteProject(ctx context.Context, id uuid.UUID) error {
+	const q = `UPDATE projects SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL`
+	tag, err := r.pool.Exec(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("postgres.SoftDeleteProject: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// HardDeleteProject permanently removes a project that has been soft-deleted for at least 7 days.
+func (r *EntityRepository) HardDeleteProject(ctx context.Context, id uuid.UUID) error {
+	const q = `DELETE FROM projects WHERE id = $1 AND deleted_at <= now() - interval '7 days'`
+	tag, err := r.pool.Exec(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("postgres.HardDeleteProject: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// RestoreProject un-deletes a soft-deleted project by clearing deleted_at.
+func (r *EntityRepository) RestoreProject(ctx context.Context, id uuid.UUID) error {
+	const q = `UPDATE projects SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL`
+	tag, err := r.pool.Exec(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("postgres.RestoreProject: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return ErrNotFound

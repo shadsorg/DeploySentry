@@ -231,7 +231,7 @@ func run() error {
 	analyticsService := analytics.NewService(db.Pool, rdb.Client)
 	webhookService := webhooks.NewService(webhookRepo, nc, []byte(cfg.Security.EncryptionKey))
 	ratingService := ratings.NewRatingService(ratingRepo)
-	entityService := entities.NewEntityService(entityRepo, envRepo)
+	entityService := entities.NewEntityService(entityRepo, envRepo, flagRepo)
 	settingService := settings.NewSettingService(settingRepo)
 	memberService := members.NewService(memberRepo)
 

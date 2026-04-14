@@ -2019,3 +2019,40 @@ tbody tr:last-child td {
 .phase-details { font-size: 0.85rem; color: var(--color-text-muted); display: flex; gap: 1rem; }
 .phase-progress { height: 4px; background: var(--color-border); border-radius: 2px; margin-top: 0.5rem; }
 .phase-progress-fill { height: 100%; background: var(--color-primary); border-radius: 2px; transition: width 1s linear; }
+
+/* Project card — deleted state and header */
+.project-card--deleted {
+  opacity: 0.5;
+  pointer-events: auto;
+}
+
+.project-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.project-card-name-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.project-card-settings {
+  color: var(--color-text-muted);
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.project-card-settings:hover {
+  color: var(--color-text-primary);
+}
+
+.badge-danger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}

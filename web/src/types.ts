@@ -113,6 +113,15 @@ export interface Project {
   name: string;
   slug: string;
   org_id: string;
+  description?: string;
+  repo_url?: string;
+  deleted_at?: string;
+}
+
+export interface FlagActivitySummary {
+  key: string;
+  name: string;
+  last_evaluated: string;
 }
 
 export interface Environment {

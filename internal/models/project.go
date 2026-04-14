@@ -15,8 +15,9 @@ type Project struct {
 	Slug        string    `json:"slug" db:"slug"`
 	Description string    `json:"description,omitempty" db:"description"`
 	RepoURL     string    `json:"repo_url,omitempty" db:"repo_url"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	CreatedAt   time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at" db:"updated_at"`
+	DeletedAt   *time.Time `json:"deleted_at,omitempty" db:"deleted_at"`
 }
 
 // ProjectRole defines the roles a member can hold within a project.

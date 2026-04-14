@@ -876,6 +876,49 @@ func (r *FlagRepository) DeleteSegment(ctx context.Context, id uuid.UUID) error 
 	return nil
 }
 
+// ---------------------------------------------------------------------------
+// Flag activity queries
+// ---------------------------------------------------------------------------
+
+// FlagActivitySummary describes a flag with recent evaluation activity.
+type FlagActivitySummary struct {
+	Key           string    `json:"key"`
+	Name          string    `json:"name"`
+	LastEvaluated time.Time `json:"last_evaluated"`
+}
+
+// HasRecentFlagActivity returns flags in the given project that have evaluations after `since`.
+func (r *FlagRepository) HasRecentFlagActivity(ctx context.Context, projectID uuid.UUID, since time.Time) ([]FlagActivitySummary, error) {
+	const q = `
+		SELECT f.key, f.name, MAX(l.evaluated_at) AS last_evaluated
+		FROM feature_flags f
+		JOIN flag_evaluation_log l ON l.flag_id = f.id
+		WHERE f.project_id = $1
+		  AND f.archived_at IS NULL
+		  AND l.evaluated_at >= $2
+		GROUP BY f.key, f.name
+		ORDER BY last_evaluated DESC`
+
+	rows, err := r.pool.Query(ctx, q, projectID, since)
+	if err != nil {
+		return nil, fmt.Errorf("postgres.HasRecentFlagActivity: %w", err)
+	}
+	defer rows.Close()
+
+	var result []FlagActivitySummary
+	for rows.Next() {
+		var s FlagActivitySummary
+		if err := rows.Scan(&s.Key, &s.Name, &s.LastEvaluated); err != nil {
+			return nil, fmt.Errorf("postgres.HasRecentFlagActivity: %w", err)
+		}
+		result = append(result, s)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("postgres.HasRecentFlagActivity: %w", err)
+	}
+	return result, nil
+}
+
 // isUniqueViolation returns true when err is a PostgreSQL unique-constraint
 // violation (SQLSTATE 23505).
 func isUniqueViolation(err error) bool {

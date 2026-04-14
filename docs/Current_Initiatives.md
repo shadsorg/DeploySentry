@@ -8,6 +8,7 @@
 |---|---|---|---|
 | Canary Rollout E2E | Implementation | On `feature/canary-rollout-e2e` branch (PR #36) | All 3 specs implemented (canary E2E, reliability hardening, all-strategies + live polling). Pending merge. |
 | E2E SDK Flag Delivery | Implementation | [Plan](./superpowers/plans/2026-04-12-e2e-sdk-flag-delivery.md) / [Spec](./superpowers/specs/2026-04-12-e2e-sdk-flag-delivery-design.md) | 5 tests passing (Node-only); React probe deferred pending sdk/react ESM fix; fault injection + required-gate pending |
+| Project Edit & Delete | Design | [Spec](./superpowers/specs/2026-04-13-project-edit-delete-design.md) | Edit fix + soft/hard delete with activity guard; API + web UI |
 
 ## Archived
 

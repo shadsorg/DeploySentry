@@ -53,12 +53,11 @@ export default function FlagListPage() {
 
   // Performance Optimization: Memoize the filtered flags so we don't run expensive
   // string ops (.toLowerCase().includes()) on every render, especially when the search
-  // input updates or other unrelated state changes. Also hoist search.toLowerCase()
-  // outside the filter loop to avoid O(N) penalty.
+  // input updates or other unrelated state changes.
   const filtered = useMemo(() => {
-    const q = search?.toLowerCase() ?? '';
     return flags.filter((flag) => {
-      if (q) {
+      if (search) {
+        const q = search.toLowerCase();
         if (!flag.name.toLowerCase().includes(q) && !flag.key.toLowerCase().includes(q)) {
           return false;
         }

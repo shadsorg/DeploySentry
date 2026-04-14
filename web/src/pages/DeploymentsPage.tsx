@@ -117,13 +117,9 @@ const DeploymentsPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [orgSlug, projectSlug, appSlug]);
 
-  // Performance Optimization: Memoize the filtered deployments so we don't run expensive
-  // string ops (.toLowerCase().includes()) on every render. Also hoist search.toLowerCase()
-  // outside the filter loop to avoid O(N) penalty.
   const filtered = useMemo(() => {
-    const q = search?.toLowerCase() ?? '';
     return deployments.filter((d) => {
-      if (q && !d.version.toLowerCase().includes(q)) {
+      if (search && !d.version.toLowerCase().includes(search.toLowerCase())) {
         return false;
       }
       if (strategyFilter !== 'all' && d.strategy !== strategyFilter) {

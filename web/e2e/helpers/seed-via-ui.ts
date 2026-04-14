@@ -1,4 +1,4 @@
-import { type Page, type APIRequestContext } from '@playwright/test';
+// import { type Page, type APIRequestContext } from '@playwright/test';
 import { createHmac, randomUUID } from 'crypto';
 
 /**
@@ -63,8 +63,8 @@ interface AuthResponse {
  *   interactions (e.g. first-login consent flows). It's currently unused.
  */
 export async function seedOrgProjectAppViaUI(
-  _page: Page,
-  _apiRequest: APIRequestContext,
+  // _page: Page,
+  // _apiRequest: APIRequestContext,
 ): Promise<SeededContext> {
   const apiUrl = process.env.DS_E2E_API_URL ?? 'http://localhost:18080';
   const apiBase = `${apiUrl}/api/v1`;

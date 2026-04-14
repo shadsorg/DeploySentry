@@ -259,7 +259,7 @@ export class DeploySentryClient {
 
   dispatch<T extends (...args: any[]) => any>(
     operation: string,
-    context?: EvaluationContext,
+    _context?: EvaluationContext,
   ): T {
     const list = this.registry.get(operation);
     if (!list || list.length === 0) {

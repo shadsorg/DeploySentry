@@ -77,6 +77,7 @@ type APIKeyInfo struct {
 	ApplicationID *uuid.UUID `json:"application_id,omitempty"`
 	EnvironmentID *uuid.UUID `json:"environment_id,omitempty"`
 	Scopes        []string   `json:"scopes"`
+	AllowedCIDRs  []string   `json:"allowed_cidrs,omitempty"`
 }
 
 // AuthMiddleware provides Gin middleware for authenticating requests via
@@ -84,14 +85,16 @@ type APIKeyInfo struct {
 type AuthMiddleware struct {
 	jwtSecret    []byte
 	keyValidator APIKeyValidator
+	sessionMgr   *SessionManager
 }
 
-// NewAuthMiddleware creates a new AuthMiddleware with the given JWT secret
-// and optional API key validator.
-func NewAuthMiddleware(jwtSecret string, keyValidator APIKeyValidator) *AuthMiddleware {
+// NewAuthMiddleware creates a new AuthMiddleware with the given JWT secret,
+// optional API key validator, and optional session manager for token blacklist checks.
+func NewAuthMiddleware(jwtSecret string, keyValidator APIKeyValidator, sessionMgr *SessionManager) *AuthMiddleware {
 	return &AuthMiddleware{
 		jwtSecret:    []byte(jwtSecret),
 		keyValidator: keyValidator,
+		sessionMgr:   sessionMgr,
 	}
 }
 
@@ -186,6 +189,15 @@ func (m *AuthMiddleware) authenticateJWT(c *gin.Context, tokenStr string) bool {
 		return false
 	}
 
+	// Check token blacklist for immediate revocation
+	if claims.ID != "" && m.sessionMgr != nil {
+		blacklisted, err := m.sessionMgr.IsTokenBlacklisted(c.Request.Context(), claims.ID)
+		if err == nil && blacklisted {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token has been revoked"})
+			return false
+		}
+	}
+
 	c.Set(ContextKeyUserID, claims.UserID)
 	c.Set("email", claims.Email)
 	c.Set("auth_method", "jwt")
@@ -207,6 +219,14 @@ func (m *AuthMiddleware) authenticateAPIKey(c *gin.Context, key string) bool {
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid API key"})
 		return false
+	}
+
+	if len(info.AllowedCIDRs) > 0 {
+		clientIP := c.ClientIP()
+		if !CheckIPAllowed(clientIP, info.AllowedCIDRs) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "request IP not in API key allowlist"})
+			return false
+		}
 	}
 
 	if info.OrgID != nil {

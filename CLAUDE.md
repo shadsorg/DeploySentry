@@ -21,6 +21,14 @@ make run-web       # Start React dashboard on :3000
 make test          # Run all Go tests
 ```
 
+## Production Security
+
+### NATS
+- NATS must be firewalled to internal services only — not exposed to the internet
+- Enable authentication: set `DS_NATS_USER` and `DS_NATS_PASSWORD` for NATS connection credentials
+- Enable TLS: set `DS_NATS_TLS_CERT` and `DS_NATS_TLS_KEY` for encrypted connections
+- The phase engine validates deployment IDs from NATS messages against the database before processing
+
 ## Project Structure
 
 - `cmd/api/` — API server entrypoint

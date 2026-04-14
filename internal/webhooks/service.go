@@ -18,14 +18,16 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/deploysentry/deploysentry/internal/platform/crypto"
 	"github.com/deploysentry/deploysentry/internal/platform/messaging"
 )
 
 // Service provides webhook management and delivery functionality.
 type Service struct {
-	repo      Repository
-	publisher messaging.Publisher
-	client    *http.Client
+	repo          Repository
+	publisher     messaging.Publisher
+	client        *http.Client
+	encryptionKey []byte
 }
 
 // Repository defines the interface for webhook data access.
@@ -46,10 +48,11 @@ type Repository interface {
 }
 
 // NewService creates a new webhook service.
-func NewService(repo Repository, publisher messaging.Publisher) *Service {
+func NewService(repo Repository, publisher messaging.Publisher, encryptionKey []byte) *Service {
 	return &Service{
-		repo:      repo,
-		publisher: publisher,
+		repo:          repo,
+		publisher:     publisher,
+		encryptionKey: encryptionKey,
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -62,6 +65,17 @@ func (s *Service) CreateWebhook(ctx context.Context, orgID uuid.UUID, req models
 	secret, err := s.generateSecret()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate webhook secret: %w", err)
+	}
+
+	// Encrypt the secret if an encryption key is configured.
+	encrypted := false
+	if len(s.encryptionKey) == 32 {
+		encryptedBytes, err := crypto.Encrypt([]byte(secret), s.encryptionKey)
+		if err != nil {
+			return nil, fmt.Errorf("encrypting webhook secret: %w", err)
+		}
+		secret = hex.EncodeToString(encryptedBytes)
+		encrypted = true
 	}
 
 	// Set default values
@@ -82,6 +96,7 @@ func (s *Service) CreateWebhook(ctx context.Context, orgID uuid.UUID, req models
 		Name:           req.Name,
 		URL:            req.URL,
 		Secret:         secret,
+		Encrypted:      encrypted,
 		Events:         req.Events,
 		IsActive:       true,
 		RetryAttempts:  retryAttempts,
@@ -301,9 +316,21 @@ func (s *Service) deliverWebhook(ctx context.Context, webhook *models.Webhook, d
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
+	// Decrypt the secret if it was stored encrypted.
+	secret := webhook.Secret
+	if webhook.Encrypted && len(s.encryptionKey) == 32 {
+		raw, err := hex.DecodeString(secret)
+		if err == nil {
+			decrypted, err := crypto.Decrypt(raw, s.encryptionKey)
+			if err == nil {
+				secret = string(decrypted)
+			}
+		}
+	}
+
 	// Set headers
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-	signature := s.generateSignature(webhook.Secret, timestamp, payloadBytes)
+	signature := s.generateSignature(secret, timestamp, payloadBytes)
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "DeploySentry-Webhooks/1.0")

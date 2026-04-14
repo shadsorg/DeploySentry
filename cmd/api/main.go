@@ -229,7 +229,7 @@ func run() error {
 	apiKeyService := auth.NewAPIKeyService(apiKeyRepo)
 	rbacChecker := auth.NewRBACChecker()
 	analyticsService := analytics.NewService(db.Pool, rdb.Client)
-	webhookService := webhooks.NewService(webhookRepo, nc)
+	webhookService := webhooks.NewService(webhookRepo, nc, []byte(cfg.Security.EncryptionKey))
 	ratingService := ratings.NewRatingService(ratingRepo)
 	entityService := entities.NewEntityService(entityRepo, envRepo)
 	settingService := settings.NewSettingService(settingRepo)
@@ -311,7 +311,8 @@ func run() error {
 	}
 	rateLimiter := middleware.NewRateLimiter(rdb.Client, rateLimitConfig)
 	apiKeyValidator := &apiKeyValidatorAdapter{service: apiKeyService}
-	authMiddleware := auth.NewAuthMiddleware(cfg.Auth.JWTSecret, apiKeyValidator)
+	sessionMgr := auth.NewSessionManager(rdb, cfg.Auth.SessionTTL)
+	authMiddleware := auth.NewAuthMiddleware(cfg.Auth.JWTSecret, apiKeyValidator, sessionMgr)
 
 	// -------------------------------------------------------------------------
 	// Routes
@@ -532,5 +533,6 @@ func (a *apiKeyValidatorAdapter) ValidateAPIKey(ctx context.Context, key string)
 		ApplicationID: apiKey.ApplicationID,
 		EnvironmentID: apiKey.EnvironmentID,
 		Scopes:        scopes,
+		AllowedCIDRs:  apiKey.AllowedCIDRs,
 	}, nil
 }

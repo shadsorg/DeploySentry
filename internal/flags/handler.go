@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/deploysentry/deploysentry/internal/analytics"
@@ -16,6 +17,11 @@ import (
 	"github.com/deploysentry/deploysentry/internal/webhooks"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+)
+
+var (
+	sseConnections sync.Map  // map[uuid.UUID]*int32
+	sseMaxPerOrg   int32     = 50
 )
 
 // FlagRatingSvc is the subset of ratings.RatingService needed by the flags handler.
@@ -941,6 +947,23 @@ func (h *Handler) streamFlags(c *gin.Context) {
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")
 	c.Header("X-Accel-Buffering", "no")
+
+	// Enforce per-org SSE connection limit to prevent resource exhaustion.
+	if orgIDVal, exists := c.Get(auth.ContextKeyOrgID); exists {
+		if orgIDStr, ok := orgIDVal.(string); ok {
+			if orgID, err := uuid.Parse(orgIDStr); err == nil {
+				counterPtr, _ := sseConnections.LoadOrStore(orgID, new(int32))
+				counter := counterPtr.(*int32)
+				current := atomic.AddInt32(counter, 1)
+				if current > sseMaxPerOrg {
+					atomic.AddInt32(counter, -1)
+					c.JSON(http.StatusTooManyRequests, gin.H{"error": "too many SSE connections for this organization"})
+					return
+				}
+				defer atomic.AddInt32(counter, -1)
+			}
+		}
+	}
 
 	clientCh := h.sse.Subscribe()
 	defer h.sse.Unsubscribe(clientCh)

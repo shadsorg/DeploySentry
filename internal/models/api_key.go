@@ -39,6 +39,7 @@ type APIKey struct {
 	KeyPrefix     string        `json:"key_prefix" db:"key_prefix"`
 	KeyHash       string        `json:"-" db:"key_hash"`
 	Scopes        []APIKeyScope `json:"scopes" db:"-"`
+	AllowedCIDRs  []string      `json:"allowed_cidrs,omitempty" db:"allowed_cidrs"`
 	ExpiresAt     *time.Time    `json:"expires_at,omitempty" db:"expires_at"`
 	LastUsedAt    *time.Time    `json:"last_used_at,omitempty" db:"last_used_at"`
 	CreatedBy     uuid.UUID     `json:"created_by" db:"created_by"`

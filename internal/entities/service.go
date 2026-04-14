@@ -18,7 +18,7 @@ type EntityService interface {
 
 	CreateProject(ctx context.Context, project *models.Project) error
 	GetProjectBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error)
-	ListProjectsByOrg(ctx context.Context, orgID uuid.UUID) ([]*models.Project, error)
+	ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool) ([]*models.Project, error)
 	UpdateProject(ctx context.Context, project *models.Project) error
 
 	CreateApp(ctx context.Context, app *models.Application) error
@@ -93,8 +93,8 @@ func (s *entityService) GetProjectBySlug(ctx context.Context, orgID uuid.UUID, s
 	return s.repo.GetProjectBySlug(ctx, orgID, slug)
 }
 
-func (s *entityService) ListProjectsByOrg(ctx context.Context, orgID uuid.UUID) ([]*models.Project, error) {
-	return s.repo.ListProjectsByOrg(ctx, orgID)
+func (s *entityService) ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool) ([]*models.Project, error) {
+	return s.repo.ListProjectsByOrg(ctx, orgID, includeDeleted)
 }
 
 func (s *entityService) UpdateProject(ctx context.Context, project *models.Project) error {

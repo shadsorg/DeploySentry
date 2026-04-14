@@ -184,7 +184,7 @@ func (h *Handler) listProjects(c *gin.Context) {
 		return
 	}
 
-	projects, err := h.service.ListProjectsByOrg(c.Request.Context(), org.ID)
+	projects, err := h.service.ListProjectsByOrg(c.Request.Context(), org.ID, false)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

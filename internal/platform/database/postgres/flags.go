@@ -880,15 +880,8 @@ func (r *FlagRepository) DeleteSegment(ctx context.Context, id uuid.UUID) error 
 // Flag activity queries
 // ---------------------------------------------------------------------------
 
-// FlagActivitySummary describes a flag with recent evaluation activity.
-type FlagActivitySummary struct {
-	Key           string    `json:"key"`
-	Name          string    `json:"name"`
-	LastEvaluated time.Time `json:"last_evaluated"`
-}
-
 // HasRecentFlagActivity returns flags in the given project that have evaluations after `since`.
-func (r *FlagRepository) HasRecentFlagActivity(ctx context.Context, projectID uuid.UUID, since time.Time) ([]FlagActivitySummary, error) {
+func (r *FlagRepository) HasRecentFlagActivity(ctx context.Context, projectID uuid.UUID, since time.Time) ([]models.FlagActivitySummary, error) {
 	const q = `
 		SELECT f.key, f.name, MAX(l.evaluated_at) AS last_evaluated
 		FROM feature_flags f
@@ -905,9 +898,9 @@ func (r *FlagRepository) HasRecentFlagActivity(ctx context.Context, projectID uu
 	}
 	defer rows.Close()
 
-	var result []FlagActivitySummary
+	var result []models.FlagActivitySummary
 	for rows.Next() {
-		var s FlagActivitySummary
+		var s models.FlagActivitySummary
 		if err := rows.Scan(&s.Key, &s.Name, &s.LastEvaluated); err != nil {
 			return nil, fmt.Errorf("postgres.HasRecentFlagActivity: %w", err)
 		}

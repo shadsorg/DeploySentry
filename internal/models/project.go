@@ -54,6 +54,13 @@ type Environment struct {
 	CreatedAt     time.Time `json:"created_at" db:"created_at"`
 }
 
+// FlagActivitySummary describes a flag with recent evaluation activity.
+type FlagActivitySummary struct {
+	Key           string    `json:"key"`
+	Name          string    `json:"name"`
+	LastEvaluated time.Time `json:"last_evaluated"`
+}
+
 // Validate checks that the Project has all required fields populated.
 func (p *Project) Validate() error {
 	if p.OrgID == uuid.Nil {

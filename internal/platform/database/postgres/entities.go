@@ -134,14 +134,16 @@ func (r *EntityRepository) UpdateOrg(ctx context.Context, org *models.Organizati
 // CreateProject inserts a new project into the database.
 func (r *EntityRepository) CreateProject(ctx context.Context, project *models.Project) error {
 	const q = `
-		INSERT INTO projects (id, org_id, name, slug, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)`
+		INSERT INTO projects (id, org_id, name, slug, description, repo_url, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 
 	_, err := r.pool.Exec(ctx, q,
 		project.ID,
 		project.OrgID,
 		project.Name,
 		project.Slug,
+		project.Description,
+		project.RepoURL,
 		project.CreatedAt,
 		project.UpdatedAt,
 	)
@@ -158,7 +160,7 @@ func (r *EntityRepository) CreateProject(ctx context.Context, project *models.Pr
 // Returns nil, nil when no row is found.
 func (r *EntityRepository) GetProjectBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error) {
 	const q = `
-		SELECT id, org_id, name, slug, created_at, updated_at
+		SELECT id, org_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), created_at, updated_at, deleted_at
 		FROM projects WHERE org_id = $1 AND slug = $2`
 
 	var p models.Project
@@ -167,8 +169,11 @@ func (r *EntityRepository) GetProjectBySlug(ctx context.Context, orgID uuid.UUID
 		&p.OrgID,
 		&p.Name,
 		&p.Slug,
+		&p.Description,
+		&p.RepoURL,
 		&p.CreatedAt,
 		&p.UpdatedAt,
+		&p.DeletedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -180,10 +185,13 @@ func (r *EntityRepository) GetProjectBySlug(ctx context.Context, orgID uuid.UUID
 }
 
 // ListProjectsByOrg returns all projects for an organization, ordered by name.
-func (r *EntityRepository) ListProjectsByOrg(ctx context.Context, orgID uuid.UUID) ([]*models.Project, error) {
-	const q = `
-		SELECT id, org_id, name, slug, created_at, updated_at
-		FROM projects WHERE org_id = $1 ORDER BY name`
+func (r *EntityRepository) ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool) ([]*models.Project, error) {
+	deletedFilter := " AND deleted_at IS NULL"
+	if includeDeleted {
+		deletedFilter = ""
+	}
+	q := `SELECT id, org_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), created_at, updated_at, deleted_at
+		FROM projects WHERE org_id = $1` + deletedFilter + ` ORDER BY name`
 
 	rows, err := r.pool.Query(ctx, q, orgID)
 	if err != nil {
@@ -199,8 +207,11 @@ func (r *EntityRepository) ListProjectsByOrg(ctx context.Context, orgID uuid.UUI
 			&p.OrgID,
 			&p.Name,
 			&p.Slug,
+			&p.Description,
+			&p.RepoURL,
 			&p.CreatedAt,
 			&p.UpdatedAt,
+			&p.DeletedAt,
 		); err != nil {
 			return nil, fmt.Errorf("postgres.ListProjectsByOrg: %w", err)
 		}
@@ -214,9 +225,12 @@ func (r *EntityRepository) ListProjectsByOrg(ctx context.Context, orgID uuid.UUI
 
 // UpdateProject updates the name and updated_at fields of a project.
 func (r *EntityRepository) UpdateProject(ctx context.Context, project *models.Project) error {
-	const q = `UPDATE projects SET name = $1, updated_at = $2 WHERE id = $3`
+	const q = `
+		UPDATE projects
+		SET name = $1, description = $2, repo_url = $3, updated_at = $4
+		WHERE id = $5 AND deleted_at IS NULL`
 
-	tag, err := r.pool.Exec(ctx, q, project.Name, project.UpdatedAt, project.ID)
+	tag, err := r.pool.Exec(ctx, q, project.Name, project.Description, project.RepoURL, project.UpdatedAt, project.ID)
 	if err != nil {
 		return fmt.Errorf("postgres.UpdateProject: %w", err)
 	}
@@ -260,7 +274,7 @@ func (r *EntityRepository) CreateApp(ctx context.Context, app *models.Applicatio
 // Returns nil, nil when no row is found.
 func (r *EntityRepository) GetAppBySlug(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error) {
 	const q = `
-		SELECT id, project_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), created_by, created_at, updated_at
+		SELECT id, project_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), created_by, created_at, updated_at, deleted_at
 		FROM applications WHERE project_id = $1 AND slug = $2`
 
 	var a models.Application
@@ -274,6 +288,7 @@ func (r *EntityRepository) GetAppBySlug(ctx context.Context, projectID uuid.UUID
 		&a.CreatedBy,
 		&a.CreatedAt,
 		&a.UpdatedAt,
+		&a.DeletedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -285,10 +300,13 @@ func (r *EntityRepository) GetAppBySlug(ctx context.Context, projectID uuid.UUID
 }
 
 // ListAppsByProject returns all applications for a project, ordered by name.
-func (r *EntityRepository) ListAppsByProject(ctx context.Context, projectID uuid.UUID) ([]*models.Application, error) {
-	const q = `
-		SELECT id, project_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), created_by, created_at, updated_at
-		FROM applications WHERE project_id = $1 ORDER BY name`
+func (r *EntityRepository) ListAppsByProject(ctx context.Context, projectID uuid.UUID, includeDeleted bool) ([]*models.Application, error) {
+	deletedFilter := " AND deleted_at IS NULL"
+	if includeDeleted {
+		deletedFilter = ""
+	}
+	q := `SELECT id, project_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), created_by, created_at, updated_at, deleted_at
+		FROM applications WHERE project_id = $1` + deletedFilter + ` ORDER BY name`
 
 	rows, err := r.pool.Query(ctx, q, projectID)
 	if err != nil {
@@ -309,6 +327,7 @@ func (r *EntityRepository) ListAppsByProject(ctx context.Context, projectID uuid
 			&a.CreatedBy,
 			&a.CreatedAt,
 			&a.UpdatedAt,
+			&a.DeletedAt,
 		); err != nil {
 			return nil, fmt.Errorf("postgres.ListAppsByProject: %w", err)
 		}
@@ -401,4 +420,146 @@ func (r *EntityRepository) AddOrgMember(ctx context.Context, orgID, userID uuid.
 		return fmt.Errorf("postgres.AddOrgMember: %w", err)
 	}
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Project delete / restore methods
+// ---------------------------------------------------------------------------
+
+// CountFlagsByProject returns the number of feature flags belonging to a project.
+func (r *EntityRepository) CountFlagsByProject(ctx context.Context, projectID uuid.UUID) (int, error) {
+	const q = `SELECT COUNT(*) FROM feature_flags WHERE project_id = $1`
+	var count int
+	err := r.pool.QueryRow(ctx, q, projectID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("postgres.CountFlagsByProject: %w", err)
+	}
+	return count, nil
+}
+
+// SoftDeleteProject marks a project as deleted without removing it.
+func (r *EntityRepository) SoftDeleteProject(ctx context.Context, id uuid.UUID) error {
+	const q = `UPDATE projects SET deleted_at = now(), updated_at = now() WHERE id = $1 AND deleted_at IS NULL`
+	tag, err := r.pool.Exec(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("postgres.SoftDeleteProject: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// HardDeleteProject permanently removes a project from the database.
+func (r *EntityRepository) HardDeleteProject(ctx context.Context, id uuid.UUID) error {
+	const q = `DELETE FROM projects WHERE id = $1`
+	tag, err := r.pool.Exec(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("postgres.HardDeleteProject: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// RestoreProject clears deleted_at on a soft-deleted project.
+func (r *EntityRepository) RestoreProject(ctx context.Context, id uuid.UUID) error {
+	const q = `UPDATE projects SET deleted_at = NULL, updated_at = now() WHERE id = $1 AND deleted_at IS NOT NULL`
+	tag, err := r.pool.Exec(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("postgres.RestoreProject: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Application delete / restore methods
+// ---------------------------------------------------------------------------
+
+// CountFlagsByApp returns the number of feature flags belonging to an application.
+func (r *EntityRepository) CountFlagsByApp(ctx context.Context, applicationID uuid.UUID) (int, error) {
+	const q = `SELECT COUNT(*) FROM feature_flags WHERE application_id = $1`
+	var count int
+	err := r.pool.QueryRow(ctx, q, applicationID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("postgres.CountFlagsByApp: %w", err)
+	}
+	return count, nil
+}
+
+// SoftDeleteApp marks an application as deleted without removing it.
+func (r *EntityRepository) SoftDeleteApp(ctx context.Context, id uuid.UUID) error {
+	const q = `UPDATE applications SET deleted_at = now(), updated_at = now() WHERE id = $1 AND deleted_at IS NULL`
+	tag, err := r.pool.Exec(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("postgres.SoftDeleteApp: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// HardDeleteApp permanently removes an application from the database.
+func (r *EntityRepository) HardDeleteApp(ctx context.Context, id uuid.UUID) error {
+	const q = `DELETE FROM applications WHERE id = $1`
+	tag, err := r.pool.Exec(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("postgres.HardDeleteApp: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// RestoreApp clears deleted_at on a soft-deleted application.
+func (r *EntityRepository) RestoreApp(ctx context.Context, id uuid.UUID) error {
+	const q = `UPDATE applications SET deleted_at = NULL, updated_at = now() WHERE id = $1 AND deleted_at IS NOT NULL`
+	tag, err := r.pool.Exec(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("postgres.RestoreApp: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Flag activity query
+// ---------------------------------------------------------------------------
+
+// HasRecentFlagActivity returns flags with evaluation activity since the given time.
+func (r *EntityRepository) HasRecentFlagActivity(ctx context.Context, projectID uuid.UUID, applicationID *uuid.UUID, since time.Time) ([]models.FlagActivitySummary, error) {
+	appFilter := ""
+	args := []interface{}{projectID, since}
+	if applicationID != nil {
+		appFilter = " AND f.application_id = $3"
+		args = append(args, *applicationID)
+	}
+	q := `SELECT f.key, f.name, MAX(l.evaluated_at) as last_evaluated
+		FROM feature_flags f
+		JOIN flag_evaluation_log l ON f.id = l.flag_id
+		WHERE f.project_id = $1 AND l.evaluated_at >= $2` + appFilter + `
+		GROUP BY f.key, f.name
+		ORDER BY last_evaluated DESC`
+	rows, err := r.pool.Query(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("postgres.HasRecentFlagActivity: %w", err)
+	}
+	defer rows.Close()
+	var result []models.FlagActivitySummary
+	for rows.Next() {
+		var s models.FlagActivitySummary
+		if err := rows.Scan(&s.Key, &s.Name, &s.LastEvaluated); err != nil {
+			return nil, fmt.Errorf("postgres.HasRecentFlagActivity: %w", err)
+		}
+		result = append(result, s)
+	}
+	return result, rows.Err()
 }

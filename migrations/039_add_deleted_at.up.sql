@@ -1,0 +1,2 @@
+ALTER TABLE projects ADD COLUMN deleted_at TIMESTAMPTZ;
+ALTER TABLE applications ADD COLUMN deleted_at TIMESTAMPTZ;

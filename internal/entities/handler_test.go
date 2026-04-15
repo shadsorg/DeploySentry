@@ -27,11 +27,11 @@ type mockEntityService struct {
 	updateOrgFn         func(ctx context.Context, org *models.Organization) error
 	createProjectFn     func(ctx context.Context, project *models.Project) error
 	getProjectBySlugFn  func(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error)
-	listProjectsByOrgFn func(ctx context.Context, orgID uuid.UUID) ([]*models.Project, error)
+	listProjectsByOrgFn func(ctx context.Context, orgID uuid.UUID, includeDeleted bool) ([]*models.Project, error)
 	updateProjectFn     func(ctx context.Context, project *models.Project) error
 	createAppFn         func(ctx context.Context, app *models.Application) error
 	getAppBySlugFn      func(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
-	listAppsByProjectFn func(ctx context.Context, projectID uuid.UUID) ([]*models.Application, error)
+	listAppsByProjectFn func(ctx context.Context, projectID uuid.UUID, includeDeleted bool) ([]*models.Application, error)
 	updateAppFn         func(ctx context.Context, app *models.Application) error
 	listEnvironmentsByAppFn func(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error)
 
@@ -79,9 +79,9 @@ func (m *mockEntityService) GetProjectBySlug(ctx context.Context, orgID uuid.UUI
 	return &models.Project{ID: uuid.New(), OrgID: orgID, Name: "Test Project", Slug: slug}, nil
 }
 
-func (m *mockEntityService) ListProjectsByOrg(ctx context.Context, orgID uuid.UUID) ([]*models.Project, error) {
+func (m *mockEntityService) ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool) ([]*models.Project, error) {
 	if m.listProjectsByOrgFn != nil {
-		return m.listProjectsByOrgFn(ctx, orgID)
+		return m.listProjectsByOrgFn(ctx, orgID, includeDeleted)
 	}
 	return []*models.Project{}, nil
 }
@@ -107,9 +107,9 @@ func (m *mockEntityService) GetAppBySlug(ctx context.Context, projectID uuid.UUI
 	return &models.Application{ID: uuid.New(), ProjectID: projectID, Name: "Test App", Slug: slug}, nil
 }
 
-func (m *mockEntityService) ListAppsByProject(ctx context.Context, projectID uuid.UUID) ([]*models.Application, error) {
+func (m *mockEntityService) ListAppsByProject(ctx context.Context, projectID uuid.UUID, includeDeleted bool) ([]*models.Application, error) {
 	if m.listAppsByProjectFn != nil {
-		return m.listAppsByProjectFn(ctx, projectID)
+		return m.listAppsByProjectFn(ctx, projectID, includeDeleted)
 	}
 	return []*models.Application{}, nil
 }
@@ -145,6 +145,30 @@ func (m *mockEntityService) DeleteEnvironment(ctx context.Context, id uuid.UUID)
 }
 
 func (m *mockEntityService) ListEnvironments(ctx context.Context, orgID uuid.UUID) ([]OrgEnvironment, error) {
+	return nil, nil
+}
+
+func (m *mockEntityService) DeleteProject(ctx context.Context, orgID uuid.UUID, slug string) (*models.DeleteResult, error) {
+	return nil, nil
+}
+
+func (m *mockEntityService) HardDeleteProject(ctx context.Context, orgID uuid.UUID, slug string) error {
+	return nil
+}
+
+func (m *mockEntityService) RestoreProject(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error) {
+	return nil, nil
+}
+
+func (m *mockEntityService) DeleteApp(ctx context.Context, projectID uuid.UUID, slug string) (*models.DeleteResult, error) {
+	return nil, nil
+}
+
+func (m *mockEntityService) HardDeleteApp(ctx context.Context, projectID uuid.UUID, slug string) error {
+	return nil
+}
+
+func (m *mockEntityService) RestoreApp(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error) {
 	return nil, nil
 }
 
@@ -310,7 +334,7 @@ func TestListProjects(t *testing.T) {
 		getOrgBySlugFn: func(_ context.Context, slug string) (*models.Organization, error) {
 			return &models.Organization{ID: orgID, Name: "Test Org", Slug: slug}, nil
 		},
-		listProjectsByOrgFn: func(_ context.Context, id uuid.UUID) ([]*models.Project, error) {
+		listProjectsByOrgFn: func(_ context.Context, id uuid.UUID, _ bool) ([]*models.Project, error) {
 			assert.Equal(t, orgID, id)
 			return []*models.Project{
 				{ID: uuid.New(), OrgID: orgID, Name: "Project One", Slug: "project-one"},
@@ -374,7 +398,7 @@ func TestListApps(t *testing.T) {
 		getProjectBySlugFn: func(_ context.Context, id uuid.UUID, slug string) (*models.Project, error) {
 			return &models.Project{ID: projectID, OrgID: id, Name: "My Project", Slug: slug}, nil
 		},
-		listAppsByProjectFn: func(_ context.Context, id uuid.UUID) ([]*models.Application, error) {
+		listAppsByProjectFn: func(_ context.Context, id uuid.UUID, _ bool) ([]*models.Application, error) {
 			assert.Equal(t, projectID, id)
 			return []*models.Application{
 				{ID: uuid.New(), ProjectID: projectID, Name: "App One", Slug: "app-one"},

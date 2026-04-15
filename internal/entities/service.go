@@ -3,10 +3,16 @@ package entities
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/deploysentry/deploysentry/internal/models"
 	"github.com/google/uuid"
+)
+
+const (
+	recentActivityWindow    = 14 * 24 * time.Hour
+	hardDeleteEligibleAfter = 7 * 24 * time.Hour
 )
 
 // EntityService defines the interface for entity management.
@@ -18,13 +24,19 @@ type EntityService interface {
 
 	CreateProject(ctx context.Context, project *models.Project) error
 	GetProjectBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error)
-	ListProjectsByOrg(ctx context.Context, orgID uuid.UUID) ([]*models.Project, error)
+	ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool) ([]*models.Project, error)
 	UpdateProject(ctx context.Context, project *models.Project) error
+	DeleteProject(ctx context.Context, orgID uuid.UUID, slug string) (*models.DeleteResult, error)
+	HardDeleteProject(ctx context.Context, orgID uuid.UUID, slug string) error
+	RestoreProject(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error)
 
 	CreateApp(ctx context.Context, app *models.Application) error
 	GetAppBySlug(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
-	ListAppsByProject(ctx context.Context, projectID uuid.UUID) ([]*models.Application, error)
+	ListAppsByProject(ctx context.Context, projectID uuid.UUID, includeDeleted bool) ([]*models.Application, error)
 	UpdateApp(ctx context.Context, app *models.Application) error
+	DeleteApp(ctx context.Context, projectID uuid.UUID, slug string) (*models.DeleteResult, error)
+	HardDeleteApp(ctx context.Context, projectID uuid.UUID, slug string) error
+	RestoreApp(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
 
 	ListEnvironmentsByApp(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error)
 
@@ -93,13 +105,87 @@ func (s *entityService) GetProjectBySlug(ctx context.Context, orgID uuid.UUID, s
 	return s.repo.GetProjectBySlug(ctx, orgID, slug)
 }
 
-func (s *entityService) ListProjectsByOrg(ctx context.Context, orgID uuid.UUID) ([]*models.Project, error) {
-	return s.repo.ListProjectsByOrg(ctx, orgID)
+func (s *entityService) ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool) ([]*models.Project, error) {
+	return s.repo.ListProjectsByOrg(ctx, orgID, includeDeleted)
 }
 
 func (s *entityService) UpdateProject(ctx context.Context, project *models.Project) error {
 	project.UpdatedAt = time.Now().UTC()
 	return s.repo.UpdateProject(ctx, project)
+}
+
+func (s *entityService) DeleteProject(ctx context.Context, orgID uuid.UUID, slug string) (*models.DeleteResult, error) {
+	project, err := s.repo.GetProjectBySlug(ctx, orgID, slug)
+	if err != nil {
+		return nil, err
+	}
+	if project == nil {
+		return nil, errors.New("project not found")
+	}
+	if project.DeletedAt != nil {
+		return nil, errors.New("project is already deleted")
+	}
+
+	count, err := s.repo.CountFlagsByProject(ctx, project.ID)
+	if err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		if err := s.repo.HardDeleteProject(ctx, project.ID); err != nil {
+			return nil, err
+		}
+		return &models.DeleteResult{Deleted: "permanent"}, nil
+	}
+
+	activeFlags, err := s.repo.HasRecentFlagActivity(ctx, project.ID, nil, time.Now().UTC().Add(-recentActivityWindow))
+	if err != nil {
+		return nil, err
+	}
+	if len(activeFlags) > 0 {
+		return &models.DeleteResult{ActiveFlags: activeFlags}, nil
+	}
+
+	if err := s.repo.SoftDeleteProject(ctx, project.ID); err != nil {
+		return nil, err
+	}
+	eligible := time.Now().UTC().Add(hardDeleteEligibleAfter)
+	return &models.DeleteResult{Deleted: "soft", EligibleForHardDelete: &eligible}, nil
+}
+
+func (s *entityService) HardDeleteProject(ctx context.Context, orgID uuid.UUID, slug string) error {
+	project, err := s.repo.GetProjectBySlug(ctx, orgID, slug)
+	if err != nil {
+		return err
+	}
+	if project == nil {
+		return errors.New("project not found")
+	}
+	if project.DeletedAt == nil {
+		return errors.New("project must be soft-deleted before hard delete")
+	}
+	eligible := project.DeletedAt.Add(hardDeleteEligibleAfter)
+	if time.Now().UTC().Before(eligible) {
+		return fmt.Errorf("project cannot be hard-deleted until %s", eligible.Format(time.RFC3339))
+	}
+	return s.repo.HardDeleteProject(ctx, project.ID)
+}
+
+func (s *entityService) RestoreProject(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error) {
+	project, err := s.repo.GetProjectBySlug(ctx, orgID, slug)
+	if err != nil {
+		return nil, err
+	}
+	if project == nil {
+		return nil, errors.New("project not found")
+	}
+	if project.DeletedAt == nil {
+		return nil, errors.New("project is not deleted")
+	}
+	if err := s.repo.RestoreProject(ctx, project.ID); err != nil {
+		return nil, err
+	}
+	project.DeletedAt = nil
+	return project, nil
 }
 
 func (s *entityService) CreateApp(ctx context.Context, app *models.Application) error {
@@ -117,13 +203,87 @@ func (s *entityService) GetAppBySlug(ctx context.Context, projectID uuid.UUID, s
 	return s.repo.GetAppBySlug(ctx, projectID, slug)
 }
 
-func (s *entityService) ListAppsByProject(ctx context.Context, projectID uuid.UUID) ([]*models.Application, error) {
-	return s.repo.ListAppsByProject(ctx, projectID)
+func (s *entityService) ListAppsByProject(ctx context.Context, projectID uuid.UUID, includeDeleted bool) ([]*models.Application, error) {
+	return s.repo.ListAppsByProject(ctx, projectID, includeDeleted)
 }
 
 func (s *entityService) UpdateApp(ctx context.Context, app *models.Application) error {
 	app.UpdatedAt = time.Now().UTC()
 	return s.repo.UpdateApp(ctx, app)
+}
+
+func (s *entityService) DeleteApp(ctx context.Context, projectID uuid.UUID, slug string) (*models.DeleteResult, error) {
+	app, err := s.repo.GetAppBySlug(ctx, projectID, slug)
+	if err != nil {
+		return nil, err
+	}
+	if app == nil {
+		return nil, errors.New("application not found")
+	}
+	if app.DeletedAt != nil {
+		return nil, errors.New("application is already deleted")
+	}
+
+	count, err := s.repo.CountFlagsByApp(ctx, app.ID)
+	if err != nil {
+		return nil, err
+	}
+	if count == 0 {
+		if err := s.repo.HardDeleteApp(ctx, app.ID); err != nil {
+			return nil, err
+		}
+		return &models.DeleteResult{Deleted: "permanent"}, nil
+	}
+
+	activeFlags, err := s.repo.HasRecentFlagActivity(ctx, projectID, &app.ID, time.Now().UTC().Add(-recentActivityWindow))
+	if err != nil {
+		return nil, err
+	}
+	if len(activeFlags) > 0 {
+		return &models.DeleteResult{ActiveFlags: activeFlags}, nil
+	}
+
+	if err := s.repo.SoftDeleteApp(ctx, app.ID); err != nil {
+		return nil, err
+	}
+	eligible := time.Now().UTC().Add(hardDeleteEligibleAfter)
+	return &models.DeleteResult{Deleted: "soft", EligibleForHardDelete: &eligible}, nil
+}
+
+func (s *entityService) HardDeleteApp(ctx context.Context, projectID uuid.UUID, slug string) error {
+	app, err := s.repo.GetAppBySlug(ctx, projectID, slug)
+	if err != nil {
+		return err
+	}
+	if app == nil {
+		return errors.New("application not found")
+	}
+	if app.DeletedAt == nil {
+		return errors.New("application must be soft-deleted before hard delete")
+	}
+	eligible := app.DeletedAt.Add(hardDeleteEligibleAfter)
+	if time.Now().UTC().Before(eligible) {
+		return fmt.Errorf("application cannot be hard-deleted until %s", eligible.Format(time.RFC3339))
+	}
+	return s.repo.HardDeleteApp(ctx, app.ID)
+}
+
+func (s *entityService) RestoreApp(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error) {
+	app, err := s.repo.GetAppBySlug(ctx, projectID, slug)
+	if err != nil {
+		return nil, err
+	}
+	if app == nil {
+		return nil, errors.New("application not found")
+	}
+	if app.DeletedAt == nil {
+		return nil, errors.New("application is not deleted")
+	}
+	if err := s.repo.RestoreApp(ctx, app.ID); err != nil {
+		return nil, err
+	}
+	app.DeletedAt = nil
+	return app, nil
 }
 
 func (s *entityService) ListEnvironmentsByApp(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error) {

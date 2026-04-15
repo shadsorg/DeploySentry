@@ -2,6 +2,7 @@ package entities
 
 import (
 	"context"
+	"time"
 
 	"github.com/deploysentry/deploysentry/internal/models"
 	"github.com/google/uuid"
@@ -16,13 +17,23 @@ type EntityRepository interface {
 
 	CreateProject(ctx context.Context, project *models.Project) error
 	GetProjectBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error)
-	ListProjectsByOrg(ctx context.Context, orgID uuid.UUID) ([]*models.Project, error)
+	ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool) ([]*models.Project, error)
 	UpdateProject(ctx context.Context, project *models.Project) error
+	CountFlagsByProject(ctx context.Context, projectID uuid.UUID) (int, error)
+	SoftDeleteProject(ctx context.Context, id uuid.UUID) error
+	HardDeleteProject(ctx context.Context, id uuid.UUID) error
+	RestoreProject(ctx context.Context, id uuid.UUID) error
 
 	CreateApp(ctx context.Context, app *models.Application) error
 	GetAppBySlug(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
-	ListAppsByProject(ctx context.Context, projectID uuid.UUID) ([]*models.Application, error)
+	ListAppsByProject(ctx context.Context, projectID uuid.UUID, includeDeleted bool) ([]*models.Application, error)
 	UpdateApp(ctx context.Context, app *models.Application) error
+	CountFlagsByApp(ctx context.Context, applicationID uuid.UUID) (int, error)
+	SoftDeleteApp(ctx context.Context, id uuid.UUID) error
+	HardDeleteApp(ctx context.Context, id uuid.UUID) error
+	RestoreApp(ctx context.Context, id uuid.UUID) error
+
+	HasRecentFlagActivity(ctx context.Context, projectID uuid.UUID, applicationID *uuid.UUID, since time.Time) ([]models.FlagActivitySummary, error)
 
 	ListEnvironmentsByApp(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error)
 

@@ -184,7 +184,7 @@ func (h *Handler) listProjects(c *gin.Context) {
 		return
 	}
 
-	projects, err := h.service.ListProjectsByOrg(c.Request.Context(), org.ID)
+	projects, err := h.service.ListProjectsByOrg(c.Request.Context(), org.ID, false)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -306,7 +306,7 @@ func (h *Handler) listApps(c *gin.Context) {
 		return
 	}
 
-	apps, err := h.service.ListAppsByProject(c.Request.Context(), project.ID)
+	apps, err := h.service.ListAppsByProject(c.Request.Context(), project.ID, false)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

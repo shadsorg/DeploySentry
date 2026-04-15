@@ -44,6 +44,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			projects.GET("", h.listProjects)
 			projects.GET("/:projectSlug", h.getProject)
 			projects.PUT("/:projectSlug", auth.RequirePermission(h.rbac, auth.PermProjectManage), h.updateProject)
+			projects.DELETE("/:projectSlug", auth.RequirePermission(h.rbac, auth.PermProjectManage), h.deleteProject)
+			projects.DELETE("/:projectSlug/permanent", auth.RequirePermission(h.rbac, auth.PermOrgManage), h.hardDeleteProject)
+			projects.POST("/:projectSlug/restore", auth.RequirePermission(h.rbac, auth.PermProjectManage), h.restoreProject)
 
 			apps := projects.Group("/:projectSlug/apps")
 			{
@@ -51,6 +54,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 				apps.GET("", h.listApps)
 				apps.GET("/:appSlug", h.getApp)
 				apps.PUT("/:appSlug", auth.RequirePermission(h.rbac, auth.PermProjectManage), h.updateApp)
+				apps.DELETE("/:appSlug", auth.RequirePermission(h.rbac, auth.PermProjectManage), h.deleteApp)
+				apps.DELETE("/:appSlug/permanent", auth.RequirePermission(h.rbac, auth.PermOrgManage), h.hardDeleteApp)
+				apps.POST("/:appSlug/restore", auth.RequirePermission(h.rbac, auth.PermProjectManage), h.restoreApp)
 				apps.GET("/:appSlug/environments", h.listEnvironments)
 			}
 		}
@@ -184,7 +190,8 @@ func (h *Handler) listProjects(c *gin.Context) {
 		return
 	}
 
-	projects, err := h.service.ListProjectsByOrg(c.Request.Context(), org.ID, false)
+	includeDeleted := c.Query("include_deleted") == "true"
+	projects, err := h.service.ListProjectsByOrg(c.Request.Context(), org.ID, includeDeleted)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -242,6 +249,59 @@ func (h *Handler) updateProject(c *gin.Context) {
 
 	if err := h.service.UpdateProject(c.Request.Context(), project); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, project)
+}
+
+func (h *Handler) deleteProject(c *gin.Context) {
+	org, err := h.service.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
+	if err != nil || org == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		return
+	}
+	result, err := h.service.DeleteProject(c.Request.Context(), org.ID, c.Param("projectSlug"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if len(result.ActiveFlags) > 0 {
+		c.JSON(http.StatusConflict, gin.H{
+			"error":        "project has flags with recent activity",
+			"active_flags": result.ActiveFlags,
+		})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+func (h *Handler) hardDeleteProject(c *gin.Context) {
+	org, err := h.service.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
+	if err != nil || org == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		return
+	}
+	err = h.service.HardDeleteProject(c.Request.Context(), org.ID, c.Param("projectSlug"))
+	if err != nil {
+		if strings.Contains(err.Error(), "eligible at") {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func (h *Handler) restoreProject(c *gin.Context) {
+	org, err := h.service.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
+	if err != nil || org == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		return
+	}
+	project, err := h.service.RestoreProject(c.Request.Context(), org.ID, c.Param("projectSlug"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, project)
@@ -306,7 +366,8 @@ func (h *Handler) listApps(c *gin.Context) {
 		return
 	}
 
-	apps, err := h.service.ListAppsByProject(c.Request.Context(), project.ID, false)
+	includeDeleted := c.Query("include_deleted") == "true"
+	apps, err := h.service.ListAppsByProject(c.Request.Context(), project.ID, includeDeleted)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -376,6 +437,74 @@ func (h *Handler) updateApp(c *gin.Context) {
 
 	if err := h.service.UpdateApp(c.Request.Context(), app); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, app)
+}
+
+func (h *Handler) deleteApp(c *gin.Context) {
+	org, err := h.service.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
+	if err != nil || org == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		return
+	}
+	project, err := h.service.GetProjectBySlug(c.Request.Context(), org.ID, c.Param("projectSlug"))
+	if err != nil || project == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
+		return
+	}
+	result, err := h.service.DeleteApp(c.Request.Context(), project.ID, c.Param("appSlug"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if len(result.ActiveFlags) > 0 {
+		c.JSON(http.StatusConflict, gin.H{
+			"error":        "application has flags with recent activity",
+			"active_flags": result.ActiveFlags,
+		})
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+func (h *Handler) hardDeleteApp(c *gin.Context) {
+	org, err := h.service.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
+	if err != nil || org == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		return
+	}
+	project, err := h.service.GetProjectBySlug(c.Request.Context(), org.ID, c.Param("projectSlug"))
+	if err != nil || project == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
+		return
+	}
+	err = h.service.HardDeleteApp(c.Request.Context(), project.ID, c.Param("appSlug"))
+	if err != nil {
+		if strings.Contains(err.Error(), "eligible at") {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func (h *Handler) restoreApp(c *gin.Context) {
+	org, err := h.service.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
+	if err != nil || org == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		return
+	}
+	project, err := h.service.GetProjectBySlug(c.Request.Context(), org.ID, c.Param("projectSlug"))
+	if err != nil || project == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
+		return
+	}
+	app, err := h.service.RestoreApp(c.Request.Context(), project.ID, c.Param("appSlug"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, app)

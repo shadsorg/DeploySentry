@@ -42,6 +42,7 @@ export class DeploySentryClient {
   private readonly baseURL: string;
   private readonly environment: string;
   private readonly project: string;
+  private readonly application: string;
   private readonly sessionId: string | undefined;
   private user: UserContext | undefined;
 
@@ -73,6 +74,7 @@ export class DeploySentryClient {
     baseURL: string;
     environment: string;
     project: string;
+    application: string;
     user?: UserContext;
     sessionId?: string;
   }) {
@@ -80,6 +82,7 @@ export class DeploySentryClient {
     this.baseURL = options.baseURL.replace(/\/+$/, '');
     this.environment = options.environment;
     this.project = options.project;
+    this.application = options.application;
     this.sessionId = options.sessionId;
     this.user = options.user;
   }
@@ -337,6 +340,7 @@ export class DeploySentryClient {
     const params = new URLSearchParams({
       project_id: this.project,
       environment_id: this.environment,
+      application: this.application,
     });
     if (this.user?.id) {
       params.set('userId', this.user.id);
@@ -349,7 +353,7 @@ export class DeploySentryClient {
 
   private async fetchFlags(): Promise<void> {
     // Match the backend `listFlags` endpoint, which only requires a project_id.
-    const url = `${this.baseURL}/api/v1/flags?project_id=${encodeURIComponent(this.project)}`;
+    const url = `${this.baseURL}/api/v1/flags?project_id=${encodeURIComponent(this.project)}&application=${encodeURIComponent(this.application)}`;
 
     const response = await fetch(url, {
       method: 'GET',

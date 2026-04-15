@@ -28,6 +28,7 @@ export function DeploySentryProvider({
   baseURL,
   environment,
   project,
+  application,
   user,
   sessionId,
   children,
@@ -41,8 +42,8 @@ export function DeploySentryProvider({
   // Memoise the configuration identity so we only recreate the client when
   // the connection parameters change, not on every render.
   const configKey = useMemo(
-    () => JSON.stringify({ apiKey, baseURL, environment, project, sessionId }),
-    [apiKey, baseURL, environment, project, sessionId],
+    () => JSON.stringify({ apiKey, baseURL, environment, project, application, sessionId }),
+    [apiKey, baseURL, environment, project, application, sessionId],
   );
 
   useEffect(() => {
@@ -51,6 +52,7 @@ export function DeploySentryProvider({
       baseURL,
       environment,
       project,
+      application,
       user,
       sessionId,
     });

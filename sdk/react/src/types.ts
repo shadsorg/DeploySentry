@@ -78,6 +78,8 @@ export interface ProviderProps {
   environment: string;
   /** Project identifier. */
   project: string;
+  /** Application identifier. */
+  application: string;
   /** Optional user context for targeting. */
   user?: UserContext;
   /** Optional session identifier for consistent flag evaluation across requests. */

@@ -35,6 +35,7 @@ export class DeploySentryClient {
   private readonly baseURL: string;
   private readonly environment: string;
   private readonly project: string;
+  private readonly application: string;
   private readonly offlineMode: boolean;
   private readonly sessionId: string | undefined;
 
@@ -47,11 +48,13 @@ export class DeploySentryClient {
     if (!options.apiKey) throw new Error('apiKey is required');
     if (!options.environment) throw new Error('environment is required');
     if (!options.project) throw new Error('project is required');
+    if (!options.application) throw new Error('application is required');
 
     this.apiKey = options.apiKey;
     this.baseURL = (options.baseURL ?? DEFAULT_BASE_URL).replace(/\/+$/, '');
     this.environment = options.environment;
     this.project = options.project;
+    this.application = options.application;
     this.offlineMode = options.offlineMode ?? false;
     this.sessionId = options.sessionId;
 
@@ -78,7 +81,7 @@ export class DeploySentryClient {
 
     // Start streaming updates.
     this.streamClient = new FlagStreamClient({
-      url: `${this.baseURL}/api/v1/flags/stream?project_id=${enc(this.project)}&environment_id=${enc(this.environment)}`,
+      url: `${this.baseURL}/api/v1/flags/stream?project_id=${enc(this.project)}&environment_id=${enc(this.environment)}&application=${enc(this.application)}`,
       headers: this.authHeaders(),
       onUpdate: (updated) => this.cache.setMany(updated),
       onError: (err) => {
@@ -195,6 +198,7 @@ export class DeploySentryClient {
         {
           project_id: this.project,
           environment_id: this.environment,
+          application: this.application,
           flag_key: key,
           context: context ?? {},
           ...(this.sessionId ? { session_id: this.sessionId } : {}),
@@ -300,6 +304,7 @@ export class DeploySentryClient {
         {
           project_id: this.project,
           environment_id: this.environment,
+          application: this.application,
           flag_key: key,
           context: context ?? {},
           ...(this.sessionId ? { session_id: this.sessionId } : {}),
@@ -316,7 +321,7 @@ export class DeploySentryClient {
   private async fetchAllFlags(): Promise<Flag[]> {
     const response = await this.request<{ flags: Flag[] }>(
       'GET',
-      `/api/v1/flags?project_id=${enc(this.project)}`,
+      `/api/v1/flags?project_id=${enc(this.project)}&application=${enc(this.application)}`,
     );
     return response.flags ?? [];
   }

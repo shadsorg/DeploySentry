@@ -71,6 +71,8 @@ export interface ClientOptions {
   environment: string;
   /** Project identifier. */
   project: string;
+  /** Application identifier. */
+  application: string;
   /** Cache TTL in milliseconds. Defaults to 60 000 (1 minute). */
   cacheTimeout?: number;
   /** When true, the client returns default values without contacting the API. */

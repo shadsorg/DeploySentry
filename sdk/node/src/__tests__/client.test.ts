@@ -4,6 +4,7 @@ const validOptions = {
   apiKey: 'ds_live_test123',
   environment: 'staging',
   project: 'my-project',
+  application: 'my-app',
 };
 
 describe('DeploySentryClient constructor', () => {
@@ -24,6 +25,7 @@ describe('DeploySentryClient constructor', () => {
         apiKey: undefined as unknown as string,
         environment: 'staging',
         project: 'my-project',
+        application: 'my-app',
       });
     }).toThrow('apiKey is required');
   });
@@ -40,6 +42,7 @@ describe('DeploySentryClient constructor', () => {
         apiKey: 'ds_live_test123',
         environment: undefined as unknown as string,
         project: 'my-project',
+        application: 'my-app',
       });
     }).toThrow('environment is required');
   });
@@ -89,6 +92,7 @@ describe('register and dispatch', () => {
       apiKey: 'test-key',
       environment: 'test',
       project: 'test-project',
+      application: 'test-app',
     });
   });
 

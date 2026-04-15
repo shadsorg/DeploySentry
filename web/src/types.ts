@@ -113,6 +113,9 @@ export interface Project {
   name: string;
   slug: string;
   org_id: string;
+  description?: string;
+  repo_url?: string;
+  deleted_at?: string;
 }
 
 export interface Environment {
@@ -172,6 +175,19 @@ export interface Application {
   repo_url?: string;
   created_at: string;
   updated_at: string;
+  deleted_at?: string;
+}
+
+export interface FlagActivitySummary {
+  key: string;
+  name: string;
+  last_evaluated: string;
+}
+
+export interface DeleteResult {
+  deleted?: 'permanent' | 'soft';
+  eligible_for_hard_delete?: string;
+  active_flags?: FlagActivitySummary[];
 }
 
 export interface FlagEnvState {

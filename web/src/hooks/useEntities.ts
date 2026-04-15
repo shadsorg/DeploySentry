@@ -24,7 +24,7 @@ export function useOrgs() {
   return { orgs, loading, error, refresh };
 }
 
-export function useProjects(orgSlug: string | undefined) {
+export function useProjects(orgSlug: string | undefined, includeDeleted = false) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,11 +38,11 @@ export function useProjects(orgSlug: string | undefined) {
     setLoading(true);
     setError(null);
     entitiesApi
-      .listProjects(orgSlug)
+      .listProjects(orgSlug, includeDeleted)
       .then((res) => setProjects(res.projects ?? []))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [orgSlug]);
+  }, [orgSlug, includeDeleted]);
 
   useEffect(() => {
     refresh();
@@ -51,7 +51,7 @@ export function useProjects(orgSlug: string | undefined) {
   return { projects, loading, error, refresh };
 }
 
-export function useApps(orgSlug: string | undefined, projectSlug: string | undefined) {
+export function useApps(orgSlug: string | undefined, projectSlug: string | undefined, includeDeleted = false) {
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,11 +65,11 @@ export function useApps(orgSlug: string | undefined, projectSlug: string | undef
     setLoading(true);
     setError(null);
     entitiesApi
-      .listApps(orgSlug, projectSlug)
+      .listApps(orgSlug, projectSlug, includeDeleted)
       .then((res) => setApps(res.applications ?? []))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [orgSlug, projectSlug]);
+  }, [orgSlug, projectSlug, includeDeleted]);
 
   useEffect(() => {
     refresh();

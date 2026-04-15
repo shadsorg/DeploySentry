@@ -16,6 +16,7 @@ import type {
   Member,
   Environment,
   OrgEnvironment,
+  DeleteResult,
 } from './types';
 
 const BASE = '/api/v1';
@@ -313,20 +314,27 @@ export const entitiesApi = {
     request<Organization>(`/orgs/${slug}`, { method: 'PUT', body: JSON.stringify(data) }),
 
   // Projects
-  listProjects: (orgSlug: string) => request<{ projects: Project[] }>(`/orgs/${orgSlug}/projects`),
+  listProjects: (orgSlug: string, includeDeleted = false) =>
+    request<{ projects: Project[] }>(`/orgs/${orgSlug}/projects${includeDeleted ? '?include_deleted=true' : ''}`),
   getProject: (orgSlug: string, projectSlug: string) =>
     request<Project>(`/orgs/${orgSlug}/projects/${projectSlug}`),
   createProject: (orgSlug: string, data: { name: string; slug: string }) =>
     request<Project>(`/orgs/${orgSlug}/projects`, { method: 'POST', body: JSON.stringify(data) }),
-  updateProject: (orgSlug: string, projectSlug: string, data: { name: string }) =>
+  updateProject: (orgSlug: string, projectSlug: string, data: { name?: string; description?: string; repo_url?: string }) =>
     request<Project>(`/orgs/${orgSlug}/projects/${projectSlug}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+  deleteProject: (orgSlug: string, projectSlug: string) =>
+    request<DeleteResult>(`/orgs/${orgSlug}/projects/${projectSlug}`, { method: 'DELETE' }),
+  hardDeleteProject: (orgSlug: string, projectSlug: string) =>
+    request<void>(`/orgs/${orgSlug}/projects/${projectSlug}/permanent`, { method: 'DELETE' }),
+  restoreProject: (orgSlug: string, projectSlug: string) =>
+    request<Project>(`/orgs/${orgSlug}/projects/${projectSlug}/restore`, { method: 'POST' }),
 
   // Apps
-  listApps: (orgSlug: string, projectSlug: string) =>
-    request<{ applications: Application[] }>(`/orgs/${orgSlug}/projects/${projectSlug}/apps`),
+  listApps: (orgSlug: string, projectSlug: string, includeDeleted = false) =>
+    request<{ applications: Application[] }>(`/orgs/${orgSlug}/projects/${projectSlug}/apps${includeDeleted ? '?include_deleted=true' : ''}`),
   getApp: (orgSlug: string, projectSlug: string, appSlug: string) =>
     request<Application>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}`),
   createApp: (
@@ -348,6 +356,12 @@ export const entitiesApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+  deleteApp: (orgSlug: string, projectSlug: string, appSlug: string) =>
+    request<DeleteResult>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}`, { method: 'DELETE' }),
+  hardDeleteApp: (orgSlug: string, projectSlug: string, appSlug: string) =>
+    request<void>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/permanent`, { method: 'DELETE' }),
+  restoreApp: (orgSlug: string, projectSlug: string, appSlug: string) =>
+    request<Application>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/restore`, { method: 'POST' }),
 
   // Environments (app-level, legacy)
   listEnvironments: (orgSlug: string, projectSlug: string, appSlug: string) =>

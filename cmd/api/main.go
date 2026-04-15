@@ -324,7 +324,7 @@ func run() error {
 	orgRoleLookup := postgres.NewOrgRoleLookup(db.Pool)
 	api.Use(auth.ResolveOrgRole(orgRoleLookup))
 
-	flagHandler := flags.NewHandler(flagService, rbacChecker, webhookService, analyticsService)
+	flagHandler := flags.NewHandler(flagService, rbacChecker, webhookService, analyticsService, entityRepo)
 	flagHandler.SetRatingService(ratingService)
 	flagHandler.RegisterRoutes(api)
 	flagHandler.RegisterSegmentRoutes(api)

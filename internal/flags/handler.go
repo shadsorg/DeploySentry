@@ -18,6 +18,11 @@ import (
 	"github.com/google/uuid"
 )
 
+// EntityAppResolver resolves application slugs to models.
+type EntityAppResolver interface {
+	GetAppBySlug(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
+}
+
 // FlagRatingSvc is the subset of ratings.RatingService needed by the flags handler.
 // Defined as a local interface to avoid a circular import.
 type FlagRatingSvc interface {
@@ -41,16 +46,18 @@ type Handler struct {
 	webhookSvc   *webhooks.Service
 	analyticsSvc *analytics.Service
 	ratingSvc    FlagRatingSvc
+	entityRepo   EntityAppResolver
 }
 
 // NewHandler creates a new feature flag HTTP handler.
-func NewHandler(service FlagService, rbac *auth.RBACChecker, webhookSvc *webhooks.Service, analyticsSvc *analytics.Service) *Handler {
+func NewHandler(service FlagService, rbac *auth.RBACChecker, webhookSvc *webhooks.Service, analyticsSvc *analytics.Service, entityRepo EntityAppResolver) *Handler {
 	return &Handler{
 		service:      service,
 		rbac:         rbac,
 		sse:          NewSSEBroker(),
 		webhookSvc:   webhookSvc,
 		analyticsSvc: analyticsSvc,
+		entityRepo:   entityRepo,
 	}
 }
 
@@ -235,6 +242,19 @@ func (h *Handler) listFlags(c *gin.Context) {
 	}
 
 	opts := ListOptions{Limit: 20, Offset: 0}
+
+	if appSlug := c.Query("application"); appSlug != "" {
+		app, err := h.entityRepo.GetAppBySlug(c.Request.Context(), projectID, appSlug)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve application"})
+			return
+		}
+		if app == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "application not found"})
+			return
+		}
+		opts.ApplicationID = &app.ID
+	}
 
 	flags, err := h.service.ListFlags(c.Request.Context(), projectID, opts)
 	if err != nil {
@@ -513,6 +533,7 @@ type evaluateRequest struct {
 	ProjectID     uuid.UUID                `json:"project_id" binding:"required"`
 	EnvironmentID uuid.UUID                `json:"environment_id" binding:"required"`
 	FlagKey       string                   `json:"flag_key" binding:"required"`
+	Application   string                   `json:"application"`
 	Context       models.EvaluationContext `json:"context"`
 }
 
@@ -521,6 +542,18 @@ func (h *Handler) evaluate(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	if req.Application != "" {
+		app, err := h.entityRepo.GetAppBySlug(c.Request.Context(), req.ProjectID, req.Application)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve application"})
+			return
+		}
+		if app == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "application not found"})
+			return
+		}
 	}
 
 	startTime := time.Now()
@@ -610,6 +643,7 @@ type batchEvaluateRequest struct {
 	ProjectID     uuid.UUID                `json:"project_id" binding:"required"`
 	EnvironmentID uuid.UUID                `json:"environment_id" binding:"required"`
 	FlagKeys      []string                 `json:"flag_keys" binding:"required"`
+	Application   string                   `json:"application"`
 	Context       models.EvaluationContext `json:"context"`
 }
 
@@ -618,6 +652,18 @@ func (h *Handler) batchEvaluate(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	if req.Application != "" {
+		app, err := h.entityRepo.GetAppBySlug(c.Request.Context(), req.ProjectID, req.Application)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve application"})
+			return
+		}
+		if app == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "application not found"})
+			return
+		}
 	}
 
 	if len(req.FlagKeys) == 0 {
@@ -937,6 +983,11 @@ func (b *SSEBroker) Broadcast(msg string) {
 // streamFlags handles the GET /api/v1/flags/stream SSE endpoint. It keeps the
 // connection open and streams flag change events to connected SDK clients.
 func (h *Handler) streamFlags(c *gin.Context) {
+	// Read application filter (optional). SDK always sends this.
+	// Full per-client filtering is deferred — the client-side cache
+	// already filters to the correct set via the initial listFlags call.
+	_ = c.Query("application")
+
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")

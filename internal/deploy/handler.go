@@ -50,7 +50,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, rbac *auth.RBACChecker) {
 		deployments.GET("", mw(rbac, auth.PermDeployRead), h.listDeployments)
 		deployments.GET("/:id", mw(rbac, auth.PermDeployRead), h.getDeployment)
 		deployments.POST("/:id/promote", mw(rbac, auth.PermDeployPromote), h.promoteDeployment)
-		deployments.POST("/:id/rollback", mw(rbac, auth.PermDeployRollback), h.rollbackDeployment)
+		// NOTE: /:id/rollback is registered by the rollback package handler.
 		deployments.POST("/:id/pause", mw(rbac, auth.PermDeployManage), h.pauseDeployment)
 		deployments.POST("/:id/resume", mw(rbac, auth.PermDeployManage), h.resumeDeployment)
 		deployments.POST("/:id/cancel", mw(rbac, auth.PermDeployManage), h.cancelDeployment)

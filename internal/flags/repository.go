@@ -81,6 +81,7 @@ type ListOptions struct {
 	Limit         int        `json:"limit"`
 	Offset        int        `json:"offset"`
 	EnvironmentID *uuid.UUID `json:"environment_id,omitempty"`
+	ApplicationID *uuid.UUID `json:"application_id,omitempty"`
 	Archived      *bool      `json:"archived,omitempty"`
 	Tag           string     `json:"tag,omitempty"`
 }

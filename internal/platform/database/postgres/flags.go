@@ -240,6 +240,9 @@ func (r *FlagRepository) ListFlags(ctx context.Context, projectID uuid.UUID, opt
 	if opts.EnvironmentID != nil {
 		w.Add("environment_id = $%d", *opts.EnvironmentID)
 	}
+	if opts.ApplicationID != nil {
+		w.Add("(application_id = $%d OR application_id IS NULL)", *opts.ApplicationID)
+	}
 	if opts.Tag != "" {
 		w.Add("$%d = ANY(tags)", opts.Tag)
 	}

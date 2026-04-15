@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/deploysentry/deploysentry/internal/auth"
 	"github.com/deploysentry/deploysentry/internal/models"
@@ -34,7 +36,12 @@ type mockEntityService struct {
 	listAppsByProjectFn func(ctx context.Context, projectID uuid.UUID, includeDeleted bool) ([]*models.Application, error)
 	updateAppFn         func(ctx context.Context, app *models.Application) error
 	listEnvironmentsByAppFn func(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error)
-
+	deleteProjectFn         func(ctx context.Context, orgID uuid.UUID, slug string) (*models.DeleteResult, error)
+	hardDeleteProjectFn     func(ctx context.Context, orgID uuid.UUID, slug string) error
+	restoreProjectFn        func(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error)
+	deleteAppFn             func(ctx context.Context, projectID uuid.UUID, slug string) (*models.DeleteResult, error)
+	hardDeleteAppFn         func(ctx context.Context, projectID uuid.UUID, slug string) error
+	restoreAppFn            func(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
 }
 
 func (m *mockEntityService) CreateOrg(ctx context.Context, org *models.Organization, creatorID uuid.UUID) error {
@@ -149,26 +156,44 @@ func (m *mockEntityService) ListEnvironments(ctx context.Context, orgID uuid.UUI
 }
 
 func (m *mockEntityService) DeleteProject(ctx context.Context, orgID uuid.UUID, slug string) (*models.DeleteResult, error) {
+	if m.deleteProjectFn != nil {
+		return m.deleteProjectFn(ctx, orgID, slug)
+	}
 	return nil, nil
 }
 
 func (m *mockEntityService) HardDeleteProject(ctx context.Context, orgID uuid.UUID, slug string) error {
+	if m.hardDeleteProjectFn != nil {
+		return m.hardDeleteProjectFn(ctx, orgID, slug)
+	}
 	return nil
 }
 
 func (m *mockEntityService) RestoreProject(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error) {
+	if m.restoreProjectFn != nil {
+		return m.restoreProjectFn(ctx, orgID, slug)
+	}
 	return nil, nil
 }
 
 func (m *mockEntityService) DeleteApp(ctx context.Context, projectID uuid.UUID, slug string) (*models.DeleteResult, error) {
+	if m.deleteAppFn != nil {
+		return m.deleteAppFn(ctx, projectID, slug)
+	}
 	return nil, nil
 }
 
 func (m *mockEntityService) HardDeleteApp(ctx context.Context, projectID uuid.UUID, slug string) error {
+	if m.hardDeleteAppFn != nil {
+		return m.hardDeleteAppFn(ctx, projectID, slug)
+	}
 	return nil
 }
 
 func (m *mockEntityService) RestoreApp(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error) {
+	if m.restoreAppFn != nil {
+		return m.restoreAppFn(ctx, projectID, slug)
+	}
 	return nil, nil
 }
 
@@ -418,4 +443,136 @@ func TestListApps(t *testing.T) {
 	apps, ok := resp["applications"]
 	assert.True(t, ok)
 	assert.Len(t, apps, 2)
+}
+
+// ---------------------------------------------------------------------------
+// Delete / Hard-delete / Restore tests
+// ---------------------------------------------------------------------------
+
+func TestDeleteProject_NoFlags(t *testing.T) {
+	orgID := uuid.New()
+	svc := &mockEntityService{
+		getOrgBySlugFn: func(_ context.Context, slug string) (*models.Organization, error) {
+			return &models.Organization{ID: orgID, Name: "Test Org", Slug: slug}, nil
+		},
+		deleteProjectFn: func(_ context.Context, id uuid.UUID, slug string) (*models.DeleteResult, error) {
+			assert.Equal(t, orgID, id)
+			assert.Equal(t, "my-proj", slug)
+			return &models.DeleteResult{Deleted: "permanent"}, nil
+		},
+	}
+	router := setupEntityRouter(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/orgs/test-org/projects/my-proj", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]interface{}
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, "permanent", resp["deleted"])
+}
+
+func TestDeleteProject_ActiveFlags(t *testing.T) {
+	orgID := uuid.New()
+	svc := &mockEntityService{
+		getOrgBySlugFn: func(_ context.Context, slug string) (*models.Organization, error) {
+			return &models.Organization{ID: orgID, Name: "Test Org", Slug: slug}, nil
+		},
+		deleteProjectFn: func(_ context.Context, _ uuid.UUID, _ string) (*models.DeleteResult, error) {
+			return &models.DeleteResult{
+				ActiveFlags: []models.FlagActivitySummary{
+					{Key: "flag-1", Name: "Flag One", LastEvaluated: time.Now()},
+				},
+			}, nil
+		},
+	}
+	router := setupEntityRouter(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/orgs/test-org/projects/my-proj", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusConflict, w.Code)
+	var resp map[string]interface{}
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, "project has flags with recent activity", resp["error"])
+	flags, ok := resp["active_flags"].([]interface{})
+	assert.True(t, ok)
+	assert.Len(t, flags, 1)
+}
+
+func TestDeleteProject_SoftDelete(t *testing.T) {
+	orgID := uuid.New()
+	eligible := time.Now().Add(30 * 24 * time.Hour)
+	svc := &mockEntityService{
+		getOrgBySlugFn: func(_ context.Context, slug string) (*models.Organization, error) {
+			return &models.Organization{ID: orgID, Name: "Test Org", Slug: slug}, nil
+		},
+		deleteProjectFn: func(_ context.Context, _ uuid.UUID, _ string) (*models.DeleteResult, error) {
+			return &models.DeleteResult{
+				Deleted:               "soft",
+				EligibleForHardDelete: &eligible,
+			}, nil
+		},
+	}
+	router := setupEntityRouter(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/orgs/test-org/projects/my-proj", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp map[string]interface{}
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, "soft", resp["deleted"])
+	assert.NotEmpty(t, resp["eligible_for_hard_delete"])
+}
+
+func TestHardDeleteProject_TooEarly(t *testing.T) {
+	orgID := uuid.New()
+	eligible := time.Now().Add(30 * 24 * time.Hour)
+	svc := &mockEntityService{
+		getOrgBySlugFn: func(_ context.Context, slug string) (*models.Organization, error) {
+			return &models.Organization{ID: orgID, Name: "Test Org", Slug: slug}, nil
+		},
+		hardDeleteProjectFn: func(_ context.Context, _ uuid.UUID, _ string) error {
+			return fmt.Errorf("project not eligible for hard delete; eligible at %s", eligible.Format(time.RFC3339))
+		},
+	}
+	router := setupEntityRouter(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/orgs/test-org/projects/my-proj/permanent", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusConflict, w.Code)
+	var resp map[string]interface{}
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Contains(t, resp["error"], "eligible at")
+}
+
+func TestRestoreProject(t *testing.T) {
+	orgID := uuid.New()
+	projectID := uuid.New()
+	svc := &mockEntityService{
+		getOrgBySlugFn: func(_ context.Context, slug string) (*models.Organization, error) {
+			return &models.Organization{ID: orgID, Name: "Test Org", Slug: slug}, nil
+		},
+		restoreProjectFn: func(_ context.Context, id uuid.UUID, slug string) (*models.Project, error) {
+			assert.Equal(t, orgID, id)
+			return &models.Project{ID: projectID, OrgID: orgID, Name: "Restored", Slug: slug, DeletedAt: nil}, nil
+		},
+	}
+	router := setupEntityRouter(svc)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/orgs/test-org/projects/my-proj/restore", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp models.Project
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, projectID, resp.ID)
+	assert.Nil(t, resp.DeletedAt)
 }

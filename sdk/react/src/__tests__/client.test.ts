@@ -6,6 +6,7 @@ function makeClient() {
     baseURL: 'https://api.example.com',
     environment: 'test',
     project: 'test-project',
+    application: 'test-app',
   });
 }
 
@@ -82,6 +83,7 @@ describe('register and dispatch', () => {
       baseURL: 'http://localhost',
       environment: 'test',
       project: 'test-project',
+      application: 'test-app',
     });
   });
 

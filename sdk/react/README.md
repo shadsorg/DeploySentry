@@ -90,6 +90,15 @@ Returns all non-permanent flags whose `expiresAt` date is in the past. Useful fo
 const expired = useExpiredFlags();
 ```
 
+### `useDispatch(operation)`
+
+Returns the resolved handler for a registered operation based on current flag state. See [Register / Dispatch Pattern](#register--dispatch-pattern) below.
+
+```tsx
+const checkout = useDispatch<() => Promise<void>>('checkout');
+await checkout();
+```
+
 ### `useDeploySentry()`
 
 Returns the raw `DeploySentryClient` instance for advanced use-cases.
@@ -97,6 +106,59 @@ Returns the raw `DeploySentryClient` instance for advanced use-cases.
 ```tsx
 const client = useDeploySentry();
 ```
+
+## Register / Dispatch Pattern
+
+The register/dispatch pattern centralizes all flag-gated behavior in one place instead of scattering `if/else` checks across components.
+
+### Setup (single-point registration)
+
+Create one registration file that runs at app initialization:
+
+```typescript
+// src/flags/registrations.ts
+import type { DeploySentryClient } from '@deploysentry/react';
+import { legacySearch, vectorSearch } from '../search';
+import { classicCheckout, newCheckout } from '../checkout';
+
+export function registerFlags(client: DeploySentryClient) {
+  // Search — default handler, then flag-gated override
+  client.register('search', legacySearch);
+  client.register('search', vectorSearch, 'vector-search-v2');
+
+  // Checkout
+  client.register('checkout', classicCheckout);
+  client.register('checkout', newCheckout, 'new-checkout-flow');
+}
+```
+
+Call `registerFlags(client)` after the client initializes (e.g. in the provider setup or an app-level effect).
+
+### Usage in components
+
+```tsx
+import { useDispatch } from '@deploysentry/react';
+
+function SearchBar() {
+  const search = useDispatch<(query: string) => Promise<Results>>('search');
+
+  return (
+    <input onChange={(e) => search(e.target.value).then(setResults)} />
+  );
+}
+```
+
+### How it works
+
+1. **`client.register(operation, handler, flagKey?)`** — Register a handler for a named operation. With `flagKey`, it's only selected when that flag is enabled. Without `flagKey`, it's the default fallback.
+2. **`useDispatch(operation)`** — Returns the first registered handler whose flag is enabled, or the default handler. The component never knows about flags.
+
+### Why single-point registration
+
+- One file shows every flag-gated behavior in the app
+- Easy auditing — search for a flag key and find every behavior it controls
+- Simple cleanup when a flag is retired (remove the registration, keep the handler)
+- LLMs and code review tools can read one file to understand all flag-gated behavior
 
 ## Real-Time Updates
 

@@ -112,6 +112,65 @@ List all cached flags:
 const flags = client.allFlags();
 ```
 
+## Register / Dispatch Pattern
+
+The register/dispatch pattern lets you centralize all flag-gated behavior in one place instead of scattering `if/else` checks throughout your codebase. Register named operations with their handlers and optional flag keys, then dispatch by operation name at the call site.
+
+### Basic usage
+
+```typescript
+// --- registrations.ts (single-point registration) ---
+
+import { client } from './deploysentry';
+
+// Default handler (no flag key) — always used as fallback
+client.register('checkout', () => {
+  return processLegacyCheckout();
+});
+
+// Flag-gated handler — used when 'new-checkout-flow' is enabled
+client.register('checkout', () => {
+  return processNewCheckout();
+}, 'new-checkout-flow');
+
+
+// --- somewhere-else.ts (call site) ---
+
+// Dispatch selects the right handler based on flag state.
+// No flag logic here — the call site doesn't know or care.
+const checkout = client.dispatch<() => Promise<Order>>('checkout');
+await checkout();
+```
+
+### How it works
+
+1. **`register(operation, handler, flagKey?)`** — Registers a handler for a named operation. If `flagKey` is provided, the handler is only selected when that flag is enabled. Omit `flagKey` to register the default/fallback handler.
+
+2. **`dispatch(operation)`** — Returns the first registered handler whose flag is enabled. If no flagged handler matches, returns the default handler. Throws if no handlers are registered.
+
+### Single-point registration
+
+Keep all registrations in a single file (e.g. `src/flags/registrations.ts`) that runs at startup. This gives you:
+
+- One place to see every flag-gated behavior in your app
+- Easy auditing of which flags control which operations
+- Simple cleanup when a flag is retired (remove the registration, keep the handler)
+
+```typescript
+// src/flags/registrations.ts
+import { client } from './deploysentry';
+import { legacySearch, vectorSearch } from '../search';
+import { standardPricing, tieredPricing } from '../pricing';
+
+// Search
+client.register('search', legacySearch);
+client.register('search', vectorSearch, 'vector-search-v2');
+
+// Pricing
+client.register('calculate-price', standardPricing);
+client.register('calculate-price', tieredPricing, 'tiered-pricing-experiment');
+```
+
 ## Offline Mode
 
 For testing or environments without network access, enable offline mode. The client will return default values without contacting the API:

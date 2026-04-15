@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useEnvironments } from '../hooks/useEntities';
 import { useWebhooks } from '../hooks/useWebhooks';
 import { useNotifications } from '../hooks/useNotifications';
 import { entitiesApi, webhooksApi, Webhook } from '../api';
+import type { FlagActivitySummary } from '../types';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -19,7 +20,7 @@ interface SettingsPageProps {
 function defaultTab(level: string, tab?: string): SettingsTab {
   const validTabs: Record<string, SettingsTab[]> = {
     org: ['environments', 'webhooks', 'notifications'],
-    project: ['general'],
+    project: ['general', 'danger'],
     app: ['general', 'danger'],
   };
   const levelTabs = validTabs[level] || [];
@@ -45,7 +46,10 @@ function getTabsForLevel(level: string): { key: SettingsTab; label: string }[] {
         { key: 'notifications', label: 'Notifications' },
       ];
     case 'project':
-      return [{ key: 'general', label: 'Project Settings' }];
+      return [
+        { key: 'general', label: 'Project Settings' },
+        { key: 'danger', label: 'Danger Zone' },
+      ];
     case 'app':
       return [
         { key: 'general', label: 'General' },
@@ -62,6 +66,7 @@ function getTabsForLevel(level: string): { key: SettingsTab; label: string }[] {
 
 const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
   const { orgSlug, projectSlug, appSlug } = useParams();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<SettingsTab>(defaultTab(level, tab));
 
   // ---------------------------------------------------------------------------
@@ -114,10 +119,15 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
   // Project form state — Task 10
   // ---------------------------------------------------------------------------
   const [projectName, setProjectName] = useState('');
+  const [projectDescription, setProjectDescription] = useState('');
+  const [projectRepoUrl, setProjectRepoUrl] = useState('');
   const [defaultEnv, setDefaultEnv] = useState('production');
   const [staleThreshold, setStaleThreshold] = useState('30d');
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [activeFlags, setActiveFlags] = useState<FlagActivitySummary[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   // ---------------------------------------------------------------------------
   // App form state — Task 10
@@ -272,7 +282,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
     if (!orgSlug || !projectSlug) return;
     setSettingsSaving(true);
     try {
-      await entitiesApi.updateProject(orgSlug, projectSlug, { name: projectName });
+      await entitiesApi.updateProject(orgSlug, projectSlug, {
+        name: projectName,
+        description: projectDescription,
+        repo_url: projectRepoUrl,
+      });
       setSettingsSuccess(true);
       setTimeout(() => setSettingsSuccess(false), 3000);
     } catch (err) {
@@ -303,18 +317,65 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
     }
   };
 
-  const handleDeleteApp = async () => {
-    if (!window.confirm('Are you sure you want to delete this application? This cannot be undone.'))
-      return;
-    if (!orgSlug || !projectSlug || !appSlug) return;
+  const handleDeleteProject = async () => {
+    if (!window.confirm('Are you sure you want to delete this project?')) return;
+    if (!orgSlug || !projectSlug) return;
+    setDeleting(true);
+    setDeleteError(null);
+    setActiveFlags([]);
     try {
-      await fetch(`/api/v1/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('ds_token') ?? ''}` },
-      });
-      window.location.href = `/orgs/${orgSlug}/projects/${projectSlug}/apps`;
-    } catch (err) {
-      console.error('Failed to delete app:', err);
+      const result = await entitiesApi.deleteProject(orgSlug, projectSlug);
+      if (result.deleted === 'permanent') {
+        navigate(`/orgs/${orgSlug}/projects`);
+      } else if (result.deleted === 'soft') {
+        const hardDate = result.eligible_for_hard_delete
+          ? new Date(result.eligible_for_hard_delete).toLocaleDateString()
+          : 'in 7 days';
+        alert(`Project soft-deleted. Hard delete available on ${hardDate}.`);
+        navigate(`/orgs/${orgSlug}/projects`);
+      }
+    } catch (err: unknown) {
+      const errBody = err as { active_flags?: FlagActivitySummary[] };
+      if (errBody?.active_flags) {
+        setActiveFlags(errBody.active_flags);
+        setDeleteError('Cannot delete project with active flags. Disable them first.');
+      } else {
+        console.error('Failed to delete project:', err);
+        setDeleteError('Failed to delete project.');
+      }
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteApp = async () => {
+    if (!window.confirm('Are you sure you want to delete this application?')) return;
+    if (!orgSlug || !projectSlug || !appSlug) return;
+    setDeleting(true);
+    setDeleteError(null);
+    setActiveFlags([]);
+    try {
+      const result = await entitiesApi.deleteApp(orgSlug, projectSlug, appSlug);
+      if (result.deleted === 'permanent') {
+        navigate(`/orgs/${orgSlug}/projects/${projectSlug}/apps`);
+      } else if (result.deleted === 'soft') {
+        const hardDate = result.eligible_for_hard_delete
+          ? new Date(result.eligible_for_hard_delete).toLocaleDateString()
+          : 'in 7 days';
+        alert(`Application soft-deleted. Hard delete available on ${hardDate}.`);
+        navigate(`/orgs/${orgSlug}/projects/${projectSlug}/apps`);
+      }
+    } catch (err: unknown) {
+      const errBody = err as { active_flags?: FlagActivitySummary[] };
+      if (errBody?.active_flags) {
+        setActiveFlags(errBody.active_flags);
+        setDeleteError('Cannot delete application with active flags. Disable them first.');
+      } else {
+        console.error('Failed to delete app:', err);
+        setDeleteError('Failed to delete application.');
+      }
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -754,6 +815,27 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
           </div>
 
           <div className="form-group">
+            <label className="form-label">Description</label>
+            <textarea
+              className="form-input"
+              rows={3}
+              value={projectDescription}
+              onChange={(e) => setProjectDescription(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Repository URL</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="https://github.com/org/repo"
+              value={projectRepoUrl}
+              onChange={(e) => setProjectRepoUrl(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
             <label className="form-label">Default Environment</label>
             <select
               className="form-select"
@@ -857,17 +939,67 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
       )}
 
       {/* ------------------------------------------------------------------ */}
-      {/* Danger Zone tab (app level) — Task 10                               */}
+      {/* Danger Zone tab — project level                                     */}
       {/* ------------------------------------------------------------------ */}
-      {activeTab === 'danger' && (
+      {activeTab === 'danger' && level === 'project' && (
+        <div className="danger-zone">
+          <h3>Delete Project</h3>
+          <p>
+            Deleting this project will remove all its applications, deployments, releases, and flag
+            configurations.
+          </p>
+          {deleteError && <p className="text-danger text-sm">{deleteError}</p>}
+          {activeFlags.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <p className="text-sm" style={{ fontWeight: 500 }}>Active flags:</p>
+              <ul className="text-sm">
+                {activeFlags.map((f) => (
+                  <li key={f.key}>
+                    <code className="font-mono">{f.key}</code> — {f.name}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <button
+            className="btn btn-danger"
+            onClick={handleDeleteProject}
+            disabled={deleting || activeFlags.length > 0}
+          >
+            {deleting ? 'Deleting...' : 'Delete Project'}
+          </button>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Danger Zone tab — app level                                         */}
+      {/* ------------------------------------------------------------------ */}
+      {activeTab === 'danger' && level === 'app' && (
         <div className="danger-zone">
           <h3>Delete Application</h3>
           <p>
             Deleting this application will remove all its deployments, releases, and flag
-            configurations. This action cannot be undone.
+            configurations.
           </p>
-          <button className="btn btn-danger" onClick={handleDeleteApp}>
-            Delete Application
+          {deleteError && <p className="text-danger text-sm">{deleteError}</p>}
+          {activeFlags.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <p className="text-sm" style={{ fontWeight: 500 }}>Active flags:</p>
+              <ul className="text-sm">
+                {activeFlags.map((f) => (
+                  <li key={f.key}>
+                    <code className="font-mono">{f.key}</code> — {f.name}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <button
+            className="btn btn-danger"
+            onClick={handleDeleteApp}
+            disabled={deleting || activeFlags.length > 0}
+          >
+            {deleting ? 'Deleting...' : 'Delete Application'}
           </button>
         </div>
       )}

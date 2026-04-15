@@ -112,7 +112,7 @@ const DeploymentsPage: React.FC = () => {
     entitiesApi
       .getApp(orgSlug, projectSlug, appSlug)
       .then((app) => deploymentsApi.list(app.id))
-      .then((result) => setDeployments(result.deployments))
+      .then((result) => setDeployments(result.deployments ?? []))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [orgSlug, projectSlug, appSlug]);

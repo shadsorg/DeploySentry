@@ -24,6 +24,7 @@ function App() {
       baseURL="https://api.deploysentry.io"
       environment="production"
       project="my-app"
+      application="my-web-app"
       user={{ id: 'user-42' }}
     >
       <MyComponent />
@@ -47,6 +48,7 @@ function MyComponent() {
 | `baseURL`     | `string`     | Yes      | Base URL of the DeploySentry API.                 |
 | `environment` | `string`     | Yes      | Environment identifier (e.g. `"production"`).     |
 | `project`     | `string`     | Yes      | Project identifier.                               |
+| `application` | `string`      | Yes      | Application identifier                     |
 | `user`        | `UserContext` | No      | User context for targeting rules.                 |
 | `children`    | `ReactNode`  | Yes      | React children.                                   |
 
@@ -203,6 +205,7 @@ Bind evaluations to a session so the server caches results for a consistent user
   baseURL="https://deploysentry.example.com"
   environment="production"
   project="my-app"
+  application="my-web-app"
   sessionId={`user:${userId}`}
 >
   <App />

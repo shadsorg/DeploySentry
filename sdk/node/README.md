@@ -17,6 +17,7 @@ const client = new DeploySentryClient({
   apiKey: 'ds_live_xxx',
   environment: 'production',
   project: 'my-app',
+  application: 'my-web-app',
 });
 
 await client.initialize();
@@ -180,6 +181,7 @@ const client = new DeploySentryClient({
   apiKey: 'not-used',
   environment: 'test',
   project: 'my-app',
+  application: 'my-web-app',
   offlineMode: true,
 });
 
@@ -196,6 +198,7 @@ const value = await client.boolValue('any-flag', true);
 | `apiKey`       | string   | Yes      | -                              | API key for authentication             |
 | `environment`  | string   | Yes      | -                              | Target environment                     |
 | `project`      | string   | Yes      | -                              | Project identifier                     |
+| `application`  | string   | Yes      | -                              | Application identifier                 |
 | `baseURL`      | string   | No       | `https://api.deploysentry.io`  | API base URL                           |
 | `cacheTimeout` | number   | No       | `60000`                        | Cache TTL in milliseconds              |
 | `offlineMode`  | boolean  | No       | `false`                        | Return defaults without API calls      |
@@ -220,6 +223,7 @@ const client = new DeploySentryClient({
   apiKey: 'ds_key_xxxxxxxxxxxx',
   environment: 'production',
   project: 'my-project',
+  application: 'my-web-app',
   sessionId: `user:${userId}`,
 });
 await client.refreshSession();

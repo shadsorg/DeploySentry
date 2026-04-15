@@ -34,6 +34,7 @@ DeploySentry provides:
      apiKey: process.env.DEPLOYSENTRY_API_KEY!,
      environment: process.env.DEPLOYSENTRY_ENV ?? 'development',
      project: process.env.DEPLOYSENTRY_PROJECT!,
+     application: process.env.DEPLOYSENTRY_APPLICATION!,
      baseURL: process.env.DEPLOYSENTRY_URL ?? 'https://api.deploysentry.io',
    });
    ```
@@ -78,6 +79,7 @@ DeploySentry provides:
      baseURL="https://api.deploysentry.io"
      environment="production"
      project="my-app"
+     application="my-web-app"
      user={{ id: currentUser.id }}
    >
      <App />
@@ -137,6 +139,7 @@ Every flag must have a category. These drive lifecycle enforcement:
 | --------------------------- | -------- | ------------------------------------ |
 | `DEPLOYSENTRY_API_KEY`      | Yes      | Server-side API key                  |
 | `DEPLOYSENTRY_PROJECT`      | Yes      | Project identifier                   |
+| `DEPLOYSENTRY_APPLICATION`  | Yes      | Application identifier                 |
 | `DEPLOYSENTRY_ENV`          | No       | Environment (default: `development`) |
 | `DEPLOYSENTRY_URL`          | No       | API base URL (default: `https://api.deploysentry.io`) |
 
@@ -189,6 +192,7 @@ This project uses DeploySentry for feature flag management.
 
 - **Backend**: Import `dsClient` from `src/deploysentry.ts`. Use `dsClient.boolValue()`, `dsClient.stringValue()`, etc. for simple reads. Use `dsClient.dispatch()` for behavior switching.
 - **Frontend**: Use `useFlag()` for simple checks, `useFlagDetail()` for metadata, `useDispatch()` for behavior switching, `useFlagsByCategory()` for grouping.
+- **Required SDK parameters**: `apiKey`, `environment`, `project`, and `application` are all required when constructing a client or provider.
 - **Never** evaluate flags with raw API calls. Always use the SDK.
 - **Never** cache flag values in local state. The SDK handles caching and real-time updates via SSE.
 ```

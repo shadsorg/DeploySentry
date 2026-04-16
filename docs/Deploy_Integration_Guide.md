@@ -14,7 +14,7 @@ This guide covers how to connect a GitHub repository to DeploySentry so that dep
  Your Repository                  GitHub                      DeploySentry
  ┌─────────────┐          ┌──────────────────┐         ┌──────────────────────┐
  │ git push     │────────► │ GitHub Actions   │         │                      │
- │ main branch  │          │ builds + deploys │         │   ds-sentry.com      │
+ │ main branch  │          │ builds + deploys │         │   dr-sentry.com      │
  └─────────────┘          │ to your infra    │         │                      │
                           └────────┬─────────┘         │  ┌────────────────┐  │
                                    │                    │  │ Phase Engine   │  │
@@ -55,7 +55,7 @@ If you're using Claude Code or another LLM tool with MCP support, you can set up
 
 ```bash
 # Install the CLI (skip if already installed)
-curl -fsSL https://ds-sentry.com/install.sh | sh
+curl -fsSL https://dr-sentry.com/install.sh | sh
 deploysentry auth login
 
 # Add the MCP server to Claude Code
@@ -96,7 +96,7 @@ If you prefer manual setup, continue below.
 
 Before starting, you need:
 
-- A DeploySentry account at ds-sentry.com
+- A DeploySentry account at dr-sentry.com
 - An organization, project, and application set up in DeploySentry
 - At least one environment configured (e.g., `production`, `staging`)
 - A GitHub repository with Actions enabled
@@ -166,7 +166,7 @@ Optionally:
 
 | Secret Name | Value | Default |
 |-------------|-------|---------|
-| `DS_API_URL` | DeploySentry API URL | `https://ds-sentry.com` |
+| `DS_API_URL` | DeploySentry API URL | `https://dr-sentry.com` |
 | `DS_STRATEGY` | Deployment strategy | `rolling` |
 
 ### 2.2 Choose Your Integration Pattern
@@ -219,7 +219,7 @@ jobs:
         if: success()
         env:
           DS_API_KEY: ${{ secrets.DS_API_KEY }}
-          DS_API_URL: ${{ secrets.DS_API_URL || 'https://ds-sentry.com' }}
+          DS_API_URL: ${{ secrets.DS_API_URL || 'https://dr-sentry.com' }}
           DS_APP_ID: ${{ secrets.DS_APP_ID }}
           DS_ENV_ID: ${{ secrets.DS_ENV_ID }}
         run: |
@@ -273,7 +273,7 @@ jobs:
       - name: Create canary deployment
         env:
           DS_API_KEY: ${{ secrets.DS_API_KEY }}
-          DS_API_URL: ${{ secrets.DS_API_URL || 'https://ds-sentry.com' }}
+          DS_API_URL: ${{ secrets.DS_API_URL || 'https://dr-sentry.com' }}
           DS_APP_ID: ${{ secrets.DS_APP_ID }}
           DS_ENV_ID: ${{ secrets.DS_ENV_ID }}
         run: |
@@ -311,7 +311,7 @@ If you want your workflow to wait for DeploySentry to finish monitoring:
         timeout-minutes: 30
         env:
           DS_API_KEY: ${{ secrets.DS_API_KEY }}
-          DS_API_URL: ${{ secrets.DS_API_URL || 'https://ds-sentry.com' }}
+          DS_API_URL: ${{ secrets.DS_API_URL || 'https://dr-sentry.com' }}
         run: |
           echo "Waiting for deployment ${DEPLOY_ID} to complete..."
           while true; do
@@ -342,12 +342,12 @@ If you prefer the CLI over raw API calls:
 
 ```yaml
       - name: Install DeploySentry CLI
-        run: curl -fsSL https://ds-sentry.com/install.sh | sh
+        run: curl -fsSL https://dr-sentry.com/install.sh | sh
 
       - name: Create deployment
         env:
           DEPLOYSENTRY_API_KEY: ${{ secrets.DS_API_KEY }}
-          DEPLOYSENTRY_URL: ${{ secrets.DS_API_URL || 'https://ds-sentry.com' }}
+          DEPLOYSENTRY_URL: ${{ secrets.DS_API_URL || 'https://dr-sentry.com' }}
         run: |
           deploysentry deploy create \
             --release "${{ github.sha }}" \
@@ -383,7 +383,7 @@ With this pattern, GitHub sends push/release events directly to DeploySentry, wh
 1. Go to your repository **Settings > Webhooks**
 2. Click **Add webhook**
 3. Configure:
-   - **Payload URL**: `https://ds-sentry.com/api/v1/integrations/github/webhook`
+   - **Payload URL**: `https://dr-sentry.com/api/v1/integrations/github/webhook`
    - **Content type**: `application/json`
    - **Secret**: The webhook secret from DeploySentry
    - **Events**: Select "Pushes" and "Releases"
@@ -487,7 +487,7 @@ From the dashboard, CLI, or API:
 deploysentry deploy rollback <deployment-id> --reason "Elevated error rates"
 
 # API
-curl -X POST https://ds-sentry.com/api/v1/deployments/<id>/rollback \
+curl -X POST https://dr-sentry.com/api/v1/deployments/<id>/rollback \
   -H "Authorization: ApiKey <key>" \
   -H "Content-Type: application/json" \
   -d '{"reason": "Elevated error rates"}'
@@ -609,7 +609,7 @@ on:
     branches: [main]
 
 env:
-  DS_API_URL: https://ds-sentry.com
+  DS_API_URL: https://dr-sentry.com
 
 jobs:
   build:

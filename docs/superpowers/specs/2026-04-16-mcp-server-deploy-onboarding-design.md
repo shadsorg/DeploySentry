@@ -133,7 +133,7 @@ When a user says "set up deployment tracking for this repo" in Claude Code:
    gh secret set DS_API_KEY --body "<key>"
    gh secret set DS_APP_ID --body "<app-uuid>"
    gh secret set DS_ENV_ID --body "<env-uuid>"
-   gh secret set DS_API_URL --body "https://ds-sentry.com"
+   gh secret set DS_API_URL --body "https://dr-sentry.com"
 
 5. LLM calls ds_generate_workflow
    → Gets a YAML template

@@ -62,6 +62,9 @@ const (
 	PermSettingsRead Permission = "settings:read"
 	// PermSettingsWrite allows creating, updating, and deleting hierarchical settings.
 	PermSettingsWrite Permission = "settings:write"
+
+	// PermGroupManage allows managing groups and group memberships.
+	PermGroupManage Permission = "group:manage"
 )
 
 // Role defines a named set of permissions.
@@ -99,6 +102,7 @@ var rolePermissions = map[Role][]Permission{
 		PermReleaseCreate, PermReleaseRead, PermReleasePromote,
 		PermProjectManage, PermOrgManage, PermAuditRead,
 		PermSettingsRead, PermSettingsWrite,
+		PermGroupManage,
 	},
 	RoleAdmin: {
 		PermDeployCreate, PermDeployRead, PermDeployPromote, PermDeployRollback, PermDeployManage,
@@ -106,6 +110,7 @@ var rolePermissions = map[Role][]Permission{
 		PermReleaseCreate, PermReleaseRead, PermReleasePromote,
 		PermProjectManage, PermAuditRead,
 		PermSettingsRead, PermSettingsWrite,
+		PermGroupManage,
 	},
 	RoleDeveloper: {
 		PermDeployCreate, PermDeployRead, PermDeployPromote, PermDeployRollback, PermDeployManage,
@@ -126,6 +131,7 @@ var rolePermissions = map[Role][]Permission{
 		PermProjectManage, PermOrgManage, PermAuditRead,
 		PermAPIKeyManage, PermUserManage, PermEnvDeploy, PermBillingManage,
 		PermSettingsRead, PermSettingsWrite,
+		PermGroupManage,
 	},
 	RoleOrgAdmin: {
 		PermDeployCreate, PermDeployRead, PermDeployPromote, PermDeployRollback, PermDeployManage,
@@ -134,6 +140,7 @@ var rolePermissions = map[Role][]Permission{
 		PermProjectManage, PermAuditRead,
 		PermAPIKeyManage, PermUserManage, PermEnvDeploy, PermBillingManage,
 		PermSettingsRead, PermSettingsWrite,
+		PermGroupManage,
 	},
 
 	// Granular project-level roles.

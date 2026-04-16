@@ -21,7 +21,7 @@ If you use Claude Code, you can also install the DeploySentry MCP server for ric
 
 **Install the CLI** (if not already installed):
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shadsorg/DeploySentry/main/scripts/install.sh | sh
+curl -fsSL https://ds-sentry.com/install.sh | sh
 deploysentry auth login
 ```
 
@@ -440,7 +440,7 @@ Do everything below in order. Ask me for any values you can't determine.
 1. Check if the `deploysentry` CLI is installed: `which deploysentry`
    - If not found, tell me to run:
      ```
-     ! curl -fsSL https://raw.githubusercontent.com/shadsorg/DeploySentry/main/scripts/install.sh | sh
+     ! curl -fsSL https://ds-sentry.com/install.sh | sh
      ```
 
 2. Check if it's authenticated: `deploysentry config get api_key` or check for `~/.config/deploysentry/credentials.json`

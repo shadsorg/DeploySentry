@@ -55,7 +55,7 @@ If you're using Claude Code or another LLM tool with MCP support, you can set up
 
 ```bash
 # Install the CLI (skip if already installed)
-curl -fsSL https://dr-sentry.com/install.sh | sh
+curl -fsSL https://api.dr-sentry.com/install.sh | sh
 deploysentry auth login
 
 # Add the MCP server to Claude Code
@@ -342,7 +342,7 @@ If you prefer the CLI over raw API calls:
 
 ```yaml
       - name: Install DeploySentry CLI
-        run: curl -fsSL https://dr-sentry.com/install.sh | sh
+        run: curl -fsSL https://api.dr-sentry.com/install.sh | sh
 
       - name: Create deployment
         env:

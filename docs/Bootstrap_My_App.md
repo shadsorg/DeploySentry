@@ -21,7 +21,7 @@ If you use Claude Code, you can also install the DeploySentry MCP server for ric
 
 **Install the CLI** (if not already installed):
 ```bash
-curl -fsSL https://dr-sentry.com/install.sh | sh
+curl -fsSL https://api.dr-sentry.com/install.sh | sh
 deploysentry auth login
 ```
 
@@ -440,7 +440,7 @@ Do everything below in order. Ask me for any values you can't determine.
 1. Check if the `deploysentry` CLI is installed: `which deploysentry`
    - If not found, tell me to run:
      ```
-     ! curl -fsSL https://dr-sentry.com/install.sh | sh
+     ! curl -fsSL https://api.dr-sentry.com/install.sh | sh
      ```
 
 2. Check if it's authenticated: `deploysentry config get api_key` or check for `~/.config/deploysentry/credentials.json`
@@ -484,7 +484,7 @@ Do everything below in order. Ask me for any values you can't determine.
    gh secret set DS_API_KEY --body "<the-api-key>"
    gh secret set DS_APP_ID --body "<app-uuid>"
    gh secret set DS_ENV_ID --body "<env-uuid>"
-   gh secret set DS_API_URL --body "https://dr-sentry.com"
+   gh secret set DS_API_URL --body "https://api.dr-sentry.com"
    ```
 
 8. Check if `.github/workflows/` exists. If there's an existing deploy workflow, add the DeploySentry step to it. If not, create `.github/workflows/deploy.yml`.

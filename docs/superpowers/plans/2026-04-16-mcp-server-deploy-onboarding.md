@@ -98,7 +98,7 @@ func newClientFromConfig() (*apiClient, error) {
 		apiURL = os.Getenv("DEPLOYSENTRY_URL")
 	}
 	if apiURL == "" {
-		apiURL = "https://dr-sentry.com"
+		apiURL = "https://api.dr-sentry.com"
 	}
 
 	client := &apiClient{
@@ -747,13 +747,13 @@ func handleGenerateWorkflow(ctx context.Context, request mcp.CallToolRequest) (*
 #   DS_API_KEY  — DeploySentry API key (deploys:read, deploys:write)
 #   DS_APP_ID   — %s
 #   DS_ENV_ID   — %s
-#   DS_API_URL  — DeploySentry API URL (default: https://dr-sentry.com)
+#   DS_API_URL  — DeploySentry API URL (default: https://api.dr-sentry.com)
 
 - name: Record deployment in DeploySentry
   if: success()
   env:
     DS_API_KEY: ${{ secrets.DS_API_KEY }}
-    DS_API_URL: ${{ secrets.DS_API_URL || 'https://dr-sentry.com' }}
+    DS_API_URL: ${{ secrets.DS_API_URL || 'https://api.dr-sentry.com' }}
     DS_APP_ID: ${{ secrets.DS_APP_ID }}
     DS_ENV_ID: ${{ secrets.DS_ENV_ID }}
   run: |

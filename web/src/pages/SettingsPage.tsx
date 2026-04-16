@@ -3,14 +3,15 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEnvironments } from '../hooks/useEntities';
 import { useWebhooks } from '../hooks/useWebhooks';
 import { useNotifications } from '../hooks/useNotifications';
-import { entitiesApi, webhooksApi, flagsApi, Webhook } from '../api';
+import { entitiesApi, webhooksApi, flagsApi, grantsApi, Webhook } from '../api';
+import { useGrants } from '../hooks/useGrants';
 import type { FlagActivitySummary } from '../types';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type SettingsTab = 'environments' | 'webhooks' | 'notifications' | 'general' | 'danger';
+type SettingsTab = 'environments' | 'webhooks' | 'notifications' | 'general' | 'authorization' | 'danger';
 
 interface SettingsPageProps {
   level?: 'org' | 'project' | 'app';
@@ -20,8 +21,8 @@ interface SettingsPageProps {
 function defaultTab(level: string, tab?: string): SettingsTab {
   const validTabs: Record<string, SettingsTab[]> = {
     org: ['environments', 'webhooks', 'notifications'],
-    project: ['general', 'danger'],
-    app: ['general', 'danger'],
+    project: ['general', 'authorization', 'danger'],
+    app: ['general', 'authorization', 'danger'],
   };
   const levelTabs = validTabs[level] || [];
   if (tab && levelTabs.includes(tab as SettingsTab)) return tab as SettingsTab;
@@ -48,11 +49,13 @@ function getTabsForLevel(level: string): { key: SettingsTab; label: string }[] {
     case 'project':
       return [
         { key: 'general', label: 'Project Settings' },
+        { key: 'authorization', label: 'Authorization' },
         { key: 'danger', label: 'Danger Zone' },
       ];
     case 'app':
       return [
         { key: 'general', label: 'General' },
+        { key: 'authorization', label: 'Authorization' },
         { key: 'danger', label: 'Danger Zone' },
       ];
     default:
@@ -135,6 +138,20 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
   const [appName, setAppName] = useState('');
   const [appDescription, setAppDescription] = useState('');
   const [appRepoUrl, setAppRepoUrl] = useState('');
+
+  // ---------------------------------------------------------------------------
+  // Authorization — Tasks 17/18
+  // ---------------------------------------------------------------------------
+  const {
+    grants,
+    loading: grantsLoading,
+    error: grantsError,
+    refresh: refreshGrants,
+  } = useGrants(orgSlug, projectSlug, level === 'app' ? appSlug : undefined);
+  const [grantType, setGrantType] = useState<'user' | 'group'>('user');
+  const [grantId, setGrantId] = useState('');
+  const [grantPermission, setGrantPermission] = useState<'read' | 'write'>('read');
+  const [confirmDeleteGrant, setConfirmDeleteGrant] = useState<string | null>(null);
 
   // ---------------------------------------------------------------------------
   // Handlers — Environments
@@ -976,6 +993,140 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             </p>
             <button className="btn btn-secondary" onClick={handleExportFlags}>
               Export flags.yaml
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Authorization tab — project & app levels — Task 18                  */}
+      {/* ------------------------------------------------------------------ */}
+      {activeTab === 'authorization' && (
+        <div className="settings-section">
+          {grantsLoading && <p className="text-muted text-sm">Loading grants...</p>}
+          {grantsError && <p className="text-danger text-sm">Error: {grantsError}</p>}
+
+          {!grantsLoading && grants.length === 0 ? (
+            <div className="empty-state">
+              <p>
+                {level === 'app'
+                  ? 'This app inherits access from its project. Add a user or group to override with app-specific access.'
+                  : 'This project is open to all organization members. Add a user or group to restrict access.'}
+              </p>
+            </div>
+          ) : (
+            <>
+              {grants.length > 0 && (
+                <div className="alert alert-warning" style={{ marginBottom: 16 }}>
+                  Access to this {level === 'app' ? 'app' : 'project'} is restricted. Only users and groups listed below (and org owners) can access it.
+                </div>
+              )}
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Permission</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {grants.map((grant) => (
+                    <tr key={grant.id}>
+                      <td>{grant.grantee_name}</td>
+                      <td>
+                        <span className={`badge badge-${grant.grantee_type}`}>{grant.grantee_type}</span>
+                      </td>
+                      <td>
+                        <span className={`badge badge-${grant.permission}`}>{grant.permission}</span>
+                      </td>
+                      <td>
+                        {confirmDeleteGrant === grant.id ? (
+                          <span className="inline-confirm">
+                            Are you sure?{' '}
+                            <button
+                              className="btn btn-sm btn-danger"
+                              onClick={async () => {
+                                if (!orgSlug || !projectSlug) return;
+                                try {
+                                  await grantsApi.deleteGrant(orgSlug, projectSlug, grant.id, level === 'app' ? appSlug : undefined);
+                                  setConfirmDeleteGrant(null);
+                                  refreshGrants();
+                                } catch (err) {
+                                  console.error('Failed to delete grant:', err);
+                                  setConfirmDeleteGrant(null);
+                                }
+                              }}
+                            >
+                              Yes
+                            </button>{' '}
+                            <button className="btn btn-sm" onClick={() => setConfirmDeleteGrant(null)}>
+                              No
+                            </button>
+                          </span>
+                        ) : (
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => setConfirmDeleteGrant(grant.id)}
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          <h3 style={{ marginTop: 24 }}>Add Access</h3>
+          <div className="inline-form-row">
+            <select
+              className="form-select"
+              value={grantType}
+              onChange={(e) => setGrantType(e.target.value as 'user' | 'group')}
+            >
+              <option value="user">User</option>
+              <option value="group">Group</option>
+            </select>
+            <input
+              type="text"
+              className="form-input"
+              placeholder={grantType === 'user' ? 'User ID' : 'Group ID'}
+              value={grantId}
+              onChange={(e) => setGrantId(e.target.value)}
+            />
+            <select
+              className="form-select"
+              value={grantPermission}
+              onChange={(e) => setGrantPermission(e.target.value as 'read' | 'write')}
+            >
+              <option value="read">Read</option>
+              <option value="write">Write</option>
+            </select>
+            <button
+              className="btn btn-primary"
+              onClick={async () => {
+                if (!grantId.trim() || !orgSlug || !projectSlug) return;
+                try {
+                  const data = {
+                    [grantType === 'user' ? 'user_id' : 'group_id']: grantId.trim(),
+                    permission: grantPermission,
+                  };
+                  if (level === 'app' && appSlug) {
+                    await grantsApi.createAppGrant(orgSlug, projectSlug, appSlug, data);
+                  } else {
+                    await grantsApi.createProjectGrant(orgSlug, projectSlug, data);
+                  }
+                  setGrantId('');
+                  refreshGrants();
+                } catch (err) {
+                  console.error('Failed to add grant:', err);
+                }
+              }}
+            >
+              Add
             </button>
           </div>
         </div>

@@ -406,6 +406,74 @@ export const entitiesApi = {
     }),
 };
 
+// Groups
+export interface Group {
+  id: string;
+  org_id: string;
+  name: string;
+  slug: string;
+  description: string;
+  member_count: number;
+  created_at: string;
+}
+
+export interface GroupMember {
+  group_id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  avatar_url?: string;
+  created_at: string;
+}
+
+export const groupsApi = {
+  list: (orgSlug: string) =>
+    request<{ groups: Group[] }>(`/orgs/${orgSlug}/groups`).then((r) => r.groups),
+  create: (orgSlug: string, data: { name: string; description?: string }) =>
+    request<Group>(`/orgs/${orgSlug}/groups`, { method: 'POST', body: JSON.stringify(data) }),
+  update: (orgSlug: string, groupSlug: string, data: { name: string; description?: string }) =>
+    request<Group>(`/orgs/${orgSlug}/groups/${groupSlug}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (orgSlug: string, groupSlug: string) =>
+    request<void>(`/orgs/${orgSlug}/groups/${groupSlug}`, { method: 'DELETE' }),
+  listMembers: (orgSlug: string, groupSlug: string) =>
+    request<{ members: GroupMember[] }>(`/orgs/${orgSlug}/groups/${groupSlug}/members`).then((r) => r.members),
+  addMember: (orgSlug: string, groupSlug: string, userId: string) =>
+    request<void>(`/orgs/${orgSlug}/groups/${groupSlug}/members`, { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
+  removeMember: (orgSlug: string, groupSlug: string, userId: string) =>
+    request<void>(`/orgs/${orgSlug}/groups/${groupSlug}/members/${userId}`, { method: 'DELETE' }),
+};
+
+// Resource Grants
+export interface ResourceGrant {
+  id: string;
+  org_id: string;
+  project_id?: string;
+  application_id?: string;
+  user_id?: string;
+  group_id?: string;
+  permission: 'read' | 'write';
+  grantee_name: string;
+  grantee_type: 'user' | 'group';
+  created_at: string;
+}
+
+export const grantsApi = {
+  listProjectGrants: (orgSlug: string, projectSlug: string) =>
+    request<{ grants: ResourceGrant[] }>(`/orgs/${orgSlug}/projects/${projectSlug}/grants`).then((r) => r.grants),
+  createProjectGrant: (orgSlug: string, projectSlug: string, data: { user_id?: string; group_id?: string; permission: string }) =>
+    request<ResourceGrant>(`/orgs/${orgSlug}/projects/${projectSlug}/grants`, { method: 'POST', body: JSON.stringify(data) }),
+  listAppGrants: (orgSlug: string, projectSlug: string, appSlug: string) =>
+    request<{ grants: ResourceGrant[] }>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/grants`).then((r) => r.grants),
+  createAppGrant: (orgSlug: string, projectSlug: string, appSlug: string, data: { user_id?: string; group_id?: string; permission: string }) =>
+    request<ResourceGrant>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/grants`, { method: 'POST', body: JSON.stringify(data) }),
+  deleteGrant: (orgSlug: string, projectSlug: string, grantId: string, appSlug?: string) => {
+    const base = appSlug
+      ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/grants/${grantId}`
+      : `/orgs/${orgSlug}/projects/${projectSlug}/grants/${grantId}`;
+    return request<void>(base, { method: 'DELETE' });
+  },
+};
+
 // Webhooks
 export interface Webhook {
   id: string;

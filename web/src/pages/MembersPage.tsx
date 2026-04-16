@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import type { Member } from '@/types';
-import { membersApi } from '@/api';
+import { membersApi, groupsApi } from '@/api';
+import type { Group } from '@/api';
+import { useGroups, useGroupMembers } from '@/hooks/useGroups';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -25,6 +27,18 @@ export default function MembersPage() {
 
   // Delete confirm
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+
+  // Groups state
+  const { groups, loading: groupsLoading, error: groupsError, refresh: refreshGroups } = useGroups(orgSlug);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const { members: groupMembers, loading: groupMembersLoading, error: groupMembersError, refresh: refreshGroupMembers } = useGroupMembers(orgSlug, selectedGroup?.slug);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupDescription, setNewGroupDescription] = useState('');
+  const [confirmDeleteGroup, setConfirmDeleteGroup] = useState<string | null>(null);
+  const [newMemberUserId, setNewMemberUserId] = useState('');
+  const [confirmRemoveGroupMember, setConfirmRemoveGroupMember] = useState<string | null>(null);
+  const [groupActionError, setGroupActionError] = useState<string | null>(null);
 
   const fetchMembers = useCallback(async () => {
     if (!orgSlug) return;
@@ -210,7 +224,244 @@ export default function MembersPage() {
       {/* ---- Groups Tab ---- */}
       {activeTab === 'groups' && (
         <div>
-          <p className="empty-state">Groups management coming soon.</p>
+          {groupActionError && (
+            <p className="form-error" style={{ marginBottom: 8 }}>
+              {groupActionError}
+            </p>
+          )}
+
+          {selectedGroup ? (
+            /* --- Group Detail View --- */
+            <div>
+              <button
+                className="btn btn-sm"
+                style={{ marginBottom: 16 }}
+                onClick={() => setSelectedGroup(null)}
+              >
+                &larr; Back to groups
+              </button>
+              <h3>{selectedGroup.name}</h3>
+              {selectedGroup.description && (
+                <p className="text-muted" style={{ marginBottom: 16 }}>{selectedGroup.description}</p>
+              )}
+
+              <div className="inline-form-row" style={{ marginBottom: 16 }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="User ID"
+                  value={newMemberUserId}
+                  onChange={(e) => setNewMemberUserId(e.target.value)}
+                />
+                <button
+                  className="btn btn-primary"
+                  onClick={async () => {
+                    if (!newMemberUserId.trim() || !orgSlug) return;
+                    setGroupActionError(null);
+                    try {
+                      await groupsApi.addMember(orgSlug, selectedGroup.slug, newMemberUserId.trim());
+                      setNewMemberUserId('');
+                      refreshGroupMembers();
+                    } catch (err) {
+                      setGroupActionError(err instanceof Error ? err.message : 'Failed to add member');
+                    }
+                  }}
+                >
+                  Add
+                </button>
+              </div>
+
+              {groupMembersError && (
+                <p className="form-error" style={{ marginBottom: 8 }}>{groupMembersError}</p>
+              )}
+
+              {groupMembersLoading ? (
+                <p className="text-muted">Loading members...</p>
+              ) : groupMembers.length === 0 ? (
+                <p className="empty-state">No members in this group yet.</p>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupMembers.map((gm) => (
+                      <tr key={gm.user_id}>
+                        <td>{gm.name}</td>
+                        <td>{gm.email}</td>
+                        <td>
+                          {confirmRemoveGroupMember === gm.user_id ? (
+                            <span className="inline-confirm">
+                              Are you sure?{' '}
+                              <button
+                                className="btn btn-sm btn-danger"
+                                onClick={async () => {
+                                  if (!orgSlug) return;
+                                  setGroupActionError(null);
+                                  try {
+                                    await groupsApi.removeMember(orgSlug, selectedGroup.slug, gm.user_id);
+                                    setConfirmRemoveGroupMember(null);
+                                    refreshGroupMembers();
+                                  } catch (err) {
+                                    setGroupActionError(err instanceof Error ? err.message : 'Failed to remove member');
+                                    setConfirmRemoveGroupMember(null);
+                                  }
+                                }}
+                              >
+                                Yes
+                              </button>{' '}
+                              <button className="btn btn-sm" onClick={() => setConfirmRemoveGroupMember(null)}>
+                                No
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              className="btn btn-sm btn-danger"
+                              onClick={() => setConfirmRemoveGroupMember(gm.user_id)}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          ) : (
+            /* --- Group List View --- */
+            <div>
+              {!showCreateGroup && (
+                <button
+                  className="btn btn-primary"
+                  style={{ marginBottom: 16 }}
+                  onClick={() => setShowCreateGroup(true)}
+                >
+                  Create Group
+                </button>
+              )}
+
+              {showCreateGroup && (
+                <div className="inline-form-row" style={{ marginBottom: 16 }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Group name"
+                    value={newGroupName}
+                    onChange={(e) => setNewGroupName(e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Description (optional)"
+                    value={newGroupDescription}
+                    onChange={(e) => setNewGroupDescription(e.target.value)}
+                  />
+                  <button
+                    className="btn btn-primary"
+                    onClick={async () => {
+                      if (!newGroupName.trim() || !orgSlug) return;
+                      setGroupActionError(null);
+                      try {
+                        await groupsApi.create(orgSlug, {
+                          name: newGroupName.trim(),
+                          description: newGroupDescription.trim() || undefined,
+                        });
+                        setNewGroupName('');
+                        setNewGroupDescription('');
+                        setShowCreateGroup(false);
+                        refreshGroups();
+                      } catch (err) {
+                        setGroupActionError(err instanceof Error ? err.message : 'Failed to create group');
+                      }
+                    }}
+                  >
+                    Create
+                  </button>
+                  <button className="btn btn-sm" onClick={() => { setShowCreateGroup(false); setNewGroupName(''); setNewGroupDescription(''); }}>
+                    Cancel
+                  </button>
+                </div>
+              )}
+
+              {groupsError && (
+                <p className="form-error" style={{ marginBottom: 8 }}>{groupsError}</p>
+              )}
+
+              {groupsLoading ? (
+                <p className="text-muted">Loading groups...</p>
+              ) : groups.length === 0 ? (
+                <p className="empty-state">No groups yet. Create one above.</p>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Description</th>
+                      <th>Members</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groups.map((g) => (
+                      <tr key={g.id}>
+                        <td>
+                          <button
+                            className="btn btn-sm"
+                            style={{ textDecoration: 'underline', padding: 0, background: 'none' }}
+                            onClick={() => setSelectedGroup(g)}
+                          >
+                            {g.name}
+                          </button>
+                        </td>
+                        <td>{g.description}</td>
+                        <td>{g.member_count}</td>
+                        <td>
+                          {confirmDeleteGroup === g.id ? (
+                            <span className="inline-confirm">
+                              Are you sure?{' '}
+                              <button
+                                className="btn btn-sm btn-danger"
+                                onClick={async () => {
+                                  if (!orgSlug) return;
+                                  setGroupActionError(null);
+                                  try {
+                                    await groupsApi.delete(orgSlug, g.slug);
+                                    setConfirmDeleteGroup(null);
+                                    refreshGroups();
+                                  } catch (err) {
+                                    setGroupActionError(err instanceof Error ? err.message : 'Failed to delete group');
+                                    setConfirmDeleteGroup(null);
+                                  }
+                                }}
+                              >
+                                Yes
+                              </button>{' '}
+                              <button className="btn btn-sm" onClick={() => setConfirmDeleteGroup(null)}>
+                                No
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              className="btn btn-sm btn-danger"
+                              onClick={() => setConfirmDeleteGroup(g.id)}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

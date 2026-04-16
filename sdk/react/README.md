@@ -51,6 +51,38 @@ function MyComponent() {
 | `application` | `string`      | Yes      | Application identifier                     |
 | `user`        | `UserContext` | No      | User context for targeting rules.                 |
 | `children`    | `ReactNode`  | Yes      | React children.                                   |
+| `mode`        | `string`     | No       | SDK mode: `server`, `file`, or `server-with-fallback`. |
+| `flagData`    | `object`     | No       | Pre-loaded flag config for file/fallback mode.    |
+
+## Offline / File Mode
+
+For offline use or testing, pass pre-loaded flag config via the `flagData` prop:
+
+```tsx
+import flagConfig from './.deploysentry/flags.json';
+
+<DeploySentryProvider
+  apiKey="not-used"
+  baseURL=""
+  environment="staging"
+  project="my-project"
+  application="my-web-app"
+  mode="file"
+  flagData={flagConfig}
+>
+  <App />
+</DeploySentryProvider>
+```
+
+### Modes
+
+| Mode | Behavior |
+| --- | --- |
+| `server` (default) | API calls + SSE streaming |
+| `file` | Use `flagData` prop, evaluate locally. No server contact. |
+| `server-with-fallback` | Try server first. If unavailable, use `flagData` as fallback. |
+
+Export the config from the dashboard (App Settings → Export flags.yaml), then convert to JSON or import with a YAML plugin.
 
 ## Hooks
 

@@ -142,8 +142,41 @@ Every flag must have a category. These drive lifecycle enforcement:
 | `DEPLOYSENTRY_APPLICATION`  | Yes      | Application identifier                 |
 | `DEPLOYSENTRY_ENV`          | No       | Environment (default: `development`) |
 | `DEPLOYSENTRY_URL`          | No       | API base URL (default: `https://api.deploysentry.io`) |
+| `DEPLOYSENTRY_MODE`         | No       | SDK mode: `server`, `file`, or `server-with-fallback` |
 
 For React/browser apps, prefix with your framework's public env convention (e.g. `NEXT_PUBLIC_`, `VITE_`).
+
+## Offline / File Mode
+
+Both SDKs support loading flags from a local config file for offline development, CI, or as a server fallback.
+
+### Setup
+
+1. Export the flag config from the dashboard: App Settings → Export flags.yaml
+2. Place the file at `.deploysentry/flags.yaml` in your project root
+3. Configure the SDK:
+
+**Backend:**
+```typescript
+const dsClient = new DeploySentryClient({
+  apiKey: process.env.DEPLOYSENTRY_API_KEY!,
+  environment: process.env.DEPLOYSENTRY_ENV ?? 'development',
+  project: process.env.DEPLOYSENTRY_PROJECT!,
+  application: process.env.DEPLOYSENTRY_APPLICATION!,
+  mode: 'server-with-fallback', // falls back to .deploysentry/flags.yaml
+});
+```
+
+**Frontend (React):**
+```tsx
+import flagConfig from './.deploysentry/flags.json';
+
+<DeploySentryProvider
+  {...props}
+  mode="server-with-fallback"
+  flagData={flagConfig}
+>
+```
 
 ---
 

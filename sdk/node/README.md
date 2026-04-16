@@ -202,6 +202,53 @@ const value = await client.boolValue('any-flag', true);
 | `baseURL`      | string   | No       | `https://api.deploysentry.io`  | API base URL                           |
 | `cacheTimeout` | number   | No       | `60000`                        | Cache TTL in milliseconds              |
 | `offlineMode`  | boolean  | No       | `false`                        | Return defaults without API calls      |
+| `mode`         | string   | No       | `server`                       | `server`, `file`, or `server-with-fallback` |
+| `flagFilePath` | string   | No       | `.deploysentry/flags.yaml`     | Path to YAML flag config file          |
+
+## Offline / File Mode
+
+The SDK can load flag configurations from a local YAML file instead of (or as fallback to) the server.
+
+### Modes
+
+| Mode | Behavior |
+| --- | --- |
+| `server` (default) | API calls + SSE streaming |
+| `file` | Load from YAML file, evaluate locally. No server contact. |
+| `server-with-fallback` | Try server first. If unavailable, fall back to YAML file. |
+
+### Usage
+
+```typescript
+// File mode — local development, CI, testing
+const client = new DeploySentryClient({
+  apiKey: 'not-used',
+  environment: 'staging',
+  project: 'my-project',
+  application: 'my-web-app',
+  mode: 'file',
+  flagFilePath: '.deploysentry/flags.yaml', // default
+});
+await client.initialize();
+
+// Fallback mode — production resilience
+const client = new DeploySentryClient({
+  apiKey: 'ds_live_xxx',
+  environment: 'production',
+  project: 'my-project',
+  application: 'my-web-app',
+  mode: 'server-with-fallback',
+});
+await client.initialize();
+```
+
+### Generating the YAML file
+
+Export from the DeploySentry dashboard: App Settings → Export flags.yaml. Place the downloaded file at `.deploysentry/flags.yaml` in your project root.
+
+### Local rule evaluation
+
+In file mode, targeting rules are evaluated locally. The SDK matches context attributes against rule conditions using the same operators as the server: equals, not_equals, in, not_in, contains, starts_with, ends_with, greater_than, less_than.
 
 ## API Endpoints
 

@@ -57,6 +57,14 @@ export default function FlagDetailPage() {
   const [activeTab, setActiveTab] = useState<'rules' | 'environments'>('rules');
   const [environments, setEnvironments] = useState<OrgEnvironment[]>([]);
   const [envStates, setEnvStates] = useState<FlagEnvironmentState[]>([]);
+  const [showAddRule, setShowAddRule] = useState(false);
+  const [newRule, setNewRule] = useState({
+    attribute: '',
+    operator: 'equals',
+    target_values: '',
+    value: '',
+    priority: 0,
+  });
 
   useEffect(() => {
     if (!id) return;
@@ -89,6 +97,44 @@ export default function FlagDetailPage() {
       .then((res) => setEnvStates(res.environment_states ?? []))
       .catch(() => {});
   }, [orgSlug, id]);
+
+  useEffect(() => {
+    setNewRule((prev) => ({ ...prev, priority: rules.length + 1 }));
+  }, [rules]);
+
+  const handleAddRule = async () => {
+    if (!id || !newRule.attribute || !newRule.value) return;
+    try {
+      const targetValues = ['in', 'not_in'].includes(newRule.operator)
+        ? newRule.target_values.split(',').map((s) => s.trim()).filter(Boolean)
+        : [newRule.target_values.trim()];
+      await flagsApi.addRule(id, {
+        rule_type: 'attribute',
+        attribute: newRule.attribute,
+        operator: newRule.operator,
+        target_values: targetValues,
+        value: newRule.value,
+        priority: newRule.priority,
+      });
+      const res = await flagsApi.listRules(id);
+      setRules(res.rules ?? []);
+      setShowAddRule(false);
+      setNewRule({ attribute: '', operator: 'equals', target_values: '', value: '', priority: (res.rules?.length ?? 0) + 1 });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add rule');
+    }
+  };
+
+  const handleDeleteRule = async (ruleId: string) => {
+    if (!id) return;
+    if (!window.confirm('Delete this targeting rule?')) return;
+    try {
+      await flagsApi.deleteRule(id, ruleId);
+      setRules((prev) => prev.filter((r) => r.id !== ruleId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete rule');
+    }
+  };
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
@@ -183,49 +229,77 @@ export default function FlagDetailPage() {
       {/* Tab: Targeting Rules */}
       {activeTab === 'rules' && (
         <div className="card">
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '1rem',
-            }}
-          >
-            <span>
-              {rules.length} rule{rules.length !== 1 ? 's' : ''}
-            </span>
-            <button className="btn btn-secondary" onClick={() => alert('Targeting rule creation is coming soon. Use the CLI: deploysentry flags add-rule --flag-id ' + id)}>Add Rule</button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <span>{rules.length} rule{rules.length !== 1 ? 's' : ''}</span>
+            <button className="btn btn-secondary" onClick={() => setShowAddRule(!showAddRule)}>
+              {showAddRule ? 'Cancel' : 'Add Rule'}
+            </button>
           </div>
+
+          {showAddRule && (
+            <div style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 6, padding: 16, marginBottom: 16 }}>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Attribute</label>
+                  <input className="form-input" type="text" placeholder="e.g. userType" value={newRule.attribute} onChange={(e) => setNewRule({ ...newRule, attribute: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Operator</label>
+                  <select className="form-select" value={newRule.operator} onChange={(e) => setNewRule({ ...newRule, operator: e.target.value })}>
+                    <option value="equals">equals</option>
+                    <option value="not_equals">not equals</option>
+                    <option value="in">in</option>
+                    <option value="not_in">not in</option>
+                    <option value="contains">contains</option>
+                    <option value="starts_with">starts with</option>
+                    <option value="ends_with">ends with</option>
+                    <option value="greater_than">greater than</option>
+                    <option value="less_than">less than</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Target Value(s)</label>
+                  <input className="form-input" type="text" placeholder={['in', 'not_in'].includes(newRule.operator) ? 'comma-separated values' : 'value'} value={newRule.target_values} onChange={(e) => setNewRule({ ...newRule, target_values: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Serve Value</label>
+                  <input className="form-input" type="text" placeholder="e.g. true" value={newRule.value} onChange={(e) => setNewRule({ ...newRule, value: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Priority</label>
+                  <input className="form-input" type="number" min={1} value={newRule.priority} onChange={(e) => setNewRule({ ...newRule, priority: parseInt(e.target.value) || 1 })} />
+                </div>
+              </div>
+              <button className="btn btn-primary" onClick={handleAddRule} disabled={!newRule.attribute || !newRule.value}>
+                Create Rule
+              </button>
+            </div>
+          )}
+
           <table>
             <thead>
               <tr>
                 <th>Priority</th>
-                <th>Type</th>
                 <th>Condition</th>
-                <th>Value</th>
-                <th>Enabled</th>
+                <th>Serve Value</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {rules.map((rule) => (
                 <tr key={rule.id}>
                   <td>{rule.priority}</td>
-                  <td>{rule.rule_type}</td>
-                  <td>{describeConditions(rule)}</td>
+                  <td>{rule.attribute} {rule.operator} {(rule.target_values ?? []).join(', ')}</td>
                   <td className="font-mono">{rule.value}</td>
                   <td>
-                    <span className={`badge ${rule.enabled ? 'badge-enabled' : 'badge-disabled'}`}>
-                      {rule.enabled ? 'enabled' : 'disabled'}
-                    </span>
+                    <button className="btn btn-sm btn-danger" onClick={() => handleDeleteRule(rule.id)}>Delete</button>
                   </td>
                 </tr>
               ))}
               {rules.length === 0 && (
-                <tr>
-                  <td colSpan={5} style={{ textAlign: 'center' }}>
-                    No targeting rules defined.
-                  </td>
-                </tr>
+                <tr><td colSpan={4} style={{ textAlign: 'center' }}>No targeting rules defined.</td></tr>
               )}
             </tbody>
           </table>

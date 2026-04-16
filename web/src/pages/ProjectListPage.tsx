@@ -57,7 +57,7 @@ export default function ProjectListPage() {
               >
                 <div className="flex items-center gap-2" style={{ justifyContent: 'space-between' }}>
                   <Link
-                    to={`/orgs/${orgSlug}/projects/${project.slug}/flags`}
+                    to={`/orgs/${orgSlug}/projects/${project.slug}/apps`}
                     style={{ textDecoration: 'none', color: 'inherit', flex: 1 }}
                   >
                     <h3 className="project-card-name" style={{ margin: 0 }}>
@@ -72,19 +72,9 @@ export default function ProjectListPage() {
                       )}
                     </h3>
                   </Link>
-                  {!isDeleted && (
-                    <Link
-                      to={`/orgs/${orgSlug}/projects/${project.slug}/settings`}
-                      title="Project Settings"
-                      style={{ textDecoration: 'none', fontSize: 18, lineHeight: 1 }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      &#x2699;
-                    </Link>
-                  )}
                 </div>
                 <Link
-                  to={`/orgs/${orgSlug}/projects/${project.slug}/flags`}
+                  to={`/orgs/${orgSlug}/projects/${project.slug}/apps`}
                   style={{ textDecoration: 'none', color: 'inherit' }}
                 >
                   <span className="project-card-slug">{project.slug}</span>

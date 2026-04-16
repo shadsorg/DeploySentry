@@ -24,6 +24,8 @@
 export { DeploySentryClient } from './client';
 export { FlagCache } from './cache';
 export { FlagStreamClient } from './streaming';
+export { loadFlagConfig } from './file-loader';
+export { evaluateLocal } from './local-evaluator';
 
 export type {
   ClientOptions,
@@ -32,5 +34,9 @@ export type {
   Flag,
   FlagCategory,
   FlagMetadata,
+  FlagConfig,
+  FlagConfigFlag,
+  FlagConfigRule,
+  FlagConfigEnvironment,
   ApiError,
 } from './types';

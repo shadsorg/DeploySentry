@@ -6,9 +6,11 @@ import {
   FlagCategory,
   FlagMetadata,
 } from './types';
-import type { Registration } from './types';
+import type { FlagConfig, Registration } from './types';
 import { FlagCache } from './cache';
 import { FlagStreamClient } from './streaming';
+import { loadFlagConfig } from './file-loader';
+import { evaluateLocal } from './local-evaluator';
 
 const DEFAULT_BASE_URL = 'https://api.deploysentry.io';
 const DEFAULT_CACHE_TIMEOUT_MS = 60_000;
@@ -38,10 +40,13 @@ export class DeploySentryClient {
   private readonly application: string;
   private readonly offlineMode: boolean;
   private readonly sessionId: string | undefined;
+  private readonly mode: 'server' | 'file' | 'server-with-fallback';
+  private readonly flagFilePath?: string;
 
   private readonly cache: FlagCache;
   private streamClient: FlagStreamClient | null = null;
   private _initialized = false;
+  private flagConfig: FlagConfig | null = null;
   private registry: Map<string, Registration[]> = new Map();
 
   constructor(options: ClientOptions) {
@@ -57,6 +62,8 @@ export class DeploySentryClient {
     this.application = options.application;
     this.offlineMode = options.offlineMode ?? false;
     this.sessionId = options.sessionId;
+    this.mode = options.mode ?? 'server';
+    this.flagFilePath = options.flagFilePath;
 
     this.cache = new FlagCache(options.cacheTimeout ?? DEFAULT_CACHE_TIMEOUT_MS);
   }
@@ -70,29 +77,45 @@ export class DeploySentryClient {
    * updates.  Must be called before evaluating flags.
    */
   async initialize(): Promise<void> {
+    if (this.mode === 'file') {
+      this.flagConfig = loadFlagConfig(this.flagFilePath);
+      this._initialized = true;
+      return;
+    }
+
     if (this.offlineMode) {
       this._initialized = true;
       return;
     }
 
-    // Fetch all flags for the project so the cache is warm.
-    const flags = await this.fetchAllFlags();
-    this.cache.setMany(flags);
+    try {
+      // Fetch all flags for the project so the cache is warm.
+      const flags = await this.fetchAllFlags();
+      this.cache.setMany(flags);
 
-    // Start streaming updates.
-    this.streamClient = new FlagStreamClient({
-      url: `${this.baseURL}/api/v1/flags/stream?project_id=${enc(this.project)}&environment_id=${enc(this.environment)}&application=${enc(this.application)}`,
-      headers: this.authHeaders(),
-      onUpdate: (updated) => this.cache.setMany(updated),
-      onError: (err) => {
-        // Surface errors but do not crash – the cache still serves stale data.
-        console.error('[DeploySentry] stream error:', err.message);
-      },
-    });
+      // Start streaming updates.
+      this.streamClient = new FlagStreamClient({
+        url: `${this.baseURL}/api/v1/flags/stream?project_id=${enc(this.project)}&environment_id=${enc(this.environment)}&application=${enc(this.application)}`,
+        headers: this.authHeaders(),
+        onUpdate: (updated) => this.cache.setMany(updated),
+        onError: (err) => {
+          // Surface errors but do not crash – the cache still serves stale data.
+          console.error('[DeploySentry] stream error:', err.message);
+        },
+      });
 
-    // Fire-and-forget; the stream reconnects automatically.
-    this.streamClient.connect();
-    this._initialized = true;
+      // Fire-and-forget; the stream reconnects automatically.
+      this.streamClient.connect();
+      this._initialized = true;
+    } catch (err) {
+      if (this.mode === 'server-with-fallback') {
+        console.warn('[DeploySentry] Server unavailable, falling back to flag config file');
+        this.flagConfig = loadFlagConfig(this.flagFilePath);
+        this._initialized = true;
+        return;
+      }
+      throw err;
+    }
   }
 
   /** Tear down the SSE connection and release resources. */
@@ -263,7 +286,7 @@ export class DeploySentryClient {
 
   dispatch<T extends (...args: any[]) => any>(
     operation: string,
-    context?: EvaluationContext,
+    _context?: EvaluationContext,
   ): T {
     const list = this.registry.get(operation);
     if (!list || list.length === 0) {
@@ -295,6 +318,12 @@ export class DeploySentryClient {
     defaultValue: T,
     context?: EvaluationContext,
   ): Promise<T> {
+    if (this.flagConfig) {
+      const result = evaluateLocal(this.flagConfig, this.environment, key, context);
+      if (result.reason === 'flag_not_found') return defaultValue;
+      return result.value as unknown as T;
+    }
+
     if (this.offlineMode) return defaultValue;
 
     // Prefer server-side evaluation so targeting rules are applied.

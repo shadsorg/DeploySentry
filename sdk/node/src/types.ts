@@ -79,6 +79,43 @@ export interface ClientOptions {
   offlineMode?: boolean;
   /** Optional session identifier for consistent flag evaluation across requests. */
   sessionId?: string;
+  /** SDK mode: server (default), file (YAML only), or server-with-fallback. */
+  mode?: 'server' | 'file' | 'server-with-fallback';
+  /** Path to a local YAML flag config file. Defaults to .deploysentry/flags.yaml. */
+  flagFilePath?: string;
+}
+
+export interface FlagConfig {
+  version: number;
+  project: string;
+  application: string;
+  exported_at: string;
+  environments: FlagConfigEnvironment[];
+  flags: FlagConfigFlag[];
+}
+export interface FlagConfigEnvironment {
+  id: string;
+  name: string;
+  is_production: boolean;
+}
+export interface FlagConfigFlag {
+  key: string;
+  name: string;
+  flag_type: string;
+  category: string;
+  default_value: string;
+  is_permanent: boolean;
+  expires_at?: string;
+  environments: Record<string, { enabled: boolean; value: string }>;
+  rules?: FlagConfigRule[];
+}
+export interface FlagConfigRule {
+  attribute: string;
+  operator: string;
+  target_values: string[];
+  value: string;
+  priority: number;
+  environments: Record<string, boolean>;
 }
 
 /** Internal representation of an API error response. */

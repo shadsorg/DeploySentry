@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -190,8 +191,13 @@ func (h *Handler) listProjects(c *gin.Context) {
 		return
 	}
 
+	uid, _ := c.Get("user_id")
+	userID, _ := uid.(uuid.UUID)
+	roleVal, _ := c.Get("role")
+	orgRole := fmt.Sprintf("%v", roleVal)
+
 	includeDeleted := c.Query("include_deleted") == "true"
-	projects, err := h.service.ListProjectsByOrg(c.Request.Context(), org.ID, includeDeleted)
+	projects, err := h.service.ListProjectsByOrg(c.Request.Context(), org.ID, includeDeleted, userID, orgRole)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -366,8 +372,13 @@ func (h *Handler) listApps(c *gin.Context) {
 		return
 	}
 
+	uid, _ := c.Get("user_id")
+	userID, _ := uid.(uuid.UUID)
+	roleVal, _ := c.Get("role")
+	orgRole := fmt.Sprintf("%v", roleVal)
+
 	includeDeleted := c.Query("include_deleted") == "true"
-	apps, err := h.service.ListAppsByProject(c.Request.Context(), project.ID, includeDeleted)
+	apps, err := h.service.ListAppsByProject(c.Request.Context(), project.ID, includeDeleted, userID, orgRole)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

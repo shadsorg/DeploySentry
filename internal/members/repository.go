@@ -16,15 +16,7 @@ type OrgMemberRow struct {
 	AvatarURL string `json:"avatar_url,omitempty"`
 }
 
-// ProjectMemberRow extends ProjectMember with user profile fields from a JOIN.
-type ProjectMemberRow struct {
-	models.ProjectMember
-	Name      string `json:"name"`
-	Email     string `json:"email"`
-	AvatarURL string `json:"avatar_url,omitempty"`
-}
-
-// Repository defines persistence operations for org and project members.
+// Repository defines persistence operations for org members.
 type Repository interface {
 	// Org members
 	ListOrgMembers(ctx context.Context, orgID uuid.UUID) ([]OrgMemberRow, error)
@@ -33,13 +25,6 @@ type Repository interface {
 	UpdateOrgMemberRole(ctx context.Context, orgID, userID uuid.UUID, role models.OrgRole) error
 	RemoveOrgMember(ctx context.Context, orgID, userID uuid.UUID) error
 	CountOrgOwners(ctx context.Context, orgID uuid.UUID) (int, error)
-
-	// Project members
-	ListProjectMembers(ctx context.Context, projectID uuid.UUID) ([]ProjectMemberRow, error)
-	GetProjectMember(ctx context.Context, projectID, userID uuid.UUID) (*models.ProjectMember, error)
-	AddProjectMember(ctx context.Context, m *models.ProjectMember) error
-	UpdateProjectMemberRole(ctx context.Context, projectID, userID uuid.UUID, role models.ProjectRole) error
-	RemoveProjectMember(ctx context.Context, projectID, userID uuid.UUID) error
 
 	// User lookup
 	GetUserByEmail(ctx context.Context, email string) (*models.User, error)

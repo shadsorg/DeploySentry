@@ -24,7 +24,7 @@ type EntityService interface {
 
 	CreateProject(ctx context.Context, project *models.Project) error
 	GetProjectBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error)
-	ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool) ([]*models.Project, error)
+	ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool, userID uuid.UUID, orgRole string) ([]*models.Project, error)
 	UpdateProject(ctx context.Context, project *models.Project) error
 	DeleteProject(ctx context.Context, orgID uuid.UUID, slug string) (*models.DeleteResult, error)
 	HardDeleteProject(ctx context.Context, orgID uuid.UUID, slug string) error
@@ -32,7 +32,7 @@ type EntityService interface {
 
 	CreateApp(ctx context.Context, app *models.Application) error
 	GetAppBySlug(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
-	ListAppsByProject(ctx context.Context, projectID uuid.UUID, includeDeleted bool) ([]*models.Application, error)
+	ListAppsByProject(ctx context.Context, projectID uuid.UUID, includeDeleted bool, userID uuid.UUID, orgRole string) ([]*models.Application, error)
 	UpdateApp(ctx context.Context, app *models.Application) error
 	DeleteApp(ctx context.Context, projectID uuid.UUID, slug string) (*models.DeleteResult, error)
 	HardDeleteApp(ctx context.Context, projectID uuid.UUID, slug string) error
@@ -105,8 +105,8 @@ func (s *entityService) GetProjectBySlug(ctx context.Context, orgID uuid.UUID, s
 	return s.repo.GetProjectBySlug(ctx, orgID, slug)
 }
 
-func (s *entityService) ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool) ([]*models.Project, error) {
-	return s.repo.ListProjectsByOrg(ctx, orgID, includeDeleted)
+func (s *entityService) ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool, userID uuid.UUID, orgRole string) ([]*models.Project, error) {
+	return s.repo.ListProjectsByOrg(ctx, orgID, includeDeleted, userID, orgRole)
 }
 
 func (s *entityService) UpdateProject(ctx context.Context, project *models.Project) error {
@@ -203,8 +203,8 @@ func (s *entityService) GetAppBySlug(ctx context.Context, projectID uuid.UUID, s
 	return s.repo.GetAppBySlug(ctx, projectID, slug)
 }
 
-func (s *entityService) ListAppsByProject(ctx context.Context, projectID uuid.UUID, includeDeleted bool) ([]*models.Application, error) {
-	return s.repo.ListAppsByProject(ctx, projectID, includeDeleted)
+func (s *entityService) ListAppsByProject(ctx context.Context, projectID uuid.UUID, includeDeleted bool, userID uuid.UUID, orgRole string) ([]*models.Application, error) {
+	return s.repo.ListAppsByProject(ctx, projectID, includeDeleted, userID, orgRole)
 }
 
 func (s *entityService) UpdateApp(ctx context.Context, app *models.Application) error {

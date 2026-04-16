@@ -185,15 +185,29 @@ func (r *EntityRepository) GetProjectBySlug(ctx context.Context, orgID uuid.UUID
 }
 
 // ListProjectsByOrg returns all projects for an organization, ordered by name.
-func (r *EntityRepository) ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool) ([]*models.Project, error) {
-	deletedFilter := " AND deleted_at IS NULL"
+// Visibility filtering: owners see all; other roles see only projects that have
+// no grants or where the user has a direct or group-based grant.
+func (r *EntityRepository) ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool, userID uuid.UUID, orgRole string) ([]*models.Project, error) {
+	deletedFilter := " AND p.deleted_at IS NULL"
 	if includeDeleted {
 		deletedFilter = ""
 	}
-	q := `SELECT id, org_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), created_at, updated_at, deleted_at
-		FROM projects WHERE org_id = $1` + deletedFilter + ` ORDER BY name`
+	q := `SELECT p.id, p.org_id, p.name, p.slug, COALESCE(p.description, ''), COALESCE(p.repo_url, ''), p.created_at, p.updated_at, p.deleted_at
+		FROM projects p
+		WHERE p.org_id = $1` + deletedFilter + `
+		AND (
+			$3 = 'owner'
+			OR NOT EXISTS (SELECT 1 FROM resource_grants rg WHERE rg.project_id = p.id)
+			OR EXISTS (SELECT 1 FROM resource_grants rg WHERE rg.project_id = p.id AND rg.user_id = $2)
+			OR EXISTS (
+				SELECT 1 FROM resource_grants rg
+				JOIN group_members gm ON gm.group_id = rg.group_id
+				WHERE rg.project_id = p.id AND gm.user_id = $2
+			)
+		)
+		ORDER BY p.name`
 
-	rows, err := r.pool.Query(ctx, q, orgID)
+	rows, err := r.pool.Query(ctx, q, orgID, userID, orgRole)
 	if err != nil {
 		return nil, fmt.Errorf("postgres.ListProjectsByOrg: %w", err)
 	}
@@ -300,15 +314,43 @@ func (r *EntityRepository) GetAppBySlug(ctx context.Context, projectID uuid.UUID
 }
 
 // ListAppsByProject returns all applications for a project, ordered by name.
-func (r *EntityRepository) ListAppsByProject(ctx context.Context, projectID uuid.UUID, includeDeleted bool) ([]*models.Application, error) {
-	deletedFilter := " AND deleted_at IS NULL"
+// Visibility filtering: owners see all; other roles see apps based on cascade
+// logic (app-level grants, then project-level grants, then open).
+func (r *EntityRepository) ListAppsByProject(ctx context.Context, projectID uuid.UUID, includeDeleted bool, userID uuid.UUID, orgRole string) ([]*models.Application, error) {
+	deletedFilter := " AND a.deleted_at IS NULL"
 	if includeDeleted {
 		deletedFilter = ""
 	}
-	q := `SELECT id, project_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), created_by, created_at, updated_at, deleted_at
-		FROM applications WHERE project_id = $1` + deletedFilter + ` ORDER BY name`
+	q := `SELECT a.id, a.project_id, a.name, a.slug, COALESCE(a.description, ''), COALESCE(a.repo_url, ''), a.created_by, a.created_at, a.updated_at, a.deleted_at
+		FROM applications a
+		WHERE a.project_id = $1` + deletedFilter + `
+		AND (
+			$3 = 'owner'
+			OR (
+				NOT EXISTS (SELECT 1 FROM resource_grants rg WHERE rg.application_id = a.id)
+				AND NOT EXISTS (SELECT 1 FROM resource_grants rg WHERE rg.project_id = a.project_id)
+			)
+			OR (
+				NOT EXISTS (SELECT 1 FROM resource_grants rg WHERE rg.application_id = a.id)
+				AND (
+					EXISTS (SELECT 1 FROM resource_grants rg WHERE rg.project_id = a.project_id AND rg.user_id = $2)
+					OR EXISTS (
+						SELECT 1 FROM resource_grants rg
+						JOIN group_members gm ON gm.group_id = rg.group_id
+						WHERE rg.project_id = a.project_id AND gm.user_id = $2
+					)
+				)
+			)
+			OR EXISTS (SELECT 1 FROM resource_grants rg WHERE rg.application_id = a.id AND rg.user_id = $2)
+			OR EXISTS (
+				SELECT 1 FROM resource_grants rg
+				JOIN group_members gm ON gm.group_id = rg.group_id
+				WHERE rg.application_id = a.id AND gm.user_id = $2
+			)
+		)
+		ORDER BY a.name`
 
-	rows, err := r.pool.Query(ctx, q, projectID)
+	rows, err := r.pool.Query(ctx, q, projectID, userID, orgRole)
 	if err != nil {
 		return nil, fmt.Errorf("postgres.ListAppsByProject: %w", err)
 	}

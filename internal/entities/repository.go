@@ -17,7 +17,7 @@ type EntityRepository interface {
 
 	CreateProject(ctx context.Context, project *models.Project) error
 	GetProjectBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error)
-	ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool) ([]*models.Project, error)
+	ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool, userID uuid.UUID, orgRole string) ([]*models.Project, error)
 	UpdateProject(ctx context.Context, project *models.Project) error
 	CountFlagsByProject(ctx context.Context, projectID uuid.UUID) (int, error)
 	SoftDeleteProject(ctx context.Context, id uuid.UUID) error
@@ -26,7 +26,7 @@ type EntityRepository interface {
 
 	CreateApp(ctx context.Context, app *models.Application) error
 	GetAppBySlug(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
-	ListAppsByProject(ctx context.Context, projectID uuid.UUID, includeDeleted bool) ([]*models.Application, error)
+	ListAppsByProject(ctx context.Context, projectID uuid.UUID, includeDeleted bool, userID uuid.UUID, orgRole string) ([]*models.Application, error)
 	UpdateApp(ctx context.Context, app *models.Application) error
 	CountFlagsByApp(ctx context.Context, applicationID uuid.UUID) (int, error)
 	SoftDeleteApp(ctx context.Context, id uuid.UUID) error

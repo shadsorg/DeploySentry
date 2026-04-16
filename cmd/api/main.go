@@ -22,6 +22,8 @@ import (
 	"github.com/deploysentry/deploysentry/internal/deploy/engine"
 	"github.com/deploysentry/deploysentry/internal/entities"
 	"github.com/deploysentry/deploysentry/internal/flags"
+	"github.com/deploysentry/deploysentry/internal/grants"
+	"github.com/deploysentry/deploysentry/internal/groups"
 	"github.com/deploysentry/deploysentry/internal/members"
 	githubint "github.com/deploysentry/deploysentry/internal/integrations/github"
 	"github.com/deploysentry/deploysentry/internal/notifications"
@@ -218,6 +220,8 @@ func run() error {
 	envRepo := entities.NewEnvironmentRepository(db.Pool)
 	settingRepo := postgres.NewSettingRepository(db.Pool)
 	memberRepo := postgres.NewMemberRepository(db.Pool)
+	groupRepo := postgres.NewGroupRepository(db.Pool)
+	grantRepo := postgres.NewGrantRepository(db.Pool)
 
 	// -------------------------------------------------------------------------
 	// Services
@@ -234,6 +238,8 @@ func run() error {
 	entityService := entities.NewEntityService(entityRepo, envRepo)
 	settingService := settings.NewSettingService(settingRepo)
 	memberService := members.NewService(memberRepo)
+	groupService := groups.NewService(groupRepo)
+	grantService := grants.NewService(grantRepo)
 
 	// -------------------------------------------------------------------------
 	// Notifications
@@ -339,6 +345,8 @@ func run() error {
 	entities.NewHandler(entityService, rbacChecker).RegisterRoutes(api)
 	settings.NewHandler(settingService, rbacChecker).RegisterRoutes(api)
 	members.NewHandler(memberService, entityService, rbacChecker).RegisterRoutes(api)
+	groups.NewHandler(groupService, entityService, rbacChecker).RegisterRoutes(api)
+	grants.NewHandler(grantService, entityService, rbacChecker).RegisterRoutes(api)
 	notifications.NewPreferencesHandler(prefStore, notificationService, rbacChecker).RegisterRoutes(api)
 
 	// Rollback handler: manual rollback triggers and rollback history.

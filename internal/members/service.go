@@ -27,12 +27,6 @@ type Service interface {
 	AddOrgMember(ctx context.Context, orgID uuid.UUID, email string, role models.OrgRole, addedBy uuid.UUID) (*OrgMemberRow, error)
 	UpdateOrgMemberRole(ctx context.Context, orgID, userID uuid.UUID, role models.OrgRole) error
 	RemoveOrgMember(ctx context.Context, orgID, userID uuid.UUID) error
-
-	// Project members
-	ListProjectMembers(ctx context.Context, projectID uuid.UUID) ([]ProjectMemberRow, error)
-	AddProjectMember(ctx context.Context, projectID uuid.UUID, email string, role models.ProjectRole, addedBy uuid.UUID) (*ProjectMemberRow, error)
-	UpdateProjectMemberRole(ctx context.Context, projectID, userID uuid.UUID, role models.ProjectRole) error
-	RemoveProjectMember(ctx context.Context, projectID, userID uuid.UUID) error
 }
 
 type memberService struct {
@@ -134,71 +128,6 @@ func (s *memberService) RemoveOrgMember(ctx context.Context, orgID, userID uuid.
 
 	if err := s.repo.RemoveOrgMember(ctx, orgID, userID); err != nil {
 		return fmt.Errorf("removing org member: %w", err)
-	}
-	return nil
-}
-
-// ---------------------------------------------------------------------------
-// Project members
-// ---------------------------------------------------------------------------
-
-func (s *memberService) ListProjectMembers(ctx context.Context, projectID uuid.UUID) ([]ProjectMemberRow, error) {
-	rows, err := s.repo.ListProjectMembers(ctx, projectID)
-	if err != nil {
-		return nil, fmt.Errorf("listing project members: %w", err)
-	}
-	return rows, nil
-}
-
-func validProjectRole(r models.ProjectRole) bool {
-	switch r {
-	case models.ProjectRoleAdmin, models.ProjectRoleDeveloper, models.ProjectRoleViewer:
-		return true
-	}
-	return false
-}
-
-func (s *memberService) AddProjectMember(ctx context.Context, projectID uuid.UUID, email string, role models.ProjectRole, addedBy uuid.UUID) (*ProjectMemberRow, error) {
-	if !validProjectRole(role) {
-		return nil, ErrInvalidRole
-	}
-
-	user, err := s.repo.GetUserByEmail(ctx, email)
-	if err != nil {
-		return nil, ErrUserNotFound
-	}
-
-	m := &models.ProjectMember{
-		ProjectID: projectID,
-		UserID:    user.ID,
-		Role:      role,
-	}
-
-	if err := s.repo.AddProjectMember(ctx, m); err != nil {
-		return nil, fmt.Errorf("adding project member: %w", err)
-	}
-
-	return &ProjectMemberRow{
-		ProjectMember: *m,
-		Name:          user.Name,
-		Email:         user.Email,
-		AvatarURL:     user.AvatarURL,
-	}, nil
-}
-
-func (s *memberService) UpdateProjectMemberRole(ctx context.Context, projectID, userID uuid.UUID, role models.ProjectRole) error {
-	if !validProjectRole(role) {
-		return ErrInvalidRole
-	}
-	if err := s.repo.UpdateProjectMemberRole(ctx, projectID, userID, role); err != nil {
-		return fmt.Errorf("updating project member role: %w", err)
-	}
-	return nil
-}
-
-func (s *memberService) RemoveProjectMember(ctx context.Context, projectID, userID uuid.UUID) error {
-	if err := s.repo.RemoveProjectMember(ctx, projectID, userID); err != nil {
-		return fmt.Errorf("removing project member: %w", err)
 	}
 	return nil
 }

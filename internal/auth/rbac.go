@@ -243,7 +243,7 @@ func RequirePermission(rbac *RBACChecker, perm Permission) gin.HandlerFunc {
 type OrgRoleLookup interface {
 	GetOrgIDBySlug(ctx context.Context, slug string) (uuid.UUID, error)
 	GetOrgMemberRole(ctx context.Context, orgID, userID uuid.UUID) (string, error)
-	GetUserDefaultOrgRole(ctx context.Context, userID uuid.UUID) (string, error)
+	GetUserDefaultOrgRole(ctx context.Context, userID uuid.UUID) (uuid.UUID, string, error)
 }
 
 // ResolveOrgRole returns a Gin middleware that looks up the user's org role
@@ -305,13 +305,14 @@ func ResolveOrgRole(lookup OrgRoleLookup) gin.HandlerFunc {
 		}
 
 		// No orgSlug in URL — resolve user's default (highest) org role
-		role, err := lookup.GetUserDefaultOrgRole(c.Request.Context(), userID)
+		orgID, role, err := lookup.GetUserDefaultOrgRole(c.Request.Context(), userID)
 		if err != nil {
 			c.Next()
 			return
 		}
 
 		c.Set("role", Role(role))
+		c.Set("org_id", orgID.String())
 		c.Next()
 	}
 }

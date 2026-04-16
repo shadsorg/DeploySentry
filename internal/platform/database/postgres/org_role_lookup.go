@@ -49,12 +49,13 @@ func (l *OrgRoleLookup) GetOrgMemberRole(ctx context.Context, orgID, userID uuid
 	return role, nil
 }
 
-// GetUserDefaultOrgRole returns the user's highest org role across all orgs.
+// GetUserDefaultOrgRole returns the user's highest org role and its org ID across all orgs.
 // Role hierarchy: owner > admin > member > viewer.
-func (l *OrgRoleLookup) GetUserDefaultOrgRole(ctx context.Context, userID uuid.UUID) (string, error) {
+func (l *OrgRoleLookup) GetUserDefaultOrgRole(ctx context.Context, userID uuid.UUID) (uuid.UUID, string, error) {
+	var orgID uuid.UUID
 	var role string
 	err := l.pool.QueryRow(ctx, `
-		SELECT role FROM org_members WHERE user_id = $1
+		SELECT org_id, role FROM org_members WHERE user_id = $1
 		ORDER BY CASE role
 			WHEN 'owner' THEN 1
 			WHEN 'admin' THEN 2
@@ -62,12 +63,12 @@ func (l *OrgRoleLookup) GetUserDefaultOrgRole(ctx context.Context, userID uuid.U
 			WHEN 'viewer' THEN 4
 			ELSE 5
 		END
-		LIMIT 1`, userID).Scan(&role)
+		LIMIT 1`, userID).Scan(&orgID, &role)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return "", ErrNotFound
+			return uuid.Nil, "", ErrNotFound
 		}
-		return "", fmt.Errorf("postgres.GetUserDefaultOrgRole: %w", err)
+		return uuid.Nil, "", fmt.Errorf("postgres.GetUserDefaultOrgRole: %w", err)
 	}
-	return role, nil
+	return orgID, role, nil
 }

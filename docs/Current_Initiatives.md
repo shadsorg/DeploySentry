@@ -10,6 +10,7 @@
 | E2E SDK Flag Delivery | Implementation | [Plan](./superpowers/plans/2026-04-12-e2e-sdk-flag-delivery.md) / [Spec](./superpowers/specs/2026-04-12-e2e-sdk-flag-delivery-design.md) | 5 tests passing (Node-only); React probe deferred pending sdk/react ESM fix; fault injection + required-gate pending |
 | Project & App Edit/Delete | Implementation | [Plan](./superpowers/plans/2026-04-15-project-app-edit-delete.md) / [Spec](./superpowers/specs/2026-04-13-project-edit-delete-design.md) | Implemented on main. Migration 039, backend + frontend complete. Needs manual testing. |
 | SDK Application Parameter | Implementation | [Plan](./superpowers/plans/2026-04-15-sdk-application-parameter.md) / [Spec](./superpowers/specs/2026-04-15-sdk-application-parameter-design.md) | Implemented on main. Both SDKs + backend complete. All tests pass. |
+| Groups & Resource Authorization | Implementation | [Plan](./superpowers/plans/2026-04-16-groups-and-resource-authorization.md) / [Spec](./superpowers/specs/2026-04-16-groups-and-resource-authorization-design.md) | On `feature/groups-and-resource-authorization` branch. Migration 041, groups/grants packages, visibility filtering, frontend complete. Pending merge. |
 
 ## Archived
 

@@ -73,8 +73,14 @@ Use the CLI to record deployments and releases; configure rollback rules tied to
 Before running DeploySentry in a production environment, review the hardening checklist and the production-safety requirements (confirmation dialogs, rollback/history, managed secrets).
 → [PRODUCTION.md](./PRODUCTION.md)
 
+## Bootstrap My App (LLM-Assisted Setup)
+
+Have an AI coding assistant? Paste the bootstrap prompt into your project and it will automatically detect your SDKs, set up environment variables, create the flag registration file, and wire everything together.
+→ [Bootstrap_My_App.md](./Bootstrap_My_App.md)
+
 ## Where to Go Next
 
+- [Bootstrap_My_App.md](./Bootstrap_My_App.md) — LLM prompt to auto-integrate DeploySentry into any project
 - [DEVELOPMENT.md](./DEVELOPMENT.md) — local dev loop, testing, schema conventions
 - [sdk-onboarding.md](./sdk-onboarding.md) — per-language SDK walkthroughs
 - [Current_Initiatives.md](./Current_Initiatives.md) — active work in flight

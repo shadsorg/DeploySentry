@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import type { FlagType, FlagCategory, Environment } from '@/types';
+import type { FlagType, FlagCategory, OrgEnvironment } from '@/types';
 import { flagsApi, entitiesApi } from '@/api';
 import { useApps } from '@/hooks/useEntities';
 
@@ -50,13 +50,12 @@ export default function FlagCreatePage() {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [appId, setAppId] = useState<string | null>(null);
 
-  // Load environments: if appSlug is present, load from that app; otherwise load from first app
+  // Load environments from org level (environments are org-scoped)
   const { apps } = useApps(orgSlug, projectSlug);
-  const [environments, setEnvironments] = useState<Environment[]>([]);
+  const [environments, setEnvironments] = useState<OrgEnvironment[]>([]);
 
   useEffect(() => {
     if (!orgSlug || !projectSlug) return;
-    // Get project ID for flag creation
     entitiesApi
       .getProject(orgSlug, projectSlug)
       .then((p) => setProjectId(p.id))
@@ -65,17 +64,20 @@ export default function FlagCreatePage() {
 
   useEffect(() => {
     if (!orgSlug || !projectSlug) return;
+    // Get app ID if we're at app level
     const targetAppSlug = appSlug || (apps.length > 0 ? apps[0].slug : null);
-    if (!targetAppSlug) return;
+    if (targetAppSlug) {
+      entitiesApi
+        .getApp(orgSlug, projectSlug, targetAppSlug)
+        .then((a) => setAppId(a.id))
+        .catch(() => {});
+    }
+  }, [orgSlug, projectSlug, appSlug, apps]);
 
-    // Get app ID
+  useEffect(() => {
+    if (!orgSlug) return;
     entitiesApi
-      .getApp(orgSlug, projectSlug, targetAppSlug)
-      .then((a) => setAppId(a.id))
-      .catch(() => {});
-
-    entitiesApi
-      .listEnvironments(orgSlug, projectSlug, targetAppSlug)
+      .listOrgEnvironments(orgSlug)
       .then((res) => {
         setEnvironments(res.environments ?? []);
         if (res.environments?.length > 0 && !form.environment_id) {
@@ -83,7 +85,7 @@ export default function FlagCreatePage() {
         }
       })
       .catch(() => {});
-  }, [orgSlug, projectSlug, appSlug, apps, form.environment_id]);
+  }, [orgSlug, form.environment_id]);
 
   const set = <K extends keyof FormState>(field: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [field]: value }));

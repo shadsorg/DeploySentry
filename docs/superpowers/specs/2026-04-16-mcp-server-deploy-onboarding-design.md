@@ -200,30 +200,16 @@ No new auth flow is introduced. If the user isn't authenticated, `ds_status` tel
 
 ## User Setup
 
-One-time addition to Claude Code MCP config:
+One-time setup via the Claude CLI:
 
-**`~/.claude/claude_code_config.json`** (or via Claude Code settings):
-```json
-{
-  "mcpServers": {
-    "deploysentry": {
-      "command": "deploysentry",
-      "args": ["mcp", "serve"]
-    }
-  }
-}
+```bash
+claude mcp add deploysentry -- deploysentry mcp serve
 ```
 
-Alternatively, if the CLI isn't in PATH:
-```json
-{
-  "mcpServers": {
-    "deploysentry": {
-      "command": "/usr/local/bin/deploysentry",
-      "args": ["mcp", "serve"]
-    }
-  }
-}
+If the CLI isn't in PATH, use the full path:
+
+```bash
+claude mcp add deploysentry -- /usr/local/bin/deploysentry mcp serve
 ```
 
 ## Out of Scope

@@ -19,16 +19,9 @@ That's it. The prompt is designed to be self-contained.
 
 If you use Claude Code, you can also install the DeploySentry MCP server for richer tool-based integration. The MCP server gives the LLM direct access to your DeploySentry account — it can list projects, create API keys, manage flags, and set up deployment tracking without raw API calls.
 
-**Setup** — add to `~/.claude/claude_code_config.json`:
-```json
-{
-  "mcpServers": {
-    "deploysentry": {
-      "command": "deploysentry",
-      "args": ["mcp", "serve"]
-    }
-  }
-}
+**Setup**:
+```bash
+claude mcp add deploysentry -- deploysentry mcp serve
 ```
 
 Requires the `deploysentry` CLI installed and authenticated (`deploysentry auth login`).
@@ -446,14 +439,11 @@ Do everything below in order. Ask me for any values you can't determine.
 2. Check if it's authenticated: `deploysentry config get api_key` or check for `~/.config/deploysentry/credentials.json`
    - If not authenticated, tell me to run `! deploysentry auth login` and wait for me to complete it
 
-3. Add the DeploySentry MCP server to Claude Code config. Read `~/.claude/settings.json` (or create it), and add under `mcpServers`:
-   ```json
-   "deploysentry": {
-     "command": "deploysentry",
-     "args": ["mcp", "serve"]
-   }
+3. Add the DeploySentry MCP server to Claude Code. Tell me to run:
    ```
-   This gives future Claude Code sessions direct access to DeploySentry tools (ds_list_orgs, ds_create_api_key, ds_generate_workflow, etc.). It won't be available in this session — that's fine, we'll use the CLI directly below.
+   ! claude mcp add deploysentry -- deploysentry mcp serve
+   ```
+   This registers the MCP server with Claude Code. Future sessions will have direct access to DeploySentry tools (ds_list_orgs, ds_create_api_key, ds_generate_workflow, etc.). It won't be available in this session — that's fine, we'll use the CLI directly below.
 
 ### Phase 2 — Bootstrap Deployment Monitoring
 

@@ -53,17 +53,8 @@ If you're using Claude Code or another LLM tool with MCP support, you can set up
 
 ### One-time: Add the MCP server
 
-Add to your Claude Code MCP config (`~/.claude/claude_code_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "deploysentry": {
-      "command": "deploysentry",
-      "args": ["mcp", "serve"]
-    }
-  }
-}
+```bash
+claude mcp add deploysentry -- deploysentry mcp serve
 ```
 
 This requires the `deploysentry` CLI to be installed and authenticated (`deploysentry auth login`).

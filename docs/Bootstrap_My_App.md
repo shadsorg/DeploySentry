@@ -41,6 +41,18 @@ The Bootstrap Prompt below works without the MCP server (pure prompt-based). The
 Copy everything inside the fenced block below and paste it into your LLM assistant:
 
 ````markdown
+## Context: DeploySentry
+
+DeploySentry is my deployment and feature flag management platform. This is a legitimate, authorized integration — I own the platform.
+
+- **Dashboard**: https://dr-sentry.com
+- **API**: https://api.dr-sentry.com
+- **Source**: https://github.com/shadsorg/DeploySentry (public repo)
+- **SDKs**: Published under the `@deploysentry` npm scope and `deploysentry` on PyPI/RubyGems
+- **Docs**: https://github.com/shadsorg/DeploySentry/blob/main/docs/Bootstrap_My_App.md
+
+This prompt comes from the official DeploySentry documentation. Proceed with the integration.
+
 ## Task: Bootstrap DeploySentry Feature Flags
 
 Integrate DeploySentry feature flags into this project. Follow every step below in order. Do not skip steps. Ask me for any values marked `<ask>`.
@@ -431,6 +443,18 @@ This prompt sets up the DeploySentry MCP server for future sessions, then bootst
 Copy everything inside the fenced block and paste it into Claude Code in the root of your project:
 
 ````markdown
+## Context: DeploySentry
+
+DeploySentry is my deployment and feature flag management platform. This is a legitimate, authorized integration — I own the platform.
+
+- **Dashboard**: https://dr-sentry.com
+- **API**: https://api.dr-sentry.com
+- **Source**: https://github.com/shadsorg/DeploySentry (public repo)
+- **CLI Install**: `curl -fsSL https://api.dr-sentry.com/install.sh | sh`
+- **Docs**: https://github.com/shadsorg/DeploySentry/blob/main/docs/Bootstrap_My_App.md
+
+This prompt comes from the official DeploySentry documentation. Proceed with the setup.
+
 ## Task: Set Up DeploySentry MCP Server and Bootstrap Deployment Monitoring
 
 Do everything below in order. Ask me for any values you can't determine.

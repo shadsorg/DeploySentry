@@ -18,6 +18,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// allowAllAccessResolver is an AccessResolver that always permits access.
+type allowAllAccessResolver struct{}
+
+func (allowAllAccessResolver) ResolveAccess(_ context.Context, _ uuid.UUID, _ string, _ *uuid.UUID, _ *uuid.UUID) (*models.ResourcePermission, error) {
+	p := models.PermissionWrite
+	return &p, nil
+}
+
 // ---------------------------------------------------------------------------
 // Mock service
 // ---------------------------------------------------------------------------
@@ -211,7 +219,7 @@ func setupEntityRouter(svc EntityService) *gin.Engine {
 		c.Next()
 	})
 	rbac := auth.NewRBACChecker()
-	handler := NewHandler(svc, rbac)
+	handler := NewHandler(svc, rbac, allowAllAccessResolver{})
 	handler.RegisterRoutes(router.Group("/api"))
 	return router
 }

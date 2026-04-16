@@ -1,6 +1,7 @@
 package entities
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,15 +12,21 @@ import (
 	"github.com/google/uuid"
 )
 
+// AccessResolver checks whether a user has grant-based access to a resource.
+type AccessResolver interface {
+	ResolveAccess(ctx context.Context, userID uuid.UUID, orgRole string, projectID *uuid.UUID, applicationID *uuid.UUID) (*models.ResourcePermission, error)
+}
+
 // Handler provides HTTP endpoints for entity management (orgs, projects, apps).
 type Handler struct {
 	service EntityService
 	rbac    *auth.RBACChecker
+	access  AccessResolver
 }
 
 // NewHandler creates a new entity HTTP handler.
-func NewHandler(service EntityService, rbac *auth.RBACChecker) *Handler {
-	return &Handler{service: service, rbac: rbac}
+func NewHandler(service EntityService, rbac *auth.RBACChecker, access AccessResolver) *Handler {
+	return &Handler{service: service, rbac: rbac, access: access}
 }
 
 // RegisterRoutes mounts all entity management routes on the given router group.
@@ -62,6 +69,46 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			}
 		}
 	}
+}
+
+// checkProjectAccess verifies the caller has grant-based access to the project.
+// Returns false (and writes 404) when access is denied.
+func (h *Handler) checkProjectAccess(c *gin.Context, projectID uuid.UUID) bool {
+	uid, _ := c.Get("user_id")
+	userID, _ := uid.(uuid.UUID)
+	roleVal, _ := c.Get("role")
+	orgRole := fmt.Sprintf("%v", roleVal)
+
+	perm, err := h.access.ResolveAccess(c.Request.Context(), userID, orgRole, &projectID, nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve access"})
+		return false
+	}
+	if perm == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
+		return false
+	}
+	return true
+}
+
+// checkAppAccess verifies the caller has grant-based access to the application.
+// Returns false (and writes 404) when access is denied.
+func (h *Handler) checkAppAccess(c *gin.Context, projectID, appID uuid.UUID) bool {
+	uid, _ := c.Get("user_id")
+	userID, _ := uid.(uuid.UUID)
+	roleVal, _ := c.Get("role")
+	orgRole := fmt.Sprintf("%v", roleVal)
+
+	perm, err := h.access.ResolveAccess(c.Request.Context(), userID, orgRole, &projectID, &appID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve access"})
+		return false
+	}
+	if perm == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "application not found"})
+		return false
+	}
+	return true
 }
 
 // ---------------------------------------------------------------------------
@@ -217,6 +264,9 @@ func (h *Handler) getProject(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
 		return
 	}
+	if !h.checkProjectAccess(c, project.ID) {
+		return
+	}
 	c.JSON(http.StatusOK, project)
 }
 
@@ -230,6 +280,9 @@ func (h *Handler) updateProject(c *gin.Context) {
 	project, err := h.service.GetProjectBySlug(c.Request.Context(), org.ID, c.Param("projectSlug"))
 	if err != nil || project == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
+		return
+	}
+	if !h.checkProjectAccess(c, project.ID) {
 		return
 	}
 
@@ -266,6 +319,14 @@ func (h *Handler) deleteProject(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
 		return
 	}
+	project, err := h.service.GetProjectBySlug(c.Request.Context(), org.ID, c.Param("projectSlug"))
+	if err != nil || project == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
+		return
+	}
+	if !h.checkProjectAccess(c, project.ID) {
+		return
+	}
 	result, err := h.service.DeleteProject(c.Request.Context(), org.ID, c.Param("projectSlug"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -287,6 +348,14 @@ func (h *Handler) hardDeleteProject(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
 		return
 	}
+	project, err := h.service.GetProjectBySlug(c.Request.Context(), org.ID, c.Param("projectSlug"))
+	if err != nil || project == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
+		return
+	}
+	if !h.checkProjectAccess(c, project.ID) {
+		return
+	}
 	err = h.service.HardDeleteProject(c.Request.Context(), org.ID, c.Param("projectSlug"))
 	if err != nil {
 		if strings.Contains(err.Error(), "eligible at") {
@@ -303,6 +372,15 @@ func (h *Handler) restoreProject(c *gin.Context) {
 	org, err := h.service.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
 	if err != nil || org == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		return
+	}
+	// Resolve project for access check before restoring.
+	proj, err := h.service.GetProjectBySlug(c.Request.Context(), org.ID, c.Param("projectSlug"))
+	if err != nil || proj == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
+		return
+	}
+	if !h.checkProjectAccess(c, proj.ID) {
 		return
 	}
 	project, err := h.service.RestoreProject(c.Request.Context(), org.ID, c.Param("projectSlug"))
@@ -327,6 +405,9 @@ func (h *Handler) createApp(c *gin.Context) {
 	project, err := h.service.GetProjectBySlug(c.Request.Context(), org.ID, c.Param("projectSlug"))
 	if err != nil || project == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
+		return
+	}
+	if !h.checkProjectAccess(c, project.ID) {
 		return
 	}
 
@@ -404,6 +485,9 @@ func (h *Handler) getApp(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "application not found"})
 		return
 	}
+	if !h.checkAppAccess(c, project.ID, app.ID) {
+		return
+	}
 	c.JSON(http.StatusOK, app)
 }
 
@@ -423,6 +507,9 @@ func (h *Handler) updateApp(c *gin.Context) {
 	app, err := h.service.GetAppBySlug(c.Request.Context(), project.ID, c.Param("appSlug"))
 	if err != nil || app == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "application not found"})
+		return
+	}
+	if !h.checkAppAccess(c, project.ID, app.ID) {
 		return
 	}
 
@@ -464,6 +551,14 @@ func (h *Handler) deleteApp(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
 		return
 	}
+	app, err := h.service.GetAppBySlug(c.Request.Context(), project.ID, c.Param("appSlug"))
+	if err != nil || app == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "application not found"})
+		return
+	}
+	if !h.checkAppAccess(c, project.ID, app.ID) {
+		return
+	}
 	result, err := h.service.DeleteApp(c.Request.Context(), project.ID, c.Param("appSlug"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -490,6 +585,14 @@ func (h *Handler) hardDeleteApp(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
 		return
 	}
+	app, err := h.service.GetAppBySlug(c.Request.Context(), project.ID, c.Param("appSlug"))
+	if err != nil || app == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "application not found"})
+		return
+	}
+	if !h.checkAppAccess(c, project.ID, app.ID) {
+		return
+	}
 	err = h.service.HardDeleteApp(c.Request.Context(), project.ID, c.Param("appSlug"))
 	if err != nil {
 		if strings.Contains(err.Error(), "eligible at") {
@@ -511,6 +614,15 @@ func (h *Handler) restoreApp(c *gin.Context) {
 	project, err := h.service.GetProjectBySlug(c.Request.Context(), org.ID, c.Param("projectSlug"))
 	if err != nil || project == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
+		return
+	}
+	// Resolve app for access check before restoring.
+	a, err := h.service.GetAppBySlug(c.Request.Context(), project.ID, c.Param("appSlug"))
+	if err != nil || a == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "application not found"})
+		return
+	}
+	if !h.checkAppAccess(c, project.ID, a.ID) {
 		return
 	}
 	app, err := h.service.RestoreApp(c.Request.Context(), project.ID, c.Param("appSlug"))
@@ -658,6 +770,9 @@ func (h *Handler) listEnvironments(c *gin.Context) {
 	app, err := h.service.GetAppBySlug(c.Request.Context(), project.ID, c.Param("appSlug"))
 	if err != nil || app == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "application not found"})
+		return
+	}
+	if !h.checkAppAccess(c, project.ID, app.ID) {
 		return
 	}
 

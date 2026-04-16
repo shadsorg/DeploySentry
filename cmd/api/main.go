@@ -342,7 +342,7 @@ func run() error {
 	auth.NewUserHandler(userRepo).RegisterRoutes(api)
 	auth.NewAPIKeyHandler(apiKeyService).RegisterRoutes(api)
 	auth.NewAuditHandler(auditRepo).RegisterRoutes(api)
-	entities.NewHandler(entityService, rbacChecker).RegisterRoutes(api)
+	entities.NewHandler(entityService, rbacChecker, grantService).RegisterRoutes(api)
 	settings.NewHandler(settingService, rbacChecker).RegisterRoutes(api)
 	members.NewHandler(memberService, entityService, rbacChecker).RegisterRoutes(api)
 	groups.NewHandler(groupService, entityService, rbacChecker).RegisterRoutes(api)

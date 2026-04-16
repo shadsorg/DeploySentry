@@ -202,6 +202,12 @@ func run() error {
 		c.JSON(http.StatusOK, gin.H{"status": "ready"})
 	})
 
+	// CLI install script — served at /install.sh for `curl | sh` installs.
+	router.GET("/install.sh", func(c *gin.Context) {
+		c.Header("Content-Type", "text/plain; charset=utf-8")
+		c.File("scripts/install.sh")
+	})
+
 	// Prometheus metrics endpoint (no authentication required for scraping).
 	router.GET("/metrics", metrics.Handler())
 

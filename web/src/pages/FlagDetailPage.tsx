@@ -94,16 +94,21 @@ export default function FlagDetailPage() {
   if (error) return <div>Error: {error}</div>;
   if (!flag) return <div>Flag not found.</div>;
 
-  const handleToggle = async () => {
+  const handleEnvToggle = async (envId: string, currentEnabled: boolean) => {
     if (!flag) return;
-    const nextEnabled = !flag.enabled;
-    // Optimistically update the UI, then persist. On failure, revert.
-    setFlag((prev) => (prev ? { ...prev, enabled: nextEnabled } : prev));
+    const nextEnabled = !currentEnabled;
+    // Optimistic update
+    setEnvStates((prev) =>
+      prev.map((s) => (s.environment_id === envId ? { ...s, enabled: nextEnabled } : s)),
+    );
     try {
-      await flagsApi.toggle(flag.id, nextEnabled);
+      await flagEnvStateApi.set(flag.id, envId, { enabled: nextEnabled });
     } catch (err) {
-      setFlag((prev) => (prev ? { ...prev, enabled: !nextEnabled } : prev));
-      setError(err instanceof Error ? err.message : 'Failed to toggle flag');
+      // Revert on failure
+      setEnvStates((prev) =>
+        prev.map((s) => (s.environment_id === envId ? { ...s, enabled: currentEnabled } : s)),
+      );
+      setError(err instanceof Error ? err.message : 'Failed to toggle environment');
     }
   };
 
@@ -121,15 +126,10 @@ export default function FlagDetailPage() {
           <div>
             <h1 className="detail-header-title">{flag.name}</h1>
             <span className="detail-header-subtitle">{flag.key}</span>
-            <div style={{ marginTop: 8 }}>
-              <label className="toggle">
-                <input type="checkbox" checked={flag.enabled} onChange={handleToggle} />
-                <span>{flag.enabled ? 'Enabled' : 'Disabled'}</span>
-              </label>
-            </div>
           </div>
           <div className="detail-header-badges">
             <span className={`badge badge-${flag.category}`}>{flag.category}</span>
+            {flag.archived && <span className="badge badge-disabled">Archived</span>}
           </div>
         </div>
 
@@ -251,6 +251,7 @@ export default function FlagDetailPage() {
               <tbody>
                 {environments.map((env) => {
                   const state = envStates.find((s) => s.environment_id === env.id);
+                  const isEnabled = state?.enabled ?? false;
                   return (
                     <tr key={env.id}>
                       <td>
@@ -258,9 +259,14 @@ export default function FlagDetailPage() {
                         {env.is_production && <span className="badge badge-enabled" style={{ marginLeft: 8, fontSize: 11 }}>production</span>}
                       </td>
                       <td>
-                        <span className={`badge ${state?.enabled ? 'badge-enabled' : 'badge-disabled'}`}>
-                          {state?.enabled ? 'enabled' : 'disabled'}
-                        </span>
+                        <label className="toggle">
+                          <input
+                            type="checkbox"
+                            checked={isEnabled}
+                            onChange={() => handleEnvToggle(env.id, isEnabled)}
+                          />
+                          <span>{isEnabled ? 'Enabled' : 'Disabled'}</span>
+                        </label>
                       </td>
                       <td className="font-mono">{state?.value != null ? String(state.value) : '\u2014'}</td>
                     </tr>

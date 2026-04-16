@@ -95,3 +95,18 @@ if "$INSTALL_DIR/$BINARY_NAME" --version >/dev/null 2>&1; then
 else
   echo "Warning: Could not verify installation (--version flag not available)"
 fi
+
+# Auto-register MCP server if Claude Code is installed
+if command -v claude >/dev/null 2>&1; then
+  echo ""
+  echo "Claude Code detected. Registering DeploySentry MCP server..."
+  if claude mcp add deploysentry -- "$INSTALL_DIR/$BINARY_NAME" mcp serve 2>/dev/null; then
+    echo "MCP server registered. Restart Claude Code to use DeploySentry tools."
+    echo "  Tools: ds_status, ds_list_orgs, ds_list_projects, ds_list_apps,"
+    echo "         ds_list_environments, ds_create_api_key, ds_generate_workflow,"
+    echo "         ds_list_flags, ds_get_flag, ds_create_flag, ds_toggle_flag"
+  else
+    echo "Could not auto-register MCP server. You can add it manually:"
+    echo "  claude mcp add deploysentry -- $INSTALL_DIR/$BINARY_NAME mcp serve"
+  fi
+fi

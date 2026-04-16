@@ -46,7 +46,6 @@ function parseQuery(): HarnessConfig {
   };
 }
 
-
 export function Observer({ flagKey }: { flagKey: string }): null {
   const isVariant = flagKey.startsWith('variant:');
   const realKey = isVariant ? flagKey.slice('variant:'.length) : flagKey;
@@ -64,7 +63,6 @@ export function Observer({ flagKey }: { flagKey: string }): null {
   }, [flagKey, value]);
   return null;
 }
-
 
 export function App(): React.ReactElement {
   const cfg = parseQuery();

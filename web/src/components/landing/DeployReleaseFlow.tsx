@@ -1,7 +1,7 @@
 type Node = { x: number; label: string };
 
 const DEPLOY: Node[] = [
-  { x: 80, label: 'commit' },
+  { x: 80,  label: 'commit' },
   { x: 240, label: 'build' },
   { x: 400, label: 'deploy' },
   { x: 560, label: 'live (dark)' },
@@ -50,9 +50,7 @@ function Track({
           style={{ animationDelay: `${startDelay + i * 0.4}s` }}
         >
           <circle cx={node.x} cy={y} r={7} />
-          <text x={node.x} y={y - 18} textAnchor="middle">
-            {node.label}
-          </text>
+          <text x={node.x} y={y - 18} textAnchor="middle">{node.label}</text>
         </g>
       ))}
     </g>
@@ -76,29 +74,18 @@ export default function DeployReleaseFlow() {
             role="img"
             aria-label="Deploy track followed by release track, animated"
           >
-            <text x={20} y={40} className="flow-track-label">
-              DEPLOY
-            </text>
-            <text x={760} y={40} className="flow-owner" textAnchor="end">
-              engineering owns →
-            </text>
+            <text x={20} y={40} className="flow-track-label">DEPLOY</text>
+            <text x={760} y={40} className="flow-owner" textAnchor="end">engineering owns →</text>
             <Track nodes={DEPLOY} y={TRACK_DEPLOY_Y} startDelay={0} trackId="deploy" />
 
             <line
-              x1={20}
-              y1={140}
-              x2={800}
-              y2={140}
+              x1={20} y1={140} x2={800} y2={140}
               className="flow-separator"
               style={{ animationDelay: '2.4s' }}
             />
 
-            <text x={20} y={170} className="flow-track-label">
-              RELEASE
-            </text>
-            <text x={760} y={170} className="flow-owner" textAnchor="end">
-              product / on-call owns →
-            </text>
+            <text x={20} y={170} className="flow-track-label">RELEASE</text>
+            <text x={760} y={170} className="flow-owner" textAnchor="end">product / on-call owns →</text>
             <Track nodes={RELEASE} y={TRACK_RELEASE_Y} startDelay={2.8} trackId="release" />
           </svg>
         </div>

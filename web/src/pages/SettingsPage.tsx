@@ -124,9 +124,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
   const [projectDescription, setProjectDescription] = useState('');
   const [projectRepoUrl, setProjectRepoUrl] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [activeFlags, setActiveFlags] = useState<
-    { key: string; name: string; last_evaluated: string }[]
-  >([]);
+  const [activeFlags, setActiveFlags] = useState<{ key: string; name: string; last_evaluated: string }[]>([]);
   const [deletionBlocked, setDeletionBlocked] = useState(false);
 
   // ---------------------------------------------------------------------------
@@ -298,12 +296,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
 
   const handleSoftDeleteProject = async () => {
     if (!orgSlug || !projectSlug) return;
-    if (
-      !window.confirm(
-        'Are you sure you want to delete this project? It can be restored within 7 days.',
-      )
-    )
-      return;
+    if (!window.confirm('Are you sure you want to delete this project? It can be restored within 7 days.')) return;
     setDeleteLoading(true);
     try {
       await entitiesApi.softDeleteProject(orgSlug, projectSlug);
@@ -326,12 +319,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
 
   const handleHardDeleteProject = async () => {
     if (!orgSlug || !projectSlug) return;
-    if (
-      !window.confirm(
-        'This will PERMANENTLY delete the project and all associated data. This cannot be undone. Are you sure?',
-      )
-    )
-      return;
+    if (!window.confirm('This will PERMANENTLY delete the project and all associated data. This cannot be undone. Are you sure?')) return;
     setDeleteLoading(true);
     try {
       await entitiesApi.hardDeleteProject(orgSlug, projectSlug);
@@ -590,11 +578,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                   <label className="form-label">Events</label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {WEBHOOK_EVENT_OPTIONS.map((evt) => (
-                      <label
-                        key={evt}
-                        className="flex items-center gap-2"
-                        style={{ cursor: 'pointer' }}
-                      >
+                      <label key={evt} className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
                         <input
                           type="checkbox"
                           checked={webhookEvents.includes(evt)}
@@ -621,11 +605,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                     onClick={handleSaveWebhook}
                     disabled={!webhookUrl.trim() || webhookSaving}
                   >
-                    {webhookSaving
-                      ? 'Saving…'
-                      : editingWebhookId
-                        ? 'Update Webhook'
-                        : 'Create Webhook'}
+                    {webhookSaving ? 'Saving…' : editingWebhookId ? 'Update Webhook' : 'Create Webhook'}
                   </button>
                   <button className="btn btn-sm" onClick={cancelWebhookForm}>
                     Cancel
@@ -664,9 +644,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                           </div>
                         </td>
                         <td>
-                          <span
-                            className={`badge ${wh.is_active ? 'badge-active' : 'badge-disabled'}`}
-                          >
+                          <span className={`badge ${wh.is_active ? 'badge-active' : 'badge-disabled'}`}>
                             {wh.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </td>
@@ -701,9 +679,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                               className={`text-sm ${testResult.success ? 'text-success' : 'text-danger'}`}
                               style={{ display: 'block', marginTop: 4 }}
                             >
-                              {testResult.success
-                                ? 'Test delivered successfully'
-                                : 'Test delivery failed'}
+                              {testResult.success ? 'Test delivered successfully' : 'Test delivery failed'}
                             </span>
                           )}
                         </td>
@@ -749,8 +725,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                   </div>
                   {config.source === 'config' ? (
                     <p className="text-muted text-sm">
-                      This channel is configured via the server config file and cannot be edited
-                      here.
+                      This channel is configured via the server config file and cannot be edited here.
                     </p>
                   ) : (
                     <p className="text-muted text-sm">
@@ -793,10 +768,16 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                 >
                   {notifSaving ? 'Saving…' : 'Save Notification Settings'}
                 </button>
-                <button className="btn btn-sm" onClick={resetNotifPrefs} disabled={notifSaving}>
+                <button
+                  className="btn btn-sm"
+                  onClick={resetNotifPrefs}
+                  disabled={notifSaving}
+                >
                   Reset to Defaults
                 </button>
-                {notifSuccess && <span className="text-sm text-success">Settings saved.</span>}
+                {notifSuccess && (
+                  <span className="text-sm text-success">Settings saved.</span>
+                )}
               </div>
             </>
           )}
@@ -968,8 +949,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             </div>
           )}
           <p>
-            Deleting this project will remove all its applications, flags, deployments, and
-            releases. The project can be restored within 7 days.
+            Deleting this project will remove all its applications, flags, deployments, and releases.
+            The project can be restored within 7 days.
           </p>
           <button
             className="btn btn-danger"
@@ -978,9 +959,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
           >
             {deleteLoading ? 'Deleting\u2026' : 'Delete Project'}
           </button>
-          <hr
-            style={{ margin: '16px 0', border: 'none', borderTop: '1px solid var(--color-border)' }}
-          />
+          <hr style={{ margin: '16px 0', border: 'none', borderTop: '1px solid var(--color-border)' }} />
           <h3>Permanent Deletion</h3>
           <p>
             Permanently delete this project and all associated data. This action cannot be undone.

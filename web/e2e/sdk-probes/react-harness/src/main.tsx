@@ -46,7 +46,7 @@ function parseQuery(): HarnessConfig {
   };
 }
 
-function Observer({ flagKey }: { flagKey: string }): null {
+export function Observer({ flagKey }: { flagKey: string }): null {
   const isVariant = flagKey.startsWith('variant:');
   const realKey = isVariant ? flagKey.slice('variant:'.length) : flagKey;
 
@@ -64,7 +64,7 @@ function Observer({ flagKey }: { flagKey: string }): null {
   return null;
 }
 
-function App(): React.ReactElement {
+export function App(): React.ReactElement {
   const cfg = parseQuery();
   return (
     <DeploySentryProvider

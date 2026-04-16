@@ -30,42 +30,25 @@ const (
 // APIKey represents a machine-to-machine API key that grants scoped access
 // to the platform without user authentication.
 type APIKey struct {
-	ID            uuid.UUID     `json:"id" db:"id"`
-	OrgID         *uuid.UUID    `json:"org_id,omitempty" db:"org_id"`
-	ProjectID     *uuid.UUID    `json:"project_id,omitempty" db:"project_id"`
-	ApplicationID *uuid.UUID    `json:"application_id,omitempty" db:"application_id"`
-	EnvironmentID *uuid.UUID    `json:"environment_id,omitempty" db:"environment_id"`
-	Name          string        `json:"name" db:"name"`
-	KeyPrefix     string        `json:"key_prefix" db:"key_prefix"`
-	KeyHash       string        `json:"-" db:"key_hash"`
-	Scopes        []APIKeyScope `json:"scopes" db:"-"`
-	ExpiresAt     *time.Time    `json:"expires_at,omitempty" db:"expires_at"`
-	LastUsedAt    *time.Time    `json:"last_used_at,omitempty" db:"last_used_at"`
-	CreatedBy     uuid.UUID     `json:"created_by" db:"created_by"`
-	CreatedAt     time.Time     `json:"created_at" db:"created_at"`
-	RevokedAt     *time.Time    `json:"revoked_at,omitempty" db:"revoked_at"`
+	ID             uuid.UUID     `json:"id" db:"id"`
+	OrgID          uuid.UUID     `json:"org_id" db:"org_id"`
+	ProjectID      *uuid.UUID    `json:"project_id,omitempty" db:"project_id"`
+	EnvironmentIDs []uuid.UUID   `json:"environment_ids" db:"environment_ids"`
+	Name           string        `json:"name" db:"name"`
+	KeyPrefix      string        `json:"key_prefix" db:"key_prefix"`
+	KeyHash        string        `json:"-" db:"key_hash"`
+	Scopes         []APIKeyScope `json:"scopes" db:"-"`
+	ExpiresAt      *time.Time    `json:"expires_at,omitempty" db:"expires_at"`
+	LastUsedAt     *time.Time    `json:"last_used_at,omitempty" db:"last_used_at"`
+	CreatedBy      uuid.UUID     `json:"created_by" db:"created_by"`
+	CreatedAt      time.Time     `json:"created_at" db:"created_at"`
+	RevokedAt      *time.Time    `json:"revoked_at,omitempty" db:"revoked_at"`
 }
 
 // Validate checks that the APIKey has all required fields populated.
 func (k *APIKey) Validate() error {
-	scopeCount := 0
-	if k.OrgID != nil {
-		scopeCount++
-	}
-	if k.ProjectID != nil {
-		scopeCount++
-	}
-	if k.ApplicationID != nil {
-		scopeCount++
-	}
-	if k.EnvironmentID != nil {
-		scopeCount++
-	}
-	if scopeCount == 0 {
-		return errors.New("exactly one scope (org_id, project_id, application_id, environment_id) must be set")
-	}
-	if scopeCount > 1 {
-		return errors.New("only one scope (org_id, project_id, application_id, environment_id) may be set")
+	if k.OrgID == uuid.Nil {
+		return errors.New("org_id is required")
 	}
 	if k.Name == "" {
 		return errors.New("name is required")

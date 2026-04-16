@@ -42,8 +42,8 @@ type APIKeyRepository interface {
 	// GetAPIKeyByPrefix retrieves an API key by its prefix.
 	GetAPIKeyByPrefix(ctx context.Context, prefix string) (*models.APIKey, error)
 
-	// ListAPIKeys returns API keys for an organization, optionally filtered by project.
-	ListAPIKeys(ctx context.Context, orgID uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*models.APIKey, error)
+	// ListAPIKeys returns API keys for an organization, optionally filtered by project and/or environment.
+	ListAPIKeys(ctx context.Context, orgID uuid.UUID, projectID *uuid.UUID, environmentID *uuid.UUID, limit, offset int) ([]*models.APIKey, error)
 
 	// UpdateAPIKey persists changes to an existing API key.
 	UpdateAPIKey(ctx context.Context, key *models.APIKey) error
@@ -76,7 +76,7 @@ type GenerateKeyResult struct {
 // GenerateKey creates a new API key with a cryptographically secure random
 // value. The plaintext key is returned only once at creation time. The key
 // hash is stored using argon2id.
-func (s *APIKeyService) GenerateKey(ctx context.Context, orgID *uuid.UUID, projectID *uuid.UUID, name string, scopes []models.APIKeyScope, createdBy uuid.UUID, envID *uuid.UUID, expiresAt *time.Time) (*GenerateKeyResult, error) {
+func (s *APIKeyService) GenerateKey(ctx context.Context, orgID uuid.UUID, projectID *uuid.UUID, name string, scopes []models.APIKeyScope, createdBy uuid.UUID, envIDs []uuid.UUID, expiresAt *time.Time) (*GenerateKeyResult, error) {
 	// Generate cryptographically secure random bytes.
 	rawKey := make([]byte, apiKeyByteLen)
 	if _, err := rand.Read(rawKey); err != nil {
@@ -91,19 +91,23 @@ func (s *APIKeyService) GenerateKey(ctx context.Context, orgID *uuid.UUID, proje
 		return nil, fmt.Errorf("hashing key: %w", err)
 	}
 
+	if envIDs == nil {
+		envIDs = []uuid.UUID{}
+	}
+
 	now := time.Now().UTC()
 	apiKey := &models.APIKey{
-		ID:        uuid.New(),
-		OrgID:     orgID,
-		ProjectID: projectID,
-		EnvironmentID: envID,
-		Name:      name,
-		KeyPrefix: prefix,
-		KeyHash:   keyHash,
-		Scopes:    scopes,
-		ExpiresAt: expiresAt,
-		CreatedBy: createdBy,
-		CreatedAt: now,
+		ID:             uuid.New(),
+		OrgID:          orgID,
+		ProjectID:      projectID,
+		EnvironmentIDs: envIDs,
+		Name:           name,
+		KeyPrefix:      prefix,
+		KeyHash:        keyHash,
+		Scopes:         scopes,
+		ExpiresAt:      expiresAt,
+		CreatedBy:      createdBy,
+		CreatedAt:      now,
 	}
 
 	if err := apiKey.Validate(); err != nil {
@@ -208,14 +212,14 @@ func (s *APIKeyService) GetKey(ctx context.Context, id uuid.UUID) (*models.APIKe
 }
 
 // ListKeys returns API keys for an organization, optionally filtered by project.
-func (s *APIKeyService) ListKeys(ctx context.Context, orgID uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*models.APIKey, error) {
+func (s *APIKeyService) ListKeys(ctx context.Context, orgID uuid.UUID, projectID *uuid.UUID, environmentID *uuid.UUID, limit, offset int) ([]*models.APIKey, error) {
 	if limit <= 0 {
 		limit = 20
 	}
 	if limit > 100 {
 		limit = 100
 	}
-	keys, err := s.repo.ListAPIKeys(ctx, orgID, projectID, limit, offset)
+	keys, err := s.repo.ListAPIKeys(ctx, orgID, projectID, environmentID, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("listing api keys: %w", err)
 	}
@@ -266,7 +270,7 @@ func (s *APIKeyService) RotateKey(ctx context.Context, oldKeyID uuid.UUID, creat
 		oldKey.Name+" (rotated)",
 		oldKey.Scopes,
 		createdBy,
-		oldKey.EnvironmentID,
+		oldKey.EnvironmentIDs,
 		oldKey.ExpiresAt,
 	)
 	if err != nil {

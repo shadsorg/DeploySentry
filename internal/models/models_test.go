@@ -95,13 +95,13 @@ func validEnvironment() Environment {
 }
 
 func validAPIKey() APIKey {
-	orgID := uuid.New()
 	return APIKey{
-		ID:        uuid.New(),
-		OrgID:     &orgID,
-		Name:      "CI Key",
-		Scopes:    []APIKeyScope{APIKeyScopeReadFlags},
-		CreatedBy: uuid.New(),
+		ID:             uuid.New(),
+		OrgID:          uuid.New(),
+		EnvironmentIDs: []uuid.UUID{},
+		Name:           "CI Key",
+		Scopes:         []APIKeyScope{APIKeyScopeReadFlags},
+		CreatedBy:      uuid.New(),
 	}
 }
 
@@ -1123,17 +1123,9 @@ func TestAPIKeyValidate(t *testing.T) {
 			wantErr: "",
 		},
 		{
-			name:    "no scope set",
-			modify:  func(k *APIKey) { k.OrgID = nil },
-			wantErr: "exactly one scope (org_id, project_id, application_id, environment_id) must be set",
-		},
-		{
-			name: "multiple scopes set",
-			modify: func(k *APIKey) {
-				pid := uuid.New()
-				k.ProjectID = &pid
-			},
-			wantErr: "only one scope (org_id, project_id, application_id, environment_id) may be set",
+			name:    "nil org_id",
+			modify:  func(k *APIKey) { k.OrgID = uuid.Nil },
+			wantErr: "org_id is required",
 		},
 		{
 			name:    "empty name",

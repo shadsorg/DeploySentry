@@ -534,11 +534,11 @@ func (a *apiKeyValidatorAdapter) ValidateAPIKey(ctx context.Context, key string)
 		scopes[i] = string(s)
 	}
 
+	orgID := apiKey.OrgID
 	return &auth.APIKeyInfo{
-		OrgID:         apiKey.OrgID,
-		ProjectID:     apiKey.ProjectID,
-		ApplicationID: apiKey.ApplicationID,
-		EnvironmentID: apiKey.EnvironmentID,
-		Scopes:        scopes,
+		OrgID:          &orgID,
+		ProjectID:      apiKey.ProjectID,
+		EnvironmentIDs: apiKey.EnvironmentIDs,
+		Scopes:         scopes,
 	}, nil
 }

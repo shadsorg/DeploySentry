@@ -34,10 +34,11 @@ func (h *APIKeyHandler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // createAPIKeyRequest is the JSON body for creating a new API key.
 type createAPIKeyRequest struct {
-	Name      string              `json:"name" binding:"required"`
-	ProjectID *uuid.UUID          `json:"project_id"`
-	Scopes    []models.APIKeyScope `json:"scopes" binding:"required"`
-	ExpiresAt *time.Time          `json:"expires_at"`
+	Name           string               `json:"name" binding:"required"`
+	ProjectID      *uuid.UUID           `json:"project_id"`
+	EnvironmentIDs []uuid.UUID          `json:"environment_ids"`
+	Scopes         []models.APIKeyScope `json:"scopes" binding:"required"`
+	ExpiresAt      *time.Time           `json:"expires_at"`
 }
 
 func (h *APIKeyHandler) createAPIKey(c *gin.Context) {
@@ -77,14 +78,18 @@ func (h *APIKeyHandler) createAPIKey(c *gin.Context) {
 		return
 	}
 
+	if req.EnvironmentIDs == nil {
+		req.EnvironmentIDs = []uuid.UUID{}
+	}
+
 	result, err := h.service.GenerateKey(
 		c.Request.Context(),
-		&orgID,
+		orgID,
 		req.ProjectID,
 		req.Name,
 		req.Scopes,
 		createdBy,
-		nil,
+		req.EnvironmentIDs,
 		req.ExpiresAt,
 	)
 	if err != nil {
@@ -127,6 +132,16 @@ func (h *APIKeyHandler) listAPIKeys(c *gin.Context) {
 		projectID = &pid
 	}
 
+	var environmentID *uuid.UUID
+	if eidStr := c.Query("environment_id"); eidStr != "" {
+		eid, err := uuid.Parse(eidStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid environment_id"})
+			return
+		}
+		environmentID = &eid
+	}
+
 	limit := 20
 	offset := 0
 	if l := c.Query("limit"); l != "" {
@@ -140,7 +155,7 @@ func (h *APIKeyHandler) listAPIKeys(c *gin.Context) {
 		}
 	}
 
-	keys, err := h.service.ListKeys(c.Request.Context(), orgID, projectID, limit, offset)
+	keys, err := h.service.ListKeys(c.Request.Context(), orgID, projectID, environmentID, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list api keys"})
 		return

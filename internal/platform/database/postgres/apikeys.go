@@ -31,6 +31,7 @@ func NewAPIKeyRepository(pool *pgxpool.Pool) *APIKeyRepository {
 const apiKeySelectCols = `
 	id, org_id,
 	COALESCE(project_id, '00000000-0000-0000-0000-000000000000'::uuid),
+	COALESCE(environment_ids, ARRAY[]::uuid[]),
 	name, key_prefix, key_hash,
 	scopes::text[],
 	expires_at, last_used_at, created_by, created_at, revoked_at`
@@ -46,6 +47,7 @@ func scanAPIKey(row pgx.Row) (*models.APIKey, error) {
 		&k.ID,
 		&k.OrgID,
 		&projectID,
+		&k.EnvironmentIDs,
 		&k.Name,
 		&k.KeyPrefix,
 		&k.KeyHash,
@@ -67,6 +69,11 @@ func scanAPIKey(row pgx.Row) (*models.APIKey, error) {
 	if projectID != uuid.Nil {
 		pid := projectID
 		k.ProjectID = &pid
+	}
+
+	// Default nil environment_ids to empty slice.
+	if k.EnvironmentIDs == nil {
+		k.EnvironmentIDs = []uuid.UUID{}
 	}
 
 	// Convert []string → []models.APIKeyScope.
@@ -99,15 +106,16 @@ func (r *APIKeyRepository) CreateAPIKey(ctx context.Context, key *models.APIKey)
 
 	const q = `
 		INSERT INTO api_keys
-			(id, org_id, project_id, name, key_prefix, key_hash, scopes,
+			(id, org_id, project_id, environment_ids, name, key_prefix, key_hash, scopes,
 			 expires_at, last_used_at, created_by, created_at, revoked_at)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 
 	_, err := r.pool.Exec(ctx, q,
 		key.ID,
 		key.OrgID,
 		key.ProjectID,
+		key.EnvironmentIDs,
 		key.Name,
 		key.KeyPrefix,
 		key.KeyHash,
@@ -151,11 +159,14 @@ func (r *APIKeyRepository) GetAPIKeyByPrefix(ctx context.Context, prefix string)
 }
 
 // ListAPIKeys returns API keys for an organization, optionally filtered by project.
-func (r *APIKeyRepository) ListAPIKeys(ctx context.Context, orgID uuid.UUID, projectID *uuid.UUID, limit, offset int) ([]*models.APIKey, error) {
+func (r *APIKeyRepository) ListAPIKeys(ctx context.Context, orgID uuid.UUID, projectID *uuid.UUID, environmentID *uuid.UUID, limit, offset int) ([]*models.APIKey, error) {
 	var wb whereBuilder
 	wb.Add("org_id = $%d", orgID)
 	if projectID != nil {
 		wb.Add("project_id = $%d", *projectID)
+	}
+	if environmentID != nil {
+		wb.Add("(environment_ids = '{}' OR environment_ids @> ARRAY[$%d]::uuid[])", *environmentID)
 	}
 	where, args := wb.Build()
 

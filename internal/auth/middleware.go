@@ -72,11 +72,10 @@ type APIKeyValidator interface {
 
 // APIKeyInfo holds the identity information extracted from a validated API key.
 type APIKeyInfo struct {
-	OrgID         *uuid.UUID `json:"org_id,omitempty"`
-	ProjectID     *uuid.UUID `json:"project_id,omitempty"`
-	ApplicationID *uuid.UUID `json:"application_id,omitempty"`
-	EnvironmentID *uuid.UUID `json:"environment_id,omitempty"`
-	Scopes        []string   `json:"scopes"`
+	OrgID          *uuid.UUID  `json:"org_id,omitempty"`
+	ProjectID      *uuid.UUID  `json:"project_id,omitempty"`
+	EnvironmentIDs []uuid.UUID `json:"environment_ids,omitempty"`
+	Scopes         []string    `json:"scopes"`
 }
 
 // AuthMiddleware provides Gin middleware for authenticating requests via
@@ -215,14 +214,43 @@ func (m *AuthMiddleware) authenticateAPIKey(c *gin.Context, key string) bool {
 	if info.ProjectID != nil {
 		c.Set("project_id", info.ProjectID.String())
 	}
-	if info.ApplicationID != nil {
-		c.Set("application_id", info.ApplicationID.String())
-	}
-	if info.EnvironmentID != nil {
-		c.Set("environment_id", info.EnvironmentID.String())
+	if len(info.EnvironmentIDs) > 0 {
+		envStrs := make([]string, len(info.EnvironmentIDs))
+		for i, eid := range info.EnvironmentIDs {
+			envStrs[i] = eid.String()
+		}
+		c.Set("api_key_environment_ids", envStrs)
 	}
 	c.Set("api_key_scopes", info.Scopes)
 	c.Set("auth_method", "api_key")
+
+	// Enforce environment restriction: if the key is scoped to specific
+	// environments, reject requests targeting an environment not in the list.
+	if len(info.EnvironmentIDs) > 0 {
+		targetEnv := c.Query("environment_id")
+		if targetEnv == "" {
+			if eid, exists := c.Get("environment_id"); exists {
+				if s, ok := eid.(string); ok {
+					targetEnv = s
+				}
+			}
+		}
+		if targetEnv != "" {
+			allowed := false
+			for _, eid := range info.EnvironmentIDs {
+				if eid.String() == targetEnv {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+					"error": "api key is not authorized for this environment",
+				})
+				return false
+			}
+		}
+	}
 
 	return true
 }

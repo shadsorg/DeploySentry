@@ -443,9 +443,10 @@ func TestRequireAuth_ValidAPIKey(t *testing.T) {
 
 	validator := &mockKeyValidator{
 		info: &APIKeyInfo{
-			OrgID:     &orgID,
-			ProjectID: &projectID,
-			Scopes:    scopes,
+			OrgID:          &orgID,
+			ProjectID:      &projectID,
+			EnvironmentIDs: []uuid.UUID{},
+			Scopes:         scopes,
 		},
 		err: nil,
 	}

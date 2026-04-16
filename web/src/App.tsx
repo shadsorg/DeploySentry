@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { AuthProvider, RequireAuth, RedirectIfAuth } from './auth';
 import HierarchyLayout from './components/HierarchyLayout';
@@ -16,12 +16,13 @@ import ReleasesPage from './pages/ReleasesPage';
 import DeploymentDetailPage from './pages/DeploymentDetailPage';
 import ReleaseDetailPage from './pages/ReleaseDetailPage';
 import AnalyticsPage from './pages/AnalyticsPage';
-import SDKsPage from './pages/SDKsPage';
 import SettingsPage from './pages/SettingsPage';
 import MembersPage from './pages/MembersPage';
 import APIKeysPage from './pages/APIKeysPage';
 import CreateAppPage from './pages/CreateAppPage';
-import ApplicationsListPage from './pages/ApplicationsListPage';
+import ProjectPage from './pages/ProjectPage';
+import AppPage from './pages/AppPage';
+import ProjectAppsTab from './pages/ProjectAppsTab';
 import CreateProjectPage from './pages/CreateProjectPage';
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const DocsPage = lazy(() => import('./pages/DocsPage'));
@@ -56,26 +57,27 @@ export default function App() {
             <Route path="api-keys" element={<APIKeysPage />} />
             <Route path="settings" element={<SettingsPage level="org" />} />
 
-            {/* Project-level */}
-            <Route path="projects/:projectSlug">
+            {/* Project-level — wrapped by ProjectPage (tabs) */}
+            <Route path="projects/:projectSlug" element={<ProjectPage />}>
+              <Route index element={<Navigate to="apps" replace />} />
+              <Route path="apps" element={<ProjectAppsTab />} />
+              <Route path="apps/new" element={<CreateAppPage />} />
               <Route path="flags" element={<FlagListPage />} />
               <Route path="flags/new" element={<FlagCreatePage />} />
               <Route path="flags/:id" element={<FlagDetailPage />} />
               <Route path="analytics" element={<AnalyticsPage />} />
-              <Route path="sdks" element={<SDKsPage />} />
               <Route path="settings" element={<SettingsPage level="project" />} />
 
-              {/* App-level */}
-              <Route path="apps" element={<ApplicationsListPage />} />
-              <Route path="apps/new" element={<CreateAppPage />} />
-              <Route path="apps/:appSlug">
+              {/* App-level — wrapped by AppPage (tabs) */}
+              <Route path="apps/:appSlug" element={<AppPage />}>
+                <Route index element={<Navigate to="flags" replace />} />
+                <Route path="flags" element={<FlagListPage />} />
+                <Route path="flags/new" element={<FlagCreatePage />} />
+                <Route path="flags/:id" element={<FlagDetailPage />} />
                 <Route path="deployments" element={<DeploymentsPage />} />
                 <Route path="deployments/:id" element={<DeploymentDetailPage />} />
                 <Route path="releases" element={<ReleasesPage />} />
                 <Route path="releases/:id" element={<ReleaseDetailPage />} />
-                <Route path="flags" element={<FlagListPage />} />
-                <Route path="flags/new" element={<FlagCreatePage />} />
-                <Route path="flags/:id" element={<FlagDetailPage />} />
                 <Route path="settings" element={<SettingsPage level="app" />} />
               </Route>
             </Route>

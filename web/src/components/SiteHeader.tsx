@@ -23,12 +23,7 @@ export default function SiteHeader({ variant }: SiteHeaderProps) {
         </nav>
       )}
 
-      {variant === 'app' && user && (
-        <nav className="site-header-nav">
-          <Link to="/docs" className="site-header-link">Docs</Link>
-          <Link to="/docs/sdks" className="site-header-link">SDKs</Link>
-        </nav>
-      )}
+
 
       <div className="site-header-right">
         {!user && variant === 'landing' && (

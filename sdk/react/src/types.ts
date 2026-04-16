@@ -84,6 +84,10 @@ export interface ProviderProps {
   user?: UserContext;
   /** Optional session identifier for consistent flag evaluation across requests. */
   sessionId?: string;
+  /** SDK mode: 'server' (default), 'file' (local only), or 'server-with-fallback'. */
+  mode?: 'server' | 'file' | 'server-with-fallback';
+  /** Pre-loaded flag configuration for file/fallback mode. */
+  flagData?: FlagConfig;
   /** React children. */
   children: React.ReactNode;
 }
@@ -126,4 +130,44 @@ export interface Registration<T extends (...args: any[]) => any = (...args: any[
 export interface EvaluationContext {
   userId?: string;
   attributes?: Record<string, string>;
+}
+
+/** Pre-loaded flag configuration for file/flagData mode. */
+export interface FlagConfig {
+  version: number;
+  project: string;
+  application: string;
+  exported_at: string;
+  environments: FlagConfigEnvironment[];
+  flags: FlagConfigFlag[];
+}
+
+/** Environment entry in a flag config file. */
+export interface FlagConfigEnvironment {
+  id: string;
+  name: string;
+  is_production: boolean;
+}
+
+/** Flag entry in a flag config file. */
+export interface FlagConfigFlag {
+  key: string;
+  name: string;
+  flag_type: string;
+  category: string;
+  default_value: string;
+  is_permanent: boolean;
+  expires_at?: string;
+  environments: Record<string, { enabled: boolean; value: string }>;
+  rules?: FlagConfigRule[];
+}
+
+/** Targeting rule within a flag config file. */
+export interface FlagConfigRule {
+  attribute: string;
+  operator: string;
+  target_values: string[];
+  value: string;
+  priority: number;
+  environments: Record<string, boolean>;
 }

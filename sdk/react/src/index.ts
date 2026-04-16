@@ -15,12 +15,19 @@ export {
 // Client (advanced usage)
 export { DeploySentryClient } from './client';
 
+// Local evaluation (file/flagData mode)
+export { evaluateLocal } from './local-evaluator';
+
 // Types
 export type {
   ApiFlagResponse,
   EvaluationContext,
   Flag,
   FlagCategory,
+  FlagConfig,
+  FlagConfigEnvironment,
+  FlagConfigFlag,
+  FlagConfigRule,
   FlagDetail,
   FlagMetadata,
   ProviderProps,

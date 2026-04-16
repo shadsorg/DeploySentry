@@ -1,7 +1,9 @@
+import { evaluateLocal } from './local-evaluator';
 import type {
   ApiFlagResponse,
   EvaluationContext,
   Flag,
+  FlagConfig,
   FlagDetail,
   FlagMetadata,
   Registration,
@@ -44,6 +46,8 @@ export class DeploySentryClient {
   private readonly project: string;
   private readonly application: string;
   private readonly sessionId: string | undefined;
+  private readonly mode: 'server' | 'file' | 'server-with-fallback';
+  private flagConfig: FlagConfig | null = null;
   private user: UserContext | undefined;
 
   /** In-memory flag store keyed by flag key. */
@@ -77,6 +81,8 @@ export class DeploySentryClient {
     application: string;
     user?: UserContext;
     sessionId?: string;
+    mode?: 'server' | 'file' | 'server-with-fallback';
+    flagConfig?: FlagConfig;
   }) {
     this.apiKey = options.apiKey;
     this.baseURL = options.baseURL.replace(/\/+$/, '');
@@ -84,6 +90,8 @@ export class DeploySentryClient {
     this.project = options.project;
     this.application = options.application;
     this.sessionId = options.sessionId;
+    this.mode = options.mode ?? 'server';
+    this.flagConfig = options.flagConfig ?? null;
     this.user = options.user;
   }
 
@@ -93,6 +101,29 @@ export class DeploySentryClient {
 
   /** Fetch all flags from the API and start listening for SSE updates. */
   async init(): Promise<void> {
+    if (this.flagConfig) {
+      // Populate the in-memory store from the pre-loaded config.
+      const envName = this.environment;
+      for (const fc of this.flagConfig.flags) {
+        const envState = fc.environments[envName];
+        this.flags.set(fc.key, {
+          key: fc.key,
+          name: fc.name,
+          category: fc.category as any,
+          purpose: '',
+          owners: [],
+          isPermanent: fc.is_permanent,
+          expiresAt: fc.expires_at,
+          enabled: envState?.enabled ?? false,
+          value: envState?.value ?? fc.default_value,
+          tags: [],
+        });
+      }
+      this.initialised = true;
+      this.emit();
+      return;
+    }
+
     await this.fetchFlags();
     this.connectSSE();
   }
@@ -227,6 +258,14 @@ export class DeploySentryClient {
    * via {@link init} and kept up-to-date by SSE.
    */
   boolValue(key: string, defaultValue: boolean): boolean {
+    if (this.flagConfig) {
+      const ctx = this.user ? { attributes: this.user.attributes } : undefined;
+      const result = evaluateLocal(this.flagConfig, this.environment, key, ctx);
+      if (result.reason === 'flag_not_found') return defaultValue;
+      if (result.value === 'true') return true;
+      if (result.value === 'false') return false;
+      return defaultValue;
+    }
     const flag = this.flags.get(key);
     if (!flag || !flag.enabled) return defaultValue;
     if (typeof flag.value === 'boolean') return flag.value;
@@ -239,6 +278,12 @@ export class DeploySentryClient {
    * Evaluate a string flag from the in-memory store.
    */
   stringValue(key: string, defaultValue: string): string {
+    if (this.flagConfig) {
+      const ctx = this.user ? { attributes: this.user.attributes } : undefined;
+      const result = evaluateLocal(this.flagConfig, this.environment, key, ctx);
+      if (result.reason === 'flag_not_found') return defaultValue;
+      return result.value;
+    }
     const flag = this.flags.get(key);
     if (!flag || !flag.enabled) return defaultValue;
     if (typeof flag.value === 'string') return flag.value;
@@ -253,6 +298,14 @@ export class DeploySentryClient {
    * the idiomatic equivalent of `intValue` / `floatValue` in other SDKs.
    */
   numberValue(key: string, defaultValue: number): number {
+    if (this.flagConfig) {
+      const ctx = this.user ? { attributes: this.user.attributes } : undefined;
+      const result = evaluateLocal(this.flagConfig, this.environment, key, ctx);
+      if (result.reason === 'flag_not_found') return defaultValue;
+      const parsed = Number(result.value);
+      if (!Number.isNaN(parsed)) return parsed;
+      return defaultValue;
+    }
     const flag = this.flags.get(key);
     if (!flag || !flag.enabled) return defaultValue;
     if (typeof flag.value === 'number') return flag.value;
@@ -267,6 +320,16 @@ export class DeploySentryClient {
    * Evaluate a JSON (object) flag from the in-memory store.
    */
   jsonValue<T extends object = object>(key: string, defaultValue: T): T {
+    if (this.flagConfig) {
+      const ctx = this.user ? { attributes: this.user.attributes } : undefined;
+      const result = evaluateLocal(this.flagConfig, this.environment, key, ctx);
+      if (result.reason === 'flag_not_found') return defaultValue;
+      try {
+        return JSON.parse(result.value) as T;
+      } catch {
+        return defaultValue;
+      }
+    }
     const flag = this.flags.get(key);
     if (!flag || !flag.enabled) return defaultValue;
     if (typeof flag.value === 'object' && flag.value !== null) return flag.value as T;

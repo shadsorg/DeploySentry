@@ -86,7 +86,6 @@ test('Scenario A: baseline propagation — Node SDK observes UI-driven toggle wi
       timeoutMs: 5_000,
     });
 
-
     console.log(
       `[scenario-A] latency: node=${nodeLatency}ms ` +
         `(click at perfNow=${clickAt.toFixed(0)})`,
@@ -223,7 +222,6 @@ test('Scenario C: variant delivery — Node probe observes string value change',
     const latency = await waitForValue(nodeProbe, variantKey, '"treatment"', {
       timeoutMs: 5_000,
     });
-
 
     console.log(`[scenario-C] latency: node=${latency}ms`);
     expect(latency).toBeLessThan(2_000);

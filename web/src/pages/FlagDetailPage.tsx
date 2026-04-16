@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import type { Flag, TargetingRule, OrgEnvironment, FlagEnvironmentState } from '@/types';
+import type { Flag, TargetingRule, OrgEnvironment, FlagEnvironmentState, RuleEnvironmentState } from '@/types';
 import { flagsApi, entitiesApi, flagEnvStateApi } from '@/api';
 import type { Application } from '@/types';
 
@@ -22,23 +22,6 @@ function formatDateTime(iso: string): string {
   });
 }
 
-function describeConditions(rule: TargetingRule): string {
-  switch (rule.rule_type) {
-    case 'percentage':
-      return `${rule.percentage}% of users`;
-    case 'user_target':
-      return `Users: ${rule.target_values?.join(', ') ?? '\u2014'}`;
-    case 'attribute':
-      return `${rule.attribute} ${rule.operator} ${rule.target_values?.join(', ') ?? '\u2014'}`;
-    case 'segment':
-      return `Segment: ${rule.segment_id ?? '\u2014'}`;
-    case 'schedule':
-      return `${rule.start_time ? formatDateTime(rule.start_time) : '\u2014'} to ${rule.end_time ? formatDateTime(rule.end_time) : '\u2014'}`;
-    default:
-      return '\u2014';
-  }
-}
-
 function getAppNameById(appId: string, apps: Application[]): string {
   return apps.find((a) => a.id === appId)?.name ?? appId;
 }
@@ -57,6 +40,8 @@ export default function FlagDetailPage() {
   const [activeTab, setActiveTab] = useState<'rules' | 'environments'>('rules');
   const [environments, setEnvironments] = useState<OrgEnvironment[]>([]);
   const [envStates, setEnvStates] = useState<FlagEnvironmentState[]>([]);
+  const [ruleEnvStates, setRuleEnvStates] = useState<RuleEnvironmentState[]>([]);
+  const [expandedEnvs, setExpandedEnvs] = useState<Set<string>>(new Set());
   const [showAddRule, setShowAddRule] = useState(false);
   const [newRule, setNewRule] = useState({
     attribute: '',
@@ -95,6 +80,9 @@ export default function FlagDetailPage() {
     flagEnvStateApi
       .list(id)
       .then((res) => setEnvStates(res.environment_states ?? []))
+      .catch(() => {});
+    flagsApi.listRuleEnvStates(id)
+      .then((res) => setRuleEnvStates(res.rule_environment_states ?? []))
       .catch(() => {});
   }, [orgSlug, id]);
 
@@ -139,6 +127,35 @@ export default function FlagDetailPage() {
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
   if (!flag) return <div>Flag not found.</div>;
+
+  const handleRuleEnvToggle = async (ruleId: string, envId: string, currentEnabled: boolean) => {
+    if (!id) return;
+    const nextEnabled = !currentEnabled;
+    setRuleEnvStates((prev) => {
+      const existing = prev.find((s) => s.rule_id === ruleId && s.environment_id === envId);
+      if (existing) {
+        return prev.map((s) => s.rule_id === ruleId && s.environment_id === envId ? { ...s, enabled: nextEnabled } : s);
+      }
+      return [...prev, { id: '', rule_id: ruleId, environment_id: envId, enabled: nextEnabled, created_at: '', updated_at: '' }];
+    });
+    try {
+      await flagsApi.setRuleEnvState(id, ruleId, envId, { enabled: nextEnabled });
+    } catch (err) {
+      setRuleEnvStates((prev) =>
+        prev.map((s) => s.rule_id === ruleId && s.environment_id === envId ? { ...s, enabled: currentEnabled } : s),
+      );
+      setError(err instanceof Error ? err.message : 'Failed to toggle rule');
+    }
+  };
+
+  const toggleEnvAccordion = (envId: string) => {
+    setExpandedEnvs((prev) => {
+      const next = new Set(prev);
+      if (next.has(envId)) next.delete(envId);
+      else next.add(envId);
+      return next;
+    });
+  };
 
   const handleEnvToggle = async (envId: string, currentEnabled: boolean) => {
     if (!flag) return;
@@ -314,40 +331,80 @@ export default function FlagDetailPage() {
               No environments configured. Add environments in org settings.
             </p>
           ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Environment</th>
-                  <th>Enabled</th>
-                  <th>Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {environments.map((env) => {
-                  const state = envStates.find((s) => s.environment_id === env.id);
-                  const isEnabled = state?.enabled ?? false;
-                  return (
-                    <tr key={env.id}>
-                      <td>
-                        {env.name}
-                        {env.is_production && <span className="badge badge-enabled" style={{ marginLeft: 8, fontSize: 11 }}>production</span>}
-                      </td>
-                      <td>
+            <div>
+              {environments.map((env) => {
+                const state = envStates.find((s) => s.environment_id === env.id);
+                const isEnabled = state?.enabled ?? false;
+                const isExpanded = expandedEnvs.has(env.id);
+                return (
+                  <div key={env.id} style={{ borderBottom: '1px solid var(--color-border)', paddingBottom: 12, marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <button
+                          onClick={() => toggleEnvAccordion(env.id)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text)', fontSize: 14 }}
+                        >
+                          {isExpanded ? '\u25be' : '\u25b8'}
+                        </button>
+                        <strong>{env.name}</strong>
+                        {env.is_production && <span className="badge badge-enabled" style={{ fontSize: 11 }}>production</span>}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <span className="font-mono" style={{ fontSize: 13 }}>
+                          {state?.value != null ? String(state.value) : '\u2014'}
+                        </span>
                         <label className="toggle">
-                          <input
-                            type="checkbox"
-                            checked={isEnabled}
-                            onChange={() => handleEnvToggle(env.id, isEnabled)}
-                          />
+                          <input type="checkbox" checked={isEnabled} onChange={() => handleEnvToggle(env.id, isEnabled)} />
                           <span>{isEnabled ? 'Enabled' : 'Disabled'}</span>
                         </label>
-                      </td>
-                      <td className="font-mono">{state?.value != null ? String(state.value) : '\u2014'}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div style={{ marginLeft: 28, marginTop: 8 }}>
+                        {rules.length === 0 ? (
+                          <p className="text-muted" style={{ fontSize: 13 }}>No targeting rules defined.</p>
+                        ) : (
+                          <table style={{ fontSize: 13 }}>
+                            <thead>
+                              <tr>
+                                <th>Rule</th>
+                                <th>Serve Value</th>
+                                <th>Enabled</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {rules.map((rule) => {
+                                const ruleState = ruleEnvStates.find(
+                                  (s) => s.rule_id === rule.id && s.environment_id === env.id,
+                                );
+                                const ruleEnabled = ruleState?.enabled ?? false;
+                                return (
+                                  <tr key={rule.id}>
+                                    <td>{rule.attribute} {rule.operator} {(rule.target_values ?? []).join(', ')}</td>
+                                    <td className="font-mono">{rule.value}</td>
+                                    <td>
+                                      <label className="toggle">
+                                        <input
+                                          type="checkbox"
+                                          checked={ruleEnabled}
+                                          onChange={() => handleRuleEnvToggle(rule.id, env.id, ruleEnabled)}
+                                        />
+                                        <span>{ruleEnabled ? 'On' : 'Off'}</span>
+                                      </label>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       )}

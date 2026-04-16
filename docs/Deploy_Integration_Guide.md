@@ -51,13 +51,16 @@ Think of it as a deployment control plane sitting alongside your existing CI/CD.
 
 If you're using Claude Code or another LLM tool with MCP support, you can set up deployment tracking in one conversation instead of following the manual steps below.
 
-### One-time: Add the MCP server
+### One-time: Install CLI and add the MCP server
 
 ```bash
+# Install the CLI (skip if already installed)
+curl -fsSL https://raw.githubusercontent.com/shadsorg/DeploySentry/main/scripts/install.sh | sh
+deploysentry auth login
+
+# Add the MCP server to Claude Code
 claude mcp add deploysentry -- deploysentry mcp serve
 ```
-
-This requires the `deploysentry` CLI to be installed and authenticated (`deploysentry auth login`).
 
 ### Then just ask
 

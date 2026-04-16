@@ -19,12 +19,16 @@ That's it. The prompt is designed to be self-contained.
 
 If you use Claude Code, you can also install the DeploySentry MCP server for richer tool-based integration. The MCP server gives the LLM direct access to your DeploySentry account — it can list projects, create API keys, manage flags, and set up deployment tracking without raw API calls.
 
-**Setup**:
+**Install the CLI** (if not already installed):
+```bash
+curl -fsSL https://raw.githubusercontent.com/shadsorg/DeploySentry/main/scripts/install.sh | sh
+deploysentry auth login
+```
+
+**Add the MCP server**:
 ```bash
 claude mcp add deploysentry -- deploysentry mcp serve
 ```
-
-Requires the `deploysentry` CLI installed and authenticated (`deploysentry auth login`).
 
 **What it adds**: 12 MCP tools — `ds_status`, `ds_list_orgs`, `ds_list_projects`, `ds_list_apps`, `ds_list_environments`, `ds_create_api_key`, `ds_generate_workflow`, `ds_get_app_deploy_status`, `ds_list_flags`, `ds_get_flag`, `ds_create_flag`, `ds_toggle_flag`.
 
@@ -434,7 +438,10 @@ Do everything below in order. Ask me for any values you can't determine.
 ### Phase 1 — Install MCP Server (for future sessions)
 
 1. Check if the `deploysentry` CLI is installed: `which deploysentry`
-   - If not found, install it: `curl -fsSL https://ds-sentry.com/install.sh | sh`
+   - If not found, tell me to run:
+     ```
+     ! curl -fsSL https://raw.githubusercontent.com/shadsorg/DeploySentry/main/scripts/install.sh | sh
+     ```
 
 2. Check if it's authenticated: `deploysentry config get api_key` or check for `~/.config/deploysentry/credentials.json`
    - If not authenticated, tell me to run `! deploysentry auth login` and wait for me to complete it

@@ -80,7 +80,7 @@ const ReleasesPage: React.FC = () => {
     entitiesApi
       .getApp(orgSlug, projectSlug, appSlug)
       .then((app) => releasesApi.list(app.id))
-      .then((result) => setReleases(result.releases))
+      .then((result) => setReleases(result.releases ?? []))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [orgSlug, projectSlug, appSlug]);

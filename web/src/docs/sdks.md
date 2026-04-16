@@ -15,16 +15,27 @@ DeploySentry ships seven first-party SDKs. Each follows the same shape: instanti
 ## Node
 
 ```ts
-import { DeploySentry } from '@deploysentry/node';
+import { DeploySentryClient } from '@deploysentry/sdk';
 
-const ds = new DeploySentry({ apiKey: process.env.DS_API_KEY! });
-const isOn = await ds.isEnabled('new-checkout', { userId: '42' });
+const ds = new DeploySentryClient({
+  apiKey: process.env.DS_API_KEY!,
+  environment: 'production',
+  project: 'my-project',
+  application: 'my-web-app',
+});
+await ds.initialize();
+const isOn = await ds.boolValue('new-checkout', false, { userId: '42' });
 ```
 
 ## Go
 
 ```go
-client := deploysentry.New(deploysentry.Options{APIKey: os.Getenv("DS_API_KEY")})
+client := deploysentry.New(deploysentry.Options{
+  APIKey:       os.Getenv("DS_API_KEY"),
+  Environment:  "production",
+  Project:      "my-project",
+  Application:  "my-web-app",
+})
 on, _ := client.IsEnabled(ctx, "new-checkout", map[string]any{"userId": "42"})
 ```
 
@@ -33,7 +44,12 @@ on, _ := client.IsEnabled(ctx, "new-checkout", map[string]any{"userId": "42"})
 ```python
 from deploysentry import DeploySentry
 
-ds = DeploySentry(api_key=os.environ["DS_API_KEY"])
+ds = DeploySentry(
+    api_key=os.environ["DS_API_KEY"],
+    environment="production",
+    project="my-project",
+    application="my-web-app",
+)
 on = ds.is_enabled("new-checkout", {"user_id": "42"})
 ```
 

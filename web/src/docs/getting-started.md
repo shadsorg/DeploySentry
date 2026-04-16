@@ -70,6 +70,7 @@ The script writes a language-specific prompt that teaches LLMs how to use Deploy
 | API Key     | `DS_API_KEY` env var |
 | Environment | production |
 | Project     | my-project |
+| Application | my-web-app |
 | Base URL    | https://dr-sentry.com |
 
 ### Initialization
@@ -79,6 +80,7 @@ The script writes a language-specific prompt that teaches LLMs how to use Deploy
     apiKey: process.env.DS_API_KEY!,
     environment: 'production',
     project: 'my-project',
+    application: 'my-web-app',
   });
   await ds.initialize();
 

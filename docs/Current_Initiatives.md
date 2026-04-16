@@ -12,6 +12,7 @@
 | SDK Application Parameter | Implementation | [Plan](./superpowers/plans/2026-04-15-sdk-application-parameter.md) / [Spec](./superpowers/specs/2026-04-15-sdk-application-parameter-design.md) | Implemented on main. Both SDKs + backend complete. All tests pass. |
 | Groups & Resource Authorization | Implementation | [Plan](./superpowers/plans/2026-04-16-groups-and-resource-authorization.md) / [Spec](./superpowers/specs/2026-04-16-groups-and-resource-authorization-design.md) | On `feature/groups-and-resource-authorization` branch. Migration 041, groups/grants packages, visibility filtering, frontend complete. Pending merge. |
 | Environment-Scoped API Keys | Implementation | [Plan](./superpowers/plans/2026-04-16-environment-scoped-api-keys.md) / [Spec](./superpowers/specs/2026-04-16-environment-scoped-api-keys-design.md) | On `feature/groups-and-resource-authorization` branch. Migration 042, model/repo/service/handler/middleware/CLI/UI complete. Pending merge. |
+| MCP Server & Deploy Onboarding | Implementation | [Plan](./superpowers/plans/2026-04-16-mcp-server-deploy-onboarding.md) / [Spec](./superpowers/specs/2026-04-16-mcp-server-deploy-onboarding-design.md) | On `feature/groups-and-resource-authorization` branch. 12 MCP tools, stdio transport, `deploysentry mcp serve`. Pending merge. |
 
 ## Archived
 

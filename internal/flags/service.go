@@ -104,6 +104,10 @@ type FlagService interface {
 
 	// DeleteSegment removes a segment by ID.
 	DeleteSegment(ctx context.Context, id uuid.UUID) error
+
+	// ExportFlags builds a complete snapshot of all flags, their per-environment
+	// states, targeting rules, and rule-environment states for the given project.
+	ExportFlags(ctx context.Context, projectID uuid.UUID, envs []YAMLEnvironment) (*YAMLExport, error)
 }
 
 // flagService is the concrete implementation of FlagService.
@@ -445,6 +449,88 @@ func (s *flagService) UpdateSegment(ctx context.Context, segment *models.Segment
 // DeleteSegment removes a segment by its ID.
 func (s *flagService) DeleteSegment(ctx context.Context, id uuid.UUID) error {
 	return s.repo.DeleteSegment(ctx, id)
+}
+
+// ExportFlags builds a YAMLExport snapshot of all flags for the given project.
+func (s *flagService) ExportFlags(ctx context.Context, projectID uuid.UUID, envs []YAMLEnvironment) (*YAMLExport, error) {
+	flags, err := s.repo.ListFlags(ctx, projectID, ListOptions{Limit: 10000})
+	if err != nil {
+		return nil, fmt.Errorf("listing flags for export: %w", err)
+	}
+
+	export := &YAMLExport{
+		Version:      1,
+		ExportedAt:   time.Now().UTC().Format(time.RFC3339),
+		Environments: envs,
+		Flags:        make([]YAMLFlag, 0, len(flags)),
+	}
+
+	for _, f := range flags {
+		yf := YAMLFlag{
+			Key:          f.Key,
+			Name:         f.Name,
+			FlagType:     string(f.FlagType),
+			Category:     string(f.Category),
+			DefaultValue: f.DefaultValue,
+			IsPermanent:  f.IsPermanent,
+			Environments: make(map[string]YAMLFlagEnv),
+		}
+		if f.ExpiresAt != nil {
+			yf.ExpiresAt = f.ExpiresAt.Format(time.RFC3339)
+		}
+
+		// Per-environment flag states.
+		envStates, err := s.repo.ListFlagEnvStates(ctx, f.ID)
+		if err != nil {
+			return nil, fmt.Errorf("listing env states for flag %s: %w", f.Key, err)
+		}
+		for _, es := range envStates {
+			val := ""
+			if es.Value != nil {
+				val = string(*es.Value)
+			}
+			yf.Environments[es.EnvironmentID.String()] = YAMLFlagEnv{
+				Enabled: es.Enabled,
+				Value:   val,
+			}
+		}
+
+		// Targeting rules.
+		rules, err := s.repo.ListRules(ctx, f.ID)
+		if err != nil {
+			return nil, fmt.Errorf("listing rules for flag %s: %w", f.Key, err)
+		}
+
+		// Rule environment states (all at once for the flag).
+		ruleEnvStates, err := s.repo.ListRuleEnvironmentStates(ctx, f.ID)
+		if err != nil {
+			return nil, fmt.Errorf("listing rule env states for flag %s: %w", f.Key, err)
+		}
+		// Build a lookup: ruleID -> envID -> enabled.
+		ruleEnvMap := make(map[uuid.UUID]map[string]bool)
+		for _, res := range ruleEnvStates {
+			if ruleEnvMap[res.RuleID] == nil {
+				ruleEnvMap[res.RuleID] = make(map[string]bool)
+			}
+			ruleEnvMap[res.RuleID][res.EnvironmentID.String()] = res.Enabled
+		}
+
+		for _, r := range rules {
+			yr := YAMLRule{
+				Attribute:    r.Attribute,
+				Operator:     r.Operator,
+				TargetValues: r.TargetValues,
+				Value:        r.Value,
+				Priority:     r.Priority,
+				Environments: ruleEnvMap[r.ID],
+			}
+			yf.Rules = append(yf.Rules, yr)
+		}
+
+		export.Flags = append(export.Flags, yf)
+	}
+
+	return export, nil
 }
 
 // WarmCache pre-loads all active flags for a project into the evaluation cache.

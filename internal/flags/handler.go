@@ -16,6 +16,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/webhooks"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gopkg.in/yaml.v3"
 )
 
 // EntityAppResolver resolves application slugs to models.
@@ -74,6 +75,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		flags.POST("/evaluate", auth.RequirePermission(h.rbac, auth.PermFlagRead), h.evaluate)
 		flags.POST("/batch-evaluate", auth.RequirePermission(h.rbac, auth.PermFlagRead), h.batchEvaluate)
 		flags.POST("/bulk-toggle", auth.RequirePermission(h.rbac, auth.PermFlagToggle), h.bulkToggle)
+		flags.GET("/export", auth.RequirePermission(h.rbac, auth.PermFlagRead), h.exportFlags)
 		flags.GET("/:id", auth.RequirePermission(h.rbac, auth.PermFlagRead), h.getFlag)
 		flags.PUT("/:id", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.updateFlag)
 		flags.POST("/:id/archive", auth.RequirePermission(h.rbac, auth.PermFlagArchive), h.archiveFlag)
@@ -958,6 +960,45 @@ func (h *Handler) setFlagEnvState(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, state)
+}
+
+// ---------------------------------------------------------------------------
+// Export handler
+// ---------------------------------------------------------------------------
+
+func (h *Handler) exportFlags(c *gin.Context) {
+	projectIDStr := c.Query("project_id")
+	if projectIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "project_id is required"})
+		return
+	}
+	projectID, err := uuid.Parse(projectIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid project_id"})
+		return
+	}
+
+	appSlug := c.Query("application")
+	format := c.DefaultQuery("format", "yaml")
+
+	export, err := h.service.ExportFlags(c.Request.Context(), projectID, nil)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to export flags"})
+		return
+	}
+	export.Application = appSlug
+
+	if format == "json" {
+		c.JSON(http.StatusOK, export)
+		return
+	}
+
+	yamlBytes, err := yaml.Marshal(export)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to serialize yaml"})
+		return
+	}
+	c.Data(http.StatusOK, "application/x-yaml", yamlBytes)
 }
 
 // SSEEvent is the structured payload broadcast to connected SSE clients when a

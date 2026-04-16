@@ -197,6 +197,10 @@ func (m *mockFlagService) ListRuleEnvironmentStates(ctx context.Context, flagID 
 	return nil, nil
 }
 
+func (m *mockFlagService) ExportFlags(ctx context.Context, projectID uuid.UUID, envs []YAMLEnvironment) (*YAMLExport, error) {
+	return &YAMLExport{Version: 1}, nil
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

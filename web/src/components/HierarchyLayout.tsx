@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, useParams } from 'react-router-dom';
 import Sidebar from './Sidebar';
-import Breadcrumb from './Breadcrumb';
 import SiteHeader from './SiteHeader';
 import RealtimeManager from '@/services/realtime';
 
@@ -41,7 +40,6 @@ export default function HierarchyLayout() {
       <div className="app-layout">
         <Sidebar />
         <main className="main-content">
-          <Breadcrumb />
           <Outlet />
         </main>
       </div>

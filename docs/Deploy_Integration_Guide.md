@@ -47,6 +47,57 @@ Think of it as a deployment control plane sitting alongside your existing CI/CD.
 
 ---
 
+## Quickstart: LLM-Assisted Setup (Recommended)
+
+If you're using Claude Code or another LLM tool with MCP support, you can set up deployment tracking in one conversation instead of following the manual steps below.
+
+### One-time: Add the MCP server
+
+Add to your Claude Code MCP config (`~/.claude/claude_code_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "deploysentry": {
+      "command": "deploysentry",
+      "args": ["mcp", "serve"]
+    }
+  }
+}
+```
+
+This requires the `deploysentry` CLI to be installed and authenticated (`deploysentry auth login`).
+
+### Then just ask
+
+Open Claude Code in your repository and say:
+
+> "Set up deployment tracking for this repo with DeploySentry"
+
+The LLM will use the MCP tools to:
+1. Discover your org, project, app, and environments
+2. Create an environment-scoped API key
+3. Set the GitHub secrets via `gh` CLI
+4. Generate a `.github/workflows/deploy.yml` step
+5. Summarize what was set up
+
+If something is missing (CLI not authenticated, `gh` not installed), the tools return actionable instructions.
+
+### Available MCP Tools
+
+| Tool | What it does |
+|------|-------------|
+| `ds_status` | Check CLI auth and config, show issues |
+| `ds_list_orgs` / `ds_list_projects` / `ds_list_apps` / `ds_list_environments` | Discover your DeploySentry resources |
+| `ds_create_api_key` | Create an API key (optionally env-scoped) |
+| `ds_get_app_deploy_status` | Check if an app already has deployments |
+| `ds_generate_workflow` | Generate a GitHub Actions YAML step |
+| `ds_list_flags` / `ds_get_flag` / `ds_create_flag` / `ds_toggle_flag` | Manage feature flags |
+
+If you prefer manual setup, continue below.
+
+---
+
 ## Prerequisites
 
 Before starting, you need:

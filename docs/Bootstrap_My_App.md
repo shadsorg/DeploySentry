@@ -15,6 +15,28 @@ This guide provides a copy-paste LLM prompt that instructs an AI coding assistan
 
 That's it. The prompt is designed to be self-contained.
 
+### MCP Server (For Claude Code Users)
+
+If you use Claude Code, you can also install the DeploySentry MCP server for richer tool-based integration. The MCP server gives the LLM direct access to your DeploySentry account — it can list projects, create API keys, manage flags, and set up deployment tracking without raw API calls.
+
+**Setup** — add to `~/.claude/claude_code_config.json`:
+```json
+{
+  "mcpServers": {
+    "deploysentry": {
+      "command": "deploysentry",
+      "args": ["mcp", "serve"]
+    }
+  }
+}
+```
+
+Requires the `deploysentry` CLI installed and authenticated (`deploysentry auth login`).
+
+**What it adds**: 12 MCP tools — `ds_status`, `ds_list_orgs`, `ds_list_projects`, `ds_list_apps`, `ds_list_environments`, `ds_create_api_key`, `ds_generate_workflow`, `ds_get_app_deploy_status`, `ds_list_flags`, `ds_get_flag`, `ds_create_flag`, `ds_toggle_flag`.
+
+The Bootstrap Prompt below works without the MCP server (pure prompt-based). The MCP server is complementary — it's especially useful for deployment setup and ongoing flag management.
+
 ---
 
 ## Bootstrap Prompt

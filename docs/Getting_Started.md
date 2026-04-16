@@ -64,9 +64,12 @@ Define user/attribute-based rules and percentage rollouts. Changes stream to SDK
 Watch flag health, evaluation metrics, and deployment status from the dashboard. Configure webhooks, Slack, and observability exports.
 → [README → Monitoring Flags](../README.md#monitoring-flags) · [README → Webhooks & Slack](../README.md#webhook-notifications)
 
-### 11. Deploy and enable automated rollbacks
-Use the CLI to record deployments and releases; configure rollback rules tied to flag or health signals.
-→ [README → Deployments](../README.md#deployments) · [README → Automated Rollbacks](../README.md#automated-rollbacks)
+### 11. Set up deployment tracking
+Connect your CI/CD pipeline (GitHub Actions) to DeploySentry so deployments are recorded, monitored, and rolled back automatically.
+→ [Deploy Integration Guide](./Deploy_Integration_Guide.md)
+
+**LLM shortcut**: If you use Claude Code, add the MCP server to your config and ask it to set up deployments — it handles API keys, GitHub secrets, and workflow generation in one conversation.
+→ [Deploy Integration Guide → Quickstart](./Deploy_Integration_Guide.md#quickstart-llm-assisted-setup-recommended)
 
 ## Going to Production
 
@@ -81,6 +84,7 @@ Have an AI coding assistant? Paste the bootstrap prompt into your project and it
 ## Where to Go Next
 
 - [Bootstrap_My_App.md](./Bootstrap_My_App.md) — LLM prompt to auto-integrate DeploySentry into any project
+- [Deploy_Integration_Guide.md](./Deploy_Integration_Guide.md) — Connect GitHub Actions to deployment tracking (includes MCP quickstart)
 - [DEVELOPMENT.md](./DEVELOPMENT.md) — local dev loop, testing, schema conventions
 - [sdk-onboarding.md](./sdk-onboarding.md) — per-language SDK walkthroughs
 - [Current_Initiatives.md](./Current_Initiatives.md) — active work in flight

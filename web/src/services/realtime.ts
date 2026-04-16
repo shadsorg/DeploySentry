@@ -57,10 +57,9 @@ class RealtimeManager {
       }, options.refreshInterval);
     }
 
-    // Connect to SSE if URL provided
-    if (this.baseUrl) {
-      await this.connectSSE();
-    }
+    // SSE connection disabled — the /api/v1/events/stream endpoint is not
+    // implemented. Real-time flag updates are handled by the SDK's own SSE
+    // connection. This manager provides periodic refresh polling only.
   }
 
   /**

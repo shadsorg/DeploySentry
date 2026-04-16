@@ -175,6 +175,7 @@ Examples:
 
   # List recent releases
   deploysentry releases list`,
+	Version:       version,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 }

@@ -80,6 +80,7 @@ func init() {
 	// apikeys create flags
 	apikeysCreateCmd.Flags().String("name", "", "human-readable name for the API key (required)")
 	apikeysCreateCmd.Flags().String("scopes", "", "comma-separated list of permission scopes (required)")
+	apikeysCreateCmd.Flags().StringSlice("env", nil, "environment ID(s) to restrict key to (repeatable, omit for unrestricted)")
 	_ = apikeysCreateCmd.MarkFlagRequired("name")
 	_ = apikeysCreateCmd.MarkFlagRequired("scopes")
 
@@ -114,7 +115,7 @@ func runAPIKeysList(cmd *cobra.Command, args []string) error {
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "ID\tNAME\tPREFIX\tSCOPES\tCREATED\tLAST_USED\tEXPIRES")
+	_, _ = fmt.Fprintln(w, "ID\tNAME\tPREFIX\tSCOPES\tENVIRONMENTS\tCREATED\tLAST_USED\tEXPIRES")
 	for _, k := range apiKeys {
 		key, ok := k.(map[string]interface{})
 		if !ok {
@@ -142,6 +143,13 @@ func runAPIKeysList(cmd *cobra.Command, args []string) error {
 			}
 		}
 
+		envDisplay := "All"
+		if envIDsRaw, ok := key["environment_ids"]; ok {
+			if arr, ok := envIDsRaw.([]interface{}); ok && len(arr) > 0 {
+				envDisplay = fmt.Sprintf("%d env(s)", len(arr))
+			}
+		}
+
 		if lastUsed == "" {
 			lastUsed = "never"
 		}
@@ -149,8 +157,8 @@ func runAPIKeysList(cmd *cobra.Command, args []string) error {
 			expiresAt = "never"
 		}
 
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			id, name, prefix, scopes, createdAt, lastUsed, expiresAt)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			id, name, prefix, scopes, envDisplay, createdAt, lastUsed, expiresAt)
 	}
 	return w.Flush()
 }
@@ -160,6 +168,7 @@ func runAPIKeysCreate(cmd *cobra.Command, args []string) error {
 	scopesRaw, _ := cmd.Flags().GetString("scopes")
 
 	scopes := splitAndTrim(scopesRaw, ",")
+	envIDs, _ := cmd.Flags().GetStringSlice("env")
 
 	client, err := clientFromConfig()
 	if err != nil {
@@ -169,6 +178,9 @@ func runAPIKeysCreate(cmd *cobra.Command, args []string) error {
 	body := map[string]interface{}{
 		"name":   name,
 		"scopes": scopes,
+	}
+	if len(envIDs) > 0 {
+		body["environment_ids"] = envIDs
 	}
 
 	resp, err := client.post("/api/v1/api-keys", body)

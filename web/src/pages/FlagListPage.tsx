@@ -55,9 +55,12 @@ export default function FlagListPage() {
   // string ops (.toLowerCase().includes()) on every render, especially when the search
   // input updates or other unrelated state changes.
   const filtered = useMemo(() => {
+    // Performance Optimization: Hoist search string case conversion outside the filter loop
+    // to prevent O(N) penalty from running .toLowerCase() repeatedly on every filter pass.
+    const q = search ? search.toLowerCase() : '';
+
     return flags.filter((flag) => {
-      if (search) {
-        const q = search.toLowerCase();
+      if (q) {
         if (!flag.name.toLowerCase().includes(q) && !flag.key.toLowerCase().includes(q)) {
           return false;
         }

@@ -108,11 +108,12 @@ export default function MembersPage() {
           <div className="inline-form-row" style={{ marginBottom: 16 }}>
             <input
               type="email"
+              className="form-input"
               placeholder="Email address"
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
             />
-            <select value={newRole} onChange={(e) => setNewRole(e.target.value)}>
+            <select className="form-select" value={newRole} onChange={(e) => setNewRole(e.target.value)}>
               <option value="member">Member</option>
               <option value="admin">Admin</option>
               <option value="viewer">Viewer</option>
@@ -165,6 +166,7 @@ export default function MembersPage() {
                           <span className="text-muted">Owner</span>
                         ) : (
                           <select
+                            className="form-select"
                             value={m.role}
                             onChange={(e) => handleChangeRole(m.user_id, e.target.value)}
                           >

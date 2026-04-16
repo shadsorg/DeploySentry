@@ -87,12 +87,18 @@ export default function APIKeysPage() {
         </button>
       </div>
 
+      <p className="text-muted" style={{ marginBottom: 24, maxWidth: 600 }}>
+        API keys authenticate programmatic access to the DeploySentry API. Use them to integrate with CI/CD pipelines,
+        automate flag management, or connect your SDKs. Keys are scoped to an organization and can be revoked at any time.
+      </p>
+
       {showCreate && (
         <div className="inline-form">
           <div className="form-group">
             <label>Name</label>
             <input
               type="text"
+              className="form-input"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="e.g. Production Backend"

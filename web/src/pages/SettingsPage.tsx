@@ -562,6 +562,22 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
               )}
             </div>
 
+            <div style={{ marginBottom: 24 }}>
+              <p className="text-muted" style={{ maxWidth: 600 }}>
+                Webhooks send HTTP POST notifications to your endpoints when events occur in DeploySentry.
+                Use them to trigger CI/CD pipelines, update monitoring dashboards, or sync with external tools.
+              </p>
+              <details style={{ marginTop: 12, color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+                <summary style={{ cursor: 'pointer', marginBottom: 8 }}>Example use cases</summary>
+                <ul style={{ marginLeft: 16, lineHeight: 1.8 }}>
+                  <li><strong>CI/CD integration</strong> — Trigger deployments when a release is promoted</li>
+                  <li><strong>Slack notifications</strong> — Alert your team when feature flags are toggled</li>
+                  <li><strong>Audit logging</strong> — Record flag and deployment changes to an external system</li>
+                  <li><strong>Monitoring</strong> — Update dashboards when deployments start or complete</li>
+                </ul>
+              </details>
+            </div>
+
             {webhooksLoading && <p className="text-muted text-sm">Loading webhooks…</p>}
             {webhooksError && <p className="text-danger text-sm">Error: {webhooksError}</p>}
 
@@ -569,8 +585,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             {(addingWebhook || editingWebhookId) && (
               <div
                 style={{
-                  background: 'var(--color-bg-secondary, #1e293b)',
-                  border: '1px solid var(--color-border, #334155)',
+                  background: 'var(--color-bg-secondary)',
+                  border: '1px solid var(--color-border)',
                   borderRadius: 6,
                   padding: 16,
                   marginBottom: 16,

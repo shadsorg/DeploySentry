@@ -60,27 +60,27 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="tab-nav">
+      <div className="tabs">
         <button
-          className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
+          className={`tab${activeTab === 'overview' ? ' active' : ''}`}
           onClick={() => handleTabChange('overview')}
         >
           📊 Overview
         </button>
         <button
-          className={`tab-button ${activeTab === 'flags' ? 'active' : ''}`}
+          className={`tab${activeTab === 'flags' ? ' active' : ''}`}
           onClick={() => handleTabChange('flags')}
         >
           🚩 Flag Analytics
         </button>
         <button
-          className={`tab-button ${activeTab === 'deployments' ? 'active' : ''}`}
+          className={`tab${activeTab === 'deployments' ? ' active' : ''}`}
           onClick={() => handleTabChange('deployments')}
         >
           🚀 Deployments
         </button>
         <button
-          className={`tab-button ${activeTab === 'system' ? 'active' : ''}`}
+          className={`tab${activeTab === 'system' ? ' active' : ''}`}
           onClick={() => handleTabChange('system')}
         >
           🏥 System Health

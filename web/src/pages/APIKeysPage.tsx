@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import type { ApiKey } from '@/types';
 import { apiKeysApi } from '@/api';
+import { useEnvironments } from '../hooks/useEntities';
 
 const AVAILABLE_SCOPES = ['flags:read', 'flags:write', 'deploys:read', 'deploys:write', 'admin'];
 
@@ -20,6 +22,8 @@ function formatDate(iso: string): string {
 }
 
 export default function APIKeysPage() {
+  const { orgSlug } = useParams();
+  const { environments } = useEnvironments(orgSlug);
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +32,7 @@ export default function APIKeysPage() {
   // Create form
   const [newName, setNewName] = useState('');
   const [newScopes, setNewScopes] = useState<string[]>([]);
+  const [selectedEnvIds, setSelectedEnvIds] = useState<string[]>([]);
   // Revoke confirm
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
 
@@ -51,10 +56,15 @@ export default function APIKeysPage() {
   async function handleCreate() {
     if (!newName.trim() || newScopes.length === 0) return;
     try {
-      const result = await apiKeysApi.create({ name: newName.trim(), scopes: newScopes });
+      const result = await apiKeysApi.create({
+        name: newName.trim(),
+        scopes: newScopes,
+        environment_ids: selectedEnvIds.length > 0 ? selectedEnvIds : undefined,
+      });
       setRevealedKey(result.token);
       setNewName('');
       setNewScopes([]);
+      setSelectedEnvIds([]);
       setShowCreate(false);
       await fetchKeys();
     } catch (err) {
@@ -122,9 +132,29 @@ export default function APIKeysPage() {
             </div>
           </div>
 
-          <div className="form-group">
-            <label>Environment Restrictions</label>
-            <p className="text-muted text-sm">Environment restrictions coming soon</p>
+          <div style={{ marginBottom: 16 }}>
+            <label className="form-label">Environment Restrictions</label>
+            <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: 8 }}>
+              Leave all unchecked for unrestricted access to all environments.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+              {environments.map((env) => (
+                <label key={env.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedEnvIds.includes(env.id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedEnvIds((prev) => [...prev, env.id]);
+                      } else {
+                        setSelectedEnvIds((prev) => prev.filter((id) => id !== env.id));
+                      }
+                    }}
+                  />
+                  {env.name}
+                </label>
+              ))}
+            </div>
           </div>
 
           <button className="btn btn-primary" onClick={handleCreate}>
@@ -190,14 +220,17 @@ export default function APIKeysPage() {
                   ))}
                 </td>
                 <td>
-                  {key.environment_targets.length === 0 ? (
-                    <span className="badge badge-ops">All</span>
+                  {key.environment_ids.length === 0 ? (
+                    <span className="badge">All</span>
                   ) : (
-                    key.environment_targets.map((envId) => (
-                      <span key={envId} className="badge badge-feature">
-                        {envId}
-                      </span>
-                    ))
+                    key.environment_ids.map((eid: string) => {
+                      const env = environments.find((e) => e.id === eid);
+                      return (
+                        <span key={eid} className="badge" style={{ marginRight: 4 }}>
+                          {env?.name || eid.slice(0, 8)}
+                        </span>
+                      );
+                    })
                   )}
                 </td>
                 <td>{formatDate(key.created_at)}</td>

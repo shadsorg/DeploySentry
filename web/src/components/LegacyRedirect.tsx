@@ -10,6 +10,7 @@ export default function LegacyRedirect({ to }: LegacyRedirectProps) {
   const lastApp = localStorage.getItem('ds_last_app') || '';
 
   if (!lastOrg) return <Navigate to="/orgs/new" replace />;
+  if (to === 'sdks') return <Navigate to="/docs/sdks" replace />;
   if (to === 'settings') return <Navigate to={`/orgs/${lastOrg}/settings`} replace />;
   if (!lastProject) return <Navigate to={`/orgs/${lastOrg}/projects`} replace />;
 
@@ -19,7 +20,7 @@ export default function LegacyRedirect({ to }: LegacyRedirectProps) {
     );
   }
   if (to === 'deployments' || to === 'releases') {
-    return <Navigate to={`/orgs/${lastOrg}/projects/${lastProject}/flags`} replace />;
+    return <Navigate to={`/orgs/${lastOrg}/projects/${lastProject}/apps`} replace />;
   }
   return <Navigate to={`/orgs/${lastOrg}/projects/${lastProject}/${to}`} replace />;
 }

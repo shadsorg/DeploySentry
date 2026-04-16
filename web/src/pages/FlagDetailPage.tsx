@@ -160,17 +160,25 @@ export default function FlagDetailPage() {
   const handleEnvToggle = async (envId: string, currentEnabled: boolean) => {
     if (!flag) return;
     const nextEnabled = !currentEnabled;
-    // Optimistic update
-    setEnvStates((prev) =>
-      prev.map((s) => (s.environment_id === envId ? { ...s, enabled: nextEnabled } : s)),
-    );
+    // Optimistic update — create entry if it doesn't exist yet
+    setEnvStates((prev) => {
+      const existing = prev.find((s) => s.environment_id === envId);
+      if (existing) {
+        return prev.map((s) => (s.environment_id === envId ? { ...s, enabled: nextEnabled } : s));
+      }
+      return [...prev, { id: '', flag_id: flag.id, environment_id: envId, enabled: nextEnabled, updated_by: '', updated_at: '' } as FlagEnvironmentState];
+    });
     try {
       await flagEnvStateApi.set(flag.id, envId, { enabled: nextEnabled });
     } catch (err) {
       // Revert on failure
-      setEnvStates((prev) =>
-        prev.map((s) => (s.environment_id === envId ? { ...s, enabled: currentEnabled } : s)),
-      );
+      setEnvStates((prev) => {
+        const existing = prev.find((s) => s.environment_id === envId);
+        if (existing) {
+          return prev.map((s) => (s.environment_id === envId ? { ...s, enabled: currentEnabled } : s));
+        }
+        return prev.filter((s) => s.environment_id !== envId);
+      });
       setError(err instanceof Error ? err.message : 'Failed to toggle environment');
     }
   };

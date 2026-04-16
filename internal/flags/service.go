@@ -75,6 +75,12 @@ type FlagService interface {
 	// SetFlagEnvState creates or updates a per-environment flag state.
 	SetFlagEnvState(ctx context.Context, state *models.FlagEnvironmentState) error
 
+	// SetRuleEnvironmentState creates or updates a per-environment rule state.
+	SetRuleEnvironmentState(ctx context.Context, ruleID, environmentID uuid.UUID, enabled bool) (*models.RuleEnvironmentState, error)
+
+	// ListRuleEnvironmentStates returns all per-environment states for a flag's rules.
+	ListRuleEnvironmentStates(ctx context.Context, flagID uuid.UUID) ([]*models.RuleEnvironmentState, error)
+
 	// DetectStaleFlags returns flags that have not been evaluated within the
 	// given threshold duration for the specified project.
 	DetectStaleFlags(ctx context.Context, projectID uuid.UUID, threshold time.Duration) ([]*models.FeatureFlag, error)
@@ -371,6 +377,24 @@ func (s *flagService) SetFlagEnvState(ctx context.Context, state *models.FlagEnv
 		return fmt.Errorf("setting flag env state: %w", err)
 	}
 	return nil
+}
+
+// SetRuleEnvironmentState creates or updates a per-environment rule state.
+func (s *flagService) SetRuleEnvironmentState(ctx context.Context, ruleID, environmentID uuid.UUID, enabled bool) (*models.RuleEnvironmentState, error) {
+	state, err := s.repo.SetRuleEnvironmentState(ctx, ruleID, environmentID, enabled)
+	if err != nil {
+		return nil, fmt.Errorf("setting rule environment state: %w", err)
+	}
+	return state, nil
+}
+
+// ListRuleEnvironmentStates returns all per-environment states for a flag's rules.
+func (s *flagService) ListRuleEnvironmentStates(ctx context.Context, flagID uuid.UUID) ([]*models.RuleEnvironmentState, error) {
+	states, err := s.repo.ListRuleEnvironmentStates(ctx, flagID)
+	if err != nil {
+		return nil, fmt.Errorf("listing rule environment states: %w", err)
+	}
+	return states, nil
 }
 
 // DetectStaleFlags returns feature flags that have not been evaluated within

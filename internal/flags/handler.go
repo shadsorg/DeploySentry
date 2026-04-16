@@ -82,8 +82,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		rules := flags.Group("/:id/rules")
 		{
 			rules.GET("", auth.RequirePermission(h.rbac, auth.PermFlagRead), h.listRules)
+			rules.GET("/environment-states", auth.RequirePermission(h.rbac, auth.PermFlagRead), h.listRuleEnvStates)
 			rules.POST("", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.addRule)
 			rules.PUT("/:ruleId", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.updateRule)
+			rules.PUT("/:ruleId/environments/:envId", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.setRuleEnvState)
 			rules.DELETE("/:ruleId", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.deleteRule)
 		}
 
@@ -850,6 +852,52 @@ func (h *Handler) listRules(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"rules": rules})
+}
+
+// ---------------------------------------------------------------------------
+// RuleEnvironmentState handlers
+// ---------------------------------------------------------------------------
+
+type setRuleEnvStateRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
+func (h *Handler) setRuleEnvState(c *gin.Context) {
+	ruleID, err := uuid.Parse(c.Param("ruleId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid rule id"})
+		return
+	}
+	envID, err := uuid.Parse(c.Param("envId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid environment id"})
+		return
+	}
+	var req setRuleEnvStateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	state, err := h.service.SetRuleEnvironmentState(c.Request.Context(), ruleID, envID, req.Enabled)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, state)
+}
+
+func (h *Handler) listRuleEnvStates(c *gin.Context) {
+	flagID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid flag id"})
+		return
+	}
+	states, err := h.service.ListRuleEnvironmentStates(c.Request.Context(), flagID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list rule environment states"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"rule_environment_states": states})
 }
 
 // ---------------------------------------------------------------------------

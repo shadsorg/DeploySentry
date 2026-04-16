@@ -152,9 +152,15 @@ func (e *Evaluator) Evaluate(ctx context.Context, projectID, environmentID uuid.
 		e.Metrics.Hits.Add(1)
 	}
 
+	// Load per-environment rule activation states.
+	enabledRules, err := e.repo.ListRuleEnvironmentStatesByEnv(ctx, flag.ID, environmentID)
+	if err != nil {
+		enabledRules = make(map[uuid.UUID]bool)
+	}
+
 	// Apply rules in priority order (lower priority number = higher precedence).
 	for _, rule := range rules {
-		if !rule.Enabled {
+		if enabled, ok := enabledRules[rule.ID]; !ok || !enabled {
 			continue
 		}
 

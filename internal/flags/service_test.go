@@ -180,6 +180,23 @@ func (m *mockFlagRepo) DeleteSegment(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+func (m *mockFlagRepo) SetRuleEnvironmentState(ctx context.Context, ruleID, environmentID uuid.UUID, enabled bool) (*models.RuleEnvironmentState, error) {
+	return &models.RuleEnvironmentState{RuleID: ruleID, EnvironmentID: environmentID, Enabled: enabled}, nil
+}
+
+func (m *mockFlagRepo) ListRuleEnvironmentStates(ctx context.Context, flagID uuid.UUID) ([]*models.RuleEnvironmentState, error) {
+	return nil, nil
+}
+
+func (m *mockFlagRepo) ListRuleEnvironmentStatesByEnv(ctx context.Context, flagID uuid.UUID, environmentID uuid.UUID) (map[uuid.UUID]bool, error) {
+	rules, _ := m.ListRules(ctx, flagID)
+	result := make(map[uuid.UUID]bool)
+	for _, r := range rules {
+		result[r.ID] = r.Enabled
+	}
+	return result, nil
+}
+
 // mockCache is a test double for Cache.
 type mockCache struct {
 	flags map[string]*models.FeatureFlag   // key: "projectID:envID:key"

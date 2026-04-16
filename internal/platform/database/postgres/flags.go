@@ -565,6 +565,77 @@ func (r *FlagRepository) UpsertFlagEnvState(ctx context.Context, state *models.F
 }
 
 // ---------------------------------------------------------------------------
+// RuleEnvironmentState methods
+// ---------------------------------------------------------------------------
+
+// SetRuleEnvironmentState upserts a per-environment enabled state for a targeting rule.
+func (r *FlagRepository) SetRuleEnvironmentState(ctx context.Context, ruleID, environmentID uuid.UUID, enabled bool) (*models.RuleEnvironmentState, error) {
+	const q = `
+		INSERT INTO rule_environment_state (rule_id, environment_id, enabled, updated_at)
+		VALUES ($1, $2, $3, now())
+		ON CONFLICT (rule_id, environment_id)
+		DO UPDATE SET enabled = $3, updated_at = now()
+		RETURNING id, rule_id, environment_id, enabled, created_at, updated_at`
+	var s models.RuleEnvironmentState
+	err := r.pool.QueryRow(ctx, q, ruleID, environmentID, enabled).Scan(
+		&s.ID, &s.RuleID, &s.EnvironmentID, &s.Enabled, &s.CreatedAt, &s.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("postgres.SetRuleEnvironmentState: %w", err)
+	}
+	return &s, nil
+}
+
+// ListRuleEnvironmentStates returns all per-environment states for a flag's rules.
+func (r *FlagRepository) ListRuleEnvironmentStates(ctx context.Context, flagID uuid.UUID) ([]*models.RuleEnvironmentState, error) {
+	const q = `
+		SELECT res.id, res.rule_id, res.environment_id, res.enabled, res.created_at, res.updated_at
+		FROM rule_environment_state res
+		JOIN flag_targeting_rules ftr ON res.rule_id = ftr.id
+		WHERE ftr.flag_id = $1
+		ORDER BY res.rule_id, res.environment_id`
+	rows, err := r.pool.Query(ctx, q, flagID)
+	if err != nil {
+		return nil, fmt.Errorf("postgres.ListRuleEnvironmentStates: %w", err)
+	}
+	defer rows.Close()
+	var result []*models.RuleEnvironmentState
+	for rows.Next() {
+		var s models.RuleEnvironmentState
+		if err := rows.Scan(&s.ID, &s.RuleID, &s.EnvironmentID, &s.Enabled, &s.CreatedAt, &s.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("postgres.ListRuleEnvironmentStates: %w", err)
+		}
+		result = append(result, &s)
+	}
+	return result, rows.Err()
+}
+
+// ListRuleEnvironmentStatesByEnv returns a map of rule_id -> enabled for a
+// specific flag and environment, used by the evaluator.
+func (r *FlagRepository) ListRuleEnvironmentStatesByEnv(ctx context.Context, flagID uuid.UUID, environmentID uuid.UUID) (map[uuid.UUID]bool, error) {
+	const q = `
+		SELECT res.rule_id, res.enabled
+		FROM rule_environment_state res
+		JOIN flag_targeting_rules ftr ON res.rule_id = ftr.id
+		WHERE ftr.flag_id = $1 AND res.environment_id = $2`
+	rows, err := r.pool.Query(ctx, q, flagID, environmentID)
+	if err != nil {
+		return nil, fmt.Errorf("postgres.ListRuleEnvironmentStatesByEnv: %w", err)
+	}
+	defer rows.Close()
+	result := make(map[uuid.UUID]bool)
+	for rows.Next() {
+		var ruleID uuid.UUID
+		var enabled bool
+		if err := rows.Scan(&ruleID, &enabled); err != nil {
+			return nil, fmt.Errorf("postgres.ListRuleEnvironmentStatesByEnv: %w", err)
+		}
+		result[ruleID] = enabled
+	}
+	return result, rows.Err()
+}
+
+// ---------------------------------------------------------------------------
 // Evaluation log
 // ---------------------------------------------------------------------------
 

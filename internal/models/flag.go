@@ -108,6 +108,17 @@ type TargetingRule struct {
 	UpdatedAt    time.Time  `json:"updated_at" db:"updated_at"`
 }
 
+// RuleEnvironmentState tracks whether a targeting rule is enabled for a
+// specific environment, supporting per-environment rule activation.
+type RuleEnvironmentState struct {
+	ID            uuid.UUID `json:"id" db:"id"`
+	RuleID        uuid.UUID `json:"rule_id" db:"rule_id"`
+	EnvironmentID uuid.UUID `json:"environment_id" db:"environment_id"`
+	Enabled       bool      `json:"enabled" db:"enabled"`
+	CreatedAt     time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
+}
+
 // EvaluationContext provides the runtime context used to evaluate a feature flag.
 type EvaluationContext struct {
 	UserID     string            `json:"user_id,omitempty"`

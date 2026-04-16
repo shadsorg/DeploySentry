@@ -23,6 +23,18 @@ export default defineConfig(({ mode }) => {
           target: apiTarget,
           changeOrigin: true,
         },
+        '/install.sh': {
+          target: apiTarget,
+          changeOrigin: true,
+        },
+        '/health': {
+          target: apiTarget,
+          changeOrigin: true,
+        },
+        '/ready': {
+          target: apiTarget,
+          changeOrigin: true,
+        },
       },
     },
     build: {

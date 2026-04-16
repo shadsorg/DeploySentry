@@ -2019,3 +2019,26 @@ tbody tr:last-child td {
 .phase-details { font-size: 0.85rem; color: var(--color-text-muted); display: flex; gap: 1rem; }
 .phase-progress { height: 4px; background: var(--color-border); border-radius: 2px; margin-top: 0.5rem; }
 .phase-progress-fill { height: 100%; background: var(--color-primary); border-radius: 2px; transition: width 1s linear; }
+
+/* Content header for drill-down pages */
+.content-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.content-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+.back-link {
+  display: inline-block;
+  color: var(--color-primary);
+  font-size: 0.8125rem;
+  text-decoration: none;
+  margin-bottom: 16px;
+}
+.back-link:hover {
+  text-decoration: underline;
+}

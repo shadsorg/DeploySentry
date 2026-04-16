@@ -1,7 +1,7 @@
 # Environment-Scoped API Keys
 
 **Date**: 2026-04-16
-**Status**: Design
+**Status**: Complete
 
 ## Overview
 

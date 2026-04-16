@@ -11,7 +11,7 @@
 | Project & App Edit/Delete | Implementation | [Plan](./superpowers/plans/2026-04-15-project-app-edit-delete.md) / [Spec](./superpowers/specs/2026-04-13-project-edit-delete-design.md) | Implemented on main. Migration 039, backend + frontend complete. Needs manual testing. |
 | SDK Application Parameter | Implementation | [Plan](./superpowers/plans/2026-04-15-sdk-application-parameter.md) / [Spec](./superpowers/specs/2026-04-15-sdk-application-parameter-design.md) | Implemented on main. Both SDKs + backend complete. All tests pass. |
 | Groups & Resource Authorization | Implementation | [Plan](./superpowers/plans/2026-04-16-groups-and-resource-authorization.md) / [Spec](./superpowers/specs/2026-04-16-groups-and-resource-authorization-design.md) | On `feature/groups-and-resource-authorization` branch. Migration 041, groups/grants packages, visibility filtering, frontend complete. Pending merge. |
-| Environment-Scoped API Keys | Design | [Spec](./superpowers/specs/2026-04-16-environment-scoped-api-keys-design.md) | DB column exists but not loaded/enforced. Needs migration to UUID[], repo/handler/middleware/UI updates. |
+| Environment-Scoped API Keys | Implementation | [Plan](./superpowers/plans/2026-04-16-environment-scoped-api-keys.md) / [Spec](./superpowers/specs/2026-04-16-environment-scoped-api-keys-design.md) | On `feature/groups-and-resource-authorization` branch. Migration 042, model/repo/service/handler/middleware/CLI/UI complete. Pending merge. |
 
 ## Archived
 

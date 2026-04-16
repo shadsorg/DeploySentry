@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEnvironments } from '../hooks/useEntities';
 import { useWebhooks } from '../hooks/useWebhooks';
 import { useNotifications } from '../hooks/useNotifications';
-import { entitiesApi, webhooksApi, Webhook } from '../api';
+import { entitiesApi, webhooksApi, flagsApi, Webhook } from '../api';
 import type { FlagActivitySummary } from '../types';
 
 // ---------------------------------------------------------------------------
@@ -314,6 +314,23 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
       console.error('Failed to save app settings:', err);
     } finally {
       setSettingsSaving(false);
+    }
+  };
+
+  const handleExportFlags = async () => {
+    if (!orgSlug || !projectSlug || !appSlug) return;
+    try {
+      const project = await entitiesApi.getProject(orgSlug, projectSlug);
+      const yamlContent = await flagsApi.exportFlags(project.id, appSlug);
+      const blob = new Blob([yamlContent], { type: 'application/x-yaml' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'flags.yaml';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed:', err);
     }
   };
 
@@ -950,6 +967,16 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
               {settingsSaving ? 'Saving…' : 'Save'}
             </button>
             {settingsSuccess && <span className="text-sm text-success">Settings saved.</span>}
+          </div>
+
+          <div style={{ marginTop: 24, borderTop: '1px solid var(--color-border)', paddingTop: 24 }}>
+            <h3>Export Flag Config</h3>
+            <p className="text-muted" style={{ marginBottom: 8 }}>
+              Download a YAML snapshot of all flags for this application. Use it for offline SDK mode.
+            </p>
+            <button className="btn btn-secondary" onClick={handleExportFlags}>
+              Export flags.yaml
+            </button>
           </div>
         </div>
       )}

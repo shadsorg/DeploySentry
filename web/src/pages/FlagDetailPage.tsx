@@ -26,6 +26,46 @@ function getAppNameById(appId: string, apps: Application[]): string {
   return apps.find((a) => a.id === appId)?.name ?? appId;
 }
 
+function generateFlagYaml(
+  flag: Flag,
+  rules: TargetingRule[],
+  environments: OrgEnvironment[],
+  envStates: FlagEnvironmentState[],
+  ruleEnvStates: RuleEnvironmentState[],
+): string {
+  const lines: string[] = [];
+  lines.push(`- key: ${flag.key}`);
+  lines.push(`  name: ${flag.name}`);
+  lines.push(`  flag_type: ${flag.flag_type}`);
+  lines.push(`  category: ${flag.category}`);
+  lines.push(`  default_value: "${flag.default_value}"`);
+  lines.push(`  is_permanent: ${flag.is_permanent}`);
+  if (flag.expires_at) lines.push(`  expires_at: "${flag.expires_at}"`);
+  lines.push(`  environments:`);
+  for (const env of environments) {
+    const state = envStates.find((s) => s.environment_id === env.id);
+    lines.push(`    ${env.name}:`);
+    lines.push(`      enabled: ${state?.enabled ?? false}`);
+    lines.push(`      value: "${state?.value != null ? String(state.value) : flag.default_value}"`);
+  }
+  if (rules.length > 0) {
+    lines.push(`  rules:`);
+    for (const rule of rules) {
+      lines.push(`    - attribute: ${rule.attribute}`);
+      lines.push(`      operator: ${rule.operator}`);
+      lines.push(`      target_values: [${(rule.target_values ?? []).map((v) => `"${v}"`).join(', ')}]`);
+      lines.push(`      value: "${rule.value}"`);
+      lines.push(`      priority: ${rule.priority}`);
+      lines.push(`      environments:`);
+      for (const env of environments) {
+        const res = ruleEnvStates.find((s) => s.rule_id === rule.id && s.environment_id === env.id);
+        lines.push(`        ${env.name}: ${res?.enabled ?? false}`);
+      }
+    }
+  }
+  return lines.join('\n');
+}
+
 export default function FlagDetailPage() {
   const { id, orgSlug, projectSlug, appSlug } = useParams();
   const backPath = appSlug
@@ -37,7 +77,7 @@ export default function FlagDetailPage() {
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'rules' | 'environments'>('rules');
+  const [activeTab, setActiveTab] = useState<'rules' | 'environments' | 'yaml'>('rules');
   const [environments, setEnvironments] = useState<OrgEnvironment[]>([]);
   const [envStates, setEnvStates] = useState<FlagEnvironmentState[]>([]);
   const [ruleEnvStates, setRuleEnvStates] = useState<RuleEnvironmentState[]>([]);
@@ -249,6 +289,12 @@ export default function FlagDetailPage() {
         >
           Environments
         </button>
+        <button
+          className={`detail-tab${activeTab === 'yaml' ? ' active' : ''}`}
+          onClick={() => setActiveTab('yaml')}
+        >
+          YAML
+        </button>
       </div>
 
       {/* Tab: Targeting Rules */}
@@ -414,6 +460,26 @@ export default function FlagDetailPage() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Tab: YAML Preview */}
+      {activeTab === 'yaml' && flag && (
+        <div className="card">
+          <p className="text-muted" style={{ marginBottom: 12, fontSize: 13 }}>
+            Read-only preview of this flag's configuration. Use the project-level export for the full file.
+          </p>
+          <pre style={{
+            background: 'var(--color-bg-secondary)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 6,
+            padding: 16,
+            fontSize: 13,
+            overflow: 'auto',
+            maxHeight: 500,
+          }}>
+            {generateFlagYaml(flag, rules, environments, envStates, ruleEnvStates)}
+          </pre>
         </div>
       )}
 

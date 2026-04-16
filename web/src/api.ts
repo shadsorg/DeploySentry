@@ -78,6 +78,16 @@ export const flagsApi = {
     }),
   listRuleEnvStates: (flagId: string) =>
     request<{ rule_environment_states: RuleEnvironmentState[] }>(`/flags/${flagId}/rules/environment-states`),
+  exportFlags: async (projectId: string, application: string, format: 'yaml' | 'json' = 'yaml') => {
+    const token = localStorage.getItem('ds_token') || '';
+    const res = await fetch(`${BASE}/flags/export?project_id=${projectId}&application=${application}&format=${format}`, {
+      headers: {
+        Authorization: token.startsWith('ds_') ? `ApiKey ${token}` : `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+    return res.text();
+  },
 };
 
 // Deployments

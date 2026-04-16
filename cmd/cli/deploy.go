@@ -723,7 +723,7 @@ func runDeployLogs(cmd *cobra.Command, args []string) error {
 func clientFromConfig() (*apiClient, error) {
 	apiURL := viper.GetString("api_url")
 	if apiURL == "" {
-		apiURL = "https://api.deploysentry.io"
+		apiURL = "https://api.dr-sentry.com"
 	}
 	client := newAPIClient(apiURL)
 

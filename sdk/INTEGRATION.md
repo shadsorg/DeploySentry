@@ -35,7 +35,7 @@ DeploySentry provides:
      environment: process.env.DEPLOYSENTRY_ENV ?? 'development',
      project: process.env.DEPLOYSENTRY_PROJECT!,
      application: process.env.DEPLOYSENTRY_APPLICATION!,
-     baseURL: process.env.DEPLOYSENTRY_URL ?? 'https://api.deploysentry.io',
+     baseURL: process.env.DEPLOYSENTRY_URL ?? 'https://api.dr-sentry.com',
    });
    ```
 
@@ -76,7 +76,7 @@ DeploySentry provides:
 
    <DeploySentryProvider
      apiKey={process.env.NEXT_PUBLIC_DEPLOYSENTRY_KEY!}
-     baseURL="https://api.deploysentry.io"
+     baseURL="https://api.dr-sentry.com"
      environment="production"
      project="my-app"
      application="my-web-app"
@@ -141,7 +141,7 @@ Every flag must have a category. These drive lifecycle enforcement:
 | `DEPLOYSENTRY_PROJECT`      | Yes      | Project identifier                   |
 | `DEPLOYSENTRY_APPLICATION`  | Yes      | Application identifier                 |
 | `DEPLOYSENTRY_ENV`          | No       | Environment (default: `development`) |
-| `DEPLOYSENTRY_URL`          | No       | API base URL (default: `https://api.deploysentry.io`) |
+| `DEPLOYSENTRY_URL`          | No       | API base URL (default: `https://api.dr-sentry.com`) |
 | `DEPLOYSENTRY_MODE`         | No       | SDK mode: `server`, `file`, or `server-with-fallback` |
 
 For React/browser apps, prefix with your framework's public env convention (e.g. `NEXT_PUBLIC_`, `VITE_`).

@@ -65,7 +65,7 @@ export interface EvaluationResult<T = unknown> {
 export interface ClientOptions {
   /** API key used for authenticating with the DeploySentry service. */
   apiKey: string;
-  /** Base URL of the DeploySentry API. Defaults to https://api.deploysentry.io. */
+  /** Base URL of the DeploySentry API. Defaults to https://api.dr-sentry.com. */
   baseURL?: string;
   /** Environment identifier (e.g. "production", "staging"). */
   environment: string;

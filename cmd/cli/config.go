@@ -79,7 +79,7 @@ Examples:
   deploysentry config set env staging
 
   # Set API URL
-  deploysentry config set api_url https://api.deploysentry.example.com`,
+  deploysentry config set api_url https://api.dr-sentry.com`,
 	Args: cobra.ExactArgs(2),
 	RunE: runConfigSet,
 }
@@ -125,7 +125,7 @@ project: %s
 env: %s
 
 # DeploySentry API base URL
-api_url: https://api.deploysentry.io
+api_url: https://api.dr-sentry.com
 
 # Default output format: table or json
 output: table

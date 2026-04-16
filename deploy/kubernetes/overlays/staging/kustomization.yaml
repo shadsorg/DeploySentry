@@ -71,10 +71,10 @@ patches:
       spec:
         tls:
           - hosts:
-              - api.staging.deploysentry.io
+              - api.dr-sentry.com
             secretName: deploysentry-api-staging-tls
         rules:
-          - host: api.staging.deploysentry.io
+          - host: api.dr-sentry.com
             http:
               paths:
                 - path: /

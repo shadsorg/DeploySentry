@@ -252,7 +252,7 @@ jobs:
       - name: Deploy to dev environment
         uses: ./.github/actions/deploy
         with:
-          api-url: ${{ vars.DEV_API_URL || 'https://dev-api.deploysentry.io' }}
+          api-url: ${{ vars.DEV_API_URL || 'https://api.dr-sentry.com' }}
           api-key: ${{ secrets.DEPLOYSENTRY_API_KEY }}
           project-id: ${{ vars.DEPLOYSENTRY_PROJECT_ID }}
           environment-id: ${{ vars.DEPLOYSENTRY_DEV_ENV_ID }}
@@ -264,7 +264,7 @@ jobs:
       - name: Run smoke tests
         env:
           DEPLOY_ENV: dev
-          SMOKE_TEST_URL: ${{ vars.DEV_API_URL || 'https://dev-api.deploysentry.io' }}
+          SMOKE_TEST_URL: ${{ vars.DEV_API_URL || 'https://api.dr-sentry.com' }}
         run: |
           echo "Running smoke tests against ${SMOKE_TEST_URL}..."
 

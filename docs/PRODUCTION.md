@@ -126,7 +126,7 @@ Health checks validate:
 Every request gets a unique `X-Request-ID` header for distributed tracing:
 
 ```bash
-curl -H "X-Request-ID: custom-trace-id" https://api.deploysentry.com/health
+curl -H "X-Request-ID: custom-trace-id" https://api.dr-sentry.com/health
 # Response includes: X-Request-ID: custom-trace-id
 ```
 

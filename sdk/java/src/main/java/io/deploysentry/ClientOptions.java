@@ -9,7 +9,7 @@ import java.util.Objects;
  */
 public final class ClientOptions {
 
-    private static final String DEFAULT_BASE_URL = "https://api.deploysentry.io";
+    private static final String DEFAULT_BASE_URL = "https://api.dr-sentry.com";
     private static final Duration DEFAULT_CACHE_TIMEOUT = Duration.ofMinutes(5);
 
     private final String apiKey;

@@ -130,7 +130,7 @@ project: "my-project"
 env: "staging"
 
 api:
-  url: "https://api.deploysentry.example.com"
+  url: "https://api.dr-sentry.com"
 
 flags:
   default_env: "staging"

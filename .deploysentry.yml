@@ -12,7 +12,7 @@ env: "staging"
 # API connection settings.
 api:
   # URL of the DeploySentry API server.
-  url: "https://api.deploysentry.example.com"
+  url: "https://api.dr-sentry.com"
   # Authentication token. Prefer DEPLOYSENTRY_TOKEN env var for security.
   # token: "ds_tok_xxxxxxxxxxxxxxxx"
 

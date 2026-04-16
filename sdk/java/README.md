@@ -102,7 +102,7 @@ List<String> owners = client.flagOwners("checkout-v2");
 | Option | Default | Description |
 |---|---|---|
 | `apiKey` | *required* | API key for authentication |
-| `baseURL` | `https://api.deploysentry.io` | API base URL |
+| `baseURL` | `https://api.dr-sentry.com` | API base URL |
 | `environment` | `null` | Target environment (e.g. `production`) |
 | `project` | `null` | Project identifier |
 | `cacheTimeout` | 5 minutes | TTL for cached flag data |

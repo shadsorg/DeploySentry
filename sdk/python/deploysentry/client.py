@@ -49,7 +49,7 @@ class DeploySentryClient:
     def __init__(
         self,
         api_key: str,
-        base_url: str = "https://api.deploysentry.io",
+        base_url: str = "https://api.dr-sentry.com",
         environment: str = "production",
         project: str = "",
         cache_timeout: float = 30,

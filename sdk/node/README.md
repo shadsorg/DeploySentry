@@ -199,7 +199,7 @@ const value = await client.boolValue('any-flag', true);
 | `environment`  | string   | Yes      | -                              | Target environment                     |
 | `project`      | string   | Yes      | -                              | Project identifier                     |
 | `application`  | string   | Yes      | -                              | Application identifier                 |
-| `baseURL`      | string   | No       | `https://api.deploysentry.io`  | API base URL                           |
+| `baseURL`      | string   | No       | `https://api.dr-sentry.com`  | API base URL                           |
 | `cacheTimeout` | number   | No       | `60000`                        | Cache TTL in milliseconds              |
 | `offlineMode`  | boolean  | No       | `false`                        | Return defaults without API calls      |
 | `mode`         | string   | No       | `server`                       | `server`, `file`, or `server-with-fallback` |

@@ -18,7 +18,7 @@ import 'package:deploysentry_flutter/deploysentry_flutter.dart';
 
 final client = DeploySentryClient(
   apiKey: 'your-api-key',
-  baseUrl: 'https://api.deploysentry.io',
+  baseUrl: 'https://api.dr-sentry.com',
   environment: 'production',
   project: 'my-project',
 );
@@ -59,7 +59,7 @@ Use `DeploySentryProvider` to make the client available throughout your widget t
 void main() async {
   final client = DeploySentryClient(
     apiKey: 'your-api-key',
-    baseUrl: 'https://api.deploysentry.io',
+    baseUrl: 'https://api.dr-sentry.com',
     project: 'my-project',
   );
   await client.initialize();
@@ -117,7 +117,7 @@ final owners = client.flagOwners('checkout-flow');
 ```dart
 final client = DeploySentryClient(
   apiKey: 'your-api-key',
-  baseUrl: 'https://api.deploysentry.io',
+  baseUrl: 'https://api.dr-sentry.com',
   offlineMode: true,
 );
 ```
@@ -151,7 +151,7 @@ Bind evaluations to a session so the server caches results for a consistent user
 ```dart
 final client = DeploySentryClient(
   apiKey: 'ds_key_xxxxxxxxxxxx',
-  baseUrl: 'https://deploysentry.example.com',
+  baseUrl: 'https://api.dr-sentry.com',
   environment: 'production',
   project: 'my-project',
   sessionId: 'user:$userId',

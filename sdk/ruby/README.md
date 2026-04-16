@@ -28,7 +28,7 @@ require "deploysentry"
 
 client = DeploySentry::Client.new(
   api_key:     "ds_live_abc123",
-  base_url:    "https://api.deploysentry.com",
+  base_url:    "https://api.dr-sentry.com",
   environment: "production",
   project:     "my-project"
 )
@@ -170,7 +170,7 @@ Bind evaluations to a session so the server caches results for a consistent user
 ```ruby
 client = DeploySentry::Client.new(
   api_key: 'ds_key_xxxxxxxxxxxx',
-  base_url: 'https://deploysentry.example.com',
+  base_url: 'https://api.dr-sentry.com',
   environment: 'production',
   project: 'my-project',
   session_id: "user:#{user_id}",

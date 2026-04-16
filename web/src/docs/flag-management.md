@@ -60,7 +60,7 @@ deploysentry flags toggle membership-lookup --off --env production
 ### API
 
 ```bash
-curl -X POST https://api.deploysentry.io/api/v1/flags \
+curl -X POST https://api.dr-sentry.com/api/v1/flags \
   -H "Authorization: Bearer $DS_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{

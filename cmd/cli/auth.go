@@ -58,7 +58,7 @@ Examples:
   deploysentry auth login
 
   # Log in to a specific API host
-  deploysentry auth login --api-url https://api.deploysentry.example.com`,
+  deploysentry auth login --api-url https://api.dr-sentry.com`,
 	RunE: runAuthLogin,
 }
 
@@ -174,7 +174,7 @@ func refreshToken(creds *credentialsFile) (*credentialsFile, error) {
 
 	apiURL := viper.GetString("api_url")
 	if apiURL == "" {
-		apiURL = "https://api.deploysentry.io"
+		apiURL = "https://api.dr-sentry.com"
 	}
 
 	client := newAPIClient(apiURL)
@@ -288,7 +288,7 @@ func runAuthLogin(cmd *cobra.Command, args []string) error {
 		apiURL = viper.GetString("api_url")
 	}
 	if apiURL == "" {
-		apiURL = "https://api.deploysentry.io"
+		apiURL = "https://api.dr-sentry.com"
 	}
 
 	// Generate a random state parameter for CSRF protection.

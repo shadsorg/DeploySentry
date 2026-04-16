@@ -12,7 +12,7 @@ set -e
 DS_API_KEY=""
 DS_ENVIRONMENT="production"
 DS_PROJECT=""
-DS_BASE_URL="https://api.deploysentry.io"
+DS_BASE_URL="https://api.dr-sentry.com"
 
 usage() {
   echo "Usage: $0 --api-key <key> [--environment <env>] [--project <slug>] [--base-url <url>]" >&2

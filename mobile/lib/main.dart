@@ -8,7 +8,7 @@ void main() async {
 
   // Initialize real-time data manager
   await RealtimeManager().initialize(
-    baseUrl: 'https://api.deploysentry.com',
+    baseUrl: 'https://api.dr-sentry.com',
     refreshInterval: const Duration(seconds: 30),
   );
 

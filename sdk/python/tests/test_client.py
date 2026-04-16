@@ -12,7 +12,7 @@ class TestClientInit(unittest.TestCase):
         client = DeploySentryClient(api_key="ds_test_key123")
 
         self.assertEqual(client._api_key, "ds_test_key123")
-        self.assertEqual(client._base_url, "https://api.deploysentry.io")
+        self.assertEqual(client._base_url, "https://api.dr-sentry.com")
         self.assertEqual(client._environment, "production")
         self.assertEqual(client._project, "")
         self.assertFalse(client._offline_mode)

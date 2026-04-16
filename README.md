@@ -273,7 +273,7 @@ import deploysentry "github.com/deploysentry/deploysentry-go"
 
 client, err := deploysentry.NewClient(
     deploysentry.WithAPIKey("ds_key_xxxxxxxxxxxx"),
-    deploysentry.WithBaseURL("https://deploysentry.example.com"),
+    deploysentry.WithBaseURL("https://api.dr-sentry.com"),
     deploysentry.WithEnvironment("production"),
     deploysentry.WithProject("my-project"),
 )
@@ -307,7 +307,7 @@ import { DeploySentryClient } from '@deploysentry/sdk';
 
 const client = new DeploySentryClient({
   apiKey: 'ds_key_xxxxxxxxxxxx',
-  baseURL: 'https://deploysentry.example.com',
+  baseURL: 'https://api.dr-sentry.com',
   environment: 'production',
   project: 'my-project',
 });
@@ -339,7 +339,7 @@ from deploysentry import DeploySentryClient, EvaluationContext, FlagCategory
 
 client = DeploySentryClient(
     api_key="ds_key_xxxxxxxxxxxx",
-    base_url="https://deploysentry.example.com",
+    base_url="https://api.dr-sentry.com",
     environment="production",
     project="my-project",
 )
@@ -370,7 +370,7 @@ import io.deploysentry.*;
 
 var options = ClientOptions.builder()
     .apiKey("ds_key_xxxxxxxxxxxx")
-    .baseURL("https://deploysentry.example.com")
+    .baseURL("https://api.dr-sentry.com")
     .environment("production")
     .project("my-project")
     .build();
@@ -406,7 +406,7 @@ function App() {
   return (
     <DeploySentryProvider
       apiKey="ds_key_xxxxxxxxxxxx"
-      baseURL="https://deploysentry.example.com"
+      baseURL="https://api.dr-sentry.com"
       environment="production"
       project="my-project"
       user={{ userId: 'user-123', attributes: { plan: 'enterprise' } }}
@@ -439,7 +439,7 @@ import 'package:deploysentry_flutter/deploysentry_flutter.dart';
 
 final client = DeploySentryClient(
   apiKey: 'ds_key_xxxxxxxxxxxx',
-  baseURL: 'https://deploysentry.example.com',
+  baseURL: 'https://api.dr-sentry.com',
   environment: 'production',
   project: 'my-project',
 );
@@ -470,7 +470,7 @@ require 'deploysentry'
 
 client = DeploySentry::Client.new(
   api_key: 'ds_key_xxxxxxxxxxxx',
-  base_url: 'https://deploysentry.example.com',
+  base_url: 'https://api.dr-sentry.com',
   environment: 'production',
   project: 'my-project',
 )
@@ -506,7 +506,7 @@ project: "my-project"
 env: "staging"
 
 api:
-  url: "https://deploysentry.example.com"
+  url: "https://api.dr-sentry.com"
 
 flags:
   default_env: "staging"

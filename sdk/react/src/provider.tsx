@@ -14,7 +14,7 @@ import type { ProviderProps } from './types';
  * ```tsx
  * <DeploySentryProvider
  *   apiKey="ds_live_abc123"
- *   baseURL="https://api.deploysentry.io"
+ *   baseURL="https://api.dr-sentry.com"
  *   environment="production"
  *   project="my-app"
  *   user={{ id: 'user-42' }}

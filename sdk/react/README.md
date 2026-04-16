@@ -21,7 +21,7 @@ function App() {
   return (
     <DeploySentryProvider
       apiKey="ds_live_abc123"
-      baseURL="https://api.deploysentry.io"
+      baseURL="https://api.dr-sentry.com"
       environment="production"
       project="my-app"
       application="my-web-app"
@@ -234,7 +234,7 @@ Bind evaluations to a session so the server caches results for a consistent user
 ```tsx
 <DeploySentryProvider
   apiKey="ds_key_xxxxxxxxxxxx"
-  baseURL="https://deploysentry.example.com"
+  baseURL="https://api.dr-sentry.com"
   environment="production"
   project="my-app"
   application="my-web-app"

@@ -17,7 +17,7 @@ from deploysentry import DeploySentryClient, EvaluationContext
 
 client = DeploySentryClient(
     api_key="ds_your_api_key",
-    base_url="https://api.deploysentry.io",
+    base_url="https://api.dr-sentry.com",
     environment="production",
     project="my-project",
 )
@@ -116,7 +116,7 @@ owners = client.flag_owners("checkout-v2")
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `api_key` | *required* | API key (`ApiKey` auth header) |
-| `base_url` | `https://api.deploysentry.io` | API base URL |
+| `base_url` | `https://api.dr-sentry.com` | API base URL |
 | `environment` | `"production"` | Target environment |
 | `project` | `""` | Project identifier |
 | `cache_timeout` | `30` | Cache TTL in seconds (0 to disable) |

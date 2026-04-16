@@ -75,7 +75,7 @@ I need the following values. Check if any already exist as environment variables
 | Project slug              | `DEPLOYSENTRY_PROJECT`     | Matches the project slug in DeploySentry |
 | Application slug          | `DEPLOYSENTRY_APPLICATION` | Matches the app slug in DeploySentry     |
 | Environment               | `DEPLOYSENTRY_ENV`         | e.g. `development`, `staging`, `production` |
-| API URL (if self-hosted)  | `DEPLOYSENTRY_URL`         | Default: `https://api.deploysentry.io`   |
+| API URL (if self-hosted)  | `DEPLOYSENTRY_URL`         | Default: `https://api.dr-sentry.com`   |
 
 **For frontend/browser SDKs**, use the framework's public env prefix:
 - Next.js: `NEXT_PUBLIC_DEPLOYSENTRY_KEY`, `NEXT_PUBLIC_DEPLOYSENTRY_PROJECT`, etc.
@@ -97,7 +97,7 @@ export const dsClient = new DeploySentryClient({
   environment: process.env.DEPLOYSENTRY_ENV ?? 'development',
   project: process.env.DEPLOYSENTRY_PROJECT!,
   application: process.env.DEPLOYSENTRY_APPLICATION!,
-  baseURL: process.env.DEPLOYSENTRY_URL ?? 'https://api.deploysentry.io',
+  baseURL: process.env.DEPLOYSENTRY_URL ?? 'https://api.dr-sentry.com',
   mode: 'server-with-fallback',
 });
 ```
@@ -129,7 +129,7 @@ import os
 
 ds_client = DeploySentryClient(
     api_key=os.environ["DEPLOYSENTRY_API_KEY"],
-    base_url=os.environ.get("DEPLOYSENTRY_URL", "https://api.deploysentry.io"),
+    base_url=os.environ.get("DEPLOYSENTRY_URL", "https://api.dr-sentry.com"),
     environment=os.environ.get("DEPLOYSENTRY_ENV", "development"),
     project=os.environ["DEPLOYSENTRY_PROJECT"],
     application=os.environ["DEPLOYSENTRY_APPLICATION"],
@@ -142,7 +142,7 @@ import { DeploySentryProvider } from '@deploysentry/react';
 
 <DeploySentryProvider
   apiKey={process.env.NEXT_PUBLIC_DEPLOYSENTRY_KEY!}
-  baseURL={process.env.NEXT_PUBLIC_DEPLOYSENTRY_URL ?? 'https://api.deploysentry.io'}
+  baseURL={process.env.NEXT_PUBLIC_DEPLOYSENTRY_URL ?? 'https://api.dr-sentry.com'}
   environment={process.env.NEXT_PUBLIC_DEPLOYSENTRY_ENV ?? 'production'}
   project={process.env.NEXT_PUBLIC_DEPLOYSENTRY_PROJECT!}
   application={process.env.NEXT_PUBLIC_DEPLOYSENTRY_APPLICATION!}
@@ -403,7 +403,7 @@ DEPLOYSENTRY_API_KEY=ds_live_xxxxxxxxxxxxx
 DEPLOYSENTRY_PROJECT=my-project
 DEPLOYSENTRY_APPLICATION=my-api
 DEPLOYSENTRY_ENV=production
-DEPLOYSENTRY_URL=https://api.deploysentry.io  # omit for default
+DEPLOYSENTRY_URL=https://api.dr-sentry.com  # omit for default
 DEPLOYSENTRY_MODE=server-with-fallback         # omit for 'server'
 ```
 

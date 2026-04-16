@@ -12,7 +12,7 @@ import { FlagStreamClient } from './streaming';
 import { loadFlagConfig } from './file-loader';
 import { evaluateLocal } from './local-evaluator';
 
-const DEFAULT_BASE_URL = 'https://api.deploysentry.io';
+const DEFAULT_BASE_URL = 'https://api.dr-sentry.com';
 const DEFAULT_CACHE_TIMEOUT_MS = 60_000;
 
 /**

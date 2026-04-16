@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	defaultBaseURL      = "https://api.deploysentry.io"
+	defaultBaseURL      = "https://api.dr-sentry.com"
 	defaultCacheTimeout = 5 * time.Minute
 )
 

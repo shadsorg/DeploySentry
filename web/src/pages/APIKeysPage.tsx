@@ -61,7 +61,7 @@ export default function APIKeysPage() {
         scopes: newScopes,
         environment_ids: selectedEnvIds.length > 0 ? selectedEnvIds : undefined,
       });
-      setRevealedKey(result.token);
+      setRevealedKey(result.plaintext_key);
       setNewName('');
       setNewScopes([]);
       setSelectedEnvIds([]);

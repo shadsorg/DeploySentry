@@ -75,16 +75,21 @@ if [ ! -f "$TEMP_DIR/$BINARY_FILE" ]; then
   exit 1
 fi
 
-# Move binary to install directory
+# Move binary to install directory (use sudo if needed)
+SUDO=""
 if [ ! -w "$INSTALL_DIR" ]; then
-  echo "Error: Installation directory $INSTALL_DIR is not writable" >&2
-  exit 1
+  if command -v sudo >/dev/null 2>&1; then
+    echo "Need elevated permissions to install to $INSTALL_DIR"
+    SUDO="sudo"
+  else
+    echo "Error: $INSTALL_DIR is not writable and sudo is not available." >&2
+    echo "  Try: INSTALL_DIR=\$HOME/.local/bin sh -c \"\$(curl -fsSL https://api.dr-sentry.com/install.sh)\"" >&2
+    exit 1
+  fi
 fi
 
-mv "$TEMP_DIR/$BINARY_FILE" "$INSTALL_DIR/$BINARY_NAME"
-
-# Make executable
-chmod +x "$INSTALL_DIR/$BINARY_NAME"
+$SUDO mv "$TEMP_DIR/$BINARY_FILE" "$INSTALL_DIR/$BINARY_NAME"
+$SUDO chmod +x "$INSTALL_DIR/$BINARY_NAME"
 
 echo "Successfully installed $BINARY_NAME to $INSTALL_DIR/$BINARY_NAME"
 

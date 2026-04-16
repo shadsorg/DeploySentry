@@ -245,31 +245,48 @@ export default function MembersPage() {
                 <p className="text-muted" style={{ marginBottom: 16 }}>{selectedGroup.description}</p>
               )}
 
-              <div className="inline-form-row" style={{ marginBottom: 16 }}>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="User ID"
-                  value={newMemberUserId}
-                  onChange={(e) => setNewMemberUserId(e.target.value)}
-                />
-                <button
-                  className="btn btn-primary"
-                  onClick={async () => {
-                    if (!newMemberUserId.trim() || !orgSlug) return;
-                    setGroupActionError(null);
-                    try {
-                      await groupsApi.addMember(orgSlug, selectedGroup.slug, newMemberUserId.trim());
-                      setNewMemberUserId('');
-                      refreshGroupMembers();
-                    } catch (err) {
-                      setGroupActionError(err instanceof Error ? err.message : 'Failed to add member');
-                    }
-                  }}
-                >
-                  Add
-                </button>
-              </div>
+              {(() => {
+                const groupMemberIds = new Set(groupMembers.map((gm) => gm.user_id));
+                const available = members.filter((m) => !groupMemberIds.has(m.user_id));
+                return available.length > 0 ? (
+                  <div className="inline-form-row" style={{ marginBottom: 16 }}>
+                    <select
+                      className="form-select"
+                      value={newMemberUserId}
+                      onChange={(e) => setNewMemberUserId(e.target.value)}
+                    >
+                      <option value="">Select a member...</option>
+                      {available.map((m) => (
+                        <option key={m.user_id} value={m.user_id}>
+                          {m.name} ({m.email})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="btn btn-primary"
+                      disabled={!newMemberUserId}
+                      onClick={async () => {
+                        if (!newMemberUserId || !orgSlug) return;
+                        setGroupActionError(null);
+                        try {
+                          await groupsApi.addMember(orgSlug, selectedGroup.slug, newMemberUserId);
+                          setNewMemberUserId('');
+                          refreshGroupMembers();
+                          refreshGroups();
+                        } catch (err) {
+                          setGroupActionError(err instanceof Error ? err.message : 'Failed to add member');
+                        }
+                      }}
+                    >
+                      Add Member
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-muted" style={{ marginBottom: 16 }}>
+                    All organization members are already in this group.
+                  </p>
+                );
+              })()}
 
               {groupMembersError && (
                 <p className="form-error" style={{ marginBottom: 8 }}>{groupMembersError}</p>
@@ -413,7 +430,7 @@ export default function MembersPage() {
                         <td>
                           <button
                             className="btn btn-sm"
-                            style={{ textDecoration: 'underline', padding: 0, background: 'none' }}
+                            style={{ textDecoration: 'underline', padding: 0, background: 'none', color: '#5b9bd5', cursor: 'pointer' }}
                             onClick={() => setSelectedGroup(g)}
                           >
                             {g.name}

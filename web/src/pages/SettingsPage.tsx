@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEnvironments } from '../hooks/useEntities';
 import { useWebhooks } from '../hooks/useWebhooks';
 import { useNotifications } from '../hooks/useNotifications';
-import { entitiesApi, webhooksApi, flagsApi, grantsApi, Webhook } from '../api';
+import { entitiesApi, webhooksApi, flagsApi, grantsApi, membersApi, Webhook } from '../api';
 import { useGrants } from '../hooks/useGrants';
-import type { FlagActivitySummary } from '../types';
+import { useGroups } from '../hooks/useGroups';
+import type { FlagActivitySummary, Member } from '../types';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -152,6 +153,15 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
   const [grantId, setGrantId] = useState('');
   const [grantPermission, setGrantPermission] = useState<'read' | 'write'>('read');
   const [confirmDeleteGrant, setConfirmDeleteGrant] = useState<string | null>(null);
+
+  // Org members and groups for the authorization dropdown
+  const [orgMembers, setOrgMembers] = useState<Member[]>([]);
+  const { groups: orgGroups } = useGroups(orgSlug);
+
+  useEffect(() => {
+    if (!orgSlug) return;
+    membersApi.listByOrg(orgSlug).then((r) => setOrgMembers(r.members)).catch(() => {});
+  }, [orgSlug]);
 
   // ---------------------------------------------------------------------------
   // Handlers — Environments
@@ -1085,18 +1095,31 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             <select
               className="form-select"
               value={grantType}
-              onChange={(e) => setGrantType(e.target.value as 'user' | 'group')}
+              onChange={(e) => { setGrantType(e.target.value as 'user' | 'group'); setGrantId(''); }}
             >
               <option value="user">User</option>
               <option value="group">Group</option>
             </select>
-            <input
-              type="text"
-              className="form-input"
-              placeholder={grantType === 'user' ? 'User ID' : 'Group ID'}
+            <select
+              className="form-select"
               value={grantId}
               onChange={(e) => setGrantId(e.target.value)}
-            />
+            >
+              <option value="">
+                {grantType === 'user' ? 'Select a user...' : 'Select a group...'}
+              </option>
+              {grantType === 'user'
+                ? orgMembers.map((m) => (
+                    <option key={m.user_id} value={m.user_id}>
+                      {m.name} ({m.email})
+                    </option>
+                  ))
+                : orgGroups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+            </select>
             <select
               className="form-select"
               value={grantPermission}
@@ -1107,11 +1130,12 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             </select>
             <button
               className="btn btn-primary"
+              disabled={!grantId}
               onClick={async () => {
-                if (!grantId.trim() || !orgSlug || !projectSlug) return;
+                if (!grantId || !orgSlug || !projectSlug) return;
                 try {
                   const data = {
-                    [grantType === 'user' ? 'user_id' : 'group_id']: grantId.trim(),
+                    [grantType === 'user' ? 'user_id' : 'group_id']: grantId,
                     permission: grantPermission,
                   };
                   if (level === 'app' && appSlug) {

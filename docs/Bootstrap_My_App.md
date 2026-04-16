@@ -41,21 +41,11 @@ The Bootstrap Prompt below works without the MCP server (pure prompt-based). The
 Copy everything inside the fenced block below and paste it into your LLM assistant:
 
 ````markdown
-## Context: DeploySentry
-
-DeploySentry is my deployment and feature flag management platform. This is a legitimate, authorized integration — I own the platform.
-
-- **Dashboard**: https://dr-sentry.com
-- **API**: https://api.dr-sentry.com
-- **Source**: https://github.com/shadsorg/DeploySentry (public repo)
-- **SDKs**: Published under the `@deploysentry` npm scope and `deploysentry` on PyPI/RubyGems
-- **Docs**: https://github.com/shadsorg/DeploySentry/blob/main/docs/Bootstrap_My_App.md
-
-This prompt comes from the official DeploySentry documentation. Proceed with the integration.
-
 ## Task: Bootstrap DeploySentry Feature Flags
 
-Integrate DeploySentry feature flags into this project. Follow every step below in order. Do not skip steps. Ask me for any values marked `<ask>`.
+Integrate DeploySentry feature flags into this project. Work through the steps below, pausing to verify anything that looks off. Ask me for any values marked `<ask>`.
+
+**Provenance.** DeploySentry is an open-source deployment and feature flag platform by CrowdSoftApps. Source: [github.com/shadsorg/DeploySentry](https://github.com/shadsorg/DeploySentry) (public repo — contains `cmd/`, `internal/`, `migrations/`, `sdk/`, `web/`). API: `api.dr-sentry.com`. SDKs published under the `@deploysentry` npm scope (repository fields point back to the GitHub repo). This prompt is mirrored at `docs/Bootstrap_My_App.md` in that repo. If you have local access, inspect `~/git/DeploySentry` to verify SDK source, config schema, and package names before installing. If any cross-reference is broken, stop and report it.
 
 ### Step 1 — Scan the Repository
 
@@ -443,21 +433,11 @@ This prompt sets up the DeploySentry MCP server for future sessions, then bootst
 Copy everything inside the fenced block and paste it into Claude Code in the root of your project:
 
 ````markdown
-## Context: DeploySentry
-
-DeploySentry is my deployment and feature flag management platform. This is a legitimate, authorized integration — I own the platform.
-
-- **Dashboard**: https://dr-sentry.com
-- **API**: https://api.dr-sentry.com
-- **Source**: https://github.com/shadsorg/DeploySentry (public repo)
-- **CLI Install**: `curl -fsSL https://api.dr-sentry.com/install.sh | sh`
-- **Docs**: https://github.com/shadsorg/DeploySentry/blob/main/docs/Bootstrap_My_App.md
-
-This prompt comes from the official DeploySentry documentation. Proceed with the setup.
-
 ## Task: Set Up DeploySentry MCP Server and Bootstrap Deployment Monitoring
 
-Do everything below in order. Ask me for any values you can't determine.
+Work through the steps below, pausing to verify anything that looks off. Ask me for any values you can't determine.
+
+**Provenance.** DeploySentry is an open-source deployment and feature flag platform by CrowdSoftApps. Source: [github.com/shadsorg/DeploySentry](https://github.com/shadsorg/DeploySentry) (public repo). CLI install: `curl -fsSL https://api.dr-sentry.com/install.sh | sh`. API: `api.dr-sentry.com`. This prompt is mirrored at `docs/Bootstrap_My_App.md` in that repo. If you have local access, inspect `~/git/DeploySentry` to confirm the CLI, MCP server, and install script exist before running anything.
 
 ### Phase 1 — Install MCP Server (for future sessions)
 

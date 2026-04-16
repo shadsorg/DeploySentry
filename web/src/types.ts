@@ -63,6 +63,17 @@ export interface TargetingRule {
   updated_at: string;
 }
 
+export interface RuleEnvironmentState {
+  id: string;
+  rule_id: string;
+  environment_id: string;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type RuleOperator = 'equals' | 'not_equals' | 'in' | 'not_in' | 'contains' | 'starts_with' | 'ends_with' | 'greater_than' | 'less_than';
+
 export interface Deployment {
   id: string;
   application_id: string;

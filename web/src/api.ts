@@ -17,6 +17,7 @@ import type {
   Environment,
   OrgEnvironment,
   DeleteResult,
+  RuleEnvironmentState,
 } from './types';
 
 const BASE = '/api/v1';
@@ -70,6 +71,13 @@ export const flagsApi = {
   deleteRule: (flagId: string, ruleId: string) =>
     request<void>(`/flags/${flagId}/rules/${ruleId}`, { method: 'DELETE' }),
   listRules: (flagId: string) => request<{ rules: TargetingRule[] }>(`/flags/${flagId}/rules`),
+  setRuleEnvState: (flagId: string, ruleId: string, envId: string, data: { enabled: boolean }) =>
+    request<RuleEnvironmentState>(`/flags/${flagId}/rules/${ruleId}/environments/${envId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  listRuleEnvStates: (flagId: string) =>
+    request<{ rule_environment_states: RuleEnvironmentState[] }>(`/flags/${flagId}/rules/environment-states`),
 };
 
 // Deployments

@@ -425,9 +425,126 @@ VITE_DEPLOYSENTRY_APPLICATION=my-web-app
 VITE_DEPLOYSENTRY_ENV=production
 ```
 
+---
+
+## Deploy Bootstrap Prompt
+
+This prompt sets up the DeploySentry MCP server for future sessions, then bootstraps deployment monitoring for a GitHub repo — API key, secrets, and workflow — all in one conversation.
+
+Copy everything inside the fenced block and paste it into Claude Code in the root of your project:
+
+````markdown
+## Task: Set Up DeploySentry MCP Server and Bootstrap Deployment Monitoring
+
+Do everything below in order. Ask me for any values you can't determine.
+
+### Phase 1 — Install MCP Server (for future sessions)
+
+1. Check if the `deploysentry` CLI is installed: `which deploysentry`
+   - If not found, install it: `curl -fsSL https://ds-sentry.com/install.sh | sh`
+
+2. Check if it's authenticated: `deploysentry config get api_key` or check for `~/.config/deploysentry/credentials.json`
+   - If not authenticated, tell me to run `! deploysentry auth login` and wait for me to complete it
+
+3. Add the DeploySentry MCP server to Claude Code config. Read `~/.claude/settings.json` (or create it), and add under `mcpServers`:
+   ```json
+   "deploysentry": {
+     "command": "deploysentry",
+     "args": ["mcp", "serve"]
+   }
+   ```
+   This gives future Claude Code sessions direct access to DeploySentry tools (ds_list_orgs, ds_create_api_key, ds_generate_workflow, etc.). It won't be available in this session — that's fine, we'll use the CLI directly below.
+
+### Phase 2 — Bootstrap Deployment Monitoring
+
+4. Discover my DeploySentry context using the CLI:
+   ```bash
+   deploysentry config get org
+   deploysentry config get project
+   ```
+   If not set, ask me for my org slug and project slug.
+
+5. List my applications and environments:
+   ```bash
+   curl -sf https://ds-sentry.com/api/v1/orgs/<org>/projects/<project>/apps \
+     -H "Authorization: ApiKey $(deploysentry config get api_key)" | jq '.applications[] | {id, name, slug}'
+   curl -sf https://ds-sentry.com/api/v1/orgs/<org>/environments \
+     -H "Authorization: ApiKey $(deploysentry config get api_key)" | jq '.environments[] | {id, name, slug}'
+   ```
+   Ask me to confirm which app and environment to target.
+
+6. Create an environment-scoped API key for GitHub Actions:
+   ```bash
+   deploysentry apikeys create \
+     --name "github-actions-<app-slug>" \
+     --scopes "deploys:read,deploys:write,flags:read" \
+     --env <environment-id>
+   ```
+   Save the returned key — it's shown only once.
+
+7. Set GitHub secrets using `gh` CLI (check `which gh` first; if missing, show me the values to add manually):
+   ```bash
+   gh secret set DS_API_KEY --body "<the-api-key>"
+   gh secret set DS_APP_ID --body "<app-uuid>"
+   gh secret set DS_ENV_ID --body "<env-uuid>"
+   gh secret set DS_API_URL --body "https://ds-sentry.com"
+   ```
+
+8. Check if `.github/workflows/` exists. If there's an existing deploy workflow, add the DeploySentry step to it. If not, create `.github/workflows/deploy.yml`.
+
+   The DeploySentry step goes AFTER the build/deploy steps:
+   ```yaml
+   - name: Record deployment in DeploySentry
+     if: success()
+     env:
+       DS_API_KEY: ${{ secrets.DS_API_KEY }}
+       DS_API_URL: ${{ secrets.DS_API_URL }}
+       DS_APP_ID: ${{ secrets.DS_APP_ID }}
+       DS_ENV_ID: ${{ secrets.DS_ENV_ID }}
+     run: |
+       curl -sf -X POST "${DS_API_URL}/api/v1/deployments" \
+         -H "Authorization: ApiKey ${DS_API_KEY}" \
+         -H "Content-Type: application/json" \
+         -d '{
+           "application_id": "'"${DS_APP_ID}"'",
+           "environment_id": "'"${DS_ENV_ID}"'",
+           "strategy": "rolling",
+           "version": "${{ github.sha }}",
+           "commit_sha": "${{ github.sha }}",
+           "artifact": "${{ github.repository }}",
+           "description": "Deployed from GitHub Actions (${{ github.ref_name }})"
+         }'
+   ```
+
+9. Summarize what was set up:
+   - MCP server configured (available next session)
+   - API key created (scoped to which environment)
+   - GitHub secrets set
+   - Workflow file created/updated
+   - Next step: push a commit to main to test it
+````
+
+### What the Deploy Prompt Does
+
+| Phase | Step | Purpose |
+|-------|------|---------|
+| 1 | CLI check | Ensures `deploysentry` CLI is installed |
+| 1 | Auth check | Ensures CLI is authenticated |
+| 1 | MCP config | Adds MCP server to Claude Code for future sessions |
+| 2 | Discover | Finds your org, project, apps, and environments |
+| 2 | API key | Creates an environment-scoped key for CI/CD |
+| 2 | GitHub secrets | Sets `DS_API_KEY`, `DS_APP_ID`, `DS_ENV_ID`, `DS_API_URL` via `gh` |
+| 2 | Workflow | Creates or updates `.github/workflows/deploy.yml` |
+| 2 | Summary | Reports what was set up and how to test it |
+
+After the first run, the MCP server is configured. Future sessions can use `ds_create_flag`, `ds_toggle_flag`, `ds_list_flags`, and other tools directly without prompts.
+
+---
+
 ## Checklist
 
-- [x] Bootstrap prompt written with all 8 steps
+- [x] Feature flag bootstrap prompt written with all 8 steps
+- [x] Deploy bootstrap prompt written with MCP setup + 6 deploy steps
 - [x] SDK detection table covers all 7 supported languages
 - [x] Register/dispatch pattern explained with examples
 - [x] Offline/YAML fallback documented
@@ -437,7 +554,7 @@ VITE_DEPLOYSENTRY_ENV=production
 
 ## Completion Record
 
-- **Branch**: `main`
-- **Committed**: No (pending review)
+- **Branch**: `feature/groups-and-resource-authorization`
+- **Committed**: Yes
 - **Pushed**: No
 - **CI Checks**: N/A (documentation only)

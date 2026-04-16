@@ -353,9 +353,9 @@ export default function FlagDetailPage() {
                         <span className="font-mono" style={{ fontSize: 13 }}>
                           {state?.value != null ? String(state.value) : '\u2014'}
                         </span>
-                        <label className="toggle">
+                        <label className="toggle-switch">
                           <input type="checkbox" checked={isEnabled} onChange={() => handleEnvToggle(env.id, isEnabled)} />
-                          <span>{isEnabled ? 'Enabled' : 'Disabled'}</span>
+                          <span className="toggle-track"></span>
                         </label>
                       </div>
                     </div>
@@ -384,13 +384,13 @@ export default function FlagDetailPage() {
                                     <td>{rule.attribute} {rule.operator} {(rule.target_values ?? []).join(', ')}</td>
                                     <td className="font-mono">{rule.value}</td>
                                     <td>
-                                      <label className="toggle">
+                                      <label className="toggle-switch">
                                         <input
                                           type="checkbox"
                                           checked={ruleEnabled}
                                           onChange={() => handleRuleEnvToggle(rule.id, env.id, ruleEnabled)}
                                         />
-                                        <span>{ruleEnabled ? 'On' : 'Off'}</span>
+                                        <span className="toggle-track"></span>
                                       </label>
                                     </td>
                                   </tr>

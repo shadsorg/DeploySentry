@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import type { Flag, TargetingRule } from '@/types';
-import { flagsApi, entitiesApi } from '@/api';
+import type { Flag, TargetingRule, OrgEnvironment, FlagEnvironmentState } from '@/types';
+import { flagsApi, entitiesApi, flagEnvStateApi } from '@/api';
 import type { Application } from '@/types';
 
 function formatDate(iso: string): string {
@@ -55,6 +55,8 @@ export default function FlagDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'rules' | 'environments'>('rules');
+  const [environments, setEnvironments] = useState<OrgEnvironment[]>([]);
+  const [envStates, setEnvStates] = useState<FlagEnvironmentState[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -75,6 +77,18 @@ export default function FlagDetailPage() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [id, orgSlug, projectSlug]);
+
+  useEffect(() => {
+    if (!orgSlug || !id) return;
+    entitiesApi
+      .listOrgEnvironments(orgSlug)
+      .then((res) => setEnvironments(res.environments ?? []))
+      .catch(() => {});
+    flagEnvStateApi
+      .list(id)
+      .then((res) => setEnvStates(res.environment_states ?? []))
+      .catch(() => {});
+  }, [orgSlug, id]);
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
@@ -107,14 +121,15 @@ export default function FlagDetailPage() {
           <div>
             <h1 className="detail-header-title">{flag.name}</h1>
             <span className="detail-header-subtitle">{flag.key}</span>
+            <div style={{ marginTop: 8 }}>
+              <label className="toggle">
+                <input type="checkbox" checked={flag.enabled} onChange={handleToggle} />
+                <span>{flag.enabled ? 'Enabled' : 'Disabled'}</span>
+              </label>
+            </div>
           </div>
           <div className="detail-header-badges">
-            <label className="toggle">
-              <input type="checkbox" checked={flag.enabled} onChange={handleToggle} />
-              <span>{flag.enabled ? 'Enabled' : 'Disabled'}</span>
-            </label>
             <span className={`badge badge-${flag.category}`}>{flag.category}</span>
-            <button className="btn btn-secondary">Edit</button>
           </div>
         </div>
 
@@ -179,7 +194,7 @@ export default function FlagDetailPage() {
             <span>
               {rules.length} rule{rules.length !== 1 ? 's' : ''}
             </span>
-            <button className="btn btn-secondary">Add Rule</button>
+            <button className="btn btn-secondary" onClick={() => alert('Targeting rule creation is coming soon. Use the CLI: deploysentry flags add-rule --flag-id ' + id)}>Add Rule</button>
           </div>
           <table>
             <thead>
@@ -220,9 +235,40 @@ export default function FlagDetailPage() {
       {/* Tab: Environments */}
       {activeTab === 'environments' && (
         <div className="card">
-          <p style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--color-text-muted)' }}>
-            No environment data available
-          </p>
+          {environments.length === 0 ? (
+            <p style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--color-text-muted)' }}>
+              No environments configured. Add environments in org settings.
+            </p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Environment</th>
+                  <th>Enabled</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                {environments.map((env) => {
+                  const state = envStates.find((s) => s.environment_id === env.id);
+                  return (
+                    <tr key={env.id}>
+                      <td>
+                        {env.name}
+                        {env.is_production && <span className="badge badge-enabled" style={{ marginLeft: 8, fontSize: 11 }}>production</span>}
+                      </td>
+                      <td>
+                        <span className={`badge ${state?.enabled ? 'badge-enabled' : 'badge-disabled'}`}>
+                          {state?.enabled ? 'enabled' : 'disabled'}
+                        </span>
+                      </td>
+                      <td className="font-mono">{state?.value != null ? String(state.value) : '\u2014'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 

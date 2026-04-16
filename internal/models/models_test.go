@@ -36,11 +36,13 @@ func validDeployment() Deployment {
 	}
 }
 
+func uuidPtr(u uuid.UUID) *uuid.UUID { return &u }
+
 func validFeatureFlag() FeatureFlag {
 	return FeatureFlag{
 		ID:            uuid.New(),
 		ProjectID:     uuid.New(),
-		EnvironmentID: uuid.New(),
+		EnvironmentID: uuidPtr(uuid.New()),
 		Key:           "enable-dark-mode",
 		Name:          "Enable Dark Mode",
 		FlagType:      FlagTypeBoolean,

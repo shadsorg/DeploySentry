@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import type { FlagType, FlagCategory, OrgEnvironment } from '@/types';
+import type { FlagType, FlagCategory } from '@/types';
 import { flagsApi, entitiesApi } from '@/api';
 import { useApps } from '@/hooks/useEntities';
 
@@ -16,7 +16,6 @@ interface FormState {
   expires_at: string;
   default_value: string;
   tags: string;
-  environment_id: string;
 }
 
 const INITIAL: FormState = {
@@ -31,7 +30,6 @@ const INITIAL: FormState = {
   expires_at: '',
   default_value: '',
   tags: '',
-  environment_id: '',
 };
 
 export default function FlagCreatePage() {
@@ -50,9 +48,7 @@ export default function FlagCreatePage() {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [appId, setAppId] = useState<string | null>(null);
 
-  // Load environments from org level (environments are org-scoped)
   const { apps } = useApps(orgSlug, projectSlug);
-  const [environments, setEnvironments] = useState<OrgEnvironment[]>([]);
 
   useEffect(() => {
     if (!orgSlug || !projectSlug) return;
@@ -74,19 +70,6 @@ export default function FlagCreatePage() {
     }
   }, [orgSlug, projectSlug, appSlug, apps]);
 
-  useEffect(() => {
-    if (!orgSlug) return;
-    entitiesApi
-      .listOrgEnvironments(orgSlug)
-      .then((res) => {
-        setEnvironments(res.environments ?? []);
-        if (res.environments?.length > 0 && !form.environment_id) {
-          setForm((prev) => ({ ...prev, environment_id: res.environments[0].id }));
-        }
-      })
-      .catch(() => {});
-  }, [orgSlug, form.environment_id]);
-
   const set = <K extends keyof FormState>(field: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -96,17 +79,11 @@ export default function FlagCreatePage() {
       setError('Project not found');
       return;
     }
-    if (!form.environment_id) {
-      setError('Please select an environment. Create an application with environments first.');
-      return;
-    }
-
     setError(null);
     setSubmitting(true);
     try {
       await flagsApi.create({
         project_id: projectId,
-        environment_id: form.environment_id,
         application_id: appId || undefined,
         key: form.key,
         name: form.name,
@@ -223,32 +200,6 @@ export default function FlagCreatePage() {
                 <option value="permission">Permission</option>
               </select>
             </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="flag-env">
-              Environment
-            </label>
-            {environments.length > 0 ? (
-              <select
-                id="flag-env"
-                className="form-select"
-                required
-                value={form.environment_id}
-                onChange={(e) => set('environment_id', e.target.value)}
-              >
-                {environments.map((env) => (
-                  <option key={env.id} value={env.id}>
-                    {env.name}
-                    {env.is_production ? ' (production)' : ''}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <p className="form-hint">
-                No environments found. Create an application with environments first.
-              </p>
-            )}
           </div>
 
           <div className="form-group">

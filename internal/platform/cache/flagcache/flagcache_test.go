@@ -47,11 +47,13 @@ func (m *mockRedis) Delete(_ context.Context, keys ...string) error {
 	return nil
 }
 
+func uuidPtr(u uuid.UUID) *uuid.UUID { return &u }
+
 func newTestFlag() *models.FeatureFlag {
 	return &models.FeatureFlag{
 		ID:            uuid.New(),
 		ProjectID:     uuid.New(),
-		EnvironmentID: uuid.New(),
+		EnvironmentID: uuidPtr(uuid.New()),
 		Key:           "test-flag",
 		Name:          "Test Flag",
 		FlagType:      models.FlagTypeBoolean,
@@ -70,7 +72,7 @@ func TestSetFlagThenGetFlag(t *testing.T) {
 		t.Fatalf("SetFlag: %v", err)
 	}
 
-	got, err := c.GetFlag(ctx, flag.ProjectID, flag.EnvironmentID, flag.Key)
+	got, err := c.GetFlag(ctx, flag.ProjectID, *flag.EnvironmentID, flag.Key)
 	if err != nil {
 		t.Fatalf("GetFlag: %v", err)
 	}
@@ -172,7 +174,7 @@ func TestInvalidateRemovesFlagAndRules(t *testing.T) {
 	}
 
 	// Confirm they exist before invalidation.
-	gotFlag, _ := c.GetFlag(ctx, flag.ProjectID, flag.EnvironmentID, flag.Key)
+	gotFlag, _ := c.GetFlag(ctx, flag.ProjectID, *flag.EnvironmentID, flag.Key)
 	if gotFlag == nil {
 		t.Fatal("expected flag in cache before invalidation")
 	}
@@ -186,7 +188,7 @@ func TestInvalidateRemovesFlagAndRules(t *testing.T) {
 	}
 
 	// Flag should be gone.
-	gotFlag, err := c.GetFlag(ctx, flag.ProjectID, flag.EnvironmentID, flag.Key)
+	gotFlag, err := c.GetFlag(ctx, flag.ProjectID, *flag.EnvironmentID, flag.Key)
 	if err != nil {
 		t.Fatalf("GetFlag after invalidate: %v", err)
 	}

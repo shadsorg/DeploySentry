@@ -54,7 +54,7 @@ func (r *countingSlowRepo) GetFlagByKey(ctx context.Context, projectID, environm
 	r.callCount.Add(1)
 	time.Sleep(50 * time.Millisecond)
 	for _, f := range r.flags {
-		if f.ProjectID == projectID && f.EnvironmentID == environmentID && f.Key == key {
+		if f.ProjectID == projectID && f.EnvironmentID != nil && *f.EnvironmentID == environmentID && f.Key == key {
 			return f, nil
 		}
 	}
@@ -74,7 +74,7 @@ func TestEvaluator_SingleflightCoalescesConcurrentDBCalls(t *testing.T) {
 	flag := &models.FeatureFlag{
 		ID:            flagID,
 		ProjectID:     projectID,
-		EnvironmentID: envID,
+		EnvironmentID: &envID,
 		Key:           "sf-test-flag",
 		Name:          "Singleflight Test Flag",
 		FlagType:      models.FlagTypeBoolean,

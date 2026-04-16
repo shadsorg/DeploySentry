@@ -56,10 +56,14 @@ func (c *FlagCache) SetFlag(ctx context.Context, flag *models.FeatureFlag, ttl t
 		return fmt.Errorf("flagcache.SetFlag marshal: %w", err)
 	}
 	s := string(data)
-	if err := c.redis.Set(ctx, flagKey(flag.ProjectID, flag.EnvironmentID, flag.Key), s, ttl); err != nil {
+	envID := uuid.Nil
+	if flag.EnvironmentID != nil {
+		envID = *flag.EnvironmentID
+	}
+	if err := c.redis.Set(ctx, flagKey(flag.ProjectID, envID, flag.Key), s, ttl); err != nil {
 		return fmt.Errorf("flagcache.SetFlag: %w", err)
 	}
-	meta := fmt.Sprintf("%s:%s:%s", flag.ProjectID, flag.EnvironmentID, flag.Key)
+	meta := fmt.Sprintf("%s:%s:%s", flag.ProjectID, envID, flag.Key)
 	if err := c.redis.Set(ctx, flagIDKey(flag.ID), meta, ttl); err != nil {
 		return fmt.Errorf("flagcache.SetFlag id mapping: %w", err)
 	}

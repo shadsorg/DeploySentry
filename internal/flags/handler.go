@@ -98,7 +98,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 // createFlagRequest is the JSON body for creating a new feature flag.
 type createFlagRequest struct {
 	ProjectID     uuid.UUID  `json:"project_id" binding:"required"`
-	EnvironmentID uuid.UUID  `json:"environment_id" binding:"required"`
+	EnvironmentID *uuid.UUID `json:"environment_id"`
 	ApplicationID *uuid.UUID `json:"application_id"`
 	Key           string     `json:"key" binding:"required"`
 	Name          string     `json:"name" binding:"required"`
@@ -133,7 +133,7 @@ func (h *Handler) createFlag(c *gin.Context) {
 
 	flag := &models.FeatureFlag{
 		ProjectID:     req.ProjectID,
-		EnvironmentID: req.EnvironmentID,
+		EnvironmentID: req.EnvironmentID,	// nil-safe: model field is *uuid.UUID
 		ApplicationID: req.ApplicationID,
 		Key:           req.Key,
 		Name:          req.Name,

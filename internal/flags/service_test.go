@@ -59,7 +59,7 @@ func (m *mockFlagRepo) GetFlag(ctx context.Context, id uuid.UUID) (*models.Featu
 
 func (m *mockFlagRepo) GetFlagByKey(ctx context.Context, projectID, environmentID uuid.UUID, key string) (*models.FeatureFlag, error) {
 	for _, f := range m.flags {
-		if f.ProjectID == projectID && f.EnvironmentID == environmentID && f.Key == key {
+		if f.ProjectID == projectID && f.EnvironmentID != nil && *f.EnvironmentID == environmentID && f.Key == key {
 			return f, nil
 		}
 	}
@@ -206,7 +206,11 @@ func (c *mockCache) GetFlag(ctx context.Context, projectID, environmentID uuid.U
 }
 
 func (c *mockCache) SetFlag(ctx context.Context, flag *models.FeatureFlag, ttl time.Duration) error {
-	c.flags[cacheKey(flag.ProjectID, flag.EnvironmentID, flag.Key)] = flag
+	envID := uuid.Nil
+	if flag.EnvironmentID != nil {
+		envID = *flag.EnvironmentID
+	}
+	c.flags[cacheKey(flag.ProjectID, envID, flag.Key)] = flag
 	return nil
 }
 
@@ -265,10 +269,12 @@ func (e *emptyCacheThatMisses) SetSegment(ctx context.Context, segment *models.S
 // Helper to create a valid FeatureFlag for testing
 // ===========================================================================
 
+func uuidPtr(u uuid.UUID) *uuid.UUID { return &u }
+
 func validFlag() *models.FeatureFlag {
 	return &models.FeatureFlag{
 		ProjectID:     uuid.New(),
-		EnvironmentID: uuid.New(),
+		EnvironmentID: uuidPtr(uuid.New()),
 		Key:           "test-flag",
 		Name:          "Test Flag",
 		FlagType:      models.FlagTypeBoolean,
@@ -677,7 +683,7 @@ func TestEvaluator_CacheMiss_FallsBackToRepo(t *testing.T) {
 	flag := &models.FeatureFlag{
 		ID:            uuid.New(),
 		ProjectID:     projectID,
-		EnvironmentID: envID,
+		EnvironmentID: &envID,
 		Key:           "my-flag",
 		Name:          "My Flag",
 		FlagType:      models.FlagTypeBoolean,
@@ -710,7 +716,7 @@ func TestEvaluator_FlagDisabled_ReturnsDefault(t *testing.T) {
 	flag := &models.FeatureFlag{
 		ID:            uuid.New(),
 		ProjectID:     projectID,
-		EnvironmentID: envID,
+		EnvironmentID: &envID,
 		Key:           "disabled-flag",
 		Name:          "Disabled",
 		FlagType:      models.FlagTypeBoolean,
@@ -743,7 +749,7 @@ func TestEvaluator_FlagArchived_ReturnsDefault(t *testing.T) {
 	flag := &models.FeatureFlag{
 		ID:            uuid.New(),
 		ProjectID:     projectID,
-		EnvironmentID: envID,
+		EnvironmentID: &envID,
 		Key:           "archived-flag",
 		Name:          "Archived",
 		FlagType:      models.FlagTypeBoolean,
@@ -778,7 +784,7 @@ func TestEvaluator_RulesMatchInPriorityOrder(t *testing.T) {
 	flag := &models.FeatureFlag{
 		ID:            flagID,
 		ProjectID:     projectID,
-		EnvironmentID: envID,
+		EnvironmentID: &envID,
 		Key:           "priority-flag",
 		Name:          "Priority",
 		FlagType:      models.FlagTypeString,
@@ -836,7 +842,7 @@ func TestEvaluator_DisabledRulesSkipped(t *testing.T) {
 	flag := &models.FeatureFlag{
 		ID:            flagID,
 		ProjectID:     projectID,
-		EnvironmentID: envID,
+		EnvironmentID: &envID,
 		Key:           "skip-flag",
 		Name:          "Skip",
 		FlagType:      models.FlagTypeString,
@@ -889,7 +895,7 @@ func TestEvaluator_NoRulesMatch_ReturnsDefault(t *testing.T) {
 	flag := &models.FeatureFlag{
 		ID:            flagID,
 		ProjectID:     projectID,
-		EnvironmentID: envID,
+		EnvironmentID: &envID,
 		Key:           "no-match-flag",
 		Name:          "No Match",
 		FlagType:      models.FlagTypeString,
@@ -936,7 +942,7 @@ func TestFlagService_Evaluate_DelegatesToEvaluator(t *testing.T) {
 	flag := &models.FeatureFlag{
 		ID:            flagID,
 		ProjectID:     projectID,
-		EnvironmentID: envID,
+		EnvironmentID: &envID,
 		Key:           "svc-eval-flag",
 		Name:          "SvcEval",
 		FlagType:      models.FlagTypeBoolean,
@@ -982,7 +988,7 @@ func TestEvaluator_CacheHit(t *testing.T) {
 	flag := &models.FeatureFlag{
 		ID:            flagID,
 		ProjectID:     projectID,
-		EnvironmentID: envID,
+		EnvironmentID: &envID,
 		Key:           "cached-flag",
 		Name:          "Cached",
 		FlagType:      models.FlagTypeBoolean,
@@ -1033,7 +1039,7 @@ func TestEvaluator_AttributeRuleMatches(t *testing.T) {
 	flag := &models.FeatureFlag{
 		ID:            flagID,
 		ProjectID:     projectID,
-		EnvironmentID: envID,
+		EnvironmentID: &envID,
 		Key:           "attr-flag",
 		Name:          "Attr",
 		FlagType:      models.FlagTypeString,
@@ -1085,7 +1091,7 @@ func TestEvaluator_ScheduleRuleWithinWindow(t *testing.T) {
 	flag := &models.FeatureFlag{
 		ID:            flagID,
 		ProjectID:     projectID,
-		EnvironmentID: envID,
+		EnvironmentID: &envID,
 		Key:           "schedule-flag",
 		Name:          "Schedule",
 		FlagType:      models.FlagTypeString,
@@ -1145,7 +1151,7 @@ func TestBatchEvaluate_ErrorField(t *testing.T) {
 	goodFlag := &models.FeatureFlag{
 		ID:            goodID,
 		ProjectID:     projectID,
-		EnvironmentID: envID,
+		EnvironmentID: &envID,
 		Key:           "good-flag",
 		Name:          "Good Flag",
 		FlagType:      models.FlagTypeBoolean,

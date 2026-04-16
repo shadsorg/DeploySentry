@@ -26,7 +26,7 @@ export interface Flag {
   id: string;
   project_id: string;
   application_id?: string;
-  environment_id: string;
+  environment_id?: string;
   key: string;
   name: string;
   description: string;
@@ -132,7 +132,7 @@ export interface Environment {
 
 export interface CreateFlagRequest {
   project_id: string;
-  environment_id: string;
+  environment_id?: string;
   application_id?: string;
   key: string;
   name: string;

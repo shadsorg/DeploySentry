@@ -66,7 +66,7 @@ type FeatureFlag struct {
 	ID            uuid.UUID    `json:"id" db:"id"`
 	ProjectID     uuid.UUID    `json:"project_id" db:"project_id"`
 	ApplicationID *uuid.UUID   `json:"application_id,omitempty" db:"application_id"`
-	EnvironmentID uuid.UUID    `json:"environment_id" db:"environment_id"`
+	EnvironmentID *uuid.UUID   `json:"environment_id,omitempty" db:"environment_id"`
 	Key           string       `json:"key" db:"key"`
 	Name          string       `json:"name" db:"name"`
 	Description   string       `json:"description,omitempty" db:"description"`

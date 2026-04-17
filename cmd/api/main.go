@@ -16,6 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/deploysentry/deploysentry/internal/agent/registry"
 	"github.com/deploysentry/deploysentry/internal/analytics"
 	"github.com/deploysentry/deploysentry/internal/auth"
 	"github.com/deploysentry/deploysentry/internal/deploy"
@@ -228,6 +229,7 @@ func run() error {
 	memberRepo := postgres.NewMemberRepository(db.Pool)
 	groupRepo := postgres.NewGroupRepository(db.Pool)
 	grantRepo := postgres.NewGrantRepository(db.Pool)
+	agentRepo := postgres.NewAgentRepository(db.Pool)
 
 	// -------------------------------------------------------------------------
 	// Services
@@ -246,6 +248,7 @@ func run() error {
 	memberService := members.NewService(memberRepo)
 	groupService := groups.NewService(groupRepo)
 	grantService := grants.NewService(grantRepo)
+	agentService := registry.NewService(agentRepo)
 
 	// -------------------------------------------------------------------------
 	// Notifications
@@ -354,6 +357,7 @@ func run() error {
 	groups.NewHandler(groupService, entityService, rbacChecker).RegisterRoutes(api)
 	grants.NewHandler(grantService, entityService, rbacChecker).RegisterRoutes(api)
 	notifications.NewPreferencesHandler(prefStore, notificationService, rbacChecker).RegisterRoutes(api)
+	registry.NewHandler(agentService).RegisterRoutes(api, rbacChecker)
 
 	// Rollback handler: manual rollback triggers and rollback history.
 	rollbackExecutor := &deployServiceRollbackExecutor{service: deployService}

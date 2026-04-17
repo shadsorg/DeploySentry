@@ -1,4 +1,4 @@
-.PHONY: dev-up dev-down migrate-up migrate-down run-api run-web test test-unit test-int build docker-build lint clean help dev-setup dev-cli e2e-sdk-up e2e-sdk-down e2e-sdk e2e-sdk-debug
+.PHONY: dev-up dev-down migrate-up migrate-down run-api run-web test test-unit test-int build docker-build dev-deploy lint clean help dev-setup dev-cli e2e-sdk-up e2e-sdk-down e2e-sdk e2e-sdk-debug
 
 # Build metadata
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -102,6 +102,10 @@ build-darwin-arm64:
 docker-build:
 	docker build -f deploy/docker/Dockerfile.api -t deploysentry/api:$(VERSION) .
 	docker build -f deploy/docker/Dockerfile.web -t deploysentry/web:$(VERSION) ./web
+
+## dev-deploy: Start multi-instance deploy setup (Envoy + agent + blue/green)
+dev-deploy:
+	docker compose -f deploy/docker-compose.yml -f deploy/docker/docker-compose.deploy.yml up -d --build
 
 ## lint: Run linters
 lint:

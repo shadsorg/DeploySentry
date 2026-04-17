@@ -1,0 +1,59 @@
+services:
+  app-blue:
+    image: ${DS_APP_IMAGE:-deploysentry/demo-app:latest}
+    container_name: deploysentry-app-blue
+    environment:
+      - SERVICE_COLOR=blue
+      - PORT=8081
+    ports:
+      - "8081:8081"
+    networks:
+      - deploysentry-net
+
+  app-green:
+    image: ${DS_APP_IMAGE:-deploysentry/demo-app:latest}
+    container_name: deploysentry-app-green
+    environment:
+      - SERVICE_COLOR=green
+      - PORT=8082
+    ports:
+      - "8082:8082"
+    networks:
+      - deploysentry-net
+
+  envoy:
+    image: envoyproxy/envoy:v1.31-latest
+    container_name: deploysentry-envoy
+    ports:
+      - "8080:8080"
+      - "9901:9901"
+    volumes:
+      - ./envoy-bootstrap.yaml:/etc/envoy/envoy.yaml:ro
+    depends_on:
+      - deploysentry-agent
+    networks:
+      - deploysentry-net
+
+  deploysentry-agent:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.agent
+    container_name: deploysentry-agent
+    environment:
+      - DS_API_URL=http://host.docker.internal:8080
+      - DS_API_KEY=${DS_API_KEY:-}
+      - DS_APP_ID=${DS_APP_ID:-00000000-0000-0000-0000-000000000000}
+      - DS_ENVIRONMENT=${DS_ENVIRONMENT:-production}
+      - DS_UPSTREAMS=blue:app-blue:8081,green:app-green:8082
+      - DS_ENVOY_XDS_PORT=18000
+      - DS_ENVOY_LISTEN_PORT=8080
+      - DS_HEARTBEAT_INTERVAL=5s
+    ports:
+      - "18000:18000"
+    networks:
+      - deploysentry-net
+
+networks:
+  deploysentry-net:
+    external: true
+    name: deploysentry-net

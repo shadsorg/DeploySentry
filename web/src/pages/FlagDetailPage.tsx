@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import type { Flag, TargetingRule, OrgEnvironment, FlagEnvironmentState, RuleEnvironmentState, FlagCategory } from '@/types';
-import { flagsApi, entitiesApi, flagEnvStateApi } from '@/api';
+import type { Flag, TargetingRule, OrgEnvironment, FlagEnvironmentState, RuleEnvironmentState, FlagCategory, AuditLogEntry } from '@/types';
+import { flagsApi, entitiesApi, flagEnvStateApi, auditApi } from '@/api';
 import type { Application } from '@/types';
 
 function formatDate(iso: string): string {
@@ -24,6 +24,20 @@ function formatDateTime(iso: string): string {
 
 function getAppNameById(appId: string, apps: Application[]): string {
   return apps.find((a) => a.id === appId)?.name ?? appId;
+}
+
+function describeAction(entry: AuditLogEntry): string {
+  switch (entry.action) {
+    case 'flag.created': return 'Created flag';
+    case 'flag.updated': return 'Updated flag settings';
+    case 'flag.toggled': return 'Toggled flag';
+    case 'flag.archived': return 'Archived flag';
+    case 'flag.env_state.updated': return 'Updated environment state';
+    case 'flag.rule.created': return 'Added targeting rule';
+    case 'flag.rule.deleted': return 'Deleted targeting rule';
+    case 'flag.rule.env_state.updated': return 'Updated rule environment state';
+    default: return entry.action;
+  }
 }
 
 function generateFlagYaml(
@@ -103,6 +117,8 @@ export default function FlagDetailPage() {
   } | null>(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSuccess, setSettingsSuccess] = useState(false);
+  const [history, setHistory] = useState<AuditLogEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -142,6 +158,16 @@ export default function FlagDetailPage() {
   useEffect(() => {
     setNewRule((prev) => ({ ...prev, priority: rules.length + 1 }));
   }, [rules]);
+
+  useEffect(() => {
+    if (activeTab !== 'history' || !id) return;
+    setHistoryLoading(true);
+    auditApi
+      .query({ resource_type: 'flag', resource_id: id, limit: 50 })
+      .then((res) => setHistory(res.entries ?? []))
+      .catch(() => setHistory([]))
+      .finally(() => setHistoryLoading(false));
+  }, [activeTab, id]);
 
   useEffect(() => {
     if (flag) {
@@ -652,6 +678,53 @@ export default function FlagDetailPage() {
             </button>
             {settingsSuccess && <span style={{ color: 'var(--color-success)', fontSize: 13 }}>Saved successfully</span>}
           </div>
+        </div>
+      )}
+
+      {/* Tab: History */}
+      {activeTab === 'history' && (
+        <div className="card">
+          {historyLoading ? (
+            <p style={{ textAlign: 'center', padding: '2rem 0' }}>Loading history...</p>
+          ) : history.length === 0 ? (
+            <p style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--color-text-muted)' }}>
+              No history recorded yet.
+            </p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>User</th>
+                  <th>Action</th>
+                  <th>Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((entry) => (
+                  <tr key={entry.id}>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{formatDateTime(entry.created_at)}</td>
+                    <td>{entry.actor_name || 'System'}</td>
+                    <td>{describeAction(entry)}</td>
+                    <td style={{ fontSize: 12 }}>
+                      {entry.old_value && (
+                        <div>
+                          <span className="text-muted">Before: </span>
+                          <code style={{ fontSize: 11 }}>{entry.old_value}</code>
+                        </div>
+                      )}
+                      {entry.new_value && (
+                        <div>
+                          <span className="text-muted">After: </span>
+                          <code style={{ fontSize: 11 }}>{entry.new_value}</code>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 

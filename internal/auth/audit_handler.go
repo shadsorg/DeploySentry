@@ -17,6 +17,7 @@ type AuditLogFilter struct {
 	UserID       *uuid.UUID `json:"user_id,omitempty"`
 	Action       string     `json:"action,omitempty"`
 	ResourceType string     `json:"resource_type,omitempty"`
+	ResourceID   *uuid.UUID `json:"resource_id,omitempty"`
 	StartDate    *time.Time `json:"start_date,omitempty"`
 	EndDate      *time.Time `json:"end_date,omitempty"`
 	Limit        int        `json:"limit"`
@@ -87,6 +88,16 @@ func (h *AuditHandler) queryAuditLog(c *gin.Context) {
 			return
 		}
 		filter.UserID = &uid
+	}
+
+	// Parse optional resource_id filter.
+	if ridStr := c.Query("resource_id"); ridStr != "" {
+		rid, err := uuid.Parse(ridStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid resource_id"})
+			return
+		}
+		filter.ResourceID = &rid
 	}
 
 	// Parse optional date range.

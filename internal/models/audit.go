@@ -13,6 +13,7 @@ type AuditLogEntry struct {
 	OrgID      uuid.UUID `json:"org_id" db:"org_id"`
 	ProjectID  uuid.UUID `json:"project_id,omitempty" db:"project_id"`
 	ActorID    uuid.UUID `json:"actor_id" db:"actor_id"`
+	ActorName  string    `json:"actor_name,omitempty" db:"-"`
 	Action     string    `json:"action" db:"action"`
 	EntityType string    `json:"entity_type" db:"entity_type"`
 	EntityID   uuid.UUID `json:"entity_id" db:"entity_id"`

@@ -91,6 +91,7 @@ export interface Deployment {
   updated_at: string;
   started_at?: string;
   completed_at: string | null;
+  flag_test_key?: string;
 }
 
 export interface Release {

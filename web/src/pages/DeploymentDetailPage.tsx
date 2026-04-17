@@ -523,6 +523,36 @@ export default function DeploymentDetailPage() {
         );
       })()}
 
+      {dep.flag_test_key && (
+        <div className="mt-4 rounded-lg border border-amber-800/50 bg-amber-900/20 p-4">
+          <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-amber-400">
+            Flag Under Test
+          </h3>
+          <div className="flex items-center gap-2">
+            <span className="rounded bg-amber-800/30 px-2 py-0.5 text-sm font-mono text-amber-300">
+              {dep.flag_test_key}
+            </span>
+            <span className="text-xs text-gray-400">
+              Canary testing via SERVICE_COLOR targeting
+            </span>
+          </div>
+          <div className="mt-2 text-xs text-gray-500">
+            Blue (stable) receives the flag's default value. Green (canary) receives the flag with{' '}
+            <code className="text-amber-400">service_color eq green</code> targeting rule.
+          </div>
+          {latestHeartbeat && (
+            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded bg-gray-800 p-2">
+                <span style={{ color: '#69f0ae' }}>blue</span>: flag off (baseline)
+              </div>
+              <div className="rounded bg-gray-800 p-2">
+                <span style={{ color: '#b388ff' }}>green</span>: flag on (testing)
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {confirmAction && (
         <ConfirmDialog
           open={!!confirmAction}

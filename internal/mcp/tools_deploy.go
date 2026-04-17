@@ -157,6 +157,192 @@ func handleGenerateWorkflow(_ context.Context, req mcp.CallToolRequest) (*mcp.Ca
 	return mcp.NewToolResultText(yaml), nil
 }
 
+// ---------------------------------------------------------------------------
+// ds_create_deployment
+// ---------------------------------------------------------------------------
+
+var createDeploymentTool = mcp.NewTool("ds_create_deployment",
+	mcp.WithDescription("Create a new deployment. Supports canary, blue-green, and rolling strategies. Optionally link to a feature flag for flag-canary testing."),
+	mcp.WithDestructiveHintAnnotation(false),
+	mcp.WithString("org", mcp.Description("Organization slug (uses default from config if omitted)")),
+	mcp.WithString("project", mcp.Description("Project slug (uses default from config if omitted)")),
+	mcp.WithString("app", mcp.Required(), mcp.Description("Application slug")),
+	mcp.WithString("env", mcp.Required(), mcp.Description("Environment slug (e.g. 'production', 'staging')")),
+	mcp.WithString("version", mcp.Required(), mcp.Description("Version to deploy (e.g. 'v2.1.0')")),
+	mcp.WithString("strategy", mcp.Description("Deployment strategy: rolling, canary, blue-green (default: rolling)"),
+		mcp.Enum("rolling", "canary", "blue-green")),
+	mcp.WithString("flag_test_key", mcp.Description("Feature flag key to canary-test with this deployment (optional)")),
+)
+
+func handleCreateDeployment(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	c, err := checkReady()
+	if err != nil {
+		return errResult(err), nil
+	}
+	org, err := resolveOrg(req.GetString("org", ""))
+	if err != nil {
+		return errResult(err), nil
+	}
+	project, err := resolveProject(req.GetString("project", ""))
+	if err != nil {
+		return errResult(err), nil
+	}
+	appSlug, err := req.RequireString("app")
+	if err != nil {
+		return errResult(err), nil
+	}
+	envSlug, err := req.RequireString("env")
+	if err != nil {
+		return errResult(err), nil
+	}
+	version, err := req.RequireString("version")
+	if err != nil {
+		return errResult(err), nil
+	}
+
+	appID, err := resolveApp(c, org, project, appSlug)
+	if err != nil {
+		return errResult(err), nil
+	}
+	envID, err := resolveEnv(c, org, envSlug)
+	if err != nil {
+		return errResult(err), nil
+	}
+
+	strategy := req.GetString("strategy", "rolling")
+
+	body := map[string]interface{}{
+		"app_id":         appID,
+		"environment_id": envID,
+		"version":        version,
+		"strategy":       strategy,
+	}
+
+	flagTestKey := req.GetString("flag_test_key", "")
+	if flagTestKey != "" {
+		body["flag_test_key"] = flagTestKey
+	}
+
+	data, err := c.post("/api/v1/deployments", body)
+	if err != nil {
+		return errResult(err), nil
+	}
+	return jsonResult(data)
+}
+
+// ---------------------------------------------------------------------------
+// ds_promote_deployment
+// ---------------------------------------------------------------------------
+
+var promoteDeploymentTool = mcp.NewTool("ds_promote_deployment",
+	mcp.WithDescription("Promote a deployment to 100% traffic immediately."),
+	mcp.WithString("deployment_id", mcp.Required(), mcp.Description("Deployment ID (UUID)")),
+)
+
+func handlePromoteDeployment(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	c, err := checkReady()
+	if err != nil {
+		return errResult(err), nil
+	}
+	id, err := req.RequireString("deployment_id")
+	if err != nil {
+		return errResult(err), nil
+	}
+
+	data, err := c.post(fmt.Sprintf("/api/v1/deployments/%s/promote", id), nil)
+	if err != nil {
+		return errResult(err), nil
+	}
+	return jsonResult(data)
+}
+
+// ---------------------------------------------------------------------------
+// ds_rollback_deployment
+// ---------------------------------------------------------------------------
+
+var rollbackDeploymentTool = mcp.NewTool("ds_rollback_deployment",
+	mcp.WithDescription("Rollback a deployment. Returns traffic to the previous version."),
+	mcp.WithString("deployment_id", mcp.Required(), mcp.Description("Deployment ID (UUID)")),
+	mcp.WithString("reason", mcp.Description("Reason for the rollback (optional)")),
+)
+
+func handleRollbackDeployment(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	c, err := checkReady()
+	if err != nil {
+		return errResult(err), nil
+	}
+	id, err := req.RequireString("deployment_id")
+	if err != nil {
+		return errResult(err), nil
+	}
+
+	reason := req.GetString("reason", "")
+	var body interface{}
+	if reason != "" {
+		body = map[string]interface{}{"reason": reason}
+	}
+
+	data, err := c.post(fmt.Sprintf("/api/v1/deployments/%s/rollback", id), body)
+	if err != nil {
+		return errResult(err), nil
+	}
+	return jsonResult(data)
+}
+
+// ---------------------------------------------------------------------------
+// ds_advance_deployment
+// ---------------------------------------------------------------------------
+
+var advanceDeploymentTool = mcp.NewTool("ds_advance_deployment",
+	mcp.WithDescription("Advance a canary deployment to its next phase (manual gate). Only works when a deployment is paused at a phase gate."),
+	mcp.WithString("deployment_id", mcp.Required(), mcp.Description("Deployment ID (UUID)")),
+)
+
+func handleAdvanceDeployment(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	c, err := checkReady()
+	if err != nil {
+		return errResult(err), nil
+	}
+	id, err := req.RequireString("deployment_id")
+	if err != nil {
+		return errResult(err), nil
+	}
+
+	data, err := c.post(fmt.Sprintf("/api/v1/deployments/%s/advance", id), nil)
+	if err != nil {
+		return errResult(err), nil
+	}
+	return jsonResult(data)
+}
+
+// ---------------------------------------------------------------------------
+// ds_deployment_phases
+// ---------------------------------------------------------------------------
+
+var deploymentPhasesTool = mcp.NewTool("ds_deployment_phases",
+	mcp.WithDescription("List all phases of a deployment with their status, traffic percentage, and duration."),
+	mcp.WithReadOnlyHintAnnotation(true),
+	mcp.WithDestructiveHintAnnotation(false),
+	mcp.WithString("deployment_id", mcp.Required(), mcp.Description("Deployment ID (UUID)")),
+)
+
+func handleDeploymentPhases(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	c, err := checkReady()
+	if err != nil {
+		return errResult(err), nil
+	}
+	id, err := req.RequireString("deployment_id")
+	if err != nil {
+		return errResult(err), nil
+	}
+
+	data, err := c.get(fmt.Sprintf("/api/v1/deployments/%s/phases", id))
+	if err != nil {
+		return errResult(err), nil
+	}
+	return jsonResult(data)
+}
+
 // splitTrim splits a comma-separated string and trims whitespace from each element.
 func splitTrim(s string) []string {
 	parts := strings.Split(s, ",")

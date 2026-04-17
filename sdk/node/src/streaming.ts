@@ -148,7 +148,7 @@ export class FlagStreamClient {
       }
     }
 
-    if (eventType === 'flag_update' || eventType === 'message') {
+    if (eventType === 'flag_change' || eventType === 'flag_update' || eventType === 'message') {
       try {
         const parsed = JSON.parse(data);
         const flags: Flag[] = Array.isArray(parsed) ? parsed : [parsed];

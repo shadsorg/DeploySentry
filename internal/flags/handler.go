@@ -1241,6 +1241,14 @@ func (h *Handler) streamFlags(c *gin.Context) {
 	c.Header("Connection", "keep-alive")
 	c.Header("X-Accel-Buffering", "no")
 
+	// Flush headers and an immediate heartbeat so proxies (Cloudflare,
+	// Nginx) see a valid response right away and start streaming instead
+	// of buffering. Without this, the client may wait up to 20s for the
+	// first byte, which triggers 502 on aggressive proxies.
+	c.Writer.WriteHeaderNow()
+	_, _ = fmt.Fprintf(c.Writer, ": heartbeat\n\n")
+	c.Writer.Flush()
+
 	clientCh := h.sse.Subscribe()
 	defer h.sse.Unsubscribe(clientCh)
 

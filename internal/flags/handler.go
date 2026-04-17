@@ -1253,7 +1253,9 @@ func (h *Handler) streamFlags(c *gin.Context) {
 	defer h.sse.Unsubscribe(clientCh)
 
 	ctx := c.Request.Context()
-	heartbeat := time.NewTicker(20 * time.Second)
+	// Cloudflare terminates idle HTTP/2 streams after ~15s on some plans.
+	// Send heartbeats every 10s to stay well within the window.
+	heartbeat := time.NewTicker(10 * time.Second)
 	defer heartbeat.Stop()
 
 	c.Stream(func(w io.Writer) bool {
@@ -1263,6 +1265,7 @@ func (h *Handler) streamFlags(c *gin.Context) {
 				return false
 			}
 			c.SSEvent("flag_change", msg)
+			c.Writer.Flush()
 			return true
 		case <-heartbeat.C:
 			// SSE comment to keep the connection alive through proxies.

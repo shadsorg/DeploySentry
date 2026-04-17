@@ -259,6 +259,47 @@ func TestRegisterDispatch(t *testing.T) {
 	})
 }
 
+func TestServiceColorAutoDetected(t *testing.T) {
+	t.Setenv("SERVICE_COLOR", "green")
+	client := NewClient(WithAPIKey("test"))
+	ctx := client.DefaultContext()
+	if ctx.Attributes["service_color"] != "green" {
+		t.Errorf("service_color = %v, want 'green'", ctx.Attributes["service_color"])
+	}
+}
+
+func TestServiceColorNotSetWhenEmpty(t *testing.T) {
+	t.Setenv("SERVICE_COLOR", "")
+	client := NewClient(WithAPIKey("test"))
+	ctx := client.DefaultContext()
+	if _, ok := ctx.Attributes["service_color"]; ok {
+		t.Error("service_color should not be set when SERVICE_COLOR is empty")
+	}
+}
+
+func TestMergeServiceColor_PreservesExplicitValue(t *testing.T) {
+	t.Setenv("SERVICE_COLOR", "blue")
+	client := NewClient(WithAPIKey("test"))
+	evalCtx := &EvaluationContext{
+		Attributes: map[string]interface{}{
+			"service_color": "green",
+		},
+	}
+	merged := client.mergeServiceColor(evalCtx)
+	if merged.Attributes["service_color"] != "green" {
+		t.Errorf("service_color = %v, want 'green' (explicit value should not be overwritten)", merged.Attributes["service_color"])
+	}
+}
+
+func TestMergeServiceColor_NilContext(t *testing.T) {
+	t.Setenv("SERVICE_COLOR", "blue")
+	client := NewClient(WithAPIKey("test"))
+	merged := client.mergeServiceColor(nil)
+	if merged.Attributes["service_color"] != "blue" {
+		t.Errorf("service_color = %v, want 'blue'", merged.Attributes["service_color"])
+	}
+}
+
 func TestBoolValue_Default(t *testing.T) {
 	// Create a test server that returns 404 for the evaluate endpoint so the
 	// client falls back to defaults. The cache is empty, so we expect the

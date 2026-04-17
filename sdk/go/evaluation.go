@@ -105,6 +105,7 @@ func (c *Client) Detail(ctx context.Context, flagKey string, evalCtx *Evaluation
 // On failure it falls back to the cache (returning stale data when offline
 // mode is enabled).
 func (c *Client) resolve(ctx context.Context, flagKey string, evalCtx *EvaluationContext) (*evaluateResponse, error) {
+	evalCtx = c.mergeServiceColor(evalCtx)
 	resp, err := c.doEvaluate(ctx, flagKey, evalCtx)
 	if err == nil {
 		return resp, nil

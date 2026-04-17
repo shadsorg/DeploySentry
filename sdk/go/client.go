@@ -21,18 +21,19 @@ const (
 // Client is the main entry point for the DeploySentry Go SDK. It manages
 // flag evaluation, caching, and real-time streaming updates.
 type Client struct {
-	apiKey      string
-	baseURL     string
-	environment string
-	projectID   string
-	sessionID   string
-	offlineMode bool
-	httpClient  *http.Client
-	cache       *flagCache
-	sse         *sseClient
-	logger      *log.Logger
-	registry    map[string][]registration
-	registryMu  sync.RWMutex
+	apiKey       string
+	baseURL      string
+	environment  string
+	projectID    string
+	sessionID    string
+	serviceColor string
+	offlineMode  bool
+	httpClient   *http.Client
+	cache        *flagCache
+	sse          *sseClient
+	logger       *log.Logger
+	registry     map[string][]registration
+	registryMu   sync.RWMutex
 }
 
 // Option configures a Client. Pass options to NewClient.
@@ -103,7 +104,41 @@ func NewClient(opts ...Option) *Client {
 		opt(c)
 	}
 
+	if sc := os.Getenv("SERVICE_COLOR"); sc != "" {
+		c.serviceColor = sc
+	}
+
 	return c
+}
+
+// DefaultContext returns an EvaluationContext with auto-detected attributes
+// (e.g., SERVICE_COLOR). Use this as a base and add user-specific fields.
+func (c *Client) DefaultContext() *EvaluationContext {
+	ctx := &EvaluationContext{
+		Attributes: make(map[string]interface{}),
+	}
+	if c.serviceColor != "" {
+		ctx.Attributes["service_color"] = c.serviceColor
+	}
+	return ctx
+}
+
+// mergeServiceColor adds the service_color attribute if configured and not
+// already present in the evaluation context.
+func (c *Client) mergeServiceColor(ctx *EvaluationContext) *EvaluationContext {
+	if c.serviceColor == "" {
+		return ctx
+	}
+	if ctx == nil {
+		ctx = &EvaluationContext{Attributes: make(map[string]interface{})}
+	}
+	if ctx.Attributes == nil {
+		ctx.Attributes = make(map[string]interface{})
+	}
+	if _, ok := ctx.Attributes["service_color"]; !ok {
+		ctx.Attributes["service_color"] = c.serviceColor
+	}
+	return ctx
 }
 
 // Initialize fetches all flags for the configured project and starts the

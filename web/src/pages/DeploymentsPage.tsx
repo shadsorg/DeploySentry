@@ -118,8 +118,12 @@ const DeploymentsPage: React.FC = () => {
   }, [orgSlug, projectSlug, appSlug]);
 
   const filtered = useMemo(() => {
+    // Performance Optimization: Hoist the search.toLowerCase() string operation outside the
+    // deployments.filter loop to avoid O(N) penalties per render. We use optional chaining
+    // to prevent runtime crashes.
+    const searchLower = search?.toLowerCase() ?? '';
     return deployments.filter((d) => {
-      if (search && !d.version.toLowerCase().includes(search.toLowerCase())) {
+      if (searchLower && !d.version?.toLowerCase()?.includes(searchLower)) {
         return false;
       }
       if (strategyFilter !== 'all' && d.strategy !== strategyFilter) {

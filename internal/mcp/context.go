@@ -115,6 +115,50 @@ func resolveProject(param string) (string, error) {
 	return project, nil
 }
 
+// resolveApp resolves an application slug to its UUID by calling the API.
+// Requires org and project to be already resolved.
+func resolveApp(c *apiClient, org, project, app string) (string, error) {
+	if app == "" {
+		return "", fmt.Errorf("app is required: pass it as a parameter")
+	}
+	data, err := c.get(fmt.Sprintf("/api/v1/orgs/%s/projects/%s/apps/%s", org, project, app))
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve app '%s': %w", app, err)
+	}
+	id, ok := data["id"].(string)
+	if !ok {
+		return "", fmt.Errorf("app '%s' not found or missing id in response", app)
+	}
+	return id, nil
+}
+
+// resolveEnv resolves an environment slug to its UUID by calling the API.
+func resolveEnv(c *apiClient, org, env string) (string, error) {
+	if env == "" {
+		return "", fmt.Errorf("env is required: pass it as a parameter")
+	}
+	data, err := c.get(fmt.Sprintf("/api/v1/orgs/%s/environments", org))
+	if err != nil {
+		return "", fmt.Errorf("failed to list environments: %w", err)
+	}
+	envs, ok := data["environments"].([]interface{})
+	if !ok {
+		return "", fmt.Errorf("unexpected environments response format")
+	}
+	for _, e := range envs {
+		em, ok := e.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if em["slug"] == env || em["name"] == env {
+			if id, ok := em["id"].(string); ok {
+				return id, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("environment '%s' not found", env)
+}
+
 // get performs an HTTP GET request.
 func (c *apiClient) get(path string) (map[string]interface{}, error) {
 	req, err := c.newRequest(http.MethodGet, path, nil)

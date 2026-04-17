@@ -181,6 +181,12 @@ func (h *Handler) createFlag(c *gin.Context) {
 		return
 	}
 
+	newVal, _ := json.Marshal(map[string]interface{}{
+		"key": flag.Key, "name": flag.Name, "flag_type": flag.FlagType,
+		"category": flag.Category, "default_value": flag.DefaultValue,
+	})
+	h.writeAudit(c, "flag.created", "flag", flag.ID, "", string(newVal))
+
 	// Trigger webhook event for flag creation
 	if h.webhookSvc != nil {
 		webhookData := map[string]interface{}{
@@ -339,6 +345,12 @@ func (h *Handler) updateFlag(c *gin.Context) {
 		return
 	}
 
+	oldVal, _ := json.Marshal(map[string]interface{}{
+		"name": flag.Name, "description": flag.Description, "category": flag.Category,
+		"purpose": flag.Purpose, "owners": flag.Owners, "is_permanent": flag.IsPermanent,
+		"expires_at": flag.ExpiresAt, "default_value": flag.DefaultValue, "tags": flag.Tags,
+	})
+
 	if req.Name != "" {
 		flag.Name = req.Name
 	}
@@ -368,6 +380,13 @@ func (h *Handler) updateFlag(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
+
+	newVal, _ := json.Marshal(map[string]interface{}{
+		"name": flag.Name, "description": flag.Description, "category": flag.Category,
+		"purpose": flag.Purpose, "owners": flag.Owners, "is_permanent": flag.IsPermanent,
+		"expires_at": flag.ExpiresAt, "default_value": flag.DefaultValue, "tags": flag.Tags,
+	})
+	h.writeAudit(c, "flag.updated", "flag", flag.ID, string(oldVal), string(newVal))
 
 	h.broadcastEvent("flag.updated", id, "")
 
@@ -420,6 +439,8 @@ func (h *Handler) archiveFlag(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
+
+	h.writeAudit(c, "flag.archived", "flag", id, "", "")
 
 	h.broadcastEvent("flag.archived", id, "")
 
@@ -482,6 +503,10 @@ func (h *Handler) toggleFlag(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
+
+	h.writeAudit(c, "flag.toggled", "flag", id,
+		fmt.Sprintf(`{"enabled":%v}`, !req.Enabled),
+		fmt.Sprintf(`{"enabled":%v}`, req.Enabled))
 
 	// Broadcast toggle event to SSE clients.
 	h.broadcastEvent("flag.toggled", id, "")
@@ -841,6 +866,12 @@ func (h *Handler) addRule(c *gin.Context) {
 		return
 	}
 
+	newVal, _ := json.Marshal(map[string]interface{}{
+		"rule_id": rule.ID, "attribute": rule.Attribute, "operator": rule.Operator,
+		"target_values": rule.TargetValues, "value": rule.Value, "priority": rule.Priority,
+	})
+	h.writeAudit(c, "flag.rule.created", "flag", flagID, "", string(newVal))
+
 	h.broadcastEvent("rule.created", rule.FlagID, "")
 
 	c.JSON(http.StatusCreated, rule)
@@ -907,6 +938,8 @@ func (h *Handler) deleteRule(c *gin.Context) {
 		return
 	}
 
+	h.writeAudit(c, "flag.rule.deleted", "flag", flagID, fmt.Sprintf(`{"rule_id":"%s"}`, ruleID), "")
+
 	h.broadcastEvent("rule.deleted", flagID, "")
 
 	c.JSON(http.StatusNoContent, nil)
@@ -957,6 +990,13 @@ func (h *Handler) setRuleEnvState(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	flagID, _ := uuid.Parse(c.Param("id"))
+	newVal, _ := json.Marshal(map[string]interface{}{
+		"rule_id": ruleID, "environment_id": envID, "enabled": req.Enabled,
+	})
+	h.writeAudit(c, "flag.rule.env_state.updated", "flag", flagID, "", string(newVal))
+
 	c.JSON(http.StatusOK, state)
 }
 
@@ -1031,6 +1071,12 @@ func (h *Handler) setFlagEnvState(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
+
+	newVal, _ := json.Marshal(map[string]interface{}{
+		"environment_id": envID, "enabled": req.Enabled, "value": req.Value,
+	})
+	h.writeAudit(c, "flag.env_state.updated", "flag", flagID, "", string(newVal))
+
 	c.JSON(http.StatusOK, state)
 }
 

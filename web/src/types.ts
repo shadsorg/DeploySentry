@@ -41,6 +41,7 @@ export interface Flag {
   archived: boolean;
   tags: string[];
   created_by: string;
+  created_by_name?: string;
   created_at: string;
   updated_at: string;
 }
@@ -311,4 +312,18 @@ export interface DeploymentPhase {
   auto_promote: boolean;
   started_at?: string;
   completed_at?: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  org_id: string;
+  project_id: string;
+  actor_id: string;
+  actor_name: string;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  old_value: string;
+  new_value: string;
+  created_at: string;
 }

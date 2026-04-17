@@ -18,6 +18,7 @@ import type {
   OrgEnvironment,
   DeleteResult,
   RuleEnvironmentState,
+  AuditLogEntry,
 } from './types';
 
 const BASE = '/api/v1';
@@ -541,4 +542,16 @@ export const notificationsApi = {
     request<{ reset: boolean }>('/notifications/preferences', {
       method: 'DELETE',
     }),
+};
+
+// Audit Log
+export const auditApi = {
+  query: (params: { resource_type?: string; resource_id?: string; limit?: number; offset?: number }) => {
+    const qs = new URLSearchParams();
+    if (params.resource_type) qs.set('resource_type', params.resource_type);
+    if (params.resource_id) qs.set('resource_id', params.resource_id);
+    if (params.limit) qs.set('limit', String(params.limit));
+    if (params.offset) qs.set('offset', String(params.offset));
+    return request<{ entries: AuditLogEntry[]; total: number }>(`/audit-log?${qs}`);
+  },
 };

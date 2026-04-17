@@ -19,6 +19,8 @@ import type {
   DeleteResult,
   RuleEnvironmentState,
   AuditLogEntry,
+  Agent,
+  AgentHeartbeat,
 } from './types';
 
 const BASE = '/api/v1';
@@ -111,6 +113,16 @@ export const deploymentsApi = {
   desiredState: (id: string) => request<any>(`/deployments/${id}/desired-state`),
   rollbackHistory: (id: string) => request<{ rollbacks: any[] }>(`/deployments/${id}/rollback-history`),
   phases: (id: string) => request<{ phases: DeploymentPhase[] }>(`/deployments/${id}/phases`),
+};
+
+// Agents
+export const agentsApi = {
+  listByApp: (appId: string) =>
+    request<{ agents: Agent[] }>(`/applications/${appId}/agents`),
+  heartbeats: (agentId: string, deploymentId?: string) => {
+    const qs = deploymentId ? `?deployment_id=${deploymentId}` : '';
+    return request<{ heartbeats: AgentHeartbeat[] }>(`/agents/${agentId}/heartbeats${qs}`);
+  },
 };
 
 // Releases

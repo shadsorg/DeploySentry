@@ -327,3 +327,47 @@ export interface AuditLogEntry {
   new_value: string;
   created_at: string;
 }
+
+export type AgentStatus = 'connected' | 'stale' | 'disconnected';
+
+export interface Agent {
+  id: string;
+  app_id: string;
+  environment_id: string;
+  status: AgentStatus;
+  version: string;
+  upstream_config: Record<string, string>;
+  last_seen_at: string;
+  registered_at: string;
+}
+
+export interface UpstreamMetrics {
+  rps: number;
+  error_rate: number;
+  p99_ms: number;
+  p50_ms: number;
+}
+
+export interface ActiveRules {
+  weights: Record<string, number>;
+  header_overrides?: { header: string; value: string; upstream: string }[];
+  sticky_sessions?: { enabled: boolean; strategy?: string; ttl?: string };
+}
+
+export interface HeartbeatPayload {
+  agent_id: string;
+  deployment_id?: string;
+  config_version: number;
+  actual_traffic: Record<string, number>;
+  upstreams: Record<string, UpstreamMetrics>;
+  active_rules: ActiveRules;
+  envoy_healthy: boolean;
+}
+
+export interface AgentHeartbeat {
+  id: string;
+  agent_id: string;
+  deployment_id?: string;
+  payload: HeartbeatPayload;
+  created_at: string;
+}

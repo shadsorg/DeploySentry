@@ -1241,6 +1241,11 @@ func (h *Handler) streamFlags(c *gin.Context) {
 	c.Header("Connection", "keep-alive")
 	c.Header("X-Accel-Buffering", "no")
 
+	// Disable the server's WriteTimeout for this connection. SSE streams
+	// are long-lived — the default 15s WriteTimeout kills them.
+	rc := http.NewResponseController(c.Writer)
+	_ = rc.SetWriteDeadline(time.Time{})
+
 	// Flush headers and an immediate heartbeat so proxies (Cloudflare,
 	// Nginx) see a valid response right away and start streaming instead
 	// of buffering. Without this, the client may wait up to 20s for the

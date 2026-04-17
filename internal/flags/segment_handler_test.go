@@ -26,7 +26,7 @@ func setupSegmentRouter(svc FlagService) *gin.Engine {
 		c.Next()
 	})
 	rbac := auth.NewRBACChecker()
-	handler := NewHandler(svc, rbac, nil, nil, nil)
+	handler := NewHandler(svc, rbac, nil, nil, nil, nil, nil)
 	handler.RegisterRoutes(router.Group("/api"))
 	handler.RegisterSegmentRoutes(router.Group("/api"))
 	return router

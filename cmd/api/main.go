@@ -323,7 +323,7 @@ func run() error {
 	}
 	rateLimiter := middleware.NewRateLimiter(rdb.Client, rateLimitConfig)
 	apiKeyValidator := &apiKeyValidatorAdapter{service: apiKeyService}
-	authMiddleware := auth.NewAuthMiddleware(cfg.Auth.JWTSecret, apiKeyValidator)
+	authMiddleware := auth.NewAuthMiddleware(cfg.Auth.JWTSecret, apiKeyValidator, envRepo)
 
 	// -------------------------------------------------------------------------
 	// Routes
@@ -336,7 +336,7 @@ func run() error {
 	orgRoleLookup := postgres.NewOrgRoleLookup(db.Pool)
 	api.Use(auth.ResolveOrgRole(orgRoleLookup))
 
-	flagHandler := flags.NewHandler(flagService, rbacChecker, webhookService, analyticsService, entityRepo)
+	flagHandler := flags.NewHandler(flagService, rbacChecker, webhookService, analyticsService, entityRepo, envRepo, auditRepo)
 	flagHandler.SetRatingService(ratingService)
 	flagHandler.RegisterRoutes(api)
 	flagHandler.RegisterSegmentRoutes(api)

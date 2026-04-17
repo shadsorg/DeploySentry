@@ -214,7 +214,7 @@ func setupFlagRouter(svc FlagService) *gin.Engine {
 		c.Next()
 	})
 	rbac := auth.NewRBACChecker()
-	handler := NewHandler(svc, rbac, nil, nil, nil)
+	handler := NewHandler(svc, rbac, nil, nil, nil, nil, nil)
 	handler.RegisterRoutes(router.Group("/api"))
 	return router
 }
@@ -865,7 +865,7 @@ func setupFlagRouterWithRatings(svc FlagService, ratingSvc FlagRatingSvc) *gin.E
 		c.Next()
 	})
 	rbac := auth.NewRBACChecker()
-	handler := NewHandler(svc, rbac, nil, nil, nil)
+	handler := NewHandler(svc, rbac, nil, nil, nil, nil, nil)
 	handler.SetRatingService(ratingSvc)
 	handler.RegisterRoutes(router.Group("/api"))
 	return router

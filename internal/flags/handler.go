@@ -3,6 +3,7 @@ package flags
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -19,9 +20,20 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// EntityAppResolver resolves application slugs to models.
-type EntityAppResolver interface {
+// EntityResolver resolves slugs to entity models for SDK-facing endpoints.
+type EntityResolver interface {
 	GetAppBySlug(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
+	GetProjectBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error)
+}
+
+// EnvironmentSlugResolver resolves an environment slug to its UUID.
+type EnvironmentSlugResolver interface {
+	ResolveEnvironmentSlug(ctx context.Context, orgID uuid.UUID, slug string) (uuid.UUID, error)
+}
+
+// AuditWriter persists audit log entries.
+type AuditWriter interface {
+	WriteAuditLog(ctx context.Context, entry *models.AuditLogEntry) error
 }
 
 // FlagRatingSvc is the subset of ratings.RatingService needed by the flags handler.
@@ -47,11 +59,13 @@ type Handler struct {
 	webhookSvc   *webhooks.Service
 	analyticsSvc *analytics.Service
 	ratingSvc    FlagRatingSvc
-	entityRepo   EntityAppResolver
+	entityRepo   EntityResolver
+	envResolver  EnvironmentSlugResolver
+	auditWriter  AuditWriter
 }
 
 // NewHandler creates a new feature flag HTTP handler.
-func NewHandler(service FlagService, rbac *auth.RBACChecker, webhookSvc *webhooks.Service, analyticsSvc *analytics.Service, entityRepo EntityAppResolver) *Handler {
+func NewHandler(service FlagService, rbac *auth.RBACChecker, webhookSvc *webhooks.Service, analyticsSvc *analytics.Service, entityRepo EntityResolver, envResolver EnvironmentSlugResolver, auditWriter AuditWriter) *Handler {
 	return &Handler{
 		service:      service,
 		rbac:         rbac,
@@ -59,6 +73,8 @@ func NewHandler(service FlagService, rbac *auth.RBACChecker, webhookSvc *webhook
 		webhookSvc:   webhookSvc,
 		analyticsSvc: analyticsSvc,
 		entityRepo:   entityRepo,
+		envResolver:  envResolver,
+		auditWriter:  auditWriter,
 	}
 }
 
@@ -239,10 +255,9 @@ func (h *Handler) listFlags(c *gin.Context) {
 		return
 	}
 
-	projectID, err := uuid.Parse(projectIDStr)
+	projectID, err := h.resolveProjectID(c, projectIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid project_id"})
-		return
+		return // response already written
 	}
 
 	opts := ListOptions{Limit: 20, Offset: 0}
@@ -532,10 +547,55 @@ func (h *Handler) bulkToggle(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"toggled": len(req.FlagIDs), "enabled": req.Enabled})
 }
 
+// resolveProjectID parses value as a UUID; if that fails it treats it as a
+// slug and looks up the project via the org_id set by auth middleware.
+func (h *Handler) resolveProjectID(c *gin.Context, value string) (uuid.UUID, error) {
+	if id, err := uuid.Parse(value); err == nil {
+		return id, nil
+	}
+	orgIDStr := c.GetString("org_id")
+	orgID, err := uuid.Parse(orgIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot resolve project slug without org context"})
+		return uuid.Nil, err
+	}
+	project, err := h.entityRepo.GetProjectBySlug(c.Request.Context(), orgID, value)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve project"})
+		return uuid.Nil, err
+	}
+	if project == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
+		return uuid.Nil, fmt.Errorf("project not found: %s", value)
+	}
+	return project.ID, nil
+}
+
+// resolveEnvironmentID parses value as a UUID; if that fails it treats it as a
+// slug and looks up the org-level environment via the org_id set by auth middleware.
+func (h *Handler) resolveEnvironmentID(c *gin.Context, value string) (uuid.UUID, error) {
+	if id, err := uuid.Parse(value); err == nil {
+		return id, nil
+	}
+	orgIDStr := c.GetString("org_id")
+	orgID, err := uuid.Parse(orgIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot resolve environment slug without org context"})
+		return uuid.Nil, err
+	}
+	envID, err := h.envResolver.ResolveEnvironmentSlug(c.Request.Context(), orgID, value)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "environment not found"})
+		return uuid.Nil, err
+	}
+	return envID, nil
+}
+
 // evaluateRequest is the JSON body for evaluating a feature flag.
+// ProjectID and EnvironmentID accept either a UUID or a slug string.
 type evaluateRequest struct {
-	ProjectID     uuid.UUID                `json:"project_id" binding:"required"`
-	EnvironmentID uuid.UUID                `json:"environment_id" binding:"required"`
+	ProjectID     string                   `json:"project_id" binding:"required"`
+	EnvironmentID string                   `json:"environment_id" binding:"required"`
 	FlagKey       string                   `json:"flag_key" binding:"required"`
 	Application   string                   `json:"application"`
 	Context       models.EvaluationContext `json:"context"`
@@ -548,8 +608,20 @@ func (h *Handler) evaluate(c *gin.Context) {
 		return
 	}
 
+	// Resolve project: UUID or slug.
+	projectID, err := h.resolveProjectID(c, req.ProjectID)
+	if err != nil {
+		return // response already written
+	}
+
+	// Resolve environment: UUID or slug.
+	environmentID, err := h.resolveEnvironmentID(c, req.EnvironmentID)
+	if err != nil {
+		return // response already written
+	}
+
 	if req.Application != "" {
-		app, err := h.entityRepo.GetAppBySlug(c.Request.Context(), req.ProjectID, req.Application)
+		app, err := h.entityRepo.GetAppBySlug(c.Request.Context(), projectID, req.Application)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to resolve application"})
 			return
@@ -561,7 +633,7 @@ func (h *Handler) evaluate(c *gin.Context) {
 	}
 
 	startTime := time.Now()
-	result, err := h.service.Evaluate(c.Request.Context(), req.ProjectID, req.EnvironmentID, req.FlagKey, req.Context)
+	result, err := h.service.Evaluate(c.Request.Context(), projectID, environmentID, req.FlagKey, req.Context)
 	latencyMs := float64(time.Since(startTime).Nanoseconds()) / 1e6
 
 	if err != nil {
@@ -575,8 +647,8 @@ func (h *Handler) evaluate(c *gin.Context) {
 			}
 
 			event := &models.FlagEvaluationEvent{
-				ProjectID:     req.ProjectID,
-				EnvironmentID: req.EnvironmentID,
+				ProjectID:     projectID,
+				EnvironmentID: environmentID,
 				FlagKey:       req.FlagKey,
 				UserID:        req.Context.UserID,
 				ResultValue:   "",
@@ -617,8 +689,8 @@ func (h *Handler) evaluate(c *gin.Context) {
 		}
 
 		event := &models.FlagEvaluationEvent{
-			ProjectID:     req.ProjectID,
-			EnvironmentID: req.EnvironmentID,
+			ProjectID:     projectID,
+			EnvironmentID: environmentID,
 			FlagKey:       req.FlagKey,
 			UserID:        req.Context.UserID,
 			ResultValue:   result.Value,
@@ -1021,6 +1093,37 @@ func (h *Handler) broadcastEvent(event string, flagID uuid.UUID, flagKey string)
 	h.sse.Broadcast(string(data))
 }
 
+// writeAudit records an audit log entry. Failures are logged but do not fail the request.
+func (h *Handler) writeAudit(c *gin.Context, action, entityType string, entityID uuid.UUID, oldValue, newValue string) {
+	if h.auditWriter == nil {
+		return
+	}
+	var actorID uuid.UUID
+	if uid, exists := c.Get("user_id"); exists {
+		actorID, _ = uid.(uuid.UUID)
+	}
+	var orgID uuid.UUID
+	if oid := c.GetString("org_id"); oid != "" {
+		orgID, _ = uuid.Parse(oid)
+	}
+
+	entry := &models.AuditLogEntry{
+		OrgID:      orgID,
+		ActorID:    actorID,
+		Action:     action,
+		EntityType: entityType,
+		EntityID:   entityID,
+		OldValue:   oldValue,
+		NewValue:   newValue,
+		IPAddress:  c.ClientIP(),
+		UserAgent:  c.GetHeader("User-Agent"),
+		CreatedAt:  time.Now(),
+	}
+	if err := h.auditWriter.WriteAuditLog(c.Request.Context(), entry); err != nil {
+		log.Printf("failed to write audit log: %v", err)
+	}
+}
+
 // --- SSE (Server-Sent Events) support ---
 
 // SSEBroker manages Server-Sent Events clients for real-time flag change
@@ -1086,6 +1189,9 @@ func (h *Handler) streamFlags(c *gin.Context) {
 	defer h.sse.Unsubscribe(clientCh)
 
 	ctx := c.Request.Context()
+	heartbeat := time.NewTicker(20 * time.Second)
+	defer heartbeat.Stop()
+
 	c.Stream(func(w io.Writer) bool {
 		select {
 		case msg, ok := <-clientCh:
@@ -1093,6 +1199,11 @@ func (h *Handler) streamFlags(c *gin.Context) {
 				return false
 			}
 			c.SSEvent("flag_change", msg)
+			return true
+		case <-heartbeat.C:
+			// SSE comment to keep the connection alive through proxies.
+			_, _ = fmt.Fprintf(w, ": ping\n\n")
+			c.Writer.Flush()
 			return true
 		case <-ctx.Done():
 			return false

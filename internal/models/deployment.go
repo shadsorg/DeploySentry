@@ -77,6 +77,7 @@ type Deployment struct {
 	CommitSHA            string             `json:"commit_sha,omitempty" db:"commit_sha"`
 	TrafficPercent       int                `json:"traffic_percent" db:"traffic_percent"`
 	PreviousDeploymentID *uuid.UUID        `json:"previous_deployment_id,omitempty" db:"previous_deployment_id"`
+	FlagTestKey          *string            `json:"flag_test_key,omitempty" db:"flag_test_key"`
 	CreatedBy            uuid.UUID          `json:"created_by" db:"created_by"`
 	StartedAt      *time.Time         `json:"started_at,omitempty" db:"started_at"`
 	CompletedAt    *time.Time         `json:"completed_at,omitempty" db:"completed_at"`

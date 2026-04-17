@@ -30,7 +30,7 @@ func NewDeployRepository(pool *pgxpool.Pool) *DeployRepository {
 const deploymentSelectCols = `
 	id, application_id, environment_id, strategy, status,
 	artifact, version, COALESCE(commit_sha, ''),
-	traffic_percent, previous_deployment_id, created_by, started_at, completed_at,
+	traffic_percent, previous_deployment_id, flag_test_key, created_by, started_at, completed_at,
 	created_at, updated_at`
 
 // ---------------------------------------------------------------------------
@@ -53,6 +53,7 @@ func scanDeployment(row pgx.Row) (*models.Deployment, error) {
 		&d.CommitSHA,
 		&d.TrafficPercent,
 		&d.PreviousDeploymentID,
+		&d.FlagTestKey,
 		&d.CreatedBy,
 		&d.StartedAt,
 		&d.CompletedAt,
@@ -86,13 +87,13 @@ func (r *DeployRepository) CreateDeployment(ctx context.Context, d *models.Deplo
 		INSERT INTO deployments
 			(id, application_id, environment_id, strategy, status,
 			 artifact, version, commit_sha,
-			 traffic_percent, previous_deployment_id, created_by, started_at, completed_at,
+			 traffic_percent, previous_deployment_id, flag_test_key, created_by, started_at, completed_at,
 			 created_at, updated_at)
 		VALUES
 			($1, $2, $3, $4, $5,
 			 $6, $7, $8,
-			 $9, $10, $11, $12, $13,
-			 $14, $15)`
+			 $9, $10, $11, $12, $13, $14,
+			 $15, $16)`
 
 	_, err := r.pool.Exec(ctx, q,
 		d.ID,
@@ -105,6 +106,7 @@ func (r *DeployRepository) CreateDeployment(ctx context.Context, d *models.Deplo
 		d.CommitSHA,
 		d.TrafficPercent,
 		d.PreviousDeploymentID,
+		d.FlagTestKey,
 		d.CreatedBy,
 		d.StartedAt,
 		d.CompletedAt,

@@ -85,6 +85,7 @@ type createDeploymentRequest struct {
 	Artifact      string    `json:"artifact" binding:"required"`
 	Version       string    `json:"version" binding:"required"`
 	CommitSHA     string    `json:"commit_sha"`
+	FlagTestKey   *string   `json:"flag_test_key"`
 }
 
 func (h *Handler) createDeployment(c *gin.Context) {
@@ -108,6 +109,7 @@ func (h *Handler) createDeployment(c *gin.Context) {
 		Artifact:      req.Artifact,
 		Version:       req.Version,
 		CommitSHA:     req.CommitSHA,
+		FlagTestKey:   req.FlagTestKey,
 		CreatedBy:     createdBy,
 	}
 

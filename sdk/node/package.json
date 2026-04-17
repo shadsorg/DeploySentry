@@ -1,17 +1,35 @@
 {
-  "name": "@deploysentry/sdk",
-  "version": "1.0.0",
+  "name": "@dr-sentry/sdk",
+  "version": "1.0.2",
   "description": "Official Node.js SDK for the DeploySentry platform – feature flag evaluation with rich metadata",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    }
+  },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "npm run build:esm && npm run build:cjs && npm run build:cjs-package-json && npm run fix-esm-imports",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "fix-esm-imports": "node -e \"const fs=require('fs'),path=require('path'),dir='dist/esm';fs.readdirSync(dir).filter(f=>f.endsWith('.js')||f.endsWith('.d.ts')).forEach(f=>{const p=path.join(dir,f);let s=fs.readFileSync(p,'utf8');s=s.replace(/(from\\s+['\\\"])(\\.\\/.+?)(?=['\\\"])/g,(m,pre,spec)=>spec.endsWith('.js')?m:pre+spec+'.js');fs.writeFileSync(p,s)})\"",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build:cjs-package-json": "node -e \"require('fs').writeFileSync('dist/cjs/package.json', JSON.stringify({type:'commonjs'}));require('fs').writeFileSync('dist/esm/package.json', JSON.stringify({type:'module'}))\"",
+    "clean": "rm -rf dist",
     "test": "jest",
     "lint": "eslint src/",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run clean && npm run build"
   },
   "keywords": [
     "deploysentry",

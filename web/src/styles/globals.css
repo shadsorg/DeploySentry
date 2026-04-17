@@ -1170,6 +1170,15 @@ tbody tr:last-child td {
   margin-top: 8px;
   font-size: 11px;
   color: var(--color-text-muted);
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.detail-secondary span + span::before {
+  content: '\00b7';
+  margin-right: 16px;
+  color: var(--color-text-muted);
 }
 
 .detail-description {

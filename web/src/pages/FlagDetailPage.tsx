@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import type { Flag, TargetingRule, OrgEnvironment, FlagEnvironmentState, RuleEnvironmentState } from '@/types';
+import type { Flag, TargetingRule, OrgEnvironment, FlagEnvironmentState, RuleEnvironmentState, FlagCategory } from '@/types';
 import { flagsApi, entitiesApi, flagEnvStateApi } from '@/api';
 import type { Application } from '@/types';
 
@@ -77,7 +77,7 @@ export default function FlagDetailPage() {
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'rules' | 'environments' | 'yaml'>('rules');
+  const [activeTab, setActiveTab] = useState<'environments' | 'rules' | 'yaml' | 'settings' | 'history'>('environments');
   const [environments, setEnvironments] = useState<OrgEnvironment[]>([]);
   const [envStates, setEnvStates] = useState<FlagEnvironmentState[]>([]);
   const [ruleEnvStates, setRuleEnvStates] = useState<RuleEnvironmentState[]>([]);
@@ -90,6 +90,19 @@ export default function FlagDetailPage() {
     value: '',
     priority: 0,
   });
+  const [settingsForm, setSettingsForm] = useState<{
+    name: string;
+    description: string;
+    category: string;
+    purpose: string;
+    owners: string;
+    is_permanent: boolean;
+    expires_at: string;
+    default_value: string;
+    tags: string;
+  } | null>(null);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsSuccess, setSettingsSuccess] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -129,6 +142,22 @@ export default function FlagDetailPage() {
   useEffect(() => {
     setNewRule((prev) => ({ ...prev, priority: rules.length + 1 }));
   }, [rules]);
+
+  useEffect(() => {
+    if (flag) {
+      setSettingsForm({
+        name: flag.name,
+        description: flag.description ?? '',
+        category: flag.category,
+        purpose: flag.purpose ?? '',
+        owners: (flag.owners ?? []).join(', '),
+        is_permanent: flag.is_permanent,
+        expires_at: flag.expires_at ? flag.expires_at.slice(0, 16) : '',
+        default_value: flag.default_value,
+        tags: (flag.tags ?? []).join(', '),
+      });
+    }
+  }, [flag]);
 
   const handleAddRule = async () => {
     if (!id || !newRule.attribute || !newRule.value) return;
@@ -197,34 +226,67 @@ export default function FlagDetailPage() {
     });
   };
 
-  const handleEnvToggle = async (envId: string, currentEnabled: boolean) => {
+  const saveEnvState = async (envId: string, updates: { enabled?: boolean; value?: unknown }) => {
     if (!flag) return;
-    const nextEnabled = !currentEnabled;
-    // Optimistic update — create entry if it doesn't exist yet
-    setEnvStates((prev) => {
-      const existing = prev.find((s) => s.environment_id === envId);
+    const prev = envStates.find((s) => s.environment_id === envId);
+    const current = { enabled: prev?.enabled ?? false, value: prev?.value ?? null };
+    const next = { ...current, ...updates };
+
+    // Optimistic update
+    setEnvStates((states) => {
+      const existing = states.find((s) => s.environment_id === envId);
       if (existing) {
-        return prev.map((s) => (s.environment_id === envId ? { ...s, enabled: nextEnabled } : s));
+        return states.map((s) => (s.environment_id === envId ? { ...s, ...next } : s));
       }
-      return [...prev, { id: '', flag_id: flag.id, environment_id: envId, enabled: nextEnabled, updated_by: '', updated_at: '' } as FlagEnvironmentState];
+      return [...states, { id: '', flag_id: flag.id, environment_id: envId, enabled: next.enabled, value: next.value, updated_by: '', updated_at: '' } as FlagEnvironmentState];
     });
     try {
-      await flagEnvStateApi.set(flag.id, envId, { enabled: nextEnabled });
+      await flagEnvStateApi.set(flag.id, envId, next);
     } catch (err) {
       // Revert on failure
-      setEnvStates((prev) => {
-        const existing = prev.find((s) => s.environment_id === envId);
-        if (existing) {
-          return prev.map((s) => (s.environment_id === envId ? { ...s, enabled: currentEnabled } : s));
-        }
-        return prev.filter((s) => s.environment_id !== envId);
-      });
-      setError(err instanceof Error ? err.message : 'Failed to toggle environment');
+      setEnvStates((states) =>
+        states.map((s) => (s.environment_id === envId ? { ...s, ...current } : s)),
+      );
+      setError(err instanceof Error ? err.message : 'Failed to update environment state');
     }
+  };
+
+  const handleEnvToggle = (envId: string, currentEnabled: boolean) => {
+    saveEnvState(envId, { enabled: !currentEnabled });
+  };
+
+  const handleEnvValueChange = (envId: string, newValue: string) => {
+    saveEnvState(envId, { value: newValue });
   };
 
   const handleArchive = () => {
     setFlag((prev) => (prev ? { ...prev, archived: true } : prev));
+  };
+
+  const handleSettingsSave = async () => {
+    if (!flag || !settingsForm || !id) return;
+    setSettingsSaving(true);
+    setSettingsSuccess(false);
+    setError(null);
+    try {
+      const updated = await flagsApi.update(id, {
+        name: settingsForm.name,
+        description: settingsForm.description,
+        category: settingsForm.category as FlagCategory,
+        purpose: settingsForm.purpose,
+        owners: settingsForm.owners.split(',').map((s) => s.trim()).filter(Boolean),
+        is_permanent: settingsForm.is_permanent,
+        expires_at: settingsForm.is_permanent ? undefined : settingsForm.expires_at ? settingsForm.expires_at + ':00Z' : undefined,
+        default_value: settingsForm.default_value,
+      });
+      setFlag(updated);
+      setSettingsSuccess(true);
+      setTimeout(() => setSettingsSuccess(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update flag');
+    } finally {
+      setSettingsSaving(false);
+    }
   };
 
   return (
@@ -267,7 +329,7 @@ export default function FlagDetailPage() {
         </div>
 
         <div className="detail-secondary">
-          <span>Created by {flag.created_by}</span>
+          <span>Created by {flag.created_by_name || flag.created_by}</span>
           <span>Created {formatDateTime(flag.created_at)}</span>
           <span>Updated {formatDateTime(flag.updated_at)}</span>
         </div>
@@ -278,22 +340,34 @@ export default function FlagDetailPage() {
       {/* Tabs */}
       <div className="detail-tabs">
         <button
-          className={`detail-tab${activeTab === 'rules' ? ' active' : ''}`}
-          onClick={() => setActiveTab('rules')}
-        >
-          Targeting Rules
-        </button>
-        <button
           className={`detail-tab${activeTab === 'environments' ? ' active' : ''}`}
           onClick={() => setActiveTab('environments')}
         >
           Environments
         </button>
         <button
+          className={`detail-tab${activeTab === 'rules' ? ' active' : ''}`}
+          onClick={() => setActiveTab('rules')}
+        >
+          Targeting Rules
+        </button>
+        <button
           className={`detail-tab${activeTab === 'yaml' ? ' active' : ''}`}
           onClick={() => setActiveTab('yaml')}
         >
           YAML
+        </button>
+        <button
+          className={`detail-tab${activeTab === 'settings' ? ' active' : ''}`}
+          onClick={() => setActiveTab('settings')}
+        >
+          Settings
+        </button>
+        <button
+          className={`detail-tab${activeTab === 'history' ? ' active' : ''}`}
+          onClick={() => setActiveTab('history')}
+        >
+          History
         </button>
       </div>
 
@@ -404,9 +478,28 @@ export default function FlagDetailPage() {
                         {env.is_production && <span className="badge badge-enabled" style={{ fontSize: 11 }}>production</span>}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                        <span className="font-mono" style={{ fontSize: 13 }}>
-                          {state?.value != null ? String(state.value) : '\u2014'}
-                        </span>
+                        {flag.flag_type === 'boolean' ? (
+                          <select
+                            className="form-input"
+                            style={{ width: 90, fontSize: 13, padding: '2px 6px' }}
+                            value={state?.value != null ? String(state.value) : flag.default_value}
+                            onChange={(e) => handleEnvValueChange(env.id, e.target.value)}
+                          >
+                            <option value="true">true</option>
+                            <option value="false">false</option>
+                          </select>
+                        ) : (
+                          <input
+                            className="form-input font-mono"
+                            style={{ width: 120, fontSize: 13, padding: '2px 6px' }}
+                            value={state?.value != null ? String(state.value) : flag.default_value}
+                            onBlur={(e) => handleEnvValueChange(env.id, e.target.value)}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setEnvStates((s) => s.map((st) => st.environment_id === env.id ? { ...st, value: v } : st));
+                            }}
+                          />
+                        )}
                         <label className="toggle-switch">
                           <input type="checkbox" checked={isEnabled} onChange={() => handleEnvToggle(env.id, isEnabled)} />
                           <span className="toggle-track"></span>
@@ -480,6 +573,85 @@ export default function FlagDetailPage() {
           }}>
             {generateFlagYaml(flag, rules, environments, envStates, ruleEnvStates)}
           </pre>
+        </div>
+      )}
+
+      {/* Tab: Settings */}
+      {activeTab === 'settings' && settingsForm && (
+        <div className="card">
+          <div className="form-group">
+            <label className="form-label">Name</label>
+            <input className="form-input" value={settingsForm.name}
+              onChange={(e) => setSettingsForm({ ...settingsForm, name: e.target.value })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Description</label>
+            <textarea className="form-input" rows={3} value={settingsForm.description}
+              onChange={(e) => setSettingsForm({ ...settingsForm, description: e.target.value })} />
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Category</label>
+              <select className="form-select" value={settingsForm.category}
+                onChange={(e) => setSettingsForm({ ...settingsForm, category: e.target.value })}>
+                <option value="release">Release</option>
+                <option value="feature">Feature</option>
+                <option value="experiment">Experiment</option>
+                <option value="ops">Ops</option>
+                <option value="permission">Permission</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Default Value</label>
+              {flag.flag_type === 'boolean' ? (
+                <select className="form-select" value={settingsForm.default_value}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, default_value: e.target.value })}>
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              ) : (
+                <input className="form-input" value={settingsForm.default_value}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, default_value: e.target.value })} />
+              )}
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Purpose</label>
+            <input className="form-input" value={settingsForm.purpose}
+              onChange={(e) => setSettingsForm({ ...settingsForm, purpose: e.target.value })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Owners (comma-separated)</label>
+            <input className="form-input" value={settingsForm.owners}
+              onChange={(e) => setSettingsForm({ ...settingsForm, owners: e.target.value })} />
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input type="checkbox" checked={settingsForm.is_permanent}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, is_permanent: e.target.checked })} />
+                Permanent flag
+              </label>
+            </div>
+            {!settingsForm.is_permanent && (
+              <div className="form-group">
+                <label className="form-label">Expires At</label>
+                <input className="form-input" type="datetime-local" value={settingsForm.expires_at}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, expires_at: e.target.value })} />
+              </div>
+            )}
+          </div>
+          <div className="form-group">
+            <label className="form-label">Tags (comma-separated)</label>
+            <input className="form-input" value={settingsForm.tags}
+              onChange={(e) => setSettingsForm({ ...settingsForm, tags: e.target.value })} />
+          </div>
+          <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="btn btn-primary" onClick={handleSettingsSave} disabled={settingsSaving}>
+              {settingsSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+            {settingsSuccess && <span style={{ color: 'var(--color-success)', fontSize: 13 }}>Saved successfully</span>}
+          </div>
         </div>
       )}
 

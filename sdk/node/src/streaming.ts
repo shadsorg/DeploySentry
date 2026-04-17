@@ -1,7 +1,5 @@
-import { Flag } from './types';
-
-/** Callback invoked whenever a flag update arrives over SSE. */
-export type FlagUpdateHandler = (flags: Flag[]) => void;
+/** Callback invoked when an SSE event signals that flags have changed. */
+export type FlagChangeHandler = () => void;
 
 /** Callback invoked when the SSE connection encounters an error. */
 export type StreamErrorHandler = (error: Error) => void;
@@ -16,8 +14,8 @@ interface StreamOptions {
   url: string;
   /** Headers to attach to the request (e.g. Authorization). */
   headers: Record<string, string>;
-  /** Called when one or more flag updates are received. */
-  onUpdate: FlagUpdateHandler;
+  /** Called when the server signals that flags have changed. */
+  onChange: FlagChangeHandler;
   /** Called when the stream encounters an error. */
   onError?: StreamErrorHandler;
 }
@@ -37,13 +35,13 @@ export class FlagStreamClient {
 
   private readonly url: string;
   private readonly headers: Record<string, string>;
-  private readonly onUpdate: FlagUpdateHandler;
+  private readonly onChange: FlagChangeHandler;
   private readonly onError: StreamErrorHandler;
 
   constructor(options: StreamOptions) {
     this.url = options.url;
     this.headers = options.headers;
-    this.onUpdate = options.onUpdate;
+    this.onChange = options.onChange;
     this.onError = options.onError ?? (() => {});
   }
 
@@ -138,24 +136,21 @@ export class FlagStreamClient {
 
   private processEvent(raw: string): void {
     let eventType = 'message';
-    let data = '';
 
     for (const line of raw.split('\n')) {
       if (line.startsWith('event:')) {
         eventType = line.slice(6).trim();
-      } else if (line.startsWith('data:')) {
-        data += line.slice(5).trim();
+      } else if (line.startsWith(':')) {
+        // SSE comment (heartbeat) — ignore.
+        return;
       }
     }
 
+    // The server sends SSEEvent notifications (flag_id, flag_key, event type)
+    // not full Flag objects. Treat any flag_change event as an invalidation
+    // signal and let the client re-fetch the current flag state.
     if (eventType === 'flag_change' || eventType === 'flag_update' || eventType === 'message') {
-      try {
-        const parsed = JSON.parse(data);
-        const flags: Flag[] = Array.isArray(parsed) ? parsed : [parsed];
-        this.onUpdate(flags);
-      } catch {
-        // Ignore malformed payloads (e.g. keep-alive comments).
-      }
+      this.onChange();
     }
   }
 

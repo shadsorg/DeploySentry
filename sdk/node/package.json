@@ -1,6 +1,6 @@
 {
   "name": "@dr-sentry/sdk",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Official Node.js SDK for the DeploySentry platform – feature flag evaluation with rich metadata",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.js",

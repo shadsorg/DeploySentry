@@ -2,7 +2,6 @@ import { test, expect } from '@playwright/test';
 import { seedOrgProjectAppViaUI, type SeededContext } from '../helpers/seed-via-ui';
 import {
   startNodeProbe,
-  startReactProbe,
   waitForValue,
 } from '../helpers/sdk-driver';
 import {
@@ -14,8 +13,6 @@ import {
   enableFlagViaApi,
   updateFlagDefaultValue,
 } from '../helpers/flag-ui';
-
-const HARNESS_URL = process.env.DS_E2E_REACT_HARNESS_URL ?? 'http://localhost:4310';
 
 let seeded: SeededContext;
 
@@ -84,7 +81,6 @@ test('Scenario A: baseline propagation — Node SDK observes UI-driven toggle wi
       timeoutMs: 5_000,
     });
 
-    // eslint-disable-next-line no-console
     console.log(
       `[scenario-A] latency: node=${nodeLatency}ms ` +
         `(click at perfNow=${clickAt.toFixed(0)})`,
@@ -222,7 +218,6 @@ test('Scenario C: variant delivery — Node probe observes string value change',
       timeoutMs: 5_000,
     });
 
-    // eslint-disable-next-line no-console
     console.log(`[scenario-C] latency: node=${latency}ms`);
     expect(latency).toBeLessThan(2_000);
   } finally {

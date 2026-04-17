@@ -30,7 +30,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
+          version: v1.60.3
           args: --timeout=5m
 
   lint-ui:
@@ -49,7 +49,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: web
-        run: npm ci --ignore-scripts
+        run: npm install && npm ci --ignore-scripts
 
       - name: Run ESLint
         working-directory: web

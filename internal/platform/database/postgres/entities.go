@@ -573,6 +573,20 @@ func (r *EntityRepository) RestoreApp(ctx context.Context, id uuid.UUID) error {
 }
 
 // ---------------------------------------------------------------------------
+// User lookup
+// ---------------------------------------------------------------------------
+
+// GetUserName returns the display name for a user by ID.
+func (r *EntityRepository) GetUserName(ctx context.Context, id uuid.UUID) (string, error) {
+	var name string
+	err := r.pool.QueryRow(ctx, `SELECT COALESCE(name, email) FROM users WHERE id = $1`, id).Scan(&name)
+	if err != nil {
+		return "", err
+	}
+	return name, nil
+}
+
+// ---------------------------------------------------------------------------
 // Flag activity query
 // ---------------------------------------------------------------------------
 

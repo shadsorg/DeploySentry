@@ -24,6 +24,7 @@ import (
 type EntityResolver interface {
 	GetAppBySlug(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
 	GetProjectBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error)
+	GetUserName(ctx context.Context, id uuid.UUID) (string, error)
 }
 
 // EnvironmentSlugResolver resolves an environment slug to its UUID.
@@ -47,6 +48,7 @@ type FlagRatingSvc interface {
 // flagWithRatings wraps a FeatureFlag with optional rating and error data.
 type flagWithRatings struct {
 	*models.FeatureFlag
+	CreatedByName string               `json:"created_by_name,omitempty"`
 	RatingSummary *models.RatingSummary `json:"rating_summary,omitempty"`
 	ErrorRate     *models.ErrorSummary  `json:"error_rate,omitempty"`
 }
@@ -227,8 +229,16 @@ func (h *Handler) getFlag(c *gin.Context) {
 		return
 	}
 
+	createdByName := ""
+	if flag.CreatedBy != uuid.Nil {
+		if name, err := h.entityRepo.GetUserName(c.Request.Context(), flag.CreatedBy); err == nil {
+			createdByName = name
+		}
+	}
+
 	if h.ratingSvc != nil {
 		resp := &flagWithRatings{FeatureFlag: flag}
+		resp.CreatedByName = createdByName
 
 		// Always attach error summary for the trailing 7-day window.
 		if errSummary, err := h.ratingSvc.GetErrorSummary(c.Request.Context(), id, 7*24*time.Hour); err == nil {
@@ -251,7 +261,7 @@ func (h *Handler) getFlag(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, flag)
+	c.JSON(http.StatusOK, &flagWithRatings{FeatureFlag: flag, CreatedByName: createdByName})
 }
 
 func (h *Handler) listFlags(c *gin.Context) {

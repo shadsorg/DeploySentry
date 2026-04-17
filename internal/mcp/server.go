@@ -25,12 +25,22 @@ func NewServer() *server.MCPServer {
 	s.AddTool(createAPIKeyTool, handleCreateAPIKey)
 	s.AddTool(appDeployStatusTool, handleAppDeployStatus)
 	s.AddTool(generateWorkflowTool, handleGenerateWorkflow)
+	s.AddTool(createDeploymentTool, handleCreateDeployment)
+	s.AddTool(promoteDeploymentTool, handlePromoteDeployment)
+	s.AddTool(rollbackDeploymentTool, handleRollbackDeployment)
+	s.AddTool(advanceDeploymentTool, handleAdvanceDeployment)
+	s.AddTool(deploymentPhasesTool, handleDeploymentPhases)
 
 	// Flags
 	s.AddTool(listFlagsTool, handleListFlags)
 	s.AddTool(getFlagTool, handleGetFlag)
 	s.AddTool(createFlagTool, handleCreateFlag)
 	s.AddTool(toggleFlagTool, handleToggleFlag)
+
+	// Agents & Traffic
+	s.AddTool(listAgentsTool, handleListAgents)
+	s.AddTool(getTrafficStateTool, handleGetTrafficState)
+	s.AddTool(setupLocalDeployTool, handleSetupLocalDeploy)
 
 	return s
 }

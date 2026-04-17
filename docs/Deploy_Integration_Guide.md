@@ -6,6 +6,8 @@
 
 This guide covers how to connect a GitHub repository to DeploySentry so that deployments are automatically created, monitored, and (optionally) rolled back when you push or release code. It covers setup on three sides: DeploySentry, GitHub, and your repository.
 
+> **Traffic splitting:** For controlling traffic between versions with Envoy and the DeploySentry agent sidecar, see the [Traffic Management Guide](./Traffic_Management_Guide.md).
+
 ---
 
 ## How It Works

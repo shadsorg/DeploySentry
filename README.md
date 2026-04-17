@@ -998,6 +998,8 @@ DeploySentry supports three deployment strategies:
 | **Blue/Green** | Atomic traffic switch with instant rollback | Zero-downtime releases |
 | **Rolling** | Batch-based instance updates | Stateless services, fast rollouts |
 
+See the [Traffic Management Guide](docs/Traffic_Management_Guide.md) for controlling traffic splitting with the DeploySentry agent sidecar and Envoy proxy, including flag canary testing.
+
 ```bash
 # Create a canary deployment
 deploysentry deploy create --strategy canary --version v2.1.0 --env production

@@ -78,13 +78,6 @@ func (p *Project) Validate() error {
 	return nil
 }
 
-// FlagActivitySummary describes a flag with recent evaluation activity.
-type FlagActivitySummary struct {
-	Key           string    `json:"key"`
-	Name          string    `json:"name"`
-	LastEvaluated time.Time `json:"last_evaluated"`
-}
-
 // DeleteResult describes the outcome of a delete operation.
 type DeleteResult struct {
 	Deleted               string                `json:"deleted,omitempty"`

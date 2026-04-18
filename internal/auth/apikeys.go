@@ -295,7 +295,6 @@ func (s *APIKeyService) RotateKey(ctx context.Context, oldKeyID uuid.UUID, creat
 		createdBy,
 		oldKey.EnvironmentIDs,
 		oldKey.ExpiresAt,
-		oldKey.AllowedCIDRs,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("generating rotated key: %w", err)

@@ -301,6 +301,13 @@ func (h *Handler) listFlags(c *gin.Context) {
 	// onto each flag so SDKs see the environment-specific toggle.
 	if envIDStr := c.Query("environment_id"); envIDStr != "" {
 		envID, envErr := uuid.Parse(envIDStr)
+		if envErr != nil && h.envResolver != nil {
+			// Treat as a slug and resolve to UUID.
+			orgIDStr := c.GetString("org_id")
+			if orgID, oErr := uuid.Parse(orgIDStr); oErr == nil {
+				envID, envErr = h.envResolver.ResolveEnvironmentSlug(c.Request.Context(), orgID, envIDStr)
+			}
+		}
 		if envErr == nil {
 			for _, f := range flags {
 				states, sErr := h.service.ListFlagEnvStates(c.Request.Context(), f.ID)

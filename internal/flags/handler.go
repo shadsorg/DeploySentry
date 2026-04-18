@@ -317,6 +317,9 @@ func (h *Handler) listFlags(c *gin.Context) {
 				for _, s := range states {
 					if s.EnvironmentID == envID {
 						f.Enabled = s.Enabled
+						if s.Value != nil {
+							f.DefaultValue = string(*s.Value)
+						}
 						break
 					}
 				}

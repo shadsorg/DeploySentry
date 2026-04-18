@@ -387,7 +387,7 @@ export class DeploySentryClient {
   private async fetchAllFlags(): Promise<Flag[]> {
     const response = await this.request<{ flags: RawFlag[] }>(
       'GET',
-      `/api/v1/flags?project_id=${enc(this.project)}&application=${enc(this.application)}`,
+      `/api/v1/flags?project_id=${enc(this.project)}&application=${enc(this.application)}&environment_id=${enc(this.environment)}`,
     );
     return (response.flags ?? []).map(mapRawFlag);
   }

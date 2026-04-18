@@ -297,6 +297,26 @@ func (h *Handler) listFlags(c *gin.Context) {
 		return
 	}
 
+	// When environment_id is provided, overlay per-environment enabled state
+	// onto each flag so SDKs see the environment-specific toggle.
+	if envIDStr := c.Query("environment_id"); envIDStr != "" {
+		envID, envErr := uuid.Parse(envIDStr)
+		if envErr == nil {
+			for _, f := range flags {
+				states, sErr := h.service.ListFlagEnvStates(c.Request.Context(), f.ID)
+				if sErr != nil {
+					continue
+				}
+				for _, s := range states {
+					if s.EnvironmentID == envID {
+						f.Enabled = s.Enabled
+						break
+					}
+				}
+			}
+		}
+	}
+
 	if h.ratingSvc != nil {
 		enriched := make([]*flagWithRatings, len(flags))
 		orgIDStr := c.GetString("org_id")

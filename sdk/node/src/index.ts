@@ -1,9 +1,9 @@
 /**
- * @deploysentry/sdk – Official Node.js/TypeScript SDK for DeploySentry.
+ * @dr-sentry/sdk – Official Node.js/TypeScript SDK for DeploySentry.
  *
  * @example
  * ```ts
- * import { DeploySentryClient } from '@deploysentry/sdk';
+ * import { DeploySentryClient } from '@dr-sentry/sdk';
  *
  * const client = new DeploySentryClient({
  *   apiKey: 'ds_live_xxx',

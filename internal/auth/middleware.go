@@ -78,19 +78,26 @@ type APIKeyInfo struct {
 	Scopes         []string    `json:"scopes"`
 }
 
+// EnvironmentSlugResolver resolves an environment slug to its UUID within an org.
+type EnvironmentSlugResolver interface {
+	ResolveEnvironmentSlug(ctx context.Context, orgID uuid.UUID, slug string) (uuid.UUID, error)
+}
+
 // AuthMiddleware provides Gin middleware for authenticating requests via
 // JWT bearer tokens or API keys.
 type AuthMiddleware struct {
 	jwtSecret    []byte
 	keyValidator APIKeyValidator
+	envResolver  EnvironmentSlugResolver
 }
 
 // NewAuthMiddleware creates a new AuthMiddleware with the given JWT secret
 // and optional API key validator.
-func NewAuthMiddleware(jwtSecret string, keyValidator APIKeyValidator) *AuthMiddleware {
+func NewAuthMiddleware(jwtSecret string, keyValidator APIKeyValidator, envResolver EnvironmentSlugResolver) *AuthMiddleware {
 	return &AuthMiddleware{
 		jwtSecret:    []byte(jwtSecret),
 		keyValidator: keyValidator,
+		envResolver:  envResolver,
 	}
 }
 
@@ -236,9 +243,17 @@ func (m *AuthMiddleware) authenticateAPIKey(c *gin.Context, key string) bool {
 			}
 		}
 		if targetEnv != "" {
+			// Resolve slug to UUID if needed.
+			targetID, parseErr := uuid.Parse(targetEnv)
+			if parseErr != nil && m.envResolver != nil && info.OrgID != nil {
+				resolved, resolveErr := m.envResolver.ResolveEnvironmentSlug(c.Request.Context(), *info.OrgID, targetEnv)
+				if resolveErr == nil {
+					targetID = resolved
+				}
+			}
 			allowed := false
 			for _, eid := range info.EnvironmentIDs {
-				if eid.String() == targetEnv {
+				if eid == targetID {
 					allowed = true
 					break
 				}

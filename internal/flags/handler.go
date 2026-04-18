@@ -229,6 +229,31 @@ func (h *Handler) getFlag(c *gin.Context) {
 		return
 	}
 
+	// Overlay per-environment state when environment_id is provided.
+	if envIDStr := c.Query("environment_id"); envIDStr != "" {
+		envID, envErr := uuid.Parse(envIDStr)
+		if envErr != nil && h.envResolver != nil {
+			orgIDStr := c.GetString("org_id")
+			if orgID, oErr := uuid.Parse(orgIDStr); oErr == nil {
+				envID, envErr = h.envResolver.ResolveEnvironmentSlug(c.Request.Context(), orgID, envIDStr)
+			}
+		}
+		if envErr == nil {
+			states, sErr := h.service.ListFlagEnvStates(c.Request.Context(), flag.ID)
+			if sErr == nil {
+				for _, s := range states {
+					if s.EnvironmentID == envID {
+						flag.Enabled = s.Enabled
+						if s.Value != nil {
+							flag.DefaultValue = unquoteJSON(*s.Value)
+						}
+						break
+					}
+				}
+			}
+		}
+	}
+
 	createdByName := ""
 	if flag.CreatedBy != uuid.Nil {
 		if name, err := h.entityRepo.GetUserName(c.Request.Context(), flag.CreatedBy); err == nil {
@@ -295,6 +320,36 @@ func (h *Handler) listFlags(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list flags"})
 		return
+	}
+
+	// When environment_id is provided, overlay per-environment enabled state
+	// onto each flag so SDKs see the environment-specific toggle.
+	if envIDStr := c.Query("environment_id"); envIDStr != "" {
+		envID, envErr := uuid.Parse(envIDStr)
+		if envErr != nil && h.envResolver != nil {
+			// Treat as a slug and resolve to UUID.
+			orgIDStr := c.GetString("org_id")
+			if orgID, oErr := uuid.Parse(orgIDStr); oErr == nil {
+				envID, envErr = h.envResolver.ResolveEnvironmentSlug(c.Request.Context(), orgID, envIDStr)
+			}
+		}
+		if envErr == nil {
+			for _, f := range flags {
+				states, sErr := h.service.ListFlagEnvStates(c.Request.Context(), f.ID)
+				if sErr != nil {
+					continue
+				}
+				for _, s := range states {
+					if s.EnvironmentID == envID {
+						f.Enabled = s.Enabled
+						if s.Value != nil {
+							f.DefaultValue = unquoteJSON(*s.Value)
+						}
+						break
+					}
+				}
+			}
+		}
 	}
 
 	if h.ratingSvc != nil {
@@ -1007,6 +1062,8 @@ func (h *Handler) setRuleEnvState(c *gin.Context) {
 	})
 	h.writeAudit(c, "flag.rule.env_state.updated", "flag", flagID, "", string(newVal))
 
+	h.broadcastEvent("rule.updated", flagID, "")
+
 	c.JSON(http.StatusOK, state)
 }
 
@@ -1087,6 +1144,8 @@ func (h *Handler) setFlagEnvState(c *gin.Context) {
 	})
 	h.writeAudit(c, "flag.env_state.updated", "flag", flagID, "", string(newVal))
 
+	h.broadcastEvent("flag.updated", flagID, "")
+
 	c.JSON(http.StatusOK, state)
 }
 
@@ -1136,6 +1195,17 @@ type SSEEvent struct {
 	FlagID    string    `json:"flag_id"`
 	FlagKey   string    `json:"flag_key,omitempty"`
 	Timestamp time.Time `json:"timestamp"`
+}
+
+// unquoteJSON strips JSON string encoding from a raw value. If the value is
+// a JSON string like `"true"`, it returns `true`. For non-string JSON (numbers,
+// booleans, objects) it returns the raw bytes as a string.
+func unquoteJSON(raw json.RawMessage) string {
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return s
+	}
+	return string(raw)
 }
 
 // broadcastEvent serialises an SSEEvent and sends it to all connected clients.
@@ -1219,11 +1289,12 @@ func (b *SSEBroker) Unsubscribe(ch chan string) {
 func (b *SSEBroker) Broadcast(msg string) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
+	log.Printf("SSE broadcast to %d clients: %s", len(b.clients), msg)
 	for ch := range b.clients {
 		select {
 		case ch <- msg:
 		default:
-			// Skip slow clients to avoid blocking.
+			log.Printf("SSE: dropped message for slow client")
 		}
 	}
 }
@@ -1241,6 +1312,10 @@ func (h *Handler) streamFlags(c *gin.Context) {
 	c.Header("Connection", "keep-alive")
 	c.Header("X-Accel-Buffering", "no")
 
+	// Disable the server's WriteTimeout for this connection. SSE streams
+	// are long-lived — the default 15s WriteTimeout kills them.
+	rc := http.NewResponseController(c.Writer)
+	_ = rc.SetWriteDeadline(time.Time{})
 	// Flush headers and an immediate heartbeat so proxies (Cloudflare,
 	// Nginx) see a valid response right away and start streaming instead
 	// of buffering. Without this, the client may wait up to 20s for the
@@ -1253,7 +1328,9 @@ func (h *Handler) streamFlags(c *gin.Context) {
 	defer h.sse.Unsubscribe(clientCh)
 
 	ctx := c.Request.Context()
-	heartbeat := time.NewTicker(20 * time.Second)
+	// Cloudflare terminates idle HTTP/2 streams after ~15s on some plans.
+	// Send heartbeats every 10s to stay well within the window.
+	heartbeat := time.NewTicker(10 * time.Second)
 	defer heartbeat.Stop()
 
 	c.Stream(func(w io.Writer) bool {
@@ -1263,6 +1340,7 @@ func (h *Handler) streamFlags(c *gin.Context) {
 				return false
 			}
 			c.SSEvent("flag_change", msg)
+			c.Writer.Flush()
 			return true
 		case <-heartbeat.C:
 			// SSE comment to keep the connection alive through proxies.

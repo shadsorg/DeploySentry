@@ -8,13 +8,13 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  deploysentry_flutter: ^1.0.0
+  dr_sentry_flutter: ^1.0.0
 ```
 
 ## Quick Start
 
 ```dart
-import 'package:deploysentry_flutter/deploysentry_flutter.dart';
+import 'package:dr_sentry_flutter/dr_sentry_flutter.dart';
 
 final client = DeploySentryClient(
   apiKey: 'your-api-key',

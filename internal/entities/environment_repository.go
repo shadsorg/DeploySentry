@@ -101,6 +101,18 @@ func (r *EnvironmentRepository) GetBySlug(ctx context.Context, orgID uuid.UUID, 
 	return &env, nil
 }
 
+// ResolveEnvironmentSlug looks up an environment by org and slug, returning its UUID.
+func (r *EnvironmentRepository) ResolveEnvironmentSlug(ctx context.Context, orgID uuid.UUID, slug string) (uuid.UUID, error) {
+	env, err := r.GetBySlug(ctx, orgID, slug)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if env == nil {
+		return uuid.Nil, fmt.Errorf("environment not found: %s", slug)
+	}
+	return env.ID, nil
+}
+
 func (r *EnvironmentRepository) Create(ctx context.Context, env *OrgEnvironment) error {
 	env.ID = uuid.New()
 	now := time.Now().UTC()

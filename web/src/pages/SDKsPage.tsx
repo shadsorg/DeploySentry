@@ -30,8 +30,8 @@ const SDKS: SDK[] = [
     name: 'Node.js / TypeScript',
     iconLetter: 'N',
     iconColor: '#339933',
-    packageName: '@deploysentry/sdk',
-    installCmd: 'npm install @deploysentry/sdk',
+    packageName: '@dr-sentry/sdk',
+    installCmd: 'npm install @dr-sentry/sdk',
     version: '1.0.0',
     description:
       'First-class TypeScript support for server-side and edge runtime flag evaluation. Works with Express, Fastify, Next.js API routes, and more.',
@@ -61,8 +61,8 @@ const SDKS: SDK[] = [
     name: 'React',
     iconLetter: 'R',
     iconColor: '#61DAFB',
-    packageName: '@deploysentry/react',
-    installCmd: 'npm install @deploysentry/react',
+    packageName: '@dr-sentry/react',
+    installCmd: 'npm install @dr-sentry/react',
     version: '1.0.0',
     description:
       'React hooks and components for client-side feature flags. Includes <FeatureGate> component and useFlag / useFlags hooks.',
@@ -136,7 +136,7 @@ func main() {
   },
   typescript: {
     label: 'TypeScript',
-    code: `import { DeploySentry } from "@deploysentry/sdk";
+    code: `import { DeploySentry } from "@dr-sentry/sdk";
 
 // 1. Initialize the client
 const client = new DeploySentry({

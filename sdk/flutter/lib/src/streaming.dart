@@ -4,8 +4,6 @@ import 'dart:math';
 
 import 'package:http/http.dart' as http;
 
-import 'models.dart';
-
 /// Server-Sent Events (SSE) client for real-time flag updates.
 class FlagStreamClient {
   static const Duration _initialRetryDelay = Duration(seconds: 1);
@@ -18,7 +16,7 @@ class FlagStreamClient {
   final Map<String, String> headers;
 
   http.Client? _httpClient;
-  StreamController<Flag>? _controller;
+  StreamController<String>? _controller;
   bool _closed = false;
   Timer? _reconnectTimer;
   Duration _currentRetryDelay = _initialRetryDelay;
@@ -28,9 +26,9 @@ class FlagStreamClient {
     required this.headers,
   });
 
-  /// Stream of flag updates received from the server.
-  Stream<Flag> get updates {
-    _controller ??= StreamController<Flag>.broadcast(
+  /// Stream of flag IDs that have been updated on the server.
+  Stream<String> get updates {
+    _controller ??= StreamController<String>.broadcast(
       onListen: _connect,
       onCancel: _disconnect,
     );
@@ -95,8 +93,10 @@ class FlagStreamClient {
   void _handleEvent(String data) {
     try {
       final json = jsonDecode(data) as Map<String, dynamic>;
-      final flag = Flag.fromJson(json);
-      _controller?.add(flag);
+      final flagId = json['flag_id'] as String?;
+      if (flagId != null) {
+        _controller?.add(flagId);
+      }
     } catch (_) {
       // Skip malformed events.
     }

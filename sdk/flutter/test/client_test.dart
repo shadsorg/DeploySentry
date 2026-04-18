@@ -1,5 +1,5 @@
 import 'package:test/test.dart';
-import 'package:deploysentry_flutter/deploysentry_flutter.dart';
+import 'package:dr_sentry_flutter/dr_sentry_flutter.dart';
 
 void main() {
   group('DeploySentryClient', () {

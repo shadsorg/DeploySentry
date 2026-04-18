@@ -1,11 +1,11 @@
-# @deploysentry/react
+# @dr-sentry/react
 
 Official React SDK for the DeploySentry feature flag platform. Provides React hooks and a context provider for evaluating feature flags with real-time SSE updates.
 
 ## Installation
 
 ```bash
-npm install @deploysentry/react
+npm install @dr-sentry/react
 ```
 
 React 18 or later is required as a peer dependency.
@@ -15,7 +15,7 @@ React 18 or later is required as a peer dependency.
 Wrap your application with `DeploySentryProvider` and use hooks anywhere in the tree:
 
 ```tsx
-import { DeploySentryProvider, useFlag } from '@deploysentry/react';
+import { DeploySentryProvider, useFlag } from '@dr-sentry/react';
 
 function App() {
   return (
@@ -151,7 +151,7 @@ Create one registration file that runs at app initialization:
 
 ```typescript
 // src/flags/registrations.ts
-import type { DeploySentryClient } from '@deploysentry/react';
+import type { DeploySentryClient } from '@dr-sentry/react';
 import { legacySearch, vectorSearch } from '../search';
 import { classicCheckout, newCheckout } from '../checkout';
 
@@ -171,7 +171,7 @@ Call `registerFlags(client)` after the client initializes (e.g. in the provider 
 ### Usage in components
 
 ```tsx
-import { useDispatch } from '@deploysentry/react';
+import { useDispatch } from '@dr-sentry/react';
 
 function SearchBar() {
   const search = useDispatch<(query: string) => Promise<Results>>('search');
@@ -214,7 +214,7 @@ import type {
   FlagMetadata,
   ProviderProps,
   UserContext,
-} from '@deploysentry/react';
+} from '@dr-sentry/react';
 ```
 
 ## Authentication

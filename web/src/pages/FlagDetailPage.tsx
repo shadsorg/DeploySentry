@@ -324,7 +324,7 @@ export default function FlagDetailPage() {
         <div className="detail-header-top">
           <div>
             <h1 className="detail-header-title">{flag.name}</h1>
-            <span className="detail-header-subtitle">{flag.key}</span>
+            <span className="flag-key">{flag.key}</span>
           </div>
           <div className="detail-header-badges">
             <span className={`badge badge-${flag.category}`}>{flag.category}</span>

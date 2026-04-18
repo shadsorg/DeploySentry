@@ -133,7 +133,7 @@ export default function FlagListPage() {
               <tr key={flag.id}>
                 <td>
                   <Link to={flagDetailPath(flag.id)}>{flag.name}</Link>
-                  <div className="font-mono text-muted">{flag.key}</div>
+                  <div className="flag-key">{flag.key}</div>
                 </td>
                 <td>
                   <span className={`badge badge-${flag.category}`}>{flag.category}</span>

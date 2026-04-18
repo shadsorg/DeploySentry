@@ -416,7 +416,7 @@ export class DeploySentryClient {
 
   private async fetchFlags(): Promise<void> {
     // Match the backend `listFlags` endpoint, which only requires a project_id.
-    const url = `${this.baseURL}/api/v1/flags?project_id=${encodeURIComponent(this.project)}&application=${encodeURIComponent(this.application)}`;
+    const url = `${this.baseURL}/api/v1/flags?project_id=${encodeURIComponent(this.project)}&application=${encodeURIComponent(this.application)}&environment_id=${encodeURIComponent(this.environment)}`;
 
     const response = await fetch(url, {
       method: 'GET',
@@ -437,6 +437,26 @@ export class DeploySentryClient {
     }
 
     this.initialised = true;
+    this.emit();
+  }
+
+  private async fetchSingleFlag(flagId: string): Promise<void> {
+    const url = `${this.baseURL}/api/v1/flags/${encodeURIComponent(flagId)}?environment_id=${encodeURIComponent(this.environment)}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: this.headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `DeploySentry: failed to fetch flag ${flagId} (${response.status})`,
+      );
+    }
+
+    const raw: ApiFlagResponse = await response.json();
+    const flag = toFlag(raw);
+    this.flags.set(flag.key, flag);
     this.emit();
   }
 
@@ -470,9 +490,11 @@ export class DeploySentryClient {
         if (data?.event === 'flag.deleted' && data?.flag_key) {
           this.flags.delete(data.flag_key);
           this.emit();
+        } else if (data?.flag_id) {
+          // Fetch only the changed flag instead of the full set.
+          this.fetchSingleFlag(data.flag_id).catch(() => this.fetchFlags());
         } else {
-          // For all other events (updated, toggled, created, rule changes),
-          // re-fetch the full flag set to get the current state.
+          // No flag_id available — fall back to a full refresh.
           this.fetchFlags();
         }
       } catch {

@@ -128,12 +128,12 @@ echo "Detected language: $LANG_DETECTED"
 install_sdk() {
   case "$LANG_DETECTED" in
     node)
-      echo "Installing @deploysentry/node..."
-      npm install @deploysentry/node
+      echo "Installing @dr-sentry/sdk..."
+      npm install @dr-sentry/sdk
       ;;
     react)
-      echo "Installing @deploysentry/react..."
-      npm install @deploysentry/react
+      echo "Installing @dr-sentry/react..."
+      npm install @dr-sentry/react
       ;;
     go)
       echo "Installing deploysentry-go..."
@@ -197,7 +197,7 @@ write_claude_md() {
   # Variables are assigned here and expanded into printf calls below.
   case "$LANG_DETECTED" in
     node)
-      INIT_SNIPPET="import { DeploySentryClient } from '@deploysentry/node';
+      INIT_SNIPPET="import { DeploySentryClient } from '@dr-sentry/sdk';
 
 const ds = new DeploySentryClient({
   apiKey: process.env.DS_API_KEY!,
@@ -224,7 +224,7 @@ const result = ds.dispatch('createCart', { user_id: user.id })(cart, user);"
 
     react)
       INIT_SNIPPET="// Wrap your app with DeploySentryProvider
-import { DeploySentryProvider } from '@deploysentry/react';
+import { DeploySentryProvider } from '@dr-sentry/react';
 
 <DeploySentryProvider
   apiKey={process.env.REACT_APP_DS_API_KEY}

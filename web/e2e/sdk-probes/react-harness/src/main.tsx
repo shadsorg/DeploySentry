@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { DeploySentryProvider, useFlag } from '@deploysentry/react';
-import type { UserContext } from '@deploysentry/react';
+import { DeploySentryProvider, useFlag } from '@dr-sentry/react';
+import type { UserContext } from '@dr-sentry/react';
 
 declare global {
   interface Window {

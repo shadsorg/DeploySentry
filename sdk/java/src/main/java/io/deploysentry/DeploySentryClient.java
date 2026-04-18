@@ -406,6 +406,40 @@ public final class DeploySentryClient implements AutoCloseable {
         }
     }
 
+    private Flag fetchSingleFlag(String flagId) {
+        String url = buildUrl("/api/v1/flags/" + flagId);
+
+        HttpRequest.Builder reqBuilder = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Authorization", "ApiKey " + options.getApiKey())
+                .header("Accept", "application/json")
+                .GET();
+
+        if (options.getSessionId() != null) {
+            reqBuilder.header("X-DeploySentry-Session", options.getSessionId());
+        }
+
+        try {
+            HttpResponse<String> response = httpClient.send(reqBuilder.build(),
+                    HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                LOG.warning("Failed to fetch flag " + flagId + ": HTTP " + response.statusCode());
+                return null;
+            }
+
+            JSONObject body = new JSONObject(response.body());
+            return parseFlag(body.getJSONObject("flag"));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            LOG.warning("Interrupted while fetching flag " + flagId);
+            return null;
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Failed to fetch flag " + flagId, e);
+            return null;
+        }
+    }
+
     private void startSSE() {
         String sseUrl = buildUrl("/api/v1/flags/stream");
 
@@ -428,17 +462,24 @@ public final class DeploySentryClient implements AutoCloseable {
 
             switch (type) {
                 case "flag.updated":
-                case "flag.created": {
-                    JSONObject flagData = event.getJSONObject("flag");
-                    Flag flag = parseFlag(flagData);
-                    cache.put(flag.getKey(), flag);
-                    LOG.fine("Flag updated via SSE: " + flag.getKey());
+                case "flag.created":
+                case "flag.toggled": {
+                    String flagId = event.optString("flag_id", null);
+                    if (flagId != null) {
+                        Flag flag = fetchSingleFlag(flagId);
+                        if (flag != null) {
+                            cache.put(flag.getKey(), flag);
+                            LOG.fine("Flag updated via SSE: " + flag.getKey());
+                        }
+                    }
                     break;
                 }
                 case "flag.deleted": {
-                    String key = event.getString("key");
-                    cache.remove(key);
-                    LOG.fine("Flag removed via SSE: " + key);
+                    String key = event.optString("flag_key", event.optString("key", null));
+                    if (key != null) {
+                        cache.remove(key);
+                        LOG.fine("Flag removed via SSE: " + key);
+                    }
                     break;
                 }
                 case "flags.reload": {
@@ -458,7 +499,7 @@ public final class DeploySentryClient implements AutoCloseable {
         StringBuilder sb = new StringBuilder(options.getBaseURL()).append(path);
         String sep = "?";
         if (options.getEnvironment() != null) {
-            sb.append(sep).append("environment=").append(options.getEnvironment());
+            sb.append(sep).append("environment_id=").append(options.getEnvironment());
             sep = "&";
         }
         if (options.getProject() != null) {

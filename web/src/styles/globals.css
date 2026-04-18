@@ -754,6 +754,12 @@ tbody tr:last-child td {
 .font-mono {
   font-family: var(--font-mono);
 }
+.flag-key {
+  font-family: var(--font-mono);
+  color: #4ade80;
+  font-size: 1.05em;
+  font-weight: 500;
+}
 .truncate {
   overflow: hidden;
   text-overflow: ellipsis;

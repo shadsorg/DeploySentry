@@ -1,7 +1,12 @@
-import { Flag } from './types';
+/** Parsed SSE change notification from the server. */
+export interface FlagChangeEvent {
+  event: string;
+  flagId: string;
+  flagKey: string;
+}
 
-/** Callback invoked whenever a flag update arrives over SSE. */
-export type FlagUpdateHandler = (flags: Flag[]) => void;
+/** Callback invoked when an SSE event signals that a flag has changed. */
+export type FlagChangeHandler = (change: FlagChangeEvent) => void;
 
 /** Callback invoked when the SSE connection encounters an error. */
 export type StreamErrorHandler = (error: Error) => void;
@@ -16,8 +21,8 @@ interface StreamOptions {
   url: string;
   /** Headers to attach to the request (e.g. Authorization). */
   headers: Record<string, string>;
-  /** Called when one or more flag updates are received. */
-  onUpdate: FlagUpdateHandler;
+  /** Called when the server signals that flags have changed. */
+  onChange: FlagChangeHandler;
   /** Called when the stream encounters an error. */
   onError?: StreamErrorHandler;
 }
@@ -37,13 +42,13 @@ export class FlagStreamClient {
 
   private readonly url: string;
   private readonly headers: Record<string, string>;
-  private readonly onUpdate: FlagUpdateHandler;
+  private readonly onChange: FlagChangeHandler;
   private readonly onError: StreamErrorHandler;
 
   constructor(options: StreamOptions) {
     this.url = options.url;
     this.headers = options.headers;
-    this.onUpdate = options.onUpdate;
+    this.onChange = options.onChange;
     this.onError = options.onError ?? (() => {});
   }
 
@@ -145,17 +150,25 @@ export class FlagStreamClient {
         eventType = line.slice(6).trim();
       } else if (line.startsWith('data:')) {
         data += line.slice(5).trim();
+      } else if (line.startsWith(':')) {
+        // SSE comment (heartbeat) — ignore.
+        return;
       }
     }
 
-    if (eventType === 'flag_update' || eventType === 'message') {
+    if (eventType === 'flag_change' || eventType === 'flag_update' || eventType === 'message') {
+      let change: FlagChangeEvent = { event: '', flagId: '', flagKey: '' };
       try {
         const parsed = JSON.parse(data);
-        const flags: Flag[] = Array.isArray(parsed) ? parsed : [parsed];
-        this.onUpdate(flags);
+        change = {
+          event: parsed.event ?? '',
+          flagId: parsed.flag_id ?? '',
+          flagKey: parsed.flag_key ?? '',
+        };
       } catch {
-        // Ignore malformed payloads (e.g. keep-alive comments).
+        // Malformed — still signal the change with empty IDs.
       }
+      this.onChange(change);
     }
   }
 

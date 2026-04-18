@@ -13,6 +13,52 @@ import { loadFlagConfig } from './file-loader';
 import { evaluateLocal } from './local-evaluator';
 
 const DEFAULT_BASE_URL = 'https://api.dr-sentry.com';
+
+/** Raw flag shape returned by the API (snake_case fields). */
+interface RawFlag {
+  key: string;
+  enabled: boolean;
+  default_value: string;
+  flag_type: string;
+  category: FlagCategory;
+  purpose?: string;
+  owners?: string[];
+  is_permanent?: boolean;
+  expires_at?: string;
+  tags?: string[];
+  updated_at?: string;
+  [extra: string]: unknown;
+}
+
+/** Parse a string value into its typed representation based on flag_type. */
+function parseValue(raw: string, flagType: string): unknown {
+  if (!raw && raw !== '0') return undefined;
+  switch (flagType) {
+    case 'boolean': return raw === 'true';
+    case 'integer':
+    case 'number':  return Number(raw);
+    case 'json':    try { return JSON.parse(raw); } catch { return raw; }
+    default:        return raw;
+  }
+}
+
+/** Map the API's snake_case flag response to the SDK's Flag type. */
+function mapRawFlag(raw: RawFlag): Flag {
+  return {
+    key: raw.key,
+    enabled: raw.enabled,
+    value: parseValue(raw.default_value, raw.flag_type),
+    metadata: {
+      category: raw.category,
+      purpose: raw.purpose ?? '',
+      owners: raw.owners ?? [],
+      isPermanent: raw.is_permanent ?? false,
+      expiresAt: raw.expires_at,
+      tags: raw.tags ?? [],
+    },
+    updatedAt: raw.updated_at ?? '',
+  };
+}
 const DEFAULT_CACHE_TIMEOUT_MS = 60_000;
 
 /**
@@ -42,6 +88,7 @@ export class DeploySentryClient {
   private readonly sessionId: string | undefined;
   private readonly mode: 'server' | 'file' | 'server-with-fallback';
   private readonly flagFilePath?: string;
+  private readonly onFlagChange?: (flags: Flag[]) => void;
 
   private readonly cache: FlagCache;
   private streamClient: FlagStreamClient | null = null;
@@ -64,6 +111,7 @@ export class DeploySentryClient {
     this.sessionId = options.sessionId;
     this.mode = options.mode ?? 'server';
     this.flagFilePath = options.flagFilePath;
+    this.onFlagChange = options.onFlagChange;
 
     this.cache = new FlagCache(options.cacheTimeout ?? DEFAULT_CACHE_TIMEOUT_MS);
   }
@@ -93,11 +141,22 @@ export class DeploySentryClient {
       const flags = await this.fetchAllFlags();
       this.cache.setMany(flags);
 
-      // Start streaming updates.
+      // Start streaming updates. Each SSE event identifies the changed flag
+      // by ID — fetch just that flag to get the authoritative state.
       this.streamClient = new FlagStreamClient({
         url: `${this.baseURL}/api/v1/flags/stream?project_id=${enc(this.project)}&environment_id=${enc(this.environment)}&application=${enc(this.application)}`,
         headers: this.authHeaders(),
-        onUpdate: (updated) => this.cache.setMany(updated),
+        onChange: (change) => {
+          if (!change.flagId) return;
+          this.fetchFlag(change.flagId)
+            .then((flag) => {
+              if (flag) {
+                this.cache.set(flag);
+                this.onFlagChange?.([flag]);
+              }
+            })
+            .catch(() => {}); // stale cache still serves
+        },
         onError: (err) => {
           // Surface errors but do not crash – the cache still serves stale data.
           console.error('[DeploySentry] stream error:', err.message);
@@ -348,11 +407,20 @@ export class DeploySentryClient {
   }
 
   private async fetchAllFlags(): Promise<Flag[]> {
-    const response = await this.request<{ flags: Flag[] }>(
+    const response = await this.request<{ flags: RawFlag[] }>(
       'GET',
-      `/api/v1/flags?project_id=${enc(this.project)}&application=${enc(this.application)}`,
+      `/api/v1/flags?project_id=${enc(this.project)}&application=${enc(this.application)}&environment_id=${enc(this.environment)}`,
     );
-    return response.flags ?? [];
+    return (response.flags ?? []).map(mapRawFlag);
+  }
+
+  private async fetchFlag(flagId: string): Promise<Flag | null> {
+    const raw = await this.request<RawFlag>(
+      'GET',
+      `/api/v1/flags/${enc(flagId)}?environment_id=${enc(this.environment)}`,
+    );
+    if (!raw?.key) return null;
+    return mapRawFlag(raw);
   }
 
   private async post<T>(path: string, body: unknown): Promise<T> {

@@ -23,7 +23,7 @@ class DeploySentryClient {
   late final FlagCache _cache;
   late final http.Client _httpClient;
   FlagStreamClient? _streamClient;
-  StreamSubscription<Flag>? _streamSubscription;
+  StreamSubscription<String>? _streamSubscription;
   bool _initialized = false;
   final Map<String, List<_Registration>> _registry = {};
 
@@ -260,6 +260,7 @@ class DeploySentryClient {
     try {
       final queryParams = <String, String>{};
       if (project != null) queryParams['project_id'] = project!;
+      if (environment != null) queryParams['environment_id'] = environment!;
 
       final uri = Uri.parse('$baseUrl/api/v1/flags')
           .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
@@ -283,9 +284,30 @@ class DeploySentryClient {
     }
   }
 
+  Future<void> _fetchSingleFlag(String flagId) async {
+    try {
+      final queryParams = <String, String>{};
+      if (environment != null) queryParams['environment_id'] = environment!;
+
+      final uri = Uri.parse('$baseUrl/api/v1/flags/$flagId')
+          .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+
+      final response = await _httpClient.get(uri, headers: _headers);
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final flag = Flag.fromJson(json);
+        _cache.put(flag);
+      }
+    } catch (_) {
+      // Best-effort update; cache retains previous value.
+    }
+  }
+
   void _startStreaming() {
     final queryParams = <String, String>{};
     if (project != null) queryParams['project_id'] = project!;
+    if (environment != null) queryParams['environment_id'] = environment!;
 
     final streamUri = Uri.parse('$baseUrl/api/v1/flags/stream')
         .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
@@ -295,8 +317,8 @@ class DeploySentryClient {
       headers: _headers,
     );
 
-    _streamSubscription = _streamClient!.updates.listen((flag) {
-      _cache.put(flag);
+    _streamSubscription = _streamClient!.updates.listen((flagId) {
+      _fetchSingleFlag(flagId);
     });
   }
 

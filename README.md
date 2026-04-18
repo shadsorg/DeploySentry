@@ -255,10 +255,10 @@ deploysentry apikeys create --name "my-service" --scopes flags:read
 | Language | Package | Install |
 |----------|---------|---------|
 | Go | `github.com/deploysentry/deploysentry-go` | `go get github.com/deploysentry/deploysentry-go` |
-| Node.js | `@deploysentry/sdk` | `npm install @deploysentry/sdk` |
+| Node.js | `@dr-sentry/sdk` | `npm install @dr-sentry/sdk` |
 | Python | `deploysentry` | `pip install deploysentry` |
 | Java | `io.deploysentry:deploysentry-java` | Maven/Gradle (see below) |
-| React | `@deploysentry/react` | `npm install @deploysentry/react` |
+| React | `@dr-sentry/react` | `npm install @dr-sentry/react` |
 | Flutter | `deploysentry_flutter` | `flutter pub add deploysentry_flutter` |
 | Ruby | `deploysentry` | `gem install deploysentry` |
 
@@ -303,7 +303,7 @@ owners := client.FlagOwners("new-checkout-flow")
 #### Node.js / TypeScript
 
 ```typescript
-import { DeploySentryClient } from '@deploysentry/sdk';
+import { DeploySentryClient } from '@dr-sentry/sdk';
 
 const client = new DeploySentryClient({
   apiKey: 'ds_key_xxxxxxxxxxxx',
@@ -400,7 +400,7 @@ try (var client = new DeploySentryClient(options)) {
 #### React
 
 ```tsx
-import { DeploySentryProvider, useFlag, useFlagDetail, useFlagsByCategory } from '@deploysentry/react';
+import { DeploySentryProvider, useFlag, useFlagDetail, useFlagsByCategory } from '@dr-sentry/react';
 
 function App() {
   return (

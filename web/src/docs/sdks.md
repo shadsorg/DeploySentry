@@ -5,17 +5,17 @@ DeploySentry ships seven first-party SDKs. Each follows the same shape: instanti
 | Language | Package | Status |
 |---|---|---|
 | Go | `github.com/shadsorg/deploysentry-go` | Stable |
-| Node | `@deploysentry/node` | Stable |
+| Node | `@dr-sentry/sdk` | Stable |
 | Python | `deploysentry` | Stable |
 | Java | `io.deploysentry:deploysentry` | Stable |
 | Ruby | `deploysentry` | Stable |
-| React | `@deploysentry/react` | Stable |
-| Flutter | `deploysentry` | Stable |
+| React | `@dr-sentry/react` | Stable |
+| Flutter | `dr_sentry_flutter` | Stable |
 
 ## Node
 
 ```ts
-import { DeploySentryClient } from '@deploysentry/sdk';
+import { DeploySentryClient } from '@dr-sentry/sdk';
 
 const ds = new DeploySentryClient({
   apiKey: process.env.DS_API_KEY!,

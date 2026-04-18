@@ -287,11 +287,44 @@ module DeploySentry
     def handle_sse_event(_event_type, data)
       return unless data.is_a?(Hash)
 
-      key = data[:key]&.to_s || data[:flag_key]&.to_s
-      return unless key
+      flag_key = data[:flag_key]&.to_s
+      flag_id = data[:flag_id]&.to_s
 
-      metadata = if data[:metadata]
-        meta = data[:metadata]
+      if data[:event] == "flag.deleted"
+        return unless flag_key
+        @flags_mutex.synchronize { @flags.delete(flag_key) }
+        @cache.keys.each do |cache_key|
+          @cache.delete(cache_key) if cache_key.start_with?("#{flag_key}:")
+        end
+        return
+      end
+
+      return unless flag_id
+
+      begin
+        flag = fetch_single_flag(flag_id)
+        return unless flag
+
+        @flags_mutex.synchronize { @flags[flag.key] = flag }
+
+        # Invalidate cached evaluations for this flag
+        @cache.keys.each do |cache_key|
+          @cache.delete(cache_key) if cache_key.start_with?("#{flag.key}:")
+        end
+      rescue => _e
+        # Fetch failed; cache remains stale until next poll or event
+      end
+    end
+
+    def fetch_single_flag(flag_id)
+      uri = URI("#{@base_url}/api/v1/flags/#{flag_id}")
+      uri.query = URI.encode_www_form(environment: @environment)
+
+      response = get(uri)
+      fd = JSON.parse(response.body, symbolize_names: true)
+
+      metadata = if fd[:metadata]
+        meta = fd[:metadata]
         FlagMetadata.new(
           category: meta[:category],
           purpose: meta[:purpose],
@@ -302,20 +335,13 @@ module DeploySentry
         )
       end
 
-      flag = Flag.new(
-        key: key,
-        value: data[:value],
-        type: data[:type] || "boolean",
-        enabled: data[:enabled] || false,
+      Flag.new(
+        key: fd[:key].to_s,
+        value: fd[:value],
+        type: fd[:type] || "boolean",
+        enabled: fd[:enabled] || false,
         metadata: metadata
       )
-
-      @flags_mutex.synchronize { @flags[key] = flag }
-
-      # Invalidate cached evaluations for this flag
-      @cache.keys.each do |cache_key|
-        @cache.delete(cache_key) if cache_key.start_with?("#{key}:")
-      end
     end
 
     def handle_sse_error(error)

@@ -83,6 +83,8 @@ export interface ClientOptions {
   mode?: 'server' | 'file' | 'server-with-fallback';
   /** Path to a local YAML flag config file. Defaults to .deploysentry/flags.yaml. */
   flagFilePath?: string;
+  /** Called whenever the flag cache is refreshed from an SSE change event. */
+  onFlagChange?: (flags: Flag[]) => void;
 }
 
 export interface FlagConfig {

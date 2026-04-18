@@ -126,14 +126,20 @@ export class DeploySentryClient {
       const flags = await this.fetchAllFlags();
       this.cache.setMany(flags);
 
-      // Start streaming updates.
+      // Start streaming updates. Debounce rapid SSE events (e.g. toggling
+      // multiple flags) into a single re-fetch after 200ms of quiet.
+      let refreshTimer: ReturnType<typeof setTimeout> | null = null;
       this.streamClient = new FlagStreamClient({
         url: `${this.baseURL}/api/v1/flags/stream?project_id=${enc(this.project)}&environment_id=${enc(this.environment)}&application=${enc(this.application)}`,
         headers: this.authHeaders(),
         onChange: () => {
-          this.fetchAllFlags()
-            .then((flags) => this.cache.setMany(flags))
-            .catch(() => {}); // stale cache still serves
+          if (refreshTimer) clearTimeout(refreshTimer);
+          refreshTimer = setTimeout(() => {
+            refreshTimer = null;
+            this.fetchAllFlags()
+              .then((flags) => this.cache.setMany(flags))
+              .catch(() => {}); // stale cache still serves
+          }, 200);
         },
         onError: (err) => {
           // Surface errors but do not crash – the cache still serves stale data.

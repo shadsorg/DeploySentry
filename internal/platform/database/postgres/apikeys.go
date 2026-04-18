@@ -53,6 +53,7 @@ func scanAPIKey(row pgx.Row) (*models.APIKey, error) {
 		&k.KeyPrefix,
 		&k.KeyHash,
 		&scopeStrings,
+		&k.AllowedCIDRs,
 		&k.ExpiresAt,
 		&k.LastUsedAt,
 		&k.CreatedBy,
@@ -108,9 +109,9 @@ func (r *APIKeyRepository) CreateAPIKey(ctx context.Context, key *models.APIKey)
 	const q = `
 		INSERT INTO api_keys
 			(id, org_id, project_id, environment_ids, name, key_prefix, key_hash, scopes,
-			 expires_at, last_used_at, created_by, created_at, revoked_at)
+			 allowed_cidrs, expires_at, last_used_at, created_by, created_at, revoked_at)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
 
 	_, err := r.pool.Exec(ctx, q,
 		key.ID,
@@ -121,6 +122,7 @@ func (r *APIKeyRepository) CreateAPIKey(ctx context.Context, key *models.APIKey)
 		key.KeyPrefix,
 		key.KeyHash,
 		scopeStrings,
+		key.AllowedCIDRs,
 		key.ExpiresAt,
 		key.LastUsedAt,
 		key.CreatedBy,

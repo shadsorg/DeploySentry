@@ -76,6 +76,7 @@ type APIKeyInfo struct {
 	ProjectID      *uuid.UUID  `json:"project_id,omitempty"`
 	EnvironmentIDs []uuid.UUID `json:"environment_ids,omitempty"`
 	Scopes         []string    `json:"scopes"`
+	AllowedCIDRs   []string    `json:"allowed_cidrs,omitempty"`
 }
 
 // EnvironmentSlugResolver resolves an environment slug to its UUID within an org.
@@ -213,6 +214,15 @@ func (m *AuthMiddleware) authenticateAPIKey(c *gin.Context, key string) bool {
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid API key"})
 		return false
+	}
+
+	// Enforce IP allowlist if the key has allowed CIDRs configured.
+	if len(info.AllowedCIDRs) > 0 {
+		clientIP := c.ClientIP()
+		if !CheckIPAllowed(clientIP, info.AllowedCIDRs) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "request IP not in API key allowlist"})
+			return false
+		}
 	}
 
 	if info.OrgID != nil {

@@ -38,6 +38,7 @@ type createAPIKeyRequest struct {
 	ProjectID      *uuid.UUID           `json:"project_id"`
 	EnvironmentIDs []uuid.UUID          `json:"environment_ids"`
 	Scopes         []models.APIKeyScope `json:"scopes" binding:"required"`
+	AllowedCIDRs   []string             `json:"allowed_cidrs"`
 	ExpiresAt      *time.Time           `json:"expires_at"`
 }
 
@@ -90,6 +91,7 @@ func (h *APIKeyHandler) createAPIKey(c *gin.Context) {
 		req.Scopes,
 		createdBy,
 		req.EnvironmentIDs,
+		req.AllowedCIDRs,
 		req.ExpiresAt,
 	)
 	if err != nil {

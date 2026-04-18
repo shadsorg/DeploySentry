@@ -245,7 +245,7 @@ func (h *Handler) getFlag(c *gin.Context) {
 					if s.EnvironmentID == envID {
 						flag.Enabled = s.Enabled
 						if s.Value != nil {
-							flag.DefaultValue = string(*s.Value)
+							flag.DefaultValue = unquoteJSON(*s.Value)
 						}
 						break
 					}
@@ -343,7 +343,7 @@ func (h *Handler) listFlags(c *gin.Context) {
 					if s.EnvironmentID == envID {
 						f.Enabled = s.Enabled
 						if s.Value != nil {
-							f.DefaultValue = string(*s.Value)
+							f.DefaultValue = unquoteJSON(*s.Value)
 						}
 						break
 					}
@@ -1195,6 +1195,17 @@ type SSEEvent struct {
 	FlagID    string    `json:"flag_id"`
 	FlagKey   string    `json:"flag_key,omitempty"`
 	Timestamp time.Time `json:"timestamp"`
+}
+
+// unquoteJSON strips JSON string encoding from a raw value. If the value is
+// a JSON string like `"true"`, it returns `true`. For non-string JSON (numbers,
+// booleans, objects) it returns the raw bytes as a string.
+func unquoteJSON(raw json.RawMessage) string {
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return s
+	}
+	return string(raw)
 }
 
 // broadcastEvent serialises an SSEEvent and sends it to all connected clients.

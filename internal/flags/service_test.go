@@ -152,6 +152,10 @@ func (m *mockFlagRepo) ListFlagEnvStates(ctx context.Context, flagID uuid.UUID) 
 	return []*models.FlagEnvironmentState{}, nil
 }
 
+func (m *mockFlagRepo) GetFlagEnvState(ctx context.Context, flagID, environmentID uuid.UUID) (*models.FlagEnvironmentState, error) {
+	return nil, nil
+}
+
 func (m *mockFlagRepo) UpsertFlagEnvState(ctx context.Context, state *models.FlagEnvironmentState) error {
 	return nil
 }

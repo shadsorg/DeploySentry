@@ -124,8 +124,27 @@ func (e *Evaluator) Evaluate(ctx context.Context, projectID, environmentID uuid.
 		e.Metrics.Hits.Add(1)
 	}
 
-	// If the flag is disabled or archived, return the default value.
-	if !flag.Enabled || flag.Archived {
+	// Check archived first — archived flags are always off.
+	if flag.Archived {
+		result := &models.FlagEvaluationResult{
+			FlagKey: flag.Key,
+			Enabled: false,
+			Value:   flag.DefaultValue,
+			Reason:  "flag_disabled",
+		}
+		e.logTelemetry(ctx, result, evalCtx)
+		return result, nil
+	}
+
+	// Determine enabled state: per-environment state takes precedence over
+	// the global flag.Enabled field.
+	enabled := flag.Enabled
+	envState, err := e.repo.GetFlagEnvState(ctx, flag.ID, environmentID)
+	if err == nil && envState != nil {
+		enabled = envState.Enabled
+	}
+
+	if !enabled {
 		result := &models.FlagEvaluationResult{
 			FlagKey: flag.Key,
 			Enabled: false,
@@ -182,11 +201,20 @@ func (e *Evaluator) Evaluate(ctx context.Context, projectID, environmentID uuid.
 		}
 	}
 
-	// No rules matched: return the default value with the flag enabled.
+	// No rules matched: use per-environment value if set, else the global default.
+	value := flag.DefaultValue
+	if envState != nil && envState.Value != nil {
+		// Strip surrounding quotes from JSON string values (e.g. `"true"` → `true`).
+		raw := string(*envState.Value)
+		if len(raw) >= 2 && raw[0] == '"' && raw[len(raw)-1] == '"' {
+			raw = raw[1 : len(raw)-1]
+		}
+		value = raw
+	}
 	result := &models.FlagEvaluationResult{
 		FlagKey: flag.Key,
 		Enabled: true,
-		Value:   flag.DefaultValue,
+		Value:   value,
 		Reason:  "default",
 	}
 	e.logTelemetry(ctx, result, evalCtx)

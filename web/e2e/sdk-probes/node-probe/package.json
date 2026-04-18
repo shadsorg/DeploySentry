@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@deploysentry/sdk": "file:../../../../sdk/node"
+    "@dr-sentry/sdk": "file:../../../../sdk/node"
   }
 }

@@ -75,7 +75,7 @@ The script writes a language-specific prompt that teaches LLMs how to use Deploy
 
 ### Initialization
 
-  import { DeploySentryClient } from '@deploysentry/node';
+  import { DeploySentryClient } from '@dr-sentry/sdk';
   const ds = new DeploySentryClient({
     apiKey: process.env.DS_API_KEY!,
     environment: 'production',

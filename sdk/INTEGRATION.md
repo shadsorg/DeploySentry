@@ -14,8 +14,8 @@ DeploySentry provides:
 
 | Package              | Use Case                          |
 | -------------------- | --------------------------------- |
-| `@deploysentry/sdk`  | Node.js / server-side backends    |
-| `@deploysentry/react`| React frontends                   |
+| `@dr-sentry/sdk`  | Node.js / server-side backends    |
+| `@dr-sentry/react`| React frontends                   |
 
 ## Integration Checklist
 
@@ -23,12 +23,12 @@ DeploySentry provides:
 
 1. Install the SDK:
    ```bash
-   npm install @deploysentry/sdk
+   npm install @dr-sentry/sdk
    ```
 
 2. Create a singleton client (e.g. `src/deploysentry.ts`):
    ```typescript
-   import { DeploySentryClient } from '@deploysentry/sdk';
+   import { DeploySentryClient } from '@dr-sentry/sdk';
 
    export const dsClient = new DeploySentryClient({
      apiKey: process.env.DEPLOYSENTRY_API_KEY!,
@@ -67,12 +67,12 @@ DeploySentry provides:
 
 1. Install the SDK:
    ```bash
-   npm install @deploysentry/react
+   npm install @dr-sentry/react
    ```
 
 2. Wrap the app in the provider:
    ```tsx
-   import { DeploySentryProvider } from '@deploysentry/react';
+   import { DeploySentryProvider } from '@dr-sentry/react';
 
    <DeploySentryProvider
      apiKey={process.env.NEXT_PUBLIC_DEPLOYSENTRY_KEY!}
@@ -88,7 +88,7 @@ DeploySentry provides:
 
 3. Create a single-point registration file (e.g. `src/flags/registrations.ts`):
    ```typescript
-   import type { DeploySentryClient } from '@deploysentry/react';
+   import type { DeploySentryClient } from '@dr-sentry/react';
 
    export function registerFlags(client: DeploySentryClient) {
      client.register('search', legacySearch);

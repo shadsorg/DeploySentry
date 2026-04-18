@@ -5,13 +5,13 @@ Official Node.js/TypeScript SDK for integrating with the DeploySentry platform. 
 ## Installation
 
 ```bash
-npm install @deploysentry/sdk
+npm install @dr-sentry/sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { DeploySentryClient } from '@deploysentry/sdk';
+import { DeploySentryClient } from '@dr-sentry/sdk';
 
 const client = new DeploySentryClient({
   apiKey: 'ds_live_xxx',

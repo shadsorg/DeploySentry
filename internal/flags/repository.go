@@ -64,6 +64,9 @@ type FlagRepository interface {
 	// ListFlagEnvStates returns all per-environment states for a given flag.
 	ListFlagEnvStates(ctx context.Context, flagID uuid.UUID) ([]*models.FlagEnvironmentState, error)
 
+	// GetFlagEnvState returns the per-environment state for a specific flag and environment.
+	GetFlagEnvState(ctx context.Context, flagID, environmentID uuid.UUID) (*models.FlagEnvironmentState, error)
+
 	// UpsertFlagEnvState creates or updates a per-environment flag state.
 	UpsertFlagEnvState(ctx context.Context, state *models.FlagEnvironmentState) error
 

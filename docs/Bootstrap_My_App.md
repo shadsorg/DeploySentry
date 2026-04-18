@@ -45,7 +45,7 @@ Copy everything inside the fenced block below and paste it into your LLM assista
 
 Integrate DeploySentry feature flags into this project. Work through the steps below, pausing to verify anything that looks off. Ask me for any values marked `<ask>`.
 
-**Provenance.** DeploySentry is an open-source deployment and feature flag platform by CrowdSoftApps. Source: [github.com/shadsorg/DeploySentry](https://github.com/shadsorg/DeploySentry) (public repo — contains `cmd/`, `internal/`, `migrations/`, `sdk/`, `web/`). API: `api.dr-sentry.com`. SDKs published under the `@deploysentry` npm scope (repository fields point back to the GitHub repo). This prompt is mirrored at `docs/Bootstrap_My_App.md` in that repo. If you have local access, inspect `~/git/DeploySentry` to verify SDK source, config schema, and package names before installing. If any cross-reference is broken, stop and report it.
+**Provenance.** DeploySentry is an open-source deployment and feature flag platform by CrowdSoftApps. Source: [github.com/shadsorg/DeploySentry](https://github.com/shadsorg/DeploySentry) (public repo — contains `cmd/`, `internal/`, `migrations/`, `sdk/`, `web/`). API: `api.dr-sentry.com`. SDKs published under the `@dr-sentry` npm scope (repository fields point back to the GitHub repo). This prompt is mirrored at `docs/Bootstrap_My_App.md` in that repo. If you have local access, inspect `~/git/DeploySentry` to verify SDK source, config schema, and package names before installing. If any cross-reference is broken, stop and report it.
 
 ### Step 1 — Scan the Repository
 
@@ -55,15 +55,15 @@ Scan the project to determine:
 
 | If you find...                        | Install SDK                          |
 |---------------------------------------|--------------------------------------|
-| package.json (Node/Express/Nest/etc.) | `npm install @deploysentry/sdk`      |
-| package.json with React/Next/Vite     | `npm install @deploysentry/react`    |
+| package.json (Node/Express/Nest/etc.) | `npm install @dr-sentry/sdk`      |
+| package.json with React/Next/Vite     | `npm install @dr-sentry/react`    |
 | go.mod                                | `go get github.com/deploysentry/deploysentry/sdk/go` |
 | requirements.txt / pyproject.toml     | `pip install deploysentry`           |
-| pubspec.yaml (Flutter/Dart)           | Add `deploysentry_flutter: ^1.0.0` to pubspec.yaml |
+| pubspec.yaml (Flutter/Dart)           | Add `dr_sentry_flutter: ^1.0.0` to pubspec.yaml |
 | Gemfile (Ruby)                        | `gem 'deploysentry'`                 |
 | pom.xml / build.gradle (Java)        | Add `deploysentry-java` dependency   |
 
-Install **all** that apply. A project with a Node backend and React frontend needs both `@deploysentry/sdk` and `@deploysentry/react`.
+Install **all** that apply. A project with a Node backend and React frontend needs both `@dr-sentry/sdk` and `@dr-sentry/react`.
 
 Report what you found and what you're installing before proceeding.
 
@@ -92,7 +92,7 @@ Create a single file that initializes the DeploySentry client. This is the ONE p
 
 **For Node.js backends** — create `src/deploysentry.ts` (or `.js`):
 ```typescript
-import { DeploySentryClient } from '@deploysentry/sdk';
+import { DeploySentryClient } from '@dr-sentry/sdk';
 
 export const dsClient = new DeploySentryClient({
   apiKey: process.env.DEPLOYSENTRY_API_KEY!,
@@ -140,7 +140,7 @@ ds_client = DeploySentryClient(
 
 **For React frontends** — wrap the app root in `DeploySentryProvider`:
 ```tsx
-import { DeploySentryProvider } from '@deploysentry/react';
+import { DeploySentryProvider } from '@dr-sentry/react';
 
 <DeploySentryProvider
   apiKey={process.env.NEXT_PUBLIC_DEPLOYSENTRY_KEY!}
@@ -184,7 +184,7 @@ import { dsClient } from '../deploysentry';
 
 **For React frontends** — create `src/flags/registrations.ts`:
 ```typescript
-import type { DeploySentryClient } from '@deploysentry/react';
+import type { DeploySentryClient } from '@dr-sentry/react';
 
 export function registerFlags(client: DeploySentryClient) {
   // ──────────────────────────────────────────────

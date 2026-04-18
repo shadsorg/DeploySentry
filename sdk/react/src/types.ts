@@ -2,7 +2,7 @@
  * DeploySentry React SDK type definitions.
  *
  * Types are defined locally so the React SDK has zero runtime dependency on
- * the Node SDK package. They mirror the canonical shapes from @deploysentry/sdk.
+ * the Node SDK package. They mirror the canonical shapes from @dr-sentry/sdk.
  */
 
 /** Categories that classify the intent and lifecycle of a feature flag. */

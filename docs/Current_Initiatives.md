@@ -14,6 +14,7 @@
 | Environment-Scoped API Keys | Implementation | [Plan](./superpowers/plans/2026-04-16-environment-scoped-api-keys.md) / [Spec](./superpowers/specs/2026-04-16-environment-scoped-api-keys-design.md) | On `feature/groups-and-resource-authorization` branch. Migration 042, model/repo/service/handler/middleware/CLI/UI complete. Pending merge. |
 | MCP Server & Deploy Onboarding | Implementation | [Plan](./superpowers/plans/2026-04-16-mcp-server-deploy-onboarding.md) / [Spec](./superpowers/specs/2026-04-16-mcp-server-deploy-onboarding-design.md) | On `feature/groups-and-resource-authorization` branch. 12 MCP tools, stdio transport, `deploysentry mcp serve`. Pending merge. |
 | Identity & Provenance | Design | [Plan](./superpowers/plans/2026-04-16-identity-and-provenance.md) | Acquire deploysentry.com, create CrowdSoftApps GitHub org, npm publisher identity, close provenance loop. |
+| SDK npm Publishing | Implementation | [Plan](./superpowers/plans/2026-04-16-sdk-npm-publishing.md) | Dual ESM/CJS build + publish `@dr-sentry/sdk` and `@dr-sentry/react` to npm; unblocks Railway/Render deploys and `vite build`. |
 
 ## Archived
 

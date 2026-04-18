@@ -198,7 +198,7 @@ func main() {
 ### Node.js / TypeScript SDK
 
 ```typescript
-import { DeploySentryClient } from '@deploysentry/node-sdk';
+import { DeploySentryClient } from '@dr-sentry/sdk';
 
 const client = new DeploySentryClient({
   apiKey: 'ds_key_xxxxxxxxxxxx',
@@ -227,7 +227,7 @@ await client.close();
 **React integration:**
 
 ```tsx
-import { DeploySentryProvider, useFlag } from '@deploysentry/react-sdk';
+import { DeploySentryProvider, useFlag } from '@dr-sentry/react';
 
 function App() {
   return (

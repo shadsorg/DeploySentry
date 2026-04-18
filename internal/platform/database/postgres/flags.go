@@ -221,8 +221,11 @@ func (r *FlagRepository) GetFlag(ctx context.Context, id uuid.UUID) (*models.Fea
 
 // GetFlagByKey retrieves a feature flag by its project, environment, and key.
 func (r *FlagRepository) GetFlagByKey(ctx context.Context, projectID, environmentID uuid.UUID, key string) (*models.FeatureFlag, error) {
-	q := `SELECT` + flagSelectCols + ` FROM feature_flags WHERE project_id = $1 AND environment_id = $2 AND key = $3`
-	f, err := scanFeatureFlag(r.pool.QueryRow(ctx, q, projectID, environmentID, key))
+	// Try exact environment match first, then fall back to environment-agnostic
+	// flags (environment_id IS NULL). Most flags created via the UI have no
+	// environment_id; per-environment state lives in flag_environment_state.
+	q := `SELECT` + flagSelectCols + ` FROM feature_flags WHERE project_id = $1 AND key = $2 AND (environment_id = $3 OR environment_id IS NULL) ORDER BY environment_id ASC NULLS LAST LIMIT 1`
+	f, err := scanFeatureFlag(r.pool.QueryRow(ctx, q, projectID, key, environmentID))
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return nil, ErrNotFound
@@ -538,6 +541,25 @@ func (r *FlagRepository) ListFlagEnvStates(ctx context.Context, flagID uuid.UUID
 		return nil, fmt.Errorf("postgres.ListFlagEnvStates: %w", err)
 	}
 	return result, nil
+}
+
+// GetFlagEnvState returns the per-environment state for a specific flag and environment.
+func (r *FlagRepository) GetFlagEnvState(ctx context.Context, flagID, environmentID uuid.UUID) (*models.FlagEnvironmentState, error) {
+	const q = `
+		SELECT id, flag_id, environment_id, enabled, value, updated_by, updated_at
+		FROM flag_environment_state
+		WHERE flag_id = $1 AND environment_id = $2`
+	var s models.FlagEnvironmentState
+	err := r.pool.QueryRow(ctx, q, flagID, environmentID).Scan(
+		&s.ID, &s.FlagID, &s.EnvironmentID, &s.Enabled, &s.Value, &s.UpdatedBy, &s.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("postgres.GetFlagEnvState: %w", err)
+	}
+	return &s, nil
 }
 
 // UpsertFlagEnvState creates or updates a per-environment flag state using

@@ -13,6 +13,39 @@ import { loadFlagConfig } from './file-loader';
 import { evaluateLocal } from './local-evaluator';
 
 const DEFAULT_BASE_URL = 'https://api.dr-sentry.com';
+
+/** Raw flag shape returned by the API (snake_case fields). */
+interface RawFlag {
+  key: string;
+  enabled: boolean;
+  default_value: string;
+  category: FlagCategory;
+  purpose?: string;
+  owners?: string[];
+  is_permanent?: boolean;
+  expires_at?: string;
+  tags?: string[];
+  updated_at?: string;
+  [extra: string]: unknown;
+}
+
+/** Map the API's snake_case flag response to the SDK's Flag type. */
+function mapRawFlag(raw: RawFlag): Flag {
+  return {
+    key: raw.key,
+    enabled: raw.enabled,
+    value: raw.default_value,
+    metadata: {
+      category: raw.category,
+      purpose: raw.purpose ?? '',
+      owners: raw.owners ?? [],
+      isPermanent: raw.is_permanent ?? false,
+      expiresAt: raw.expires_at,
+      tags: raw.tags ?? [],
+    },
+    updatedAt: raw.updated_at ?? '',
+  };
+}
 const DEFAULT_CACHE_TIMEOUT_MS = 60_000;
 
 /**
@@ -352,11 +385,11 @@ export class DeploySentryClient {
   }
 
   private async fetchAllFlags(): Promise<Flag[]> {
-    const response = await this.request<{ flags: Flag[] }>(
+    const response = await this.request<{ flags: RawFlag[] }>(
       'GET',
       `/api/v1/flags?project_id=${enc(this.project)}&application=${enc(this.application)}`,
     );
-    return response.flags ?? [];
+    return (response.flags ?? []).map(mapRawFlag);
   }
 
   private async post<T>(path: string, body: unknown): Promise<T> {

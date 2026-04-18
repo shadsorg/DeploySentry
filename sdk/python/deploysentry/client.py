@@ -280,16 +280,44 @@ class DeploySentryClient:
     # SSE handler
     # ------------------------------------------------------------------
 
+    def _fetch_single_flag(self, flag_id: str) -> Optional[Flag]:
+        """Fetch a single flag by ID from the API."""
+        if self._http is None:
+            return None
+        params: Dict[str, str] = {}
+        if self._environment:
+            params["environment"] = self._environment
+        try:
+            resp = self._http.get(f"/api/v1/flags/{flag_id}", params=params)
+            resp.raise_for_status()
+            return Flag.from_dict(resp.json())
+        except httpx.HTTPError:
+            logger.warning("Failed to fetch flag id=%s", flag_id, exc_info=True)
+            return None
+
     def _handle_stream_update(self, payload: Dict[str, Any]) -> None:
-        """Process a real-time flag update from the SSE stream."""
-        key = payload.get("key") or payload.get("flag_key")
-        if not key:
+        """Process a real-time flag update from the SSE stream.
+
+        The SSE notification contains event metadata (event, flag_id,
+        flag_key, timestamp) — not a full Flag object.  We extract the
+        flag_id, fetch the complete flag from the API, and update the
+        local cache.
+        """
+        flag_id = payload.get("flag_id")
+        flag_key = payload.get("flag_key")
+        if not flag_id:
+            logger.debug("SSE event missing flag_id: %s", payload)
             return
-        flag = Flag.from_dict(payload)
-        self._flags[flag.key] = flag
-        # Invalidate the evaluation cache for this key.
-        self._cache.delete(f"eval:{flag.key}")
-        logger.debug("Flag updated via SSE: %s", flag.key)
+
+        flag = self._fetch_single_flag(flag_id)
+        if flag is not None:
+            self._flags[flag.key] = flag
+            self._cache.delete(f"eval:{flag.key}")
+            logger.debug("Flag updated via SSE: %s", flag.key)
+        elif flag_key:
+            # Could not fetch; at minimum invalidate stale cache entry.
+            self._cache.delete(f"eval:{flag_key}")
+            logger.debug("Invalidated cache for flag_key=%s (fetch failed)", flag_key)
 
     # ------------------------------------------------------------------
     # Register / dispatch

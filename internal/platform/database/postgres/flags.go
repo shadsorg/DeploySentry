@@ -972,6 +972,19 @@ func (r *FlagRepository) DeleteSegment(ctx context.Context, id uuid.UUID) error 
 	return nil
 }
 
+// HasActiveFlags returns true if any non-archived flags exist for the given project.
+func (r *FlagRepository) HasActiveFlags(ctx context.Context, projectID uuid.UUID) (bool, error) {
+	var count int
+	err := r.pool.QueryRow(ctx,
+		`SELECT COUNT(*) FROM feature_flags WHERE project_id = $1 AND archived_at IS NULL`,
+		projectID,
+	).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 // ---------------------------------------------------------------------------
 // Flag activity queries
 // ---------------------------------------------------------------------------

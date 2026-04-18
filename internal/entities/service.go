@@ -47,13 +47,19 @@ type EntityService interface {
 	DeleteEnvironment(ctx context.Context, id uuid.UUID) error
 }
 
-type entityService struct {
-	repo    EntityRepository
-	envRepo *EnvironmentRepository
+// FlagActivityChecker checks whether an entity has active flag usage.
+type FlagActivityChecker interface {
+	HasActiveFlags(ctx context.Context, projectID uuid.UUID) (bool, error)
 }
 
-func NewEntityService(repo EntityRepository, envRepo *EnvironmentRepository) EntityService {
-	return &entityService{repo: repo, envRepo: envRepo}
+type entityService struct {
+	repo         EntityRepository
+	envRepo      *EnvironmentRepository
+	flagActivity FlagActivityChecker
+}
+
+func NewEntityService(repo EntityRepository, envRepo *EnvironmentRepository, flagActivity FlagActivityChecker) EntityService {
+	return &entityService{repo: repo, envRepo: envRepo, flagActivity: flagActivity}
 }
 
 func (s *entityService) CreateOrg(ctx context.Context, org *models.Organization, creatorID uuid.UUID) error {

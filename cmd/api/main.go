@@ -243,7 +243,7 @@ func run() error {
 	analyticsService := analytics.NewService(db.Pool, rdb.Client)
 	webhookService := webhooks.NewService(webhookRepo, nc, []byte(cfg.Security.EncryptionKey))
 	ratingService := ratings.NewRatingService(ratingRepo)
-	entityService := entities.NewEntityService(entityRepo, envRepo)
+	entityService := entities.NewEntityService(entityRepo, envRepo, flagRepo)
 	settingService := settings.NewSettingService(settingRepo)
 	memberService := members.NewService(memberRepo)
 	groupService := groups.NewService(groupRepo)
@@ -550,5 +550,6 @@ func (a *apiKeyValidatorAdapter) ValidateAPIKey(ctx context.Context, key string)
 		ProjectID:      apiKey.ProjectID,
 		EnvironmentIDs: apiKey.EnvironmentIDs,
 		Scopes:         scopes,
+		AllowedCIDRs:   apiKey.AllowedCIDRs,
 	}, nil
 }

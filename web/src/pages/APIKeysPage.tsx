@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import type { ApiKey } from '@/types';
 import { apiKeysApi } from '@/api';
-import { useEnvironments } from '../hooks/useEntities';
+import { useEnvironments, useProjects, useApps } from '../hooks/useEntities';
 
 const AVAILABLE_SCOPES = ['flags:read', 'flags:write', 'deploys:read', 'deploys:write', 'admin'];
 
@@ -24,6 +24,7 @@ function formatDate(iso: string): string {
 export default function APIKeysPage() {
   const { orgSlug } = useParams();
   const { environments } = useEnvironments(orgSlug);
+  const { projects } = useProjects(orgSlug);
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,8 +34,17 @@ export default function APIKeysPage() {
   const [newName, setNewName] = useState('');
   const [newScopes, setNewScopes] = useState<string[]>([]);
   const [selectedEnvIds, setSelectedEnvIds] = useState<string[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [selectedAppId, setSelectedAppId] = useState<string>('');
+  const selectedProjectSlug = projects.find((p) => p.id === selectedProjectId)?.slug;
+  const { apps } = useApps(orgSlug, selectedProjectSlug);
   // Revoke confirm
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
+
+  // Reset selected app when project changes
+  useEffect(() => {
+    setSelectedAppId('');
+  }, [selectedProjectId]);
 
   async function fetchKeys() {
     setLoading(true);
@@ -60,11 +70,15 @@ export default function APIKeysPage() {
         name: newName.trim(),
         scopes: newScopes,
         environment_ids: selectedEnvIds.length > 0 ? selectedEnvIds : undefined,
+        project_id: selectedProjectId || undefined,
+        application_id: selectedAppId || undefined,
       });
       setRevealedKey(result.plaintext_key);
       setNewName('');
       setNewScopes([]);
       setSelectedEnvIds([]);
+      setSelectedProjectId('');
+      setSelectedAppId('');
       setShowCreate(false);
       await fetchKeys();
     } catch (err) {
@@ -130,6 +144,53 @@ export default function APIKeysPage() {
                 </label>
               ))}
             </div>
+          </div>
+
+          <div className="form-group">
+            <label>Project Scope</label>
+            <select
+              className="form-input"
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+            >
+              <option value="">All Projects</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-muted" style={{ fontSize: '0.85rem', marginTop: 4 }}>
+              Select "All Projects" for org-wide access
+            </p>
+          </div>
+
+          <div className="form-group">
+            <label>Application Scope</label>
+            <select
+              className="form-input"
+              value={selectedAppId}
+              onChange={(e) => setSelectedAppId(e.target.value)}
+              disabled={!selectedProjectId}
+            >
+              {!selectedProjectId ? (
+                <option value="">Select a project first</option>
+              ) : (
+                <>
+                  <option value="">All Applications</option>
+                  {apps.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+            {selectedProjectId && (
+              <p className="text-muted" style={{ fontSize: '0.85rem', marginTop: 4 }}>
+                Select "All Applications" for project-wide access
+              </p>
+            )}
           </div>
 
           <div style={{ marginBottom: 16 }}>

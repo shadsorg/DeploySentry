@@ -199,7 +199,13 @@ export const membersApi = {
 // API Keys
 export const apiKeysApi = {
   list: () => request<{ api_keys: ApiKey[] }>('/api-keys'),
-  create: (data: { name: string; scopes: string[]; environment_ids?: string[] }) =>
+  create: (data: {
+    name: string;
+    scopes: string[];
+    environment_ids?: string[];
+    project_id?: string;
+    application_id?: string;
+  }) =>
     request<{ api_key: ApiKey; plaintext_key: string }>('/api-keys', {
       method: 'POST',
       body: JSON.stringify(data),

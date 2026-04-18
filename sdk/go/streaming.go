@@ -160,16 +160,64 @@ func (s *sseClient) connect(ctx context.Context) error {
 	return fmt.Errorf("SSE stream closed by server")
 }
 
-// handleEvent parses a single SSE event payload and invokes the update
-// callback.
+// sseEvent represents the payload sent by the server on the SSE stream.
+type sseEvent struct {
+	Event   string `json:"event"`
+	FlagID  string `json:"flag_id"`
+	FlagKey string `json:"flag_key"`
+}
+
+// handleEvent parses a single SSE event payload, fetches the updated flag
+// from the API, and invokes the update callback.
 func (s *sseClient) handleEvent(data string) {
-	var flag Flag
-	if err := json.Unmarshal([]byte(data), &flag); err != nil {
+	var evt sseEvent
+	if err := json.Unmarshal([]byte(data), &evt); err != nil {
 		s.logger.Printf("deploysentry: failed to parse SSE event: %v", err)
+		return
+	}
+
+	if evt.FlagID == "" {
+		s.logger.Printf("deploysentry: SSE event missing flag_id, skipping")
+		return
+	}
+
+	flag, err := s.fetchFlag(evt.FlagID)
+	if err != nil {
+		s.logger.Printf("deploysentry: failed to fetch flag %s: %v", evt.FlagID, err)
 		return
 	}
 
 	if s.onUpdate != nil {
 		s.onUpdate(flag)
 	}
+}
+
+// fetchFlag retrieves a single flag by ID from the API.
+func (s *sseClient) fetchFlag(flagID string) (Flag, error) {
+	url := fmt.Sprintf("%s/api/v1/flags/%s?environment_id=%s", s.baseURL, flagID, s.environment)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return Flag{}, fmt.Errorf("creating flag request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "ApiKey "+s.apiKey)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return Flag{}, fmt.Errorf("fetching flag: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return Flag{}, fmt.Errorf("flag endpoint returned status %d", resp.StatusCode)
+	}
+
+	var flag Flag
+	if err := json.NewDecoder(resp.Body).Decode(&flag); err != nil {
+		return Flag{}, fmt.Errorf("decoding flag response: %w", err)
+	}
+
+	return flag, nil
 }

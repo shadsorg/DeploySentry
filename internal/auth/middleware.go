@@ -74,6 +74,7 @@ type APIKeyValidator interface {
 type APIKeyInfo struct {
 	OrgID          *uuid.UUID  `json:"org_id,omitempty"`
 	ProjectID      *uuid.UUID  `json:"project_id,omitempty"`
+	ApplicationID  *uuid.UUID  `json:"application_id,omitempty"`
 	EnvironmentIDs []uuid.UUID `json:"environment_ids,omitempty"`
 	Scopes         []string    `json:"scopes"`
 	AllowedCIDRs   []string    `json:"allowed_cidrs,omitempty"`
@@ -230,6 +231,9 @@ func (m *AuthMiddleware) authenticateAPIKey(c *gin.Context, key string) bool {
 	}
 	if info.ProjectID != nil {
 		c.Set("project_id", info.ProjectID.String())
+	}
+	if info.ApplicationID != nil {
+		c.Set("api_key_app_id", info.ApplicationID.String())
 	}
 	if len(info.EnvironmentIDs) > 0 {
 		envStrs := make([]string, len(info.EnvironmentIDs))

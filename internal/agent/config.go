@@ -14,7 +14,7 @@ import (
 type Config struct {
 	APIURL            string
 	APIKey            string
-	AppID             uuid.UUID
+	AppID             *uuid.UUID
 	Environment       string
 	Upstreams         map[string]string // name -> host:port
 	EnvoyXDSPort      int
@@ -24,13 +24,13 @@ type Config struct {
 
 // LoadConfig reads agent configuration from environment variables.
 func LoadConfig() (*Config, error) {
-	appIDStr := os.Getenv("DS_APP_ID")
-	if appIDStr == "" {
-		return nil, fmt.Errorf("DS_APP_ID is required")
-	}
-	appID, err := uuid.Parse(appIDStr)
-	if err != nil {
-		return nil, fmt.Errorf("DS_APP_ID is not a valid UUID: %w", err)
+	var appID *uuid.UUID
+	if appIDStr := os.Getenv("DS_APP_ID"); appIDStr != "" {
+		parsed, err := uuid.Parse(appIDStr)
+		if err != nil {
+			return nil, fmt.Errorf("DS_APP_ID is not a valid UUID: %w", err)
+		}
+		appID = &parsed
 	}
 
 	upstreamStr := os.Getenv("DS_UPSTREAMS")

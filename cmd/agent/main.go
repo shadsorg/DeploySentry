@@ -30,7 +30,7 @@ func run() error {
 		return fmt.Errorf("loading config: %w", err)
 	}
 
-	log.Printf("deploysentry-agent starting (app=%s, env=%s, xds=:%d)", cfg.AppID, cfg.Environment, cfg.EnvoyXDSPort)
+	log.Printf("deploysentry-agent starting (env=%s, xds=:%d)", cfg.Environment, cfg.EnvoyXDSPort)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -60,12 +60,32 @@ func run() error {
 		return fmt.Errorf("initial xDS snapshot: %w", err)
 	}
 
-	// Register with the DeploySentry API
-	agentID, err := registerAgent(cfg)
+	// Register with the DeploySentry API. The response includes scope
+	// derived from the API key (app_id, environment_id) when the key is
+	// scoped to a specific application.
+	reg, err := registerAgent(cfg)
+	var agentID, appID uuid.UUID
+	var environmentID uuid.UUID
 	if err != nil {
-		log.Printf("warning: agent registration failed (running unregistered): %v", err)
+		log.Printf("warning: agent registration failed: %v", err)
+		if cfg.AppID == nil {
+			return fmt.Errorf("registration failed and DS_APP_ID not set: %w", err)
+		}
 		agentID = uuid.New()
+		appID = *cfg.AppID
+	} else {
+		agentID = reg.AgentID
+		appID = reg.AppID
+		environmentID = reg.EnvironmentID
 	}
+
+	// Explicit config overrides key-derived scope.
+	if cfg.AppID != nil {
+		appID = *cfg.AppID
+	}
+	_ = environmentID // used in SSE URL / heartbeat downstream
+
+	log.Printf("agent running (id=%s, app=%s)", agentID, appID)
 
 	// Start heartbeat reporter
 	rep := reporter.New(cfg.APIURL, cfg.APIKey, agentID, cfg.HeartbeatInterval)
@@ -89,26 +109,39 @@ func run() error {
 	}
 
 	// Start SSE client
-	sseURL := fmt.Sprintf("%s/api/v1/flags/stream?application=%s", cfg.APIURL, cfg.AppID)
+	sseURL := fmt.Sprintf("%s/api/v1/flags/stream?application=%s", cfg.APIURL, appID)
 	sseClient := sse.NewClient(sseURL, cfg.APIKey, sseCallback)
 	go sseClient.Connect(ctx)
 
-	log.Printf("agent running (id=%s)", agentID)
 	<-ctx.Done()
 	log.Println("agent shutting down")
 	return nil
 }
 
-// registerAgent calls the DeploySentry API to register this agent.
-func registerAgent(cfg *agent.Config) (uuid.UUID, error) {
-	upstreamsJSON, _ := json.Marshal(cfg.Upstreams)
-	body := fmt.Sprintf(`{"app_id":"%s","environment_id":"%s","version":"0.1.0","upstreams":%s}`,
-		cfg.AppID, cfg.AppID, string(upstreamsJSON))
+// registrationResult holds the outcome of a successful agent registration,
+// including scope derived from the API key on the server side.
+type registrationResult struct {
+	AgentID       uuid.UUID
+	AppID         uuid.UUID
+	EnvironmentID uuid.UUID
+}
 
+// registerAgent calls the DeploySentry API to register this agent.
+func registerAgent(cfg *agent.Config) (*registrationResult, error) {
+	body := map[string]interface{}{
+		"version":   "0.1.0",
+		"upstreams": cfg.Upstreams,
+	}
+	// Only include app_id if explicitly configured (otherwise let server derive from key)
+	if cfg.AppID != nil {
+		body["app_id"] = cfg.AppID.String()
+	}
+
+	bodyBytes, _ := json.Marshal(body)
 	url := fmt.Sprintf("%s/api/v1/agents/register", cfg.APIURL)
-	req, err := http.NewRequest("POST", url, strings.NewReader(body))
+	req, err := http.NewRequest("POST", url, strings.NewReader(string(bodyBytes)))
 	if err != nil {
-		return uuid.Nil, err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if cfg.APIKey != "" {
@@ -117,19 +150,25 @@ func registerAgent(cfg *agent.Config) (uuid.UUID, error) {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return uuid.Nil, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
-		return uuid.Nil, fmt.Errorf("registration returned %d", resp.StatusCode)
+		return nil, fmt.Errorf("registration returned %d", resp.StatusCode)
 	}
 
 	var result struct {
-		ID uuid.UUID `json:"id"`
+		ID            uuid.UUID `json:"id"`
+		AppID         uuid.UUID `json:"app_id"`
+		EnvironmentID uuid.UUID `json:"environment_id"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return uuid.Nil, err
+		return nil, err
 	}
-	return result.ID, nil
+	return &registrationResult{
+		AgentID:       result.ID,
+		AppID:         result.AppID,
+		EnvironmentID: result.EnvironmentID,
+	}, nil
 }

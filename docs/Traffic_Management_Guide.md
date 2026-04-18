@@ -2,6 +2,8 @@
 
 **Phase**: Implementation
 
+> **New to DeploySentry?** Start with the [Deploy Monitoring Setup](./Deploy_Monitoring_Setup.md) guide to create your project, app, API key, and agent configuration.
+
 ## Overview
 
 The DeploySentry agent is a Go binary that runs as a sidecar alongside your application. It acts as an Envoy xDS control plane, receiving desired traffic state from the DeploySentry API via SSE and programming Envoy's routing configuration in real time. The agent also sends periodic heartbeats back to the API, reporting actual traffic distribution, Envoy health, and per-version metrics.

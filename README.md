@@ -1000,6 +1000,8 @@ DeploySentry supports three deployment strategies:
 
 See the [Traffic Management Guide](docs/Traffic_Management_Guide.md) for controlling traffic splitting with the DeploySentry agent sidecar and Envoy proxy, including flag canary testing.
 
+See the [Deploy Monitoring Setup](docs/Deploy_Monitoring_Setup.md) guide to get started with deploy monitoring, scoped API keys, and the agent sidecar.
+
 ```bash
 # Create a canary deployment
 deploysentry deploy create --strategy canary --version v2.1.0 --env production

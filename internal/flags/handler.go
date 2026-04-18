@@ -1007,6 +1007,8 @@ func (h *Handler) setRuleEnvState(c *gin.Context) {
 	})
 	h.writeAudit(c, "flag.rule.env_state.updated", "flag", flagID, "", string(newVal))
 
+	h.broadcastEvent("rule.updated", flagID, "")
+
 	c.JSON(http.StatusOK, state)
 }
 
@@ -1086,6 +1088,8 @@ func (h *Handler) setFlagEnvState(c *gin.Context) {
 		"environment_id": envID, "enabled": req.Enabled, "value": req.Value,
 	})
 	h.writeAudit(c, "flag.env_state.updated", "flag", flagID, "", string(newVal))
+
+	h.broadcastEvent("flag.updated", flagID, "")
 
 	c.JSON(http.StatusOK, state)
 }
@@ -1219,11 +1223,12 @@ func (b *SSEBroker) Unsubscribe(ch chan string) {
 func (b *SSEBroker) Broadcast(msg string) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
+	log.Printf("SSE broadcast to %d clients: %s", len(b.clients), msg)
 	for ch := range b.clients {
 		select {
 		case ch <- msg:
 		default:
-			// Skip slow clients to avoid blocking.
+			log.Printf("SSE: dropped message for slow client")
 		}
 	}
 }

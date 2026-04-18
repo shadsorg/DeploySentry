@@ -36,6 +36,7 @@ func (h *APIKeyHandler) RegisterRoutes(rg *gin.RouterGroup) {
 type createAPIKeyRequest struct {
 	Name           string               `json:"name" binding:"required"`
 	ProjectID      *uuid.UUID           `json:"project_id"`
+	ApplicationID  *uuid.UUID           `json:"application_id"`
 	EnvironmentIDs []uuid.UUID          `json:"environment_ids"`
 	Scopes         []models.APIKeyScope `json:"scopes" binding:"required"`
 	AllowedCIDRs   []string             `json:"allowed_cidrs"`
@@ -87,6 +88,7 @@ func (h *APIKeyHandler) createAPIKey(c *gin.Context) {
 		c.Request.Context(),
 		orgID,
 		req.ProjectID,
+		req.ApplicationID,
 		req.Name,
 		req.Scopes,
 		createdBy,

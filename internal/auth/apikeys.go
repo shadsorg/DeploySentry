@@ -99,7 +99,7 @@ type GenerateKeyResult struct {
 // GenerateKey creates a new API key with a cryptographically secure random
 // value. The plaintext key is returned only once at creation time. The key
 // hash is stored using argon2id.
-func (s *APIKeyService) GenerateKey(ctx context.Context, orgID uuid.UUID, projectID *uuid.UUID, name string, scopes []models.APIKeyScope, createdBy uuid.UUID, envIDs []uuid.UUID, allowedCIDRs []string, expiresAt *time.Time) (*GenerateKeyResult, error) {
+func (s *APIKeyService) GenerateKey(ctx context.Context, orgID uuid.UUID, projectID *uuid.UUID, applicationID *uuid.UUID, name string, scopes []models.APIKeyScope, createdBy uuid.UUID, envIDs []uuid.UUID, allowedCIDRs []string, expiresAt *time.Time) (*GenerateKeyResult, error) {
 	// Generate cryptographically secure random bytes.
 	rawKey := make([]byte, apiKeyByteLen)
 	if _, err := rand.Read(rawKey); err != nil {
@@ -126,6 +126,7 @@ func (s *APIKeyService) GenerateKey(ctx context.Context, orgID uuid.UUID, projec
 		ID:             uuid.New(),
 		OrgID:          orgID,
 		ProjectID:      projectID,
+		ApplicationID:  applicationID,
 		EnvironmentIDs: envIDs,
 		Name:           name,
 		KeyPrefix:      prefix,
@@ -294,6 +295,7 @@ func (s *APIKeyService) RotateKey(ctx context.Context, oldKeyID uuid.UUID, creat
 		ctx,
 		oldKey.OrgID,
 		oldKey.ProjectID,
+		oldKey.ApplicationID,
 		oldKey.Name+" (rotated)",
 		oldKey.Scopes,
 		createdBy,

@@ -75,6 +75,7 @@ export class DeploySentryClient {
   private readonly sessionId: string | undefined;
   private readonly mode: 'server' | 'file' | 'server-with-fallback';
   private readonly flagFilePath?: string;
+  private readonly onFlagChange?: (flags: Flag[]) => void;
 
   private readonly cache: FlagCache;
   private streamClient: FlagStreamClient | null = null;
@@ -97,6 +98,7 @@ export class DeploySentryClient {
     this.sessionId = options.sessionId;
     this.mode = options.mode ?? 'server';
     this.flagFilePath = options.flagFilePath;
+    this.onFlagChange = options.onFlagChange;
 
     this.cache = new FlagCache(options.cacheTimeout ?? DEFAULT_CACHE_TIMEOUT_MS);
   }
@@ -137,7 +139,10 @@ export class DeploySentryClient {
           refreshTimer = setTimeout(() => {
             refreshTimer = null;
             this.fetchAllFlags()
-              .then((flags) => this.cache.setMany(flags))
+              .then((flags) => {
+                this.cache.setMany(flags);
+                this.onFlagChange?.(flags);
+              })
               .catch(() => {}); // stale cache still serves
           }, 200);
         },

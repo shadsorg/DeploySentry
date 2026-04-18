@@ -229,6 +229,31 @@ func (h *Handler) getFlag(c *gin.Context) {
 		return
 	}
 
+	// Overlay per-environment state when environment_id is provided.
+	if envIDStr := c.Query("environment_id"); envIDStr != "" {
+		envID, envErr := uuid.Parse(envIDStr)
+		if envErr != nil && h.envResolver != nil {
+			orgIDStr := c.GetString("org_id")
+			if orgID, oErr := uuid.Parse(orgIDStr); oErr == nil {
+				envID, envErr = h.envResolver.ResolveEnvironmentSlug(c.Request.Context(), orgID, envIDStr)
+			}
+		}
+		if envErr == nil {
+			states, sErr := h.service.ListFlagEnvStates(c.Request.Context(), flag.ID)
+			if sErr == nil {
+				for _, s := range states {
+					if s.EnvironmentID == envID {
+						flag.Enabled = s.Enabled
+						if s.Value != nil {
+							flag.DefaultValue = string(*s.Value)
+						}
+						break
+					}
+				}
+			}
+		}
+	}
+
 	createdByName := ""
 	if flag.CreatedBy != uuid.Nil {
 		if name, err := h.entityRepo.GetUserName(c.Request.Context(), flag.CreatedBy); err == nil {

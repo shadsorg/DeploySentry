@@ -141,23 +141,21 @@ export class DeploySentryClient {
       const flags = await this.fetchAllFlags();
       this.cache.setMany(flags);
 
-      // Start streaming updates. Debounce rapid SSE events (e.g. toggling
-      // multiple flags) into a single re-fetch after 200ms of quiet.
-      let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+      // Start streaming updates. Each SSE event identifies the changed flag
+      // by ID — fetch just that flag to get the authoritative state.
       this.streamClient = new FlagStreamClient({
         url: `${this.baseURL}/api/v1/flags/stream?project_id=${enc(this.project)}&environment_id=${enc(this.environment)}&application=${enc(this.application)}`,
         headers: this.authHeaders(),
-        onChange: () => {
-          if (refreshTimer) clearTimeout(refreshTimer);
-          refreshTimer = setTimeout(() => {
-            refreshTimer = null;
-            this.fetchAllFlags()
-              .then((flags) => {
-                this.cache.setMany(flags);
-                this.onFlagChange?.(flags);
-              })
-              .catch(() => {}); // stale cache still serves
-          }, 200);
+        onChange: (change) => {
+          if (!change.flagId) return;
+          this.fetchFlag(change.flagId)
+            .then((flag) => {
+              if (flag) {
+                this.cache.set(flag);
+                this.onFlagChange?.([flag]);
+              }
+            })
+            .catch(() => {}); // stale cache still serves
         },
         onError: (err) => {
           // Surface errors but do not crash – the cache still serves stale data.
@@ -414,6 +412,15 @@ export class DeploySentryClient {
       `/api/v1/flags?project_id=${enc(this.project)}&application=${enc(this.application)}&environment_id=${enc(this.environment)}`,
     );
     return (response.flags ?? []).map(mapRawFlag);
+  }
+
+  private async fetchFlag(flagId: string): Promise<Flag | null> {
+    const raw = await this.request<RawFlag>(
+      'GET',
+      `/api/v1/flags/${enc(flagId)}?environment_id=${enc(this.environment)}`,
+    );
+    if (!raw?.key) return null;
+    return mapRawFlag(raw);
   }
 
   private async post<T>(path: string, body: unknown): Promise<T> {

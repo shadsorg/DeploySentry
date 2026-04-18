@@ -1,5 +1,12 @@
-/** Callback invoked when an SSE event signals that flags have changed. */
-export type FlagChangeHandler = () => void;
+/** Parsed SSE change notification from the server. */
+export interface FlagChangeEvent {
+  event: string;
+  flagId: string;
+  flagKey: string;
+}
+
+/** Callback invoked when an SSE event signals that a flag has changed. */
+export type FlagChangeHandler = (change: FlagChangeEvent) => void;
 
 /** Callback invoked when the SSE connection encounters an error. */
 export type StreamErrorHandler = (error: Error) => void;
@@ -136,21 +143,32 @@ export class FlagStreamClient {
 
   private processEvent(raw: string): void {
     let eventType = 'message';
+    let data = '';
 
     for (const line of raw.split('\n')) {
       if (line.startsWith('event:')) {
         eventType = line.slice(6).trim();
+      } else if (line.startsWith('data:')) {
+        data += line.slice(5).trim();
       } else if (line.startsWith(':')) {
         // SSE comment (heartbeat) — ignore.
         return;
       }
     }
 
-    // The server sends SSEEvent notifications (flag_id, flag_key, event type)
-    // not full Flag objects. Treat any flag_change event as an invalidation
-    // signal and let the client re-fetch the current flag state.
     if (eventType === 'flag_change' || eventType === 'flag_update' || eventType === 'message') {
-      this.onChange();
+      let change: FlagChangeEvent = { event: '', flagId: '', flagKey: '' };
+      try {
+        const parsed = JSON.parse(data);
+        change = {
+          event: parsed.event ?? '',
+          flagId: parsed.flag_id ?? '',
+          flagKey: parsed.flag_key ?? '',
+        };
+      } catch {
+        // Malformed — still signal the change with empty IDs.
+      }
+      this.onChange(change);
     }
   }
 

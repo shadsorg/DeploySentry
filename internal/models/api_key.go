@@ -33,6 +33,7 @@ type APIKey struct {
 	ID             uuid.UUID     `json:"id" db:"id"`
 	OrgID          uuid.UUID     `json:"org_id" db:"org_id"`
 	ProjectID      *uuid.UUID    `json:"project_id,omitempty" db:"project_id"`
+	ApplicationID  *uuid.UUID    `json:"application_id,omitempty" db:"application_id"`
 	EnvironmentIDs []uuid.UUID   `json:"environment_ids" db:"environment_ids"`
 	Name           string        `json:"name" db:"name"`
 	KeyPrefix      string        `json:"key_prefix" db:"key_prefix"`

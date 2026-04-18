@@ -31,6 +31,7 @@ func NewAPIKeyRepository(pool *pgxpool.Pool) *APIKeyRepository {
 const apiKeySelectCols = `
 	id, org_id,
 	COALESCE(project_id, '00000000-0000-0000-0000-000000000000'::uuid),
+	application_id,
 	COALESCE(environment_ids, ARRAY[]::uuid[]),
 	name, key_prefix, key_hash,
 	scopes::text[],
@@ -42,12 +43,14 @@ const apiKeySelectCols = `
 func scanAPIKey(row pgx.Row) (*models.APIKey, error) {
 	var k models.APIKey
 	var projectID uuid.UUID
+	var applicationID *uuid.UUID
 	var scopeStrings []string
 
 	err := row.Scan(
 		&k.ID,
 		&k.OrgID,
 		&projectID,
+		&applicationID,
 		&k.EnvironmentIDs,
 		&k.Name,
 		&k.KeyPrefix,
@@ -72,6 +75,7 @@ func scanAPIKey(row pgx.Row) (*models.APIKey, error) {
 		pid := projectID
 		k.ProjectID = &pid
 	}
+	k.ApplicationID = applicationID
 
 	// Default nil environment_ids to empty slice.
 	if k.EnvironmentIDs == nil {
@@ -108,15 +112,16 @@ func (r *APIKeyRepository) CreateAPIKey(ctx context.Context, key *models.APIKey)
 
 	const q = `
 		INSERT INTO api_keys
-			(id, org_id, project_id, environment_ids, name, key_prefix, key_hash, scopes,
+			(id, org_id, project_id, application_id, environment_ids, name, key_prefix, key_hash, scopes,
 			 allowed_cidrs, expires_at, last_used_at, created_by, created_at, revoked_at)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`
 
 	_, err := r.pool.Exec(ctx, q,
 		key.ID,
 		key.OrgID,
 		key.ProjectID,
+		key.ApplicationID,
 		key.EnvironmentIDs,
 		key.Name,
 		key.KeyPrefix,

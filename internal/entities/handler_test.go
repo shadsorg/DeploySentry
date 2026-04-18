@@ -39,6 +39,9 @@ type mockEntityService struct {
 	getProjectBySlugFn  func(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error)
 	listProjectsByOrgFn func(ctx context.Context, orgID uuid.UUID, includeDeleted bool, userID uuid.UUID, orgRole string) ([]*models.Project, error)
 	updateProjectFn     func(ctx context.Context, project *models.Project) error
+	softDeleteProjectFn func(ctx context.Context, orgID uuid.UUID, slug string) ([]models.FlagActivitySummary, error)
+	hardDeleteProjectFn func(ctx context.Context, orgID uuid.UUID, slug string) (*time.Time, error)
+	restoreProjectFn    func(ctx context.Context, orgID uuid.UUID, slug string) error
 	createAppFn         func(ctx context.Context, app *models.Application) error
 	getAppBySlugFn      func(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
 	listAppsByProjectFn func(ctx context.Context, projectID uuid.UUID, includeDeleted bool, userID uuid.UUID, orgRole string) ([]*models.Application, error)

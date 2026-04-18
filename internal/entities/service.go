@@ -48,12 +48,13 @@ type EntityService interface {
 }
 
 type entityService struct {
-	repo    EntityRepository
-	envRepo *EnvironmentRepository
+	repo         EntityRepository
+	envRepo      *EnvironmentRepository
+	flagActivity FlagActivityChecker
 }
 
-func NewEntityService(repo EntityRepository, envRepo *EnvironmentRepository) EntityService {
-	return &entityService{repo: repo, envRepo: envRepo}
+func NewEntityService(repo EntityRepository, envRepo *EnvironmentRepository, flagActivity FlagActivityChecker) EntityService {
+	return &entityService{repo: repo, envRepo: envRepo, flagActivity: flagActivity}
 }
 
 func (s *entityService) CreateOrg(ctx context.Context, org *models.Organization, creatorID uuid.UUID) error {

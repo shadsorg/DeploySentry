@@ -237,7 +237,7 @@ func (r *EntityRepository) ListProjectsByOrg(ctx context.Context, orgID uuid.UUI
 	return result, nil
 }
 
-// UpdateProject updates the name and updated_at fields of a project.
+// UpdateProject updates the name, description, repo_url, and updated_at fields of a project.
 func (r *EntityRepository) UpdateProject(ctx context.Context, project *models.Project) error {
 	const q = `
 		UPDATE projects
@@ -247,6 +247,45 @@ func (r *EntityRepository) UpdateProject(ctx context.Context, project *models.Pr
 	tag, err := r.pool.Exec(ctx, q, project.Name, project.Description, project.RepoURL, project.UpdatedAt, project.ID)
 	if err != nil {
 		return fmt.Errorf("postgres.UpdateProject: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// SoftDeleteProject marks a project as deleted by setting deleted_at.
+func (r *EntityRepository) SoftDeleteProject(ctx context.Context, id uuid.UUID) error {
+	const q = `UPDATE projects SET deleted_at = now() WHERE id = $1 AND deleted_at IS NULL`
+	tag, err := r.pool.Exec(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("postgres.SoftDeleteProject: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// HardDeleteProject permanently removes a project that has been soft-deleted for at least 7 days.
+func (r *EntityRepository) HardDeleteProject(ctx context.Context, id uuid.UUID) error {
+	const q = `DELETE FROM projects WHERE id = $1 AND deleted_at <= now() - interval '7 days'`
+	tag, err := r.pool.Exec(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("postgres.HardDeleteProject: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// RestoreProject un-deletes a soft-deleted project by clearing deleted_at.
+func (r *EntityRepository) RestoreProject(ctx context.Context, id uuid.UUID) error {
+	const q = `UPDATE projects SET deleted_at = NULL WHERE id = $1 AND deleted_at IS NOT NULL`
+	tag, err := r.pool.Exec(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("postgres.RestoreProject: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return ErrNotFound

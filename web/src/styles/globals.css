@@ -1514,6 +1514,14 @@ tbody tr:last-child td {
   margin-bottom: 12px;
 }
 
+.danger-zone-warning {
+  padding: 12px 16px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid var(--color-danger-bg);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-primary);
+}
+
 /* ------------------------------------------------------------------ */
 /* Multi-select checkbox group                                         */
 /* ------------------------------------------------------------------ */

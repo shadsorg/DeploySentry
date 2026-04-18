@@ -192,6 +192,15 @@ func (m *AuthMiddleware) authenticateJWT(c *gin.Context, tokenStr string) bool {
 		return false
 	}
 
+	// Check token blacklist for immediate revocation
+	if claims.ID != "" && m.sessionMgr != nil {
+		blacklisted, err := m.sessionMgr.IsTokenBlacklisted(c.Request.Context(), claims.ID)
+		if err == nil && blacklisted {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token has been revoked"})
+			return false
+		}
+	}
+
 	c.Set(ContextKeyUserID, claims.UserID)
 	c.Set("email", claims.Email)
 	c.Set("auth_method", "jwt")
@@ -213,6 +222,14 @@ func (m *AuthMiddleware) authenticateAPIKey(c *gin.Context, key string) bool {
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid API key"})
 		return false
+	}
+
+	if len(info.AllowedCIDRs) > 0 {
+		clientIP := c.ClientIP()
+		if !CheckIPAllowed(clientIP, info.AllowedCIDRs) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "request IP not in API key allowlist"})
+			return false
+		}
 	}
 
 	if info.OrgID != nil {

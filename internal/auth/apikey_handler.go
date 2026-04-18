@@ -91,6 +91,7 @@ func (h *APIKeyHandler) createAPIKey(c *gin.Context) {
 		createdBy,
 		req.EnvironmentIDs,
 		req.ExpiresAt,
+		req.AllowedCIDRs,
 	)
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})

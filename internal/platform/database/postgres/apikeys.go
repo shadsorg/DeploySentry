@@ -34,6 +34,7 @@ const apiKeySelectCols = `
 	COALESCE(environment_ids, ARRAY[]::uuid[]),
 	name, key_prefix, key_hash,
 	scopes::text[],
+	allowed_cidrs,
 	expires_at, last_used_at, created_by, created_at, revoked_at`
 
 // scanAPIKey reads a single APIKey row. Because project_id is nullable we
@@ -52,6 +53,7 @@ func scanAPIKey(row pgx.Row) (*models.APIKey, error) {
 		&k.KeyPrefix,
 		&k.KeyHash,
 		&scopeStrings,
+		&k.AllowedCIDRs,
 		&k.ExpiresAt,
 		&k.LastUsedAt,
 		&k.CreatedBy,
@@ -120,6 +122,7 @@ func (r *APIKeyRepository) CreateAPIKey(ctx context.Context, key *models.APIKey)
 		key.KeyPrefix,
 		key.KeyHash,
 		scopeStrings,
+		key.AllowedCIDRs,
 		key.ExpiresAt,
 		key.LastUsedAt,
 		key.CreatedBy,

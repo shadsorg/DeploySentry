@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/deploysentry/deploysentry/internal/models"
@@ -30,6 +31,28 @@ const (
 	// argon2SaltLen is the salt length for argon2id.
 	argon2SaltLen = 16
 )
+
+// CheckIPAllowed verifies that clientIP falls within at least one of the
+// allowed CIDRs. Returns true if allowedCIDRs is empty (no restriction).
+func CheckIPAllowed(clientIP string, allowedCIDRs []string) bool {
+	if len(allowedCIDRs) == 0 {
+		return true
+	}
+	ip := net.ParseIP(clientIP)
+	if ip == nil {
+		return false
+	}
+	for _, cidr := range allowedCIDRs {
+		_, network, err := net.ParseCIDR(cidr)
+		if err != nil {
+			continue
+		}
+		if network.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
 
 // APIKeyRepository defines the persistence interface for API key operations.
 type APIKeyRepository interface {
@@ -272,6 +295,7 @@ func (s *APIKeyService) RotateKey(ctx context.Context, oldKeyID uuid.UUID, creat
 		createdBy,
 		oldKey.EnvironmentIDs,
 		oldKey.ExpiresAt,
+		oldKey.AllowedCIDRs,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("generating rotated key: %w", err)

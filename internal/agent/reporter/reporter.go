@@ -100,7 +100,7 @@ func (r *Reporter) send(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("sending heartbeat: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 300 {
 		return fmt.Errorf("unexpected status %d", resp.StatusCode)

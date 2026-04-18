@@ -77,7 +77,7 @@ func (c *Client) stream(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("connecting: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	scanner := bufio.NewScanner(resp.Body)
 	var eventType, data string

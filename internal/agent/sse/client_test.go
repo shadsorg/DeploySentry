@@ -14,9 +14,9 @@ func TestClientReceivesEvents(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		flusher := w.(http.Flusher)
-		fmt.Fprintf(w, "event: deployment.phase_changed\ndata: {\"traffic_percent\":5}\n\n")
+		_, _ = fmt.Fprintf(w, "event: deployment.phase_changed\ndata: {\"traffic_percent\":5}\n\n")
 		flusher.Flush()
-		fmt.Fprintf(w, "event: deployment.phase_changed\ndata: {\"traffic_percent\":25}\n\n")
+		_, _ = fmt.Fprintf(w, "event: deployment.phase_changed\ndata: {\"traffic_percent\":25}\n\n")
 		flusher.Flush()
 		time.Sleep(200 * time.Millisecond)
 	}))
@@ -58,7 +58,7 @@ func TestClientSendsAuthHeader(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAuth = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "text/event-stream")
-		fmt.Fprintf(w, "event: deployment.phase_changed\ndata: {\"traffic_percent\":10}\n\n")
+		_, _ = fmt.Fprintf(w, "event: deployment.phase_changed\ndata: {\"traffic_percent\":10}\n\n")
 		w.(http.Flusher).Flush()
 		time.Sleep(100 * time.Millisecond)
 	}))
@@ -80,9 +80,9 @@ func TestClientIgnoresHeartbeats(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		flusher := w.(http.Flusher)
-		fmt.Fprintf(w, ": heartbeat\n\n")
+		_, _ = fmt.Fprintf(w, ": heartbeat\n\n")
 		flusher.Flush()
-		fmt.Fprintf(w, "event: deployment.phase_changed\ndata: {\"traffic_percent\":50}\n\n")
+		_, _ = fmt.Fprintf(w, "event: deployment.phase_changed\ndata: {\"traffic_percent\":50}\n\n")
 		flusher.Flush()
 		time.Sleep(100 * time.Millisecond)
 	}))

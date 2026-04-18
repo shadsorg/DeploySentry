@@ -74,7 +74,7 @@ func TestHandler_Heartbeat(t *testing.T) {
 	}
 
 	var agent map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &agent)
+	_ = json.Unmarshal(w.Body.Bytes(), &agent)
 	agentID := agent["id"].(string)
 
 	// Send heartbeat.
@@ -145,7 +145,7 @@ func TestHandler_ListAgents_Empty(t *testing.T) {
 	}
 
 	var resp map[string][]interface{}
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 	if len(resp["agents"]) != 0 {
 		t.Errorf("expected 0 agents, got %d", len(resp["agents"]))
 	}
@@ -167,7 +167,7 @@ func TestHandler_Deregister(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	var agent map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &agent)
+	_ = json.Unmarshal(w.Body.Bytes(), &agent)
 	agentID := agent["id"].(string)
 
 	// Delete.

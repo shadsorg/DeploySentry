@@ -38,8 +38,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, rbac *auth.RBACChecker) {
 }
 
 type registerRequest struct {
-	AppID         uuid.UUID       `json:"app_id" binding:"required"`
-	EnvironmentID uuid.UUID       `json:"environment_id" binding:"required"`
+	AppID         uuid.UUID       `json:"app_id"`
+	EnvironmentID uuid.UUID       `json:"environment_id"`
 	Version       string          `json:"version"`
 	Upstreams     json.RawMessage `json:"upstreams"`
 }
@@ -60,13 +60,50 @@ func (h *Handler) registerAgent(c *gin.Context) {
 		return
 	}
 
+	if req.AppID == uuid.Nil {
+		if appIDStr := c.GetString("api_key_app_id"); appIDStr != "" {
+			if parsed, err := uuid.Parse(appIDStr); err == nil {
+				req.AppID = parsed
+			}
+		}
+	}
+
+	if req.EnvironmentID == uuid.Nil {
+		if envIDs, ok := c.Get("api_key_environment_ids"); ok {
+			if ids, ok := envIDs.([]string); ok && len(ids) > 0 {
+				if parsed, err := uuid.Parse(ids[0]); err == nil {
+					req.EnvironmentID = parsed
+				}
+			}
+		}
+	}
+
+	if req.AppID == uuid.Nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "app_id is required: either scope your API key to an application or provide app_id in the request body"})
+		return
+	}
+
 	agent, err := h.service.Register(c.Request.Context(), req.AppID, req.EnvironmentID, req.Version, req.Upstreams)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, agent)
+	response := map[string]interface{}{
+		"id":             agent.ID,
+		"app_id":         agent.AppID,
+		"environment_id": agent.EnvironmentID,
+		"status":         agent.Status,
+		"version":        agent.Version,
+		"registered_at":  agent.RegisteredAt,
+	}
+	if orgIDStr := c.GetString("org_id"); orgIDStr != "" {
+		response["org_id"] = orgIDStr
+	}
+	if projectIDStr := c.GetString("project_id"); projectIDStr != "" {
+		response["project_id"] = projectIDStr
+	}
+	c.JSON(http.StatusCreated, response)
 }
 
 func (h *Handler) heartbeat(c *gin.Context) {

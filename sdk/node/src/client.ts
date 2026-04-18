@@ -19,6 +19,7 @@ interface RawFlag {
   key: string;
   enabled: boolean;
   default_value: string;
+  flag_type: string;
   category: FlagCategory;
   purpose?: string;
   owners?: string[];
@@ -29,12 +30,24 @@ interface RawFlag {
   [extra: string]: unknown;
 }
 
+/** Parse a string value into its typed representation based on flag_type. */
+function parseValue(raw: string, flagType: string): unknown {
+  if (!raw && raw !== '0') return undefined;
+  switch (flagType) {
+    case 'boolean': return raw === 'true';
+    case 'integer':
+    case 'number':  return Number(raw);
+    case 'json':    try { return JSON.parse(raw); } catch { return raw; }
+    default:        return raw;
+  }
+}
+
 /** Map the API's snake_case flag response to the SDK's Flag type. */
 function mapRawFlag(raw: RawFlag): Flag {
   return {
     key: raw.key,
     enabled: raw.enabled,
-    value: raw.default_value,
+    value: parseValue(raw.default_value, raw.flag_type),
     metadata: {
       category: raw.category,
       purpose: raw.purpose ?? '',

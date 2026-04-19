@@ -73,7 +73,16 @@ export interface RuleEnvironmentState {
   updated_at: string;
 }
 
-export type RuleOperator = 'equals' | 'not_equals' | 'in' | 'not_in' | 'contains' | 'starts_with' | 'ends_with' | 'greater_than' | 'less_than';
+export type RuleOperator =
+  | 'equals'
+  | 'not_equals'
+  | 'in'
+  | 'not_in'
+  | 'contains'
+  | 'starts_with'
+  | 'ends_with'
+  | 'greater_than'
+  | 'less_than';
 
 export interface Deployment {
   id: string;

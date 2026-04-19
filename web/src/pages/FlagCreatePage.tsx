@@ -96,7 +96,11 @@ export default function FlagCreatePage() {
           .map((s) => s.trim())
           .filter(Boolean),
         is_permanent: form.is_permanent,
-        expires_at: form.is_permanent ? undefined : form.expires_at ? form.expires_at + ':00Z' : undefined,
+        expires_at: form.is_permanent
+          ? undefined
+          : form.expires_at
+            ? form.expires_at + ':00Z'
+            : undefined,
         default_value: form.default_value,
         tags: form.tags
           .split(',')

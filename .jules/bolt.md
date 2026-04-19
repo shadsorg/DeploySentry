@@ -1,3 +1,6 @@
 ## 2024-04-05 - Optimize Expensive Array Sorting and Filtering in React Renders
 **Learning:** Found an opportunity to prevent `O(N log N)` sorting and extensive string matching functions from being called sequentially on every React render hook (even due to unrelated state changes). Memoization with `useMemo` avoids redundant re-computation of array sorting and filtering.
 **Action:** When working in React rendering logic with array mutations like sorting, filtering, and `.toLowerCase().includes()`, proactively extract these heavy operations to `useMemo` hooks so they only re-run when their explicit dependent values update.
+## 2024-11-06 - O(E * R^2) lookups causing render lag in UI components
+**Learning:** Performing `find()` array lookups inside nested mapping iterations (like mapping over environments and then targeting rules) causes `O(E * R^2)` computational complexity which leads to severe lag when the user updates flag settings with many environments/rules.
+**Action:** Always wrap state array reduction logic into `useMemo`-generated Maps keyed by unique IDs (e.g. `${ruleId}:${envId}`) and place them before early-returns to ensure O(1) rendering lookup time and prevent violating React hook rules.

@@ -112,8 +112,9 @@ export default function APIKeysPage() {
       </div>
 
       <p className="text-muted" style={{ marginBottom: 24, maxWidth: 600 }}>
-        API keys authenticate programmatic access to the DeploySentry API. Use them to integrate with CI/CD pipelines,
-        automate flag management, or connect your SDKs. Keys are scoped to an organization and can be revoked at any time.
+        API keys authenticate programmatic access to the DeploySentry API. Use them to integrate
+        with CI/CD pipelines, automate flag management, or connect your SDKs. Keys are scoped to an
+        organization and can be revoked at any time.
       </p>
 
       {showCreate && (

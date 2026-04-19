@@ -22,6 +22,13 @@ type MessagePublisher interface {
 	Publish(ctx context.Context, subject string, payload []byte) error
 }
 
+// RolloutLookup is the subset of the rollout service used by the deploy engine's
+// guard. Implementations are injected at wiring time. A nil lookup means no
+// rollout integration (backward-compatible behavior).
+type RolloutLookup interface {
+	HasActiveRolloutForDeployment(ctx context.Context, deploymentID uuid.UUID) (bool, error)
+}
+
 // MessageSubscriber subscribes to messaging subjects.
 type MessageSubscriber interface {
 	Subscribe(subject string, handler func(msg []byte)) error
@@ -33,7 +40,11 @@ type Engine struct {
 	publisher     MessagePublisher
 	healthMonitor *health.HealthMonitor
 	logger        *slog.Logger
+	rolloutLookup RolloutLookup
 }
+
+// SetRolloutLookup injects the rollout guard. Call at wiring time after New().
+func (e *Engine) SetRolloutLookup(l RolloutLookup) { e.rolloutLookup = l }
 
 // New creates a new Engine. healthMonitor may be nil; when nil, health checks
 // are skipped.
@@ -149,12 +160,23 @@ func (e *Engine) driveDeployment(ctx context.Context, deploymentID uuid.UUID) er
 		return fmt.Errorf("driveDeployment: get deployment: %w", err)
 	}
 
-	// 2. Only process canary deployments.
+	// 2. Guard: if a rollout owns this deployment, skip the legacy driver.
+	if e.rolloutLookup != nil {
+		has, err := e.rolloutLookup.HasActiveRolloutForDeployment(ctx, deploymentID)
+		if err != nil {
+			e.logger.Warn("deploy engine: rollout lookup failed; proceeding with legacy path", "error", err)
+		} else if has {
+			e.logger.Info("deploy engine: rollout owns this deployment; skipping legacy driver", "deployment_id", deploymentID)
+			return nil
+		}
+	}
+
+	// 3. Only process canary deployments.
 	if d.Strategy != models.DeployStrategyCanary {
 		return nil
 	}
 
-	// 3. If pending, transition to running.
+	// 4. If pending, transition to running.
 	if d.Status == models.DeployStatusPending {
 		if err := d.TransitionTo(models.DeployStatusRunning); err != nil {
 			return fmt.Errorf("driveDeployment: transition pending->running: %w", err)

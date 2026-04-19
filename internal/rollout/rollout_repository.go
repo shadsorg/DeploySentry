@@ -14,6 +14,7 @@ type RolloutRepository interface {
 	Get(ctx context.Context, id uuid.UUID) (*models.Rollout, error)
 	GetActiveByDeployment(ctx context.Context, deploymentID uuid.UUID) (*models.Rollout, error)
 	GetActiveByConfig(ctx context.Context, flagKey, env string) (*models.Rollout, error)
+	GetActiveByRule(ctx context.Context, ruleID uuid.UUID) (*models.Rollout, error)
 	List(ctx context.Context, opts RolloutListOptions) ([]*models.Rollout, error)
 	UpdateStatus(ctx context.Context, id uuid.UUID, status models.RolloutStatus, rollbackReason *string) error
 	UpdatePhasePointer(ctx context.Context, id uuid.UUID, phaseIndex int, startedAt *time.Time, lastHealthy *time.Time) error

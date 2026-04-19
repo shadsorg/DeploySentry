@@ -90,6 +90,13 @@ func (r *RolloutRepo) GetActiveByConfig(ctx context.Context, flagKey, env string
 	)
 }
 
+func (r *RolloutRepo) GetActiveByRule(ctx context.Context, ruleID uuid.UUID) (*models.Rollout, error) {
+	return r.scanOne(ctx,
+		`WHERE target_type='config' AND target_ref->>'rule_id'=$1 AND status IN ('pending','active','paused','awaiting_approval')`,
+		ruleID.String(),
+	)
+}
+
 func (r *RolloutRepo) List(ctx context.Context, opts rollout.RolloutListOptions) ([]*models.Rollout, error) {
 	w := whereBuilder{}
 	if opts.TargetType != nil {

@@ -133,3 +133,39 @@ func TestRolloutEventRepo_InsertList(t *testing.T) {
 		t.Fatalf("list: err=%v got=%+v", err, list)
 	}
 }
+
+func TestRolloutRepo_GetActiveByRule(t *testing.T) {
+	ctx := context.Background()
+	repo := NewRolloutRepo(testDB(t))
+
+	ruleIDStr := uuid.NewString()
+	prevPct := 5
+	ro := &models.Rollout{
+		ID:         uuid.New(),
+		TargetType: models.TargetTypeConfig,
+		TargetRef: models.RolloutTargetRef{
+			RuleID:             &ruleIDStr,
+			PreviousPercentage: &prevPct,
+		},
+		StrategySnapshot: models.Strategy{Name: "s", TargetType: models.TargetTypeConfig,
+			Steps: []models.Step{{Percent: 100}}, DefaultHealthThreshold: 0.95},
+		Status: models.RolloutActive,
+	}
+	if err := repo.Create(ctx, ro); err != nil {
+		t.Fatal(err)
+	}
+	ruleID, _ := uuid.Parse(ruleIDStr)
+	got, err := repo.GetActiveByRule(ctx, ruleID)
+	if err != nil {
+		t.Fatalf("lookup: %v", err)
+	}
+	if got.ID != ro.ID {
+		t.Fatalf("expected %v got %v", ro.ID, got.ID)
+	}
+
+	// Terminal rollout should not return.
+	_ = repo.UpdateStatus(ctx, ro.ID, models.RolloutSucceeded, nil)
+	if _, err := repo.GetActiveByRule(ctx, ruleID); err == nil {
+		t.Fatalf("expected ErrRolloutNotFound for terminal rollout")
+	}
+}

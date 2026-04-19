@@ -209,3 +209,32 @@ rules:
 ```
 
 DeploySentry does not verify the header itself — the contract is between the agent and the consumer app. We document the attribute name here so users writing targeting rules know the convention.
+
+## Web UI
+
+The dashboard at `http://localhost:3000` (or deployed URL) exposes the rollout system under each organization:
+
+| Path | Purpose |
+|---|---|
+| `/orgs/:slug/strategies` | List, create, edit, import/export strategy templates |
+| `/orgs/:slug/rollouts` | List rollouts with status filter, auto-refresh every 5s |
+| `/orgs/:slug/rollouts/:id` | Phase timeline, runtime actions (6 buttons), event log |
+| `/orgs/:slug/rollout-groups` | List and create groups |
+| `/orgs/:slug/rollout-groups/:id` | View group members, edit coordination policy |
+| Settings → Rollout Policy | Configure mandate/prompt policy and strategy defaults |
+
+### Runtime actions
+
+The six control actions (pause, resume, promote, approve, rollback, force-promote) map to the same HTTP endpoints the CLI uses. `Rollback` and `Force Promote` require a reason — the UI shows a modal prompt and rejects empty input.
+
+### Integration points
+
+- **Deploy create**: currently covered by CLI `ds deploy --strategy`. Web deploy-create form is a future enhancement.
+- **Flag rule edit**: each targeting rule row in `FlagDetailPage` now has an "Edit" button. The edit panel includes a strategy picker; when a strategy is attached, the save returns 202 Accepted and creates a rollout — the user can track progress on the Rollouts page.
+
+### Limitations (Plan 5)
+
+- Strategies/policies/defaults are only manageable at the **org** level in the UI. Project- and app-scoped equivalents remain reachable via API + CLI.
+- Rollout progress uses **polling** (3s for detail, 5s for list); SSE upgrade deferred.
+- No timeline graph of health signals — just textual phase state and status badges.
+- Dashboard-level "Active rollouts" summary card deferred.

@@ -1,6 +1,6 @@
 # Current Initiatives
 
-> Last updated: 2026-04-17
+> Last updated: 2026-04-18
 
 ## Active (not yet complete)
 
@@ -16,6 +16,7 @@
 | Identity & Provenance | Design | [Plan](./superpowers/plans/2026-04-16-identity-and-provenance.md) | Acquire deploysentry.com, create CrowdSoftApps GitHub org, npm publisher identity, close provenance loop. |
 | Sidecar Traffic Management | Design | [Spec](./superpowers/specs/2026-04-17-sidecar-traffic-management-design.md) / [Plan](./superpowers/plans/2026-04-17-sidecar-traffic-management.md) | Envoy-based sidecar for canary traffic splitting, header routing, and observability. |
 | SDK npm Publishing | Implementation | [Plan](./superpowers/plans/2026-04-16-sdk-npm-publishing.md) | Dual ESM/CJS build + publish `@dr-sentry/sdk` and `@dr-sentry/react` to npm; unblocks Railway/Render deploys and `vite build`. |
+| Configurable Rollout Strategies | Design | [Spec](./superpowers/specs/2026-04-18-configurable-rollout-strategies-design.md) / [Plan 1](./superpowers/plans/2026-04-18-rollout-strategies-foundation.md) | User-defined strategy templates for deploy and config rollouts with rich step semantics; independent Rollout entities with Release bundling. Plan 1 (foundation & templates) written; plans 2–5 to follow. |
 
 ## Archived
 

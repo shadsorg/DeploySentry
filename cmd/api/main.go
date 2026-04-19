@@ -407,6 +407,15 @@ func run() error {
 	// Register the deploy handler with the rollout attacher.
 	deploy.NewHandlerWithRollouts(deployService, webhookService, analyticsService, phaseEngine, deployHandlerAdapter).RegisterRoutes(api, rbacChecker)
 
+	// ---- Plan 4: Rollout groups + coordination ----
+	rolloutGroupRepo := postgres.NewRolloutGroupRepo(db.Pool)
+	rolloutGroupSvc := rollout.NewRolloutGroupService(rolloutGroupRepo, rolloutRepo)
+
+	// Coordinator acts on siblings when a rollout rolls back.
+	coordinator := rollout.NewCoordinator(rolloutGroupSvc, rolloutExecSvc)
+
+	rollout.NewRolloutGroupHandler(rolloutGroupSvc, rolloutScopeResolver).RegisterRoutes(api)
+
 	// Now that rolloutAttacher is ready, wire the flag handler with rollout support.
 	flagRolloutAttacher := &flagRolloutAttacherAdapter{
 		attacher: rolloutAttacher,
@@ -445,6 +454,31 @@ func run() error {
 			},
 		); err != nil && err != context.Canceled {
 			log.Printf("warning: rollout engine subscriber failed: %v", err)
+		}
+	}()
+
+	// Subscribe to rollout.rolled_back events and trigger coordinator.
+	go func() {
+		if err := (&natsEngineSubscriber{nats: nc, ctx: ctx}).Subscribe(
+			"rollouts.rollout.rolled_back",
+			func(msg []byte) {
+				var payload struct {
+					RolloutID string `json:"rollout_id"`
+				}
+				if err := json.Unmarshal(msg, &payload); err != nil {
+					log.Printf("coordinator: bad payload: %v", err)
+					return
+				}
+				id, err := uuid.Parse(payload.RolloutID)
+				if err != nil {
+					return
+				}
+				if err := coordinator.OnRollback(ctx, id); err != nil {
+					log.Printf("coordinator: apply failed rollout_id=%s: %v", id, err)
+				}
+			},
+		); err != nil && err != context.Canceled {
+			log.Printf("warning: coordinator subscriber failed: %v", err)
 		}
 	}()
 

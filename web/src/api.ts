@@ -81,6 +81,27 @@ export const flagsApi = {
     }),
   listRuleEnvStates: (flagId: string) =>
     request<{ rule_environment_states: RuleEnvironmentState[] }>(`/flags/${flagId}/rules/environment-states`),
+  // Lifecycle layer — the backend accepts either a UUID or a flag key for :id
+  // on these endpoints.
+  recordSmokeTest: (flagIdOrKey: string, body: { status: 'pass' | 'fail'; notes?: string; test_run_url?: string }) =>
+    request<Flag>(`/flags/${flagIdOrKey}/smoke-test-result`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  recordUserTest: (flagIdOrKey: string, body: { status: 'pass' | 'fail'; notes?: string; userId: string }) =>
+    request<Flag>(`/flags/${flagIdOrKey}/user-test-result`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  scheduleRemoval: (flagIdOrKey: string, days: number) =>
+    request<Flag>(`/flags/${flagIdOrKey}/schedule-removal`, {
+      method: 'POST',
+      body: JSON.stringify({ days }),
+    }),
+  cancelScheduledRemoval: (flagIdOrKey: string) =>
+    request<Flag>(`/flags/${flagIdOrKey}/schedule-removal`, { method: 'DELETE' }),
+  markExhausted: (flagIdOrKey: string) =>
+    request<Flag>(`/flags/${flagIdOrKey}/mark-exhausted`, { method: 'POST' }),
   exportFlags: async (projectId: string, application: string, format: 'yaml' | 'json' = 'yaml') => {
     const token = localStorage.getItem('ds_token') || '';
     const res = await fetch(`${BASE}/flags/export?project_id=${projectId}&application=${application}&format=${format}`, {

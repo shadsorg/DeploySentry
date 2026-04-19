@@ -36,7 +36,31 @@ function describeAction(entry: AuditLogEntry): string {
     case 'flag.rule.created': return 'Added targeting rule';
     case 'flag.rule.deleted': return 'Deleted targeting rule';
     case 'flag.rule.env_state.updated': return 'Updated rule environment state';
+    case 'flag.smoke_test.recorded': return 'Smoke test recorded';
+    case 'flag.user_test.recorded': return 'User test recorded';
+    case 'flag.scheduled_for_removal.set': return 'Scheduled for removal';
+    case 'flag.scheduled_for_removal.cancelled': return 'Removal cancelled';
+    case 'flag.iteration_exhausted': return 'Iteration exhausted';
     default: return entry.action;
+  }
+}
+
+function formatCountdown(targetIso: string): string {
+  const ms = new Date(targetIso).getTime() - Date.now();
+  if (ms <= 0) return 'due now';
+  const days = Math.floor(ms / (24 * 60 * 60 * 1000));
+  const hours = Math.floor((ms / (60 * 60 * 1000)) % 24);
+  if (days > 0) return `in ${days}d ${hours}h`;
+  const minutes = Math.floor((ms / (60 * 1000)) % 60);
+  return `in ${hours}h ${minutes}m`;
+}
+
+function statusPillClass(status?: string | null): string {
+  switch (status) {
+    case 'pass': return 'badge-success';
+    case 'fail': return 'badge-error';
+    case 'pending': return 'badge-warning';
+    default: return 'badge-neutral';
   }
 }
 
@@ -91,7 +115,7 @@ export default function FlagDetailPage() {
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'environments' | 'rules' | 'yaml' | 'settings' | 'history'>('environments');
+  const [activeTab, setActiveTab] = useState<'environments' | 'rules' | 'yaml' | 'settings' | 'history' | 'lifecycle'>('environments');
   const [environments, setEnvironments] = useState<OrgEnvironment[]>([]);
   const [envStates, setEnvStates] = useState<FlagEnvironmentState[]>([]);
   const [ruleEnvStates, setRuleEnvStates] = useState<RuleEnvironmentState[]>([]);
@@ -390,6 +414,12 @@ export default function FlagDetailPage() {
           Settings
         </button>
         <button
+          className={`detail-tab${activeTab === 'lifecycle' ? ' active' : ''}`}
+          onClick={() => setActiveTab('lifecycle')}
+        >
+          Lifecycle
+        </button>
+        <button
           className={`detail-tab${activeTab === 'history' ? ' active' : ''}`}
           onClick={() => setActiveTab('history')}
         >
@@ -677,6 +707,67 @@ export default function FlagDetailPage() {
               {settingsSaving ? 'Saving...' : 'Save Changes'}
             </button>
             {settingsSuccess && <span style={{ color: 'var(--color-success)', fontSize: 13 }}>Saved successfully</span>}
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Lifecycle */}
+      {activeTab === 'lifecycle' && (
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>Feature Lifecycle</h3>
+          <p className="text-muted" style={{ marginTop: 0 }}>
+            Status reported by the CrowdSoft feature-agent (or any controller that calls the
+            lifecycle API). All fields are optional — a flag with no lifecycle data behaves
+            exactly like a flag in the traditional flow.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+            <div>
+              <label className="form-label" style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>Smoke test</label>
+              <div>
+                <span className={`badge ${statusPillClass(flag.smoke_test_status)}`}>
+                  {flag.smoke_test_status ?? 'not reported'}
+                </span>
+              </div>
+              {flag.last_smoke_test_notes && (
+                <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                  {flag.last_smoke_test_notes}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="form-label" style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>User test</label>
+              <div>
+                <span className={`badge ${statusPillClass(flag.user_test_status)}`}>
+                  {flag.user_test_status ?? 'not reported'}
+                </span>
+              </div>
+              {flag.last_user_test_notes && (
+                <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>
+                  {flag.last_user_test_notes}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div>
+              <label className="form-label" style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>Iteration</label>
+              <div>
+                <strong>{flag.iteration_count ?? 0}</strong>
+                {flag.iteration_exhausted && (
+                  <span className="badge badge-error" style={{ marginLeft: 8 }}>exhausted</span>
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="form-label" style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>Scheduled removal</label>
+              <div>
+                {flag.scheduled_removal_at
+                  ? <><strong>{formatCountdown(flag.scheduled_removal_at)}</strong> <span className="text-muted">({formatDateTime(flag.scheduled_removal_at)})</span></>
+                  : <span className="text-muted">not scheduled</span>}
+              </div>
+            </div>
           </div>
         </div>
       )}

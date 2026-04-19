@@ -21,6 +21,26 @@ type EvaluationLog struct {
 	Timestamp time.Time                `json:"timestamp"`
 }
 
+// LifecyclePatch describes a partial update to the lifecycle-only columns
+// on a feature flag. nil pointers mean "leave unchanged". The `Set*` flags
+// distinguish "clear this to NULL" from "leave untouched" for nullable
+// columns whose zero value is meaningful.
+type LifecyclePatch struct {
+	SmokeTestStatus    *models.LifecycleTestStatus
+	UserTestStatus     *models.LifecycleTestStatus
+	IterationExhausted *bool
+	IterationIncrement int
+
+	SetScheduledRemovalAt bool
+	ScheduledRemovalAt    *time.Time
+
+	SetSmokeNotes bool
+	SmokeNotes    *string
+
+	SetUserNotes bool
+	UserNotes    *string
+}
+
 // FlagRepository defines the persistence interface for feature flag entities.
 type FlagRepository interface {
 	// CreateFlag persists a new feature flag.
@@ -31,6 +51,24 @@ type FlagRepository interface {
 
 	// GetFlagByKey retrieves a feature flag by its project, environment, and key.
 	GetFlagByKey(ctx context.Context, projectID, environmentID uuid.UUID, key string) (*models.FeatureFlag, error)
+
+	// GetFlagByProjectKey retrieves a feature flag by project and key without
+	// an environment constraint. Used by lifecycle endpoints where the API key
+	// scopes the caller to a single project.
+	GetFlagByProjectKey(ctx context.Context, projectID uuid.UUID, key string) (*models.FeatureFlag, error)
+
+	// UpdateFlagLifecycle applies a partial update to the lifecycle columns.
+	// When disableEverywhere is true, the flag and all its per-environment
+	// overrides are disabled in the same transaction.
+	UpdateFlagLifecycle(ctx context.Context, id uuid.UUID, patch LifecyclePatch, disableEverywhere bool) error
+
+	// ListFlagsDueForRemoval returns flags whose scheduled_removal_at has
+	// passed and whose due webhook has not yet been fired.
+	ListFlagsDueForRemoval(ctx context.Context, now time.Time) ([]*models.FeatureFlag, error)
+
+	// MarkFlagRemovalFired records the time the scheduler emitted the 'due'
+	// webhook so subsequent ticks don't re-fire.
+	MarkFlagRemovalFired(ctx context.Context, id uuid.UUID, firedAt time.Time) error
 
 	// ListFlags returns feature flags for a project, with optional filtering.
 	ListFlags(ctx context.Context, projectID uuid.UUID, opts ListOptions) ([]*models.FeatureFlag, error)

@@ -205,6 +205,41 @@ func (m *mockFlagService) ExportFlags(ctx context.Context, projectID uuid.UUID, 
 	return &YAMLExport{Version: 1}, nil
 }
 
+// Lifecycle stubs — default to a minimal flag so handler tests can exercise
+// the response-shape plumbing without the full persistence layer.
+func (m *mockFlagService) GetFlagByProjectKey(ctx context.Context, projectID uuid.UUID, key string) (*models.FeatureFlag, error) {
+	return &models.FeatureFlag{ID: uuid.New(), ProjectID: projectID, Key: key}, nil
+}
+
+func (m *mockFlagService) RecordSmokeTestResult(ctx context.Context, flagID uuid.UUID, status models.LifecycleTestStatus, notes, testRunURL string) (*models.FeatureFlag, error) {
+	return &models.FeatureFlag{ID: flagID, SmokeTestStatus: &status}, nil
+}
+
+func (m *mockFlagService) RecordUserTestResult(ctx context.Context, flagID uuid.UUID, status models.LifecycleTestStatus, notes string) (*models.FeatureFlag, error) {
+	return &models.FeatureFlag{ID: flagID, UserTestStatus: &status}, nil
+}
+
+func (m *mockFlagService) ScheduleRemoval(ctx context.Context, flagID uuid.UUID, days int) (*models.FeatureFlag, error) {
+	t := time.Now().Add(time.Duration(days) * 24 * time.Hour)
+	return &models.FeatureFlag{ID: flagID, ScheduledRemovalAt: &t}, nil
+}
+
+func (m *mockFlagService) CancelScheduledRemoval(ctx context.Context, flagID uuid.UUID) (*models.FeatureFlag, error) {
+	return &models.FeatureFlag{ID: flagID}, nil
+}
+
+func (m *mockFlagService) MarkIterationExhausted(ctx context.Context, flagID uuid.UUID) (*models.FeatureFlag, error) {
+	return &models.FeatureFlag{ID: flagID, IterationExhausted: true}, nil
+}
+
+func (m *mockFlagService) ListFlagsDueForRemoval(ctx context.Context, now time.Time) ([]*models.FeatureFlag, error) {
+	return nil, nil
+}
+
+func (m *mockFlagService) MarkFlagRemovalFired(ctx context.Context, flagID uuid.UUID, firedAt time.Time) error {
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

@@ -22,6 +22,8 @@ export interface FlagMetadata {
   tags: string[];
 }
 
+export type LifecycleTestStatus = 'pending' | 'pass' | 'fail';
+
 export interface Flag {
   id: string;
   project_id: string;
@@ -44,6 +46,14 @@ export interface Flag {
   created_by_name?: string;
   created_at: string;
   updated_at: string;
+  // Lifecycle layer (CrowdSoft feature-agent). All optional.
+  smoke_test_status?: LifecycleTestStatus | null;
+  user_test_status?: LifecycleTestStatus | null;
+  scheduled_removal_at?: string | null;
+  iteration_count?: number;
+  iteration_exhausted?: boolean;
+  last_smoke_test_notes?: string | null;
+  last_user_test_notes?: string | null;
 }
 
 export interface TargetingRule {

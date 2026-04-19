@@ -325,43 +325,6 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
     }
   };
 
-  const handleSoftDeleteProject = async () => {
-    if (!orgSlug || !projectSlug) return;
-    if (!window.confirm('Are you sure you want to delete this project? It can be restored within 7 days.')) return;
-    setDeleteLoading(true);
-    try {
-      await entitiesApi.softDeleteProject(orgSlug, projectSlug);
-      window.location.href = `/orgs/${orgSlug}/projects`;
-    } catch (err: any) {
-      try {
-        const body = typeof err === 'object' && err.active_flags ? err : null;
-        if (body?.active_flags) {
-          setActiveFlags(body.active_flags);
-          setDeletionBlocked(true);
-        }
-      } catch {
-        // ignore parse errors
-      }
-      console.error('Failed to delete project:', err);
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
-
-  const handleHardDeleteProject = async () => {
-    if (!orgSlug || !projectSlug) return;
-    if (!window.confirm('This will PERMANENTLY delete the project and all associated data. This cannot be undone. Are you sure?')) return;
-    setDeleteLoading(true);
-    try {
-      await entitiesApi.hardDeleteProject(orgSlug, projectSlug);
-      window.location.href = `/orgs/${orgSlug}/projects`;
-    } catch (err) {
-      console.error('Failed to permanently delete project:', err);
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
-
   // ---------------------------------------------------------------------------
   // Handlers — App Settings (Task 10)
   // ---------------------------------------------------------------------------

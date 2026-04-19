@@ -124,6 +124,9 @@ func setupDeployRouter(svc DeployService) *gin.Engine {
 	handler := NewHandler(svc, nil, nil, nil)
 	// Pass nil for RBAC to disable permission checks in unit tests.
 	handler.RegisterRoutes(router.Group("/api"), nil)
+	// Production registers /:id/rollback via the rollback package; in unit tests
+	// we wire the handler method directly so TestRollbackDeployment_* can exercise it.
+	router.POST("/api/deployments/:id/rollback", handler.rollbackDeployment)
 	return router
 }
 

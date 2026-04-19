@@ -46,6 +46,7 @@ function parseQuery(): HarnessConfig {
   };
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 function Observer({ flagKey }: { flagKey: string }): null {
   const isVariant = flagKey.startsWith('variant:');
   const realKey = isVariant ? flagKey.slice('variant:'.length) : flagKey;
@@ -64,6 +65,7 @@ function Observer({ flagKey }: { flagKey: string }): null {
   return null;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 function App(): React.ReactElement {
   const cfg = parseQuery();
   return (

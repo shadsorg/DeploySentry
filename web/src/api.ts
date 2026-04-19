@@ -21,6 +21,18 @@ import type {
   AuditLogEntry,
   Agent,
   AgentHeartbeat,
+  TargetType,
+  PolicyKind,
+  Step,
+  Strategy,
+  EffectiveStrategy,
+  RolloutPolicy,
+  StrategyDefault,
+  RolloutStatus,
+  Rollout,
+  RolloutEvent,
+  CoordinationPolicy,
+  RolloutGroup,
 } from './types';
 
 const BASE = '/api/v1';
@@ -593,4 +605,127 @@ export const auditApi = {
     if (params.offset) qs.set('offset', String(params.offset));
     return request<{ entries: AuditLogEntry[]; total: number }>(`/audit-log?${qs}`);
   },
+};
+
+// ---- Strategies ----
+export const strategiesApi = {
+  list: (orgSlug: string) =>
+    request<{ items: EffectiveStrategy[] }>(`/orgs/${orgSlug}/strategies`),
+  get: (orgSlug: string, name: string) =>
+    request<Strategy>(`/orgs/${orgSlug}/strategies/${name}`),
+  create: (orgSlug: string, body: {
+    name: string; description: string; target_type: TargetType;
+    steps: Step[]; default_health_threshold: number; default_rollback_on_failure: boolean;
+  }) => request<Strategy>(`/orgs/${orgSlug}/strategies`, {
+    method: 'POST', body: JSON.stringify(body),
+  }),
+  update: (orgSlug: string, name: string, body: {
+    description: string; target_type: TargetType; steps: Step[];
+    default_health_threshold: number; default_rollback_on_failure: boolean;
+    expected_version: number;
+  }) => request<Strategy>(`/orgs/${orgSlug}/strategies/${name}`, {
+    method: 'PUT', body: JSON.stringify(body),
+  }),
+  delete: (orgSlug: string, name: string) =>
+    request<void>(`/orgs/${orgSlug}/strategies/${name}`, { method: 'DELETE' }),
+  importYAML: (orgSlug: string, yaml: string) =>
+    request<Strategy>(`/orgs/${orgSlug}/strategies/import`, {
+      method: 'POST',
+      body: yaml,
+      headers: { 'Content-Type': 'application/yaml' },
+    }),
+  exportYAML: (orgSlug: string, name: string): Promise<string> => {
+    const token = localStorage.getItem('ds_token') || '';
+    return fetch(`${BASE}/orgs/${orgSlug}/strategies/${name}/export`, {
+      headers: {
+        Authorization: token.startsWith('ds_') ? `ApiKey ${token}` : `Bearer ${token}`,
+      },
+    }).then((r) => {
+      if (!r.ok) throw new Error(`Export failed: ${r.status}`);
+      return r.text();
+    });
+  },
+};
+
+// ---- Strategy defaults + rollout policy ----
+export const strategyDefaultsApi = {
+  list: (orgSlug: string) =>
+    request<{ items: StrategyDefault[] }>(`/orgs/${orgSlug}/strategy-defaults`),
+  set: (orgSlug: string, body: {
+    environment?: string; target_type?: TargetType; strategy_name?: string; strategy_id?: string;
+  }) => request<StrategyDefault>(`/orgs/${orgSlug}/strategy-defaults`, {
+    method: 'PUT', body: JSON.stringify(body),
+  }),
+  delete: (orgSlug: string, id: string) =>
+    request<void>(`/orgs/${orgSlug}/strategy-defaults/${id}`, { method: 'DELETE' }),
+};
+
+export const rolloutPolicyApi = {
+  list: (orgSlug: string) =>
+    request<{ items: RolloutPolicy[] }>(`/orgs/${orgSlug}/rollout-policy`),
+  set: (orgSlug: string, body: {
+    environment?: string; target_type?: TargetType; enabled: boolean; policy: PolicyKind;
+  }) => request<RolloutPolicy>(`/orgs/${orgSlug}/rollout-policy`, {
+    method: 'PUT', body: JSON.stringify(body),
+  }),
+};
+
+// ---- Rollouts (runtime control) ----
+export const rolloutsApi = {
+  list: (orgSlug: string, opts?: { status?: RolloutStatus; target_type?: string; limit?: number }) => {
+    const params = new URLSearchParams();
+    if (opts?.status) params.set('status', opts.status);
+    if (opts?.target_type) params.set('target_type', opts.target_type);
+    if (opts?.limit) params.set('limit', String(opts.limit));
+    const qs = params.toString();
+    return request<{ items: Rollout[] }>(`/orgs/${orgSlug}/rollouts${qs ? '?' + qs : ''}`);
+  },
+  get: (orgSlug: string, id: string) =>
+    request<Rollout>(`/orgs/${orgSlug}/rollouts/${id}`),
+  pause: (orgSlug: string, id: string, reason?: string) =>
+    request<{ ok: boolean }>(`/orgs/${orgSlug}/rollouts/${id}/pause`, {
+      method: 'POST', body: JSON.stringify({ reason: reason || '' }),
+    }),
+  resume: (orgSlug: string, id: string, reason?: string) =>
+    request<{ ok: boolean }>(`/orgs/${orgSlug}/rollouts/${id}/resume`, {
+      method: 'POST', body: JSON.stringify({ reason: reason || '' }),
+    }),
+  promote: (orgSlug: string, id: string, reason?: string) =>
+    request<{ ok: boolean }>(`/orgs/${orgSlug}/rollouts/${id}/promote`, {
+      method: 'POST', body: JSON.stringify({ reason: reason || '' }),
+    }),
+  approve: (orgSlug: string, id: string, reason?: string) =>
+    request<{ ok: boolean }>(`/orgs/${orgSlug}/rollouts/${id}/approve`, {
+      method: 'POST', body: JSON.stringify({ reason: reason || '' }),
+    }),
+  rollback: (orgSlug: string, id: string, reason: string) =>
+    request<{ ok: boolean }>(`/orgs/${orgSlug}/rollouts/${id}/rollback`, {
+      method: 'POST', body: JSON.stringify({ reason }),
+    }),
+  forcePromote: (orgSlug: string, id: string, reason: string) =>
+    request<{ ok: boolean }>(`/orgs/${orgSlug}/rollouts/${id}/force-promote`, {
+      method: 'POST', body: JSON.stringify({ reason }),
+    }),
+  events: (orgSlug: string, id: string, limit = 100) =>
+    request<{ items: RolloutEvent[] }>(`/orgs/${orgSlug}/rollouts/${id}/events?limit=${limit}`),
+};
+
+// ---- Rollout groups ----
+export const rolloutGroupsApi = {
+  list: (orgSlug: string) =>
+    request<{ items: RolloutGroup[] }>(`/orgs/${orgSlug}/rollout-groups`),
+  get: (orgSlug: string, id: string) =>
+    request<{ group: RolloutGroup; members: Rollout[] }>(`/orgs/${orgSlug}/rollout-groups/${id}`),
+  create: (orgSlug: string, body: { name: string; description?: string; coordination_policy?: CoordinationPolicy }) =>
+    request<RolloutGroup>(`/orgs/${orgSlug}/rollout-groups`, {
+      method: 'POST', body: JSON.stringify(body),
+    }),
+  update: (orgSlug: string, id: string, body: { name: string; description: string; coordination_policy: CoordinationPolicy }) =>
+    request<RolloutGroup>(`/orgs/${orgSlug}/rollout-groups/${id}`, {
+      method: 'PUT', body: JSON.stringify(body),
+    }),
+  attach: (orgSlug: string, id: string, rolloutId: string) =>
+    request<{ ok: boolean }>(`/orgs/${orgSlug}/rollout-groups/${id}/attach`, {
+      method: 'POST', body: JSON.stringify({ rollout_id: rolloutId }),
+    }),
 };

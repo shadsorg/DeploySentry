@@ -311,7 +311,7 @@ export interface OrgEnvironment {
   updated_at: string;
 }
 
-export type PhaseStatus = 'pending' | 'active' | 'passed' | 'failed' | 'skipped';
+export type PhaseStatus = 'pending' | 'active' | 'passed' | 'failed' | 'skipped' | 'awaiting_approval' | 'rolled_back';
 
 export interface DeploymentPhase {
   id: string;
@@ -382,4 +382,138 @@ export interface AgentHeartbeat {
   deployment_id?: string;
   payload: HeartbeatPayload;
   created_at: string;
+}
+
+// ---- Strategies + policies + defaults (Plan 1) ----
+
+export type TargetType = 'deploy' | 'config' | 'any';
+export type ScopeType = 'org' | 'project' | 'app';
+export type PolicyKind = 'off' | 'prompt' | 'mandate';
+
+export interface Step {
+  percent: number;
+  min_duration: number;    // nanoseconds
+  max_duration: number;
+  bake_time_healthy: number;
+  health_threshold?: number;
+  approval?: { required_role: string; timeout: number };
+  notify?: { on_entry?: string[]; on_exit?: string[] };
+  abort_conditions?: Array<{
+    metric: string;
+    operator: string;
+    threshold: number;
+    window: number;
+  }>;
+  signal_override?: { kind: string };
+}
+
+export interface Strategy {
+  id: string;
+  scope_type: ScopeType;
+  scope_id: string;
+  name: string;
+  description: string;
+  target_type: TargetType;
+  steps: Step[];
+  default_health_threshold: number;
+  default_rollback_on_failure: boolean;
+  version: number;
+  is_system: boolean;
+  created_by?: string;
+  updated_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EffectiveStrategy {
+  strategy: Strategy;
+  origin_scope: { type: ScopeType; id: string };
+  is_inherited: boolean;
+}
+
+export interface RolloutPolicy {
+  id: string;
+  scope_type: ScopeType;
+  scope_id: string;
+  environment?: string;
+  target_type?: TargetType;
+  enabled: boolean;
+  policy: PolicyKind;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StrategyDefault {
+  id: string;
+  scope_type: ScopeType;
+  scope_id: string;
+  environment?: string;
+  target_type?: TargetType;
+  strategy_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---- Rollouts (Plan 2+3) ----
+
+export type RolloutStatus =
+  | 'pending'
+  | 'active'
+  | 'paused'
+  | 'awaiting_approval'
+  | 'succeeded'
+  | 'rolled_back'
+  | 'aborted'
+  | 'superseded';
+
+export interface RolloutTargetRef {
+  deployment_id?: string;
+  flag_key?: string;
+  env?: string;
+  rule_id?: string;
+  previous_percentage?: number;
+}
+
+export interface Rollout {
+  id: string;
+  release_id?: string;
+  target_type: 'deploy' | 'config';
+  target_ref: RolloutTargetRef;
+  strategy_snapshot: Strategy;
+  signal_source: { kind: string };
+  status: RolloutStatus;
+  current_phase_index: number;
+  current_phase_started_at?: string;
+  last_healthy_since?: string;
+  rollback_reason?: string;
+  created_by?: string;
+  created_at: string;
+  completed_at?: string;
+}
+
+export interface RolloutEvent {
+  id: string;
+  rollout_id: string;
+  event_type: string;
+  actor_type: 'user' | 'system';
+  actor_id?: string;
+  reason?: string;
+  payload: Record<string, unknown>;
+  occurred_at: string;
+}
+
+// ---- Rollout groups (Plan 4) ----
+
+export type CoordinationPolicy = 'independent' | 'pause_on_sibling_abort' | 'cascade_abort';
+
+export interface RolloutGroup {
+  id: string;
+  scope_type: ScopeType;
+  scope_id: string;
+  name: string;
+  description: string;
+  coordination_policy: CoordinationPolicy;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
 }

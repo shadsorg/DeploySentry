@@ -7,12 +7,13 @@ import { entitiesApi, webhooksApi, flagsApi, grantsApi, membersApi, Webhook } fr
 import { useGrants } from '../hooks/useGrants';
 import { useGroups } from '../hooks/useGroups';
 import type { FlagActivitySummary, Member } from '../types';
+import PolicyAndDefaultsTab from './PolicyAndDefaultsTab';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type SettingsTab = 'environments' | 'webhooks' | 'notifications' | 'general' | 'authorization' | 'danger';
+type SettingsTab = 'environments' | 'webhooks' | 'notifications' | 'rollout-policy' | 'general' | 'authorization' | 'danger';
 
 interface SettingsPageProps {
   level?: 'org' | 'project' | 'app';
@@ -21,7 +22,7 @@ interface SettingsPageProps {
 
 function defaultTab(level: string, tab?: string): SettingsTab {
   const validTabs: Record<string, SettingsTab[]> = {
-    org: ['environments', 'webhooks', 'notifications'],
+    org: ['environments', 'webhooks', 'notifications', 'rollout-policy'],
     project: ['general', 'authorization', 'danger'],
     app: ['general', 'authorization', 'danger'],
   };
@@ -46,6 +47,7 @@ function getTabsForLevel(level: string): { key: SettingsTab; label: string }[] {
         { key: 'environments', label: 'Environments' },
         { key: 'webhooks', label: 'Webhooks' },
         { key: 'notifications', label: 'Notifications' },
+        { key: 'rollout-policy', label: 'Rollout Policy' },
       ];
     case 'project':
       return [
@@ -1224,6 +1226,13 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             {deleting ? 'Deleting...' : 'Delete Project'}
           </button>
         </div>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Rollout Policy tab — org level — Plan 5 Task 7                     */}
+      {/* ------------------------------------------------------------------ */}
+      {activeTab === 'rollout-policy' && level === 'org' && orgSlug && (
+        <PolicyAndDefaultsTab orgSlug={orgSlug} />
       )}
 
       {/* ------------------------------------------------------------------ */}

@@ -42,15 +42,15 @@ const (
 	DeployStrategyRolling DeployStrategyType = "rolling"
 )
 
-// PhaseStatus represents the lifecycle state of a deployment phase.
-type PhaseStatus string
+// DeploymentPhaseStatus represents the lifecycle state of a deployment phase.
+type DeploymentPhaseStatus string
 
 const (
-	PhaseStatusPending PhaseStatus = "pending"
-	PhaseStatusActive  PhaseStatus = "active"
-	PhaseStatusPassed  PhaseStatus = "passed"
-	PhaseStatusFailed  PhaseStatus = "failed"
-	PhaseStatusSkipped PhaseStatus = "skipped"
+	DeploymentPhaseStatusPending DeploymentPhaseStatus = "pending"
+	DeploymentPhaseStatusActive  DeploymentPhaseStatus = "active"
+	DeploymentPhaseStatusPassed  DeploymentPhaseStatus = "passed"
+	DeploymentPhaseStatusFailed  DeploymentPhaseStatus = "failed"
+	DeploymentPhaseStatusSkipped DeploymentPhaseStatus = "skipped"
 )
 
 // validTransitions defines which status transitions are allowed.
@@ -88,16 +88,16 @@ type Deployment struct {
 // DeploymentPhase represents a discrete step within a deployment rollout,
 // such as an incremental canary traffic increase.
 type DeploymentPhase struct {
-	ID             uuid.UUID  `json:"id" db:"id"`
-	DeploymentID   uuid.UUID  `json:"deployment_id" db:"deployment_id"`
-	Name           string     `json:"name" db:"name"`
-	Status         PhaseStatus `json:"status" db:"status"`
-	TrafficPercent int        `json:"traffic_percent" db:"traffic_percent"`
-	Duration       int        `json:"duration_seconds" db:"duration_seconds"`
-	SortOrder      int        `json:"sort_order" db:"sort_order"`
-	AutoPromote    bool       `json:"auto_promote" db:"auto_promote"`
-	StartedAt      *time.Time `json:"started_at,omitempty" db:"started_at"`
-	CompletedAt    *time.Time `json:"completed_at,omitempty" db:"completed_at"`
+	ID             uuid.UUID             `json:"id" db:"id"`
+	DeploymentID   uuid.UUID             `json:"deployment_id" db:"deployment_id"`
+	Name           string                `json:"name" db:"name"`
+	Status         DeploymentPhaseStatus `json:"status" db:"status"`
+	TrafficPercent int                   `json:"traffic_percent" db:"traffic_percent"`
+	Duration       int                   `json:"duration_seconds" db:"duration_seconds"`
+	SortOrder      int                   `json:"sort_order" db:"sort_order"`
+	AutoPromote    bool                  `json:"auto_promote" db:"auto_promote"`
+	StartedAt      *time.Time            `json:"started_at,omitempty" db:"started_at"`
+	CompletedAt    *time.Time            `json:"completed_at,omitempty" db:"completed_at"`
 }
 
 // RollbackRecord stores a historical record of a deployment rollback.

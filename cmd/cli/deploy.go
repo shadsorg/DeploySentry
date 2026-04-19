@@ -215,8 +215,9 @@ func init() {
 	// deploy create flags
 	deployCreateCmd.Flags().String("release", "", "release version to deploy (required)")
 	deployCreateCmd.Flags().String("env", "", "target environment (required)")
-	deployCreateCmd.Flags().String("strategy", "rolling", "deployment strategy: rolling, canary, blue-green")
+	deployCreateCmd.Flags().String("strategy", "rolling", "deployment strategy: rolling, canary, blue-green, or a named rollout strategy from scope ancestry")
 	deployCreateCmd.Flags().String("description", "", "optional description for the deployment")
+	deployCreateCmd.Flags().Bool("apply-immediately", false, "skip any onboarded strategy prompt; apply immediately")
 	_ = deployCreateCmd.MarkFlagRequired("release")
 
 	// deploy status flags
@@ -267,24 +268,46 @@ func runDeployCreate(cmd *cobra.Command, args []string) error {
 	strategy, _ := cmd.Flags().GetString("strategy")
 	description, _ := cmd.Flags().GetString("description")
 
-	// Validate strategy.
-	validStrategies := map[string]bool{"rolling": true, "canary": true, "blue-green": true}
-	if !validStrategies[strategy] {
-		return fmt.Errorf("invalid strategy %q; must be one of: rolling, canary, blue-green", strategy)
+	// Validate built-in strategy types; named rollout strategies from scope ancestry are passed through.
+	builtinStrategies := map[string]bool{"rolling": true, "canary": true, "blue-green": true}
+	isNamedStrategy := !builtinStrategies[strategy]
+	if isNamedStrategy && strategy != "" {
+		// Named rollout strategy — valid, will be sent in the rollout sub-map.
+	} else if !builtinStrategies[strategy] {
+		return fmt.Errorf("invalid strategy %q; must be one of: rolling, canary, blue-green, or a named rollout strategy", strategy)
 	}
+
+	applyImmediately, _ := cmd.Flags().GetBool("apply-immediately")
 
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
 
+	deployStrategy := strategy
+	if isNamedStrategy {
+		deployStrategy = "rolling" // server default; rollout sub-map carries the named strategy
+	}
+
 	body := map[string]interface{}{
 		"release":     release,
 		"environment": env,
-		"strategy":    strategy,
+		"strategy":    deployStrategy,
 	}
 	if description != "" {
 		body["description"] = description
+	}
+
+	// Attach rollout sub-map when a named strategy or apply-immediately is requested.
+	if isNamedStrategy || applyImmediately {
+		rollout := map[string]any{}
+		if isNamedStrategy {
+			rollout["strategy_name"] = strategy
+		}
+		if applyImmediately {
+			rollout["apply_immediately"] = true
+		}
+		body["rollout"] = rollout
 	}
 
 	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/deployments", org, project)

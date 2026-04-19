@@ -30,6 +30,7 @@ type mockDeployService struct {
 	getActiveFn         func(ctx context.Context, applicationID uuid.UUID) ([]*models.Deployment, error)
 	listPhasesFn        func(ctx context.Context, deploymentID uuid.UUID) ([]*models.DeploymentPhase, error)
 	listRollbacksFn     func(ctx context.Context, deploymentID uuid.UUID) ([]*models.RollbackRecord, error)
+	setTrafficPercentFn func(ctx context.Context, deploymentID uuid.UUID, pct int) error
 }
 
 func (m *mockDeployService) CreateDeployment(ctx context.Context, d *models.Deployment) error {
@@ -103,6 +104,13 @@ func (m *mockDeployService) ListRollbackRecords(ctx context.Context, deploymentI
 }
 
 func (m *mockDeployService) CancelDeployment(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
+func (m *mockDeployService) SetTrafficPercent(ctx context.Context, deploymentID uuid.UUID, pct int) error {
+	if m.setTrafficPercentFn != nil {
+		return m.setTrafficPercentFn(ctx, deploymentID, pct)
+	}
 	return nil
 }
 
@@ -459,4 +467,63 @@ func TestResumeDeployment_ServiceError(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// POST /deployments with rollout field  (RolloutAttacher plumbing)
+// ---------------------------------------------------------------------------
+
+type fakeRolloutAttacher struct {
+	called    bool
+	lastDepID uuid.UUID
+	lastReq   *RolloutAttachRequest
+	returnErr error
+}
+
+func (f *fakeRolloutAttacher) AttachFromDeployRequest(_ context.Context, d *models.Deployment, req *RolloutAttachRequest, _ uuid.UUID) error {
+	f.called = true
+	f.lastDepID = d.ID
+	f.lastReq = req
+	return f.returnErr
+}
+
+func setupDeployRouterWithRollouts(svc DeployService, ra RolloutAttacher) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := NewHandlerWithRollouts(svc, nil, nil, nil, ra)
+	handler.RegisterRoutes(router.Group("/api"), nil)
+	return router
+}
+
+func TestCreateDeployment_WithRolloutField_AttacherCalled(t *testing.T) {
+	depID := uuid.New()
+	svc := &mockDeployService{
+		createFn: func(_ context.Context, d *models.Deployment) error {
+			d.ID = depID
+			return nil
+		},
+	}
+	fa := &fakeRolloutAttacher{}
+	router := setupDeployRouterWithRollouts(svc, fa)
+
+	body := map[string]interface{}{
+		"application_id": uuid.New().String(),
+		"environment_id": uuid.New().String(),
+		"strategy":       "canary",
+		"artifact":       "myapp:v2.0.0",
+		"version":        "v2.0.0",
+		"rollout": map[string]interface{}{
+			"strategy_name": "x",
+		},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/deployments", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	assert.True(t, fa.called, "expected AttachFromDeployRequest to be called")
+	assert.Equal(t, depID, fa.lastDepID)
+	assert.Equal(t, "x", fa.lastReq.StrategyName)
 }

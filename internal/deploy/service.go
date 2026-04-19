@@ -51,6 +51,10 @@ type DeployService interface {
 
 	// ListRollbackRecords returns the rollback history for a deployment.
 	ListRollbackRecords(ctx context.Context, deploymentID uuid.UUID) ([]*models.RollbackRecord, error)
+
+	// SetTrafficPercent updates the traffic_percent field on a deployment row.
+	// Used by the rollout applicator to advance canary traffic during phase execution.
+	SetTrafficPercent(ctx context.Context, deploymentID uuid.UUID, pct int) error
 }
 
 // deployService is the concrete implementation of DeployService.
@@ -261,6 +265,20 @@ func (s *deployService) ListRollbackRecords(ctx context.Context, deploymentID uu
 		return nil, fmt.Errorf("listing rollback records: %w", err)
 	}
 	return records, nil
+}
+
+// SetTrafficPercent updates only the traffic_percent field on the deployment row.
+func (s *deployService) SetTrafficPercent(ctx context.Context, deploymentID uuid.UUID, pct int) error {
+	d, err := s.repo.GetDeployment(ctx, deploymentID)
+	if err != nil {
+		return fmt.Errorf("getting deployment for traffic update: %w", err)
+	}
+	d.TrafficPercent = pct
+	d.UpdatedAt = time.Now().UTC()
+	if err := s.repo.UpdateDeployment(ctx, d); err != nil {
+		return fmt.Errorf("updating deployment traffic: %w", err)
+	}
+	return nil
 }
 
 // publishEvent is a fire-and-forget helper that publishes a domain event.

@@ -2,6 +2,8 @@ package deploy
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"time"
@@ -9,6 +11,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/analytics"
 	"github.com/deploysentry/deploysentry/internal/auth"
 	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/deploysentry/deploysentry/internal/rollout"
 	"github.com/deploysentry/deploysentry/internal/webhooks"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -20,12 +23,28 @@ type PhaseAdvancer interface {
 	Advance(ctx context.Context, deploymentID uuid.UUID) error
 }
 
+// RolloutAttacher is implemented by the rollout package and injected at wiring time.
+// Kept as an interface inside deploy to avoid a reverse dependency.
+type RolloutAttacher interface {
+	AttachFromDeployRequest(ctx context.Context, deployment *models.Deployment, req *RolloutAttachRequest, actor uuid.UUID) error
+}
+
+// RolloutAttachRequest is the client-supplied rollout intent on a deploy request.
+type RolloutAttachRequest struct {
+	StrategyName     string          `json:"strategy_name,omitempty"`
+	StrategyID       *uuid.UUID      `json:"strategy_id,omitempty"`
+	Overrides        json.RawMessage `json:"overrides,omitempty"`
+	ReleaseID        *uuid.UUID      `json:"release_id,omitempty"`
+	ApplyImmediately bool            `json:"apply_immediately,omitempty"`
+}
+
 // Handler provides HTTP endpoints for managing deployments.
 type Handler struct {
 	service      DeployService
 	webhookSvc   *webhooks.Service
 	analyticsSvc *analytics.Service
 	engine       PhaseAdvancer
+	rollouts     RolloutAttacher
 }
 
 // NewHandler creates a new deployment HTTP handler.
@@ -37,6 +56,27 @@ func NewHandler(service DeployService, webhookSvc *webhooks.Service, analyticsSv
 		analyticsSvc: analyticsSvc,
 		engine:       engine,
 	}
+}
+
+// NewHandlerWithRollouts creates a Handler with an optional RolloutAttacher.
+// The attacher is called after a deployment is created to bind any rollout
+// strategy supplied in the POST body. Task 14 wiring should call this instead
+// of NewHandler when a rollout service is available.
+func NewHandlerWithRollouts(service DeployService, webhookSvc *webhooks.Service, analyticsSvc *analytics.Service, engine PhaseAdvancer, rollouts RolloutAttacher) *Handler {
+	h := NewHandler(service, webhookSvc, analyticsSvc, engine)
+	h.rollouts = rollouts
+	return h
+}
+
+// actorFromDeployContext extracts the authenticated user UUID from the Gin
+// context, falling back to uuid.Nil when no user_id key is present.
+func actorFromDeployContext(c *gin.Context) uuid.UUID {
+	if v, ok := c.Get("user_id"); ok {
+		if id, ok := v.(uuid.UUID); ok {
+			return id
+		}
+	}
+	return uuid.Nil
 }
 
 // RegisterRoutes mounts all deployment API routes on the given router group.
@@ -79,13 +119,14 @@ func mw(rbac *auth.RBACChecker, perm auth.Permission) gin.HandlerFunc {
 
 // createDeploymentRequest is the JSON body for creating a new deployment.
 type createDeploymentRequest struct {
-	ApplicationID uuid.UUID `json:"application_id" binding:"required"`
-	EnvironmentID uuid.UUID `json:"environment_id" binding:"required"`
-	Strategy      string    `json:"strategy" binding:"required"`
-	Artifact      string    `json:"artifact" binding:"required"`
-	Version       string    `json:"version" binding:"required"`
-	CommitSHA     string    `json:"commit_sha"`
-	FlagTestKey   *string   `json:"flag_test_key"`
+	ApplicationID uuid.UUID            `json:"application_id" binding:"required"`
+	EnvironmentID uuid.UUID            `json:"environment_id" binding:"required"`
+	Strategy      string               `json:"strategy" binding:"required"`
+	Artifact      string               `json:"artifact" binding:"required"`
+	Version       string               `json:"version" binding:"required"`
+	CommitSHA     string               `json:"commit_sha"`
+	FlagTestKey   *string              `json:"flag_test_key"`
+	Rollout       *RolloutAttachRequest `json:"rollout,omitempty"`
 }
 
 func (h *Handler) createDeployment(c *gin.Context) {
@@ -155,6 +196,21 @@ func (h *Handler) createDeployment(c *gin.Context) {
 
 		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentCreated, orgID, &d.ApplicationID, webhookData, &createdBy); err != nil {
 			log.Printf("failed to publish deployment created webhook: %v", err)
+		}
+	}
+
+	if h.rollouts != nil && req.Rollout != nil && !req.Rollout.ApplyImmediately {
+		actor := actorFromDeployContext(c)
+		if err := h.rollouts.AttachFromDeployRequest(c.Request.Context(), d, req.Rollout, actor); err != nil {
+			if errors.Is(err, rollout.ErrAlreadyActiveOnTarget) {
+				c.JSON(http.StatusConflict, gin.H{
+					"error":   "rollout_in_progress",
+					"options": []string{"abort", "wait", "amend"},
+				})
+				return
+			}
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
 		}
 	}
 

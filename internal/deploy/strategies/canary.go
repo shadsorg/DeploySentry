@@ -142,7 +142,7 @@ func (s *CanaryStrategy) Execute(ctx context.Context, deployment *models.Deploym
 			ID:             uuid.New(),
 			DeploymentID:   deployment.ID,
 			Name:           fmt.Sprintf("canary-step-%d", i+1),
-			Status:         models.PhaseStatusActive,
+			Status:         models.DeploymentPhaseStatusActive,
 			TrafficPercent: step.TrafficPercent,
 			Duration:       int(step.Duration.Seconds()),
 			SortOrder:      i,

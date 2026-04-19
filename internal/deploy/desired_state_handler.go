@@ -100,7 +100,7 @@ func (h *Handler) buildDesiredStateResponse(c *gin.Context, d *models.Deployment
 	// Attempt to attach active phase info (best-effort; never fails the response).
 	if phases, err := h.service.ListPhases(c.Request.Context(), d.ID); err == nil {
 		for _, p := range phases {
-			if p.Status == models.PhaseStatusActive {
+			if p.Status == models.DeploymentPhaseStatusActive {
 				pi := &PhaseInfo{
 					Name:        p.Name,
 					SortOrder:   p.SortOrder,

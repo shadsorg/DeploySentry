@@ -144,7 +144,7 @@ func (r *mockEngineRepo) GetActivePhase(_ context.Context, deploymentID uuid.UUI
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	for _, p := range r.phases[deploymentID] {
-		if p.Status == models.PhaseStatusActive {
+		if p.Status == models.DeploymentPhaseStatusActive {
 			copy := *p
 			return &copy, nil
 		}
@@ -220,7 +220,7 @@ func TestBuildPhases(t *testing.T) {
 		if ph.SortOrder != c.sortOrder {
 			t.Errorf("phase[%d] sort_order: want %d, got %d", i, c.sortOrder, ph.SortOrder)
 		}
-		if ph.Status != models.PhaseStatusPending {
+		if ph.Status != models.DeploymentPhaseStatusPending {
 			t.Errorf("phase[%d] status: want pending, got %s", i, ph.Status)
 		}
 		if ph.ID == uuid.Nil {
@@ -357,7 +357,7 @@ func TestDriveDeployment_CanaryHappyPath(t *testing.T) {
 		t.Fatalf("expected 3 phases, got %d", len(phases))
 	}
 	for i, ph := range phases {
-		if ph.Status != models.PhaseStatusPassed {
+		if ph.Status != models.DeploymentPhaseStatusPassed {
 			t.Errorf("phase[%d] expected passed, got %s", i, ph.Status)
 		}
 		if ph.StartedAt == nil {
@@ -395,4 +395,112 @@ type mockSubscriber struct {
 
 func (m *mockSubscriber) Subscribe(subject string, handler func(msg []byte)) error {
 	return m.onSubscribe(subject, handler)
+}
+
+// ---------------------------------------------------------------------------
+// RolloutLookup guard tests
+// ---------------------------------------------------------------------------
+
+type stubRolloutLookup struct {
+	has bool
+	err error
+}
+
+func (s *stubRolloutLookup) HasActiveRolloutForDeployment(_ context.Context, _ uuid.UUID) (bool, error) {
+	return s.has, s.err
+}
+
+// TestDeployEngine_GuardsWhenRolloutExists verifies that driveDeployment returns
+// early without advancing any phases when the rollout lookup reports an active
+// rollout for the deployment.
+func TestDeployEngine_GuardsWhenRolloutExists(t *testing.T) {
+	strategies.SetDefaultCanaryConfigForTest(strategies.CanaryConfig{
+		Steps: []strategies.CanaryStep{
+			{TrafficPercent: 10, Duration: 0},
+			{TrafficPercent: 100, Duration: 0},
+		},
+		AutoPromote:       true,
+		RollbackOnFailure: true,
+	})
+	t.Cleanup(func() {
+		strategies.SetDefaultCanaryConfigForTest(strategies.CanaryConfig{
+			Steps: []strategies.CanaryStep{
+				{TrafficPercent: 1, Duration: 5 * time.Minute},
+				{TrafficPercent: 5, Duration: 5 * time.Minute},
+				{TrafficPercent: 25, Duration: 10 * time.Minute},
+				{TrafficPercent: 50, Duration: 10 * time.Minute},
+				{TrafficPercent: 100, Duration: 0},
+			},
+			HealthThreshold:   0.95,
+			AutoPromote:       true,
+			RollbackOnFailure: true,
+		})
+	})
+
+	repo := newMockEngineRepo()
+	pub := &mockPublisher{}
+	eng := engine.New(repo, pub, nil, nil)
+	eng.SetRolloutLookup(&stubRolloutLookup{has: true})
+
+	// Seed a pending canary deployment.
+	d := &models.Deployment{
+		ID:            uuid.New(),
+		ApplicationID: uuid.New(),
+		EnvironmentID: uuid.New(),
+		Strategy:      models.DeployStrategyCanary,
+		Status:        models.DeployStatusPending,
+		Artifact:      "registry.example.com/myapp",
+		Version:       "v2.0.0",
+		CreatedBy:     uuid.New(),
+		CreatedAt:     time.Now().UTC(),
+		UpdatedAt:     time.Now().UTC(),
+	}
+	if err := repo.CreateDeployment(context.Background(), d); err != nil {
+		t.Fatalf("create deployment: %v", err)
+	}
+
+	// Wire up the subscriber so we can fire the deployment.created event.
+	var capturedHandler func([]byte)
+	mockSub := &mockSubscriber{
+		onSubscribe: func(_ string, handler func([]byte)) error {
+			capturedHandler = handler
+			return nil
+		},
+	}
+
+	startCtx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- eng.Start(startCtx, mockSub) }()
+
+	for capturedHandler == nil {
+		time.Sleep(1 * time.Millisecond)
+	}
+
+	eventPayload, _ := json.Marshal(map[string]string{"deployment_id": d.ID.String()})
+	capturedHandler(eventPayload)
+
+	// Give the goroutine time to process; the guard should return quickly.
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+	<-done
+
+	// Deployment must remain pending (guard short-circuited before any transition).
+	final, err := repo.GetDeployment(context.Background(), d.ID)
+	if err != nil {
+		t.Fatalf("get deployment: %v", err)
+	}
+	if final.Status != models.DeployStatusPending {
+		t.Errorf("expected deployment to remain pending, got %s", final.Status)
+	}
+
+	// No phases should have been created.
+	phases, _ := repo.ListPhases(context.Background(), d.ID)
+	if len(phases) != 0 {
+		t.Errorf("expected 0 phases, got %d", len(phases))
+	}
+
+	// No events should have been published.
+	if subs := pub.subjects(); len(subs) != 0 {
+		t.Errorf("expected no published events, got %v", subs)
+	}
 }

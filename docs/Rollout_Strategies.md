@@ -152,3 +152,43 @@ When a config rollout rolls back, the rule's percentage is restored to its pre-r
 - A rule whose `percentage` decreases during a rollout (e.g., from 25% → 1% as the first step) is allowed; the engine treats the strategy's step values as absolute. Users should pick strategies whose first step matches or exceeds the current percentage.
 - Only the `percentage` field of a rule is rolled out. Changing the rule's `Value` or type requires a direct edit (no progressive rollout of `Value` yet).
 - Config rollouts advance by percentage only — no SDK-side bucket hashing logic changed; evaluation uses whatever the existing rule's percentage field is.
+
+## Rollout groups
+
+A **Rollout group** bundles related rollouts (e.g., a deploy + its associated flag enable) under one umbrella. Groups are optional — rollouts without a group behave exactly as before.
+
+**Naming note:** "Rollout group" (not "Release") avoids collision with the existing `releases` concept in this codebase (which tracks version/commit metadata).
+
+### Why group rollouts?
+
+For UI: a single bundle view for "v1.2 shipped these 3 rollouts" instead of scattered entries.
+
+For coordination: set the group's `coordination_policy` so that if any member rollout rolls back, siblings react:
+
+| Policy | Effect on siblings |
+|---|---|
+| `independent` *(default)* | No effect. Siblings keep running. |
+| `pause_on_sibling_abort` | Active siblings are paused. Operator decides next. |
+| `cascade_abort` | Active/paused siblings are rolled back with reason `sibling_aborted:<id>`. |
+
+### CLI
+
+```
+ds rollout-groups create --org acme --name "v1.2 ship" --policy pause_on_sibling_abort
+ds rollout-groups attach <group-id> --org acme --rollout <rollout-id>
+ds rollout-groups list --org acme
+ds rollout-groups get <group-id> --org acme
+```
+
+### Attaching at rollout creation
+
+Both deploy rollouts and config rollouts accept `release_id` in their attach request body — a group ID (column name preserved from Plan 2):
+
+```json
+{ "rollout": { "strategy_name": "prod-canary", "release_id": "<group-uuid>" } }
+```
+
+### Coordination limitations
+
+- Coordination fires on `rollouts.rollout.rolled_back` NATS events. Rollbacks that happened before Plan 4 shipped are not replayed.
+- Sibling rollback via `cascade_abort` calls `RolloutService.Rollback` which updates state but does NOT trigger applicator `Revert`. The engine performs Revert only on its own abort path; manually-triggered rollbacks (operator or cascade) leave traffic/rule unchanged in place. A follow-up should wire manual rollback to also call Revert.

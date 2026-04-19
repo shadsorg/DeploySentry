@@ -64,6 +64,48 @@ steps:
     bake_time_healthy: 0s
 ```
 
+## Attaching a strategy to a deploy
+
+```
+ds deploy create --org acme --project api --app web \
+  --artifact ./build.tgz --version v1.2.3 \
+  --strategy prod-canary-standard
+```
+
+If your scope is onboarded with `policy=mandate` and no `--strategy` is given, the CLI resolves the default assignment matrix and attaches it automatically. If no default resolves, the server returns 400 with a hint.
+
+## Runtime operator controls
+
+Once a rollout is in flight, six operator actions are available:
+
+| Command | Meaning | Notes |
+|---|---|---|
+| `pause` | Freeze at current phase | Reason optional |
+| `resume` | Unfreeze a paused rollout | Reason optional |
+| `promote` | Skip remaining dwell on current phase | Health still checked before advancing |
+| `approve` | Grant a manual approval gate | Reason optional |
+| `rollback` | Revert the target to prior value | **Reason required** |
+| `force-promote` | Advance even if unhealthy | **Reason required** (audit) |
+
+```
+ds rollouts list --org acme --status active
+ds rollouts get <id> --org acme
+ds rollouts rollback <id> --org acme --reason "p99 regression"
+ds rollouts force-promote <id> --org acme --reason "manual override, verified in staging"
+```
+
+## System strategies
+
+Every org is seeded with three system templates: `system-canary` (the default for deploys), `system-blue-green`, and `system-rolling`. They cannot be deleted and their values match what earlier versions of DeploySentry had hardcoded. Customize by copying (`ds strategies export … | ds strategies apply -f -`) under a new name.
+
+## Current limitations (Plan 2)
+
+- **Abort conditions** currently only support the `score` metric (overall health score). Richer metrics (error_rate, latency_p99_ms, latency_p50_ms, request_rate) are defined in the HealthScore struct but `internal/health/DeploymentHealth` does not yet expose them — those abort conditions will not trip until the health package is extended. Use `score` comparisons as the reliable abort signal for now.
+- **HealthMonitor is not wired up in cmd/api/main.go** (neither Plan 1 nor Plan 2 introduced it). The rollout engine uses a no-op health reader that always returns healthy, so rollouts currently advance on time alone — matching the existing legacy deploy engine's behavior. Wiring up a real HealthMonitor is a future infrastructure task.
+- **Config rollouts** (flag/config value rollouts via SDK) come in Plan 3.
+- **Releases** (bundling related rollouts with coordination policies) come in Plan 4.
+- **Web UI** comes in Plan 5.
+
 ## What's coming
 
 The foundation plan ships template management only. Future plans wire strategies into live deploy and config rollouts, add runtime controls (pause/resume/promote/rollback/approve/force-promote), add Release bundles, and build the web UI.

@@ -448,6 +448,12 @@ func run() error {
 		}
 	}()
 
+	// Feature lifecycle scheduler: emits flag.scheduled_for_removal.due when
+	// scheduled_removal_at passes. Runs in-process on every API instance; the
+	// marker column (scheduled_removal_fired_at) keeps firings idempotent.
+	lifecycleScheduler := flags.NewLifecycleScheduler(flagService, webhookService, time.Minute)
+	go lifecycleScheduler.Run(ctx)
+
 	// Rollback handler: manual rollback triggers and rollback history.
 	rollbackExecutor := &deployServiceRollbackExecutor{service: deployService}
 	rollbackController := rollback.NewRollbackController(

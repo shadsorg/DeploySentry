@@ -144,6 +144,17 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			envs.PUT("/:envId", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.setFlagEnvState)
 		}
 	}
+
+	// Lifecycle layer — ApiKey-authenticated. The `:id` path param accepts
+	// either a flag UUID or a flag key; keys are resolved against the API
+	// key's project scope (lookup in handler). Reuses the ":id" param name
+	// because Gin's router requires all siblings under `/flags/:*` to share
+	// the same parameter name.
+	flags.POST("/:id/smoke-test-result", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.recordSmokeTestResult)
+	flags.POST("/:id/user-test-result", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.recordUserTestResult)
+	flags.POST("/:id/schedule-removal", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.scheduleRemoval)
+	flags.DELETE("/:id/schedule-removal", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.cancelScheduledRemoval)
+	flags.POST("/:id/mark-exhausted", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.markIterationExhausted)
 }
 
 // createFlagRequest is the JSON body for creating a new feature flag.

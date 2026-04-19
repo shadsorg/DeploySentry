@@ -61,6 +61,16 @@ const (
 	RuleTypeCompound RuleType = "compound"
 )
 
+// LifecycleTestStatus is the outcome of a smoke or user test recorded
+// against a flag. Nil/empty means no test has been reported yet.
+type LifecycleTestStatus string
+
+const (
+	LifecycleTestPending LifecycleTestStatus = "pending"
+	LifecycleTestPass    LifecycleTestStatus = "pass"
+	LifecycleTestFail    LifecycleTestStatus = "fail"
+)
+
 // FeatureFlag represents a feature flag configuration.
 type FeatureFlag struct {
 	ID            uuid.UUID    `json:"id" db:"id"`
@@ -83,6 +93,17 @@ type FeatureFlag struct {
 	CreatedBy     uuid.UUID    `json:"created_by" db:"created_by"`
 	CreatedAt     time.Time    `json:"created_at" db:"created_at"`
 	UpdatedAt     time.Time    `json:"updated_at" db:"updated_at"`
+
+	// Lifecycle layer — used by the CrowdSoft feature-agent to drive validated
+	// rollouts end-to-end. All fields are optional; a flag with no lifecycle
+	// data behaves exactly as before.
+	SmokeTestStatus         *LifecycleTestStatus `json:"smoke_test_status,omitempty" db:"smoke_test_status"`
+	UserTestStatus          *LifecycleTestStatus `json:"user_test_status,omitempty" db:"user_test_status"`
+	ScheduledRemovalAt      *time.Time           `json:"scheduled_removal_at,omitempty" db:"scheduled_removal_at"`
+	IterationCount          int                  `json:"iteration_count" db:"iteration_count"`
+	IterationExhausted      bool                 `json:"iteration_exhausted" db:"iteration_exhausted"`
+	LastSmokeTestNotes      *string              `json:"last_smoke_test_notes,omitempty" db:"last_smoke_test_notes"`
+	LastUserTestNotes       *string              `json:"last_user_test_notes,omitempty" db:"last_user_test_notes"`
 }
 
 // TargetingRule defines a single rule that influences how a feature flag is

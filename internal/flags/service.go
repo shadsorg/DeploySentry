@@ -111,6 +111,34 @@ type FlagService interface {
 	// ExportFlags builds a complete snapshot of all flags, their per-environment
 	// states, targeting rules, and rule-environment states for the given project.
 	ExportFlags(ctx context.Context, projectID uuid.UUID, envs []YAMLEnvironment) (*YAMLExport, error)
+
+	// ---- Feature lifecycle layer ----
+
+	// GetFlagByProjectKey resolves a flag key against a project scope (used by
+	// the lifecycle endpoints where the API key defines the project).
+	GetFlagByProjectKey(ctx context.Context, projectID uuid.UUID, key string) (*models.FeatureFlag, error)
+
+	// RecordSmokeTestResult persists a smoke-test outcome reported by the
+	// feature-agent. On fail: increments iteration_count and disables the flag
+	// across all environments. Returns the updated flag.
+	RecordSmokeTestResult(ctx context.Context, flagID uuid.UUID, status models.LifecycleTestStatus, notes, testRunURL string) (*models.FeatureFlag, error)
+
+	// RecordUserTestResult persists a user-test outcome. On fail: increments
+	// iteration_count and disables the flag across all environments.
+	RecordUserTestResult(ctx context.Context, flagID uuid.UUID, status models.LifecycleTestStatus, notes string) (*models.FeatureFlag, error)
+
+	// ScheduleRemoval sets scheduled_removal_at to now + days.
+	ScheduleRemoval(ctx context.Context, flagID uuid.UUID, days int) (*models.FeatureFlag, error)
+
+	// CancelScheduledRemoval clears scheduled_removal_at.
+	CancelScheduledRemoval(ctx context.Context, flagID uuid.UUID) (*models.FeatureFlag, error)
+
+	// MarkIterationExhausted sets iteration_exhausted = true.
+	MarkIterationExhausted(ctx context.Context, flagID uuid.UUID) (*models.FeatureFlag, error)
+
+	// ListFlagsDueForRemoval / MarkFlagRemovalFired are used by the scheduler.
+	ListFlagsDueForRemoval(ctx context.Context, now time.Time) ([]*models.FeatureFlag, error)
+	MarkFlagRemovalFired(ctx context.Context, flagID uuid.UUID, firedAt time.Time) error
 }
 
 // flagService is the concrete implementation of FlagService.
@@ -543,6 +571,122 @@ func (s *flagService) ExportFlags(ctx context.Context, projectID uuid.UUID, envs
 	}
 
 	return export, nil
+}
+
+// ---------------------------------------------------------------------------
+// Feature lifecycle layer
+// ---------------------------------------------------------------------------
+
+// GetFlagByProjectKey resolves a flag by project and key (lifecycle endpoints).
+func (s *flagService) GetFlagByProjectKey(ctx context.Context, projectID uuid.UUID, key string) (*models.FeatureFlag, error) {
+	flag, err := s.repo.GetFlagByProjectKey(ctx, projectID, key)
+	if err != nil {
+		return nil, fmt.Errorf("getting flag by project/key: %w", err)
+	}
+	return flag, nil
+}
+
+// RecordSmokeTestResult records a smoke-test outcome. On fail the flag is
+// disabled across every environment and iteration_count is bumped.
+func (s *flagService) RecordSmokeTestResult(ctx context.Context, flagID uuid.UUID, status models.LifecycleTestStatus, notes, _ string) (*models.FeatureFlag, error) {
+	if err := validateLifecycleStatus(status); err != nil {
+		return nil, err
+	}
+	patch := LifecyclePatch{
+		SmokeTestStatus: &status,
+		SetSmokeNotes:   true,
+		SmokeNotes:      stringPtrOrNil(notes),
+	}
+	if status == models.LifecycleTestFail {
+		patch.IterationIncrement = 1
+	}
+	if err := s.repo.UpdateFlagLifecycle(ctx, flagID, patch, status == models.LifecycleTestFail); err != nil {
+		return nil, fmt.Errorf("updating lifecycle (smoke): %w", err)
+	}
+	_ = s.cache.Invalidate(ctx, flagID)
+	return s.repo.GetFlag(ctx, flagID)
+}
+
+// RecordUserTestResult records a user sign-off outcome. On fail the flag is
+// disabled across every environment and iteration_count is bumped.
+func (s *flagService) RecordUserTestResult(ctx context.Context, flagID uuid.UUID, status models.LifecycleTestStatus, notes string) (*models.FeatureFlag, error) {
+	if err := validateLifecycleStatus(status); err != nil {
+		return nil, err
+	}
+	if status == models.LifecycleTestFail && notes == "" {
+		return nil, fmt.Errorf("notes are required for a failing user-test result")
+	}
+	patch := LifecyclePatch{
+		UserTestStatus: &status,
+		SetUserNotes:   true,
+		UserNotes:      stringPtrOrNil(notes),
+	}
+	if status == models.LifecycleTestFail {
+		patch.IterationIncrement = 1
+	}
+	if err := s.repo.UpdateFlagLifecycle(ctx, flagID, patch, status == models.LifecycleTestFail); err != nil {
+		return nil, fmt.Errorf("updating lifecycle (user): %w", err)
+	}
+	_ = s.cache.Invalidate(ctx, flagID)
+	return s.repo.GetFlag(ctx, flagID)
+}
+
+// ScheduleRemoval queues a flag for removal in `days` days.
+func (s *flagService) ScheduleRemoval(ctx context.Context, flagID uuid.UUID, days int) (*models.FeatureFlag, error) {
+	if days <= 0 {
+		return nil, fmt.Errorf("days must be a positive integer")
+	}
+	t := time.Now().UTC().Add(time.Duration(days) * 24 * time.Hour)
+	patch := LifecyclePatch{SetScheduledRemovalAt: true, ScheduledRemovalAt: &t}
+	if err := s.repo.UpdateFlagLifecycle(ctx, flagID, patch, false); err != nil {
+		return nil, fmt.Errorf("scheduling removal: %w", err)
+	}
+	return s.repo.GetFlag(ctx, flagID)
+}
+
+// CancelScheduledRemoval clears the scheduled removal timestamp.
+func (s *flagService) CancelScheduledRemoval(ctx context.Context, flagID uuid.UUID) (*models.FeatureFlag, error) {
+	patch := LifecyclePatch{SetScheduledRemovalAt: true, ScheduledRemovalAt: nil}
+	if err := s.repo.UpdateFlagLifecycle(ctx, flagID, patch, false); err != nil {
+		return nil, fmt.Errorf("cancelling scheduled removal: %w", err)
+	}
+	return s.repo.GetFlag(ctx, flagID)
+}
+
+// MarkIterationExhausted flips the exhausted flag on.
+func (s *flagService) MarkIterationExhausted(ctx context.Context, flagID uuid.UUID) (*models.FeatureFlag, error) {
+	exhausted := true
+	patch := LifecyclePatch{IterationExhausted: &exhausted}
+	if err := s.repo.UpdateFlagLifecycle(ctx, flagID, patch, false); err != nil {
+		return nil, fmt.Errorf("marking exhausted: %w", err)
+	}
+	return s.repo.GetFlag(ctx, flagID)
+}
+
+// ListFlagsDueForRemoval is a thin pass-through used by the scheduler.
+func (s *flagService) ListFlagsDueForRemoval(ctx context.Context, now time.Time) ([]*models.FeatureFlag, error) {
+	return s.repo.ListFlagsDueForRemoval(ctx, now)
+}
+
+// MarkFlagRemovalFired is a thin pass-through used by the scheduler.
+func (s *flagService) MarkFlagRemovalFired(ctx context.Context, flagID uuid.UUID, firedAt time.Time) error {
+	return s.repo.MarkFlagRemovalFired(ctx, flagID, firedAt)
+}
+
+func validateLifecycleStatus(s models.LifecycleTestStatus) error {
+	switch s {
+	case models.LifecycleTestPending, models.LifecycleTestPass, models.LifecycleTestFail:
+		return nil
+	default:
+		return fmt.Errorf("status must be one of pending, pass, fail")
+	}
+}
+
+func stringPtrOrNil(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 // WarmCache pre-loads all active flags for a project into the evaluation cache.

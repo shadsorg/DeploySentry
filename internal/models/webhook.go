@@ -64,6 +64,18 @@ const (
 	EventFlagArchived  WebhookEvent = "flag.archived"
 	EventFlagEvaluated WebhookEvent = "flag.evaluated"
 
+	// Flag lifecycle events — emitted by the CrowdSoft feature-agent flow.
+	// Payloads share a stable schema (see docs/Feature_Lifecycle.md) because
+	// both the agent and the CrowdSoft portal consume them.
+	EventFlagSmokeTestPassed              WebhookEvent = "flag.smoke_test.passed"
+	EventFlagSmokeTestFailed              WebhookEvent = "flag.smoke_test.failed"
+	EventFlagUserTestPassed               WebhookEvent = "flag.user_test.passed"
+	EventFlagUserTestFailed               WebhookEvent = "flag.user_test.failed"
+	EventFlagScheduledForRemovalSet       WebhookEvent = "flag.scheduled_for_removal.set"
+	EventFlagScheduledForRemovalCancelled WebhookEvent = "flag.scheduled_for_removal.cancelled"
+	EventFlagScheduledForRemovalDue       WebhookEvent = "flag.scheduled_for_removal.due"
+	EventFlagIterationExhausted           WebhookEvent = "flag.iteration_exhausted"
+
 	// Deployment events
 	EventDeploymentCreated    WebhookEvent = "deployment.created"
 	EventDeploymentStarted    WebhookEvent = "deployment.started"
@@ -94,6 +106,14 @@ func AllWebhookEvents() []WebhookEvent {
 		EventFlagToggled,
 		EventFlagArchived,
 		EventFlagEvaluated,
+		EventFlagSmokeTestPassed,
+		EventFlagSmokeTestFailed,
+		EventFlagUserTestPassed,
+		EventFlagUserTestFailed,
+		EventFlagScheduledForRemovalSet,
+		EventFlagScheduledForRemovalCancelled,
+		EventFlagScheduledForRemovalDue,
+		EventFlagIterationExhausted,
 		EventDeploymentCreated,
 		EventDeploymentStarted,
 		EventDeploymentCompleted,

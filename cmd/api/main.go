@@ -16,6 +16,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"encoding/json"
+
 	"github.com/deploysentry/deploysentry/internal/agent/registry"
 	"github.com/deploysentry/deploysentry/internal/analytics"
 	"github.com/deploysentry/deploysentry/internal/auth"
@@ -27,6 +29,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/groups"
 	"github.com/deploysentry/deploysentry/internal/members"
 	githubint "github.com/deploysentry/deploysentry/internal/integrations/github"
+	"github.com/deploysentry/deploysentry/internal/models"
 	"github.com/deploysentry/deploysentry/internal/notifications"
 	"github.com/deploysentry/deploysentry/internal/platform/cache"
 	"github.com/deploysentry/deploysentry/internal/platform/cache/flagcache"
@@ -41,6 +44,8 @@ import (
 	"github.com/deploysentry/deploysentry/internal/releases"
 	"github.com/deploysentry/deploysentry/internal/rollback"
 	"github.com/deploysentry/deploysentry/internal/rollout"
+	applicatordeploy "github.com/deploysentry/deploysentry/internal/rollout/applicator/deploy"
+	rolloutengine "github.com/deploysentry/deploysentry/internal/rollout/engine"
 	"github.com/deploysentry/deploysentry/internal/settings"
 	"github.com/deploysentry/deploysentry/internal/webhooks"
 	"github.com/nats-io/nats.go/jetstream"
@@ -344,7 +349,6 @@ func run() error {
 	flagHandler.SetRatingService(ratingService)
 	flagHandler.RegisterRoutes(api)
 	flagHandler.RegisterSegmentRoutes(api)
-	deploy.NewHandler(deployService, webhookService, analyticsService, phaseEngine).RegisterRoutes(api, rbacChecker)
 	releases.NewHandler(releaseService).RegisterRoutes(api)
 	analytics.NewHandler(analyticsService).RegisterRoutes(api)
 	webhooks.NewHandler(webhookService).RegisterRoutes(api)
@@ -365,12 +369,72 @@ func run() error {
 	strategyDefRepo := postgres.NewStrategyDefaultsRepo(db.Pool)
 	rolloutPolicyRepo := postgres.NewRolloutPolicyRepo(db.Pool)
 	rolloutScopeResolver := &rolloutScopeAdapter{entities: entityRepo}
+	strategySvc := rollout.NewStrategyService(strategyRepo, nil)
+	strategyDefaultSvc := rollout.NewStrategyDefaultService(strategyDefRepo)
+	rolloutPolicySvc := rollout.NewRolloutPolicyService(rolloutPolicyRepo)
 	rollout.NewHandler(
-		rollout.NewStrategyService(strategyRepo, nil),
-		rollout.NewStrategyDefaultService(strategyDefRepo),
-		rollout.NewRolloutPolicyService(rolloutPolicyRepo),
+		strategySvc,
+		strategyDefaultSvc,
+		rolloutPolicySvc,
 		rolloutScopeResolver,
 	).RegisterRoutes(api)
+
+	// ---- Plan 2: Rollout execution (engine + service + handler) ----
+	rolloutRepo := postgres.NewRolloutRepo(db.Pool)
+	rolloutPhaseRepo := postgres.NewRolloutPhaseRepo(db.Pool)
+	rolloutEventRepo := postgres.NewRolloutEventRepo(db.Pool)
+
+	trafficSetter := &deployTrafficSetter{svc: deployService}
+	deployApp := applicatordeploy.NewApplicator(trafficSetter, nil)
+
+	engineRepos := &rolloutEngineRepoAdapter{
+		rollouts: rolloutRepo,
+		phases:   rolloutPhaseRepo,
+		events:   rolloutEventRepo,
+	}
+
+	rolloutExecEngine := rolloutengine.New(engineRepos, deployApp, nc, rolloutengine.EngineOptions{
+		PollInterval: 2 * time.Second,
+	})
+
+	rolloutExecSvc := rollout.NewRolloutService(rolloutRepo, rolloutPhaseRepo, rolloutEventRepo, nc)
+	rollout.NewRolloutHandler(rolloutExecSvc).RegisterRoutes(api)
+
+	rolloutAttacher := rollout.NewAttacher(strategySvc, strategyDefaultSvc, rolloutPolicySvc, rolloutExecSvc)
+	deployHandlerAdapter := &deployRolloutAttacherAdapter{attacher: rolloutAttacher, entities: entityRepo}
+
+	// Register the deploy handler with the rollout attacher.
+	deploy.NewHandlerWithRollouts(deployService, webhookService, analyticsService, phaseEngine, deployHandlerAdapter).RegisterRoutes(api, rbacChecker)
+
+	// Wire rollout lookup into the deploy phase engine so it skips canary phases
+	// when a rollout engine is already managing traffic for a deployment.
+	deployEngineGuard := &deployEngineRolloutGuard{rollouts: rolloutRepo}
+	phaseEngine.SetRolloutLookup(deployEngineGuard)
+
+	// Subscribe to rollout.created events and drive the rollout engine.
+	go func() {
+		if err := (&natsEngineSubscriber{nats: nc, ctx: ctx}).Subscribe(
+			"rollouts.rollout.created",
+			func(msg []byte) {
+				var payload struct {
+					RolloutID string `json:"rollout_id"`
+				}
+				if err := json.Unmarshal(msg, &payload); err != nil {
+					log.Printf("rollout engine: bad payload: %v", err)
+					return
+				}
+				id, err := uuid.Parse(payload.RolloutID)
+				if err != nil {
+					return
+				}
+				if err := rolloutExecEngine.DriveRollout(ctx, id); err != nil {
+					log.Printf("rollout engine: drive error rollout_id=%s: %v", id, err)
+				}
+			},
+		); err != nil && err != context.Canceled {
+			log.Printf("warning: rollout engine subscriber failed: %v", err)
+		}
+	}()
 
 	// Rollback handler: manual rollback triggers and rollback history.
 	rollbackExecutor := &deployServiceRollbackExecutor{service: deployService}
@@ -604,4 +668,88 @@ func (a *apiKeyValidatorAdapter) ValidateAPIKey(ctx context.Context, key string)
 		Scopes:         scopes,
 		AllowedCIDRs:   apiKey.AllowedCIDRs,
 	}, nil
+}
+
+// ---------------------------------------------------------------------------
+// Plan 2 adapter types
+// ---------------------------------------------------------------------------
+
+// deployTrafficSetter bridges deploy.DeployService to applicatordeploy.TrafficSetter.
+type deployTrafficSetter struct {
+	svc deploy.DeployService
+}
+
+func (t *deployTrafficSetter) SetTrafficPercent(ctx context.Context, depID uuid.UUID, pct int) error {
+	return t.svc.SetTrafficPercent(ctx, depID, pct)
+}
+
+// rolloutEngineRepoAdapter composes three postgres repos into rolloutengine.RepoSet.
+type rolloutEngineRepoAdapter struct {
+	rollouts *postgres.RolloutRepo
+	phases   *postgres.RolloutPhaseRepo
+	events   *postgres.RolloutEventRepo
+}
+
+func (a *rolloutEngineRepoAdapter) GetRollout(ctx context.Context, id uuid.UUID) (*models.Rollout, error) {
+	return a.rollouts.Get(ctx, id)
+}
+func (a *rolloutEngineRepoAdapter) UpdateRolloutStatus(ctx context.Context, id uuid.UUID, st models.RolloutStatus, reason *string) error {
+	return a.rollouts.UpdateStatus(ctx, id, st, reason)
+}
+func (a *rolloutEngineRepoAdapter) UpdateRolloutPhasePointer(ctx context.Context, id uuid.UUID, idx int, startedAt, lastHealthy *time.Time) error {
+	return a.rollouts.UpdatePhasePointer(ctx, id, idx, startedAt, lastHealthy)
+}
+func (a *rolloutEngineRepoAdapter) MarkRolloutCompleted(ctx context.Context, id uuid.UUID) error {
+	return a.rollouts.MarkCompleted(ctx, id)
+}
+func (a *rolloutEngineRepoAdapter) BulkInsertPhases(ctx context.Context, phases []*models.RolloutPhase) error {
+	return a.phases.BulkInsert(ctx, phases)
+}
+func (a *rolloutEngineRepoAdapter) ListPhases(ctx context.Context, rid uuid.UUID) ([]*models.RolloutPhase, error) {
+	return a.phases.ListByRollout(ctx, rid)
+}
+func (a *rolloutEngineRepoAdapter) UpdatePhaseStatus(ctx context.Context, id uuid.UUID, st models.PhaseStatus, ea, xa *time.Time, ap, hs *float64, notes string) error {
+	return a.phases.UpdateStatus(ctx, id, st, ea, xa, ap, hs, notes)
+}
+func (a *rolloutEngineRepoAdapter) InsertEvent(ctx context.Context, e *models.RolloutEvent) error {
+	return a.events.Insert(ctx, e)
+}
+
+// deployRolloutAttacherAdapter satisfies deploy.RolloutAttacher. It converts
+// the deploy-side RolloutAttachRequest into a rollout AttachIntent and calls
+// through to the rollout Attacher.
+type deployRolloutAttacherAdapter struct {
+	attacher *rollout.Attacher
+	entities entities.EntityRepository
+}
+
+func (a *deployRolloutAttacherAdapter) AttachFromDeployRequest(ctx context.Context, d *models.Deployment, req *deploy.RolloutAttachRequest, actor uuid.UUID) error {
+	// The entity repo exposes only GetAppBySlug and GetProjectBySlug (by slug, not ID).
+	// The Deployment carries ApplicationID and EnvironmentID. Since we can't look up by
+	// ID with the current repo, we pass nil ancestors — the attacher resolves by scope
+	// leaf (app) and will fall back to app-scoped or global defaults/policies.
+	intent := &rollout.AttachIntent{
+		StrategyID:   req.StrategyID,
+		StrategyName: req.StrategyName,
+		Overrides:    req.Overrides,
+		ReleaseID:    req.ReleaseID,
+		Leaf:         rollout.ScopeRef{Type: models.ScopeApp, ID: d.ApplicationID},
+	}
+	return a.attacher.AttachDeploy(ctx, d, intent, actor)
+}
+
+// deployEngineRolloutGuard satisfies engine.RolloutLookup (Plan 2 T12).
+type deployEngineRolloutGuard struct {
+	rollouts *postgres.RolloutRepo
+}
+
+func (g *deployEngineRolloutGuard) HasActiveRolloutForDeployment(ctx context.Context, id uuid.UUID) (bool, error) {
+	ro, err := g.rollouts.GetActiveByDeployment(ctx, id)
+	if err != nil {
+		if errors.Is(err, postgres.ErrRolloutNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	return ro != nil, nil
 }

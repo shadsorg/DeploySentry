@@ -48,4 +48,19 @@ func TestRolloutTargetRefJSON(t *testing.T) {
 	}
 }
 
+func TestRolloutTargetRef_RuleJSON(t *testing.T) {
+	pp := 10
+	r := Rollout{TargetType: TargetTypeConfig, TargetRef: RolloutTargetRef{
+		RuleID:             ptrString("11111111-1111-1111-1111-111111111111"),
+		PreviousPercentage: &pp,
+	}}
+	b, err := json.Marshal(r.TargetRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(b) != `{"rule_id":"11111111-1111-1111-1111-111111111111","previous_percentage":10}` {
+		t.Fatalf("unexpected json: %s", string(b))
+	}
+}
+
 func ptrString(s string) *string { return &s }

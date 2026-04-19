@@ -29,11 +29,15 @@ const (
 )
 
 // RolloutTargetRef points at the specific resource a rollout is driving.
-// Exactly one of DeploymentID or (FlagKey+Env) must be set.
+// For TargetTypeDeploy: DeploymentID is set.
+// For TargetTypeConfig: RuleID is set, and PreviousPercentage captures the
+// pre-rollout value so Revert can restore it.
 type RolloutTargetRef struct {
-	DeploymentID *string `json:"deployment_id,omitempty"`
-	FlagKey      *string `json:"flag_key,omitempty"`
-	Env          *string `json:"env,omitempty"`
+	DeploymentID       *string `json:"deployment_id,omitempty"`
+	FlagKey            *string `json:"flag_key,omitempty"`
+	Env                *string `json:"env,omitempty"`
+	RuleID             *string `json:"rule_id,omitempty"`
+	PreviousPercentage *int    `json:"previous_percentage,omitempty"`
 }
 
 // Rollout wraps a progressive change. One row per in-flight or historical rollout.

@@ -111,3 +111,44 @@ Every org is seeded with three system templates: `system-canary` (the default fo
 The foundation plan ships template management only. Future plans wire strategies into live deploy and config rollouts, add runtime controls (pause/resume/promote/rollback/approve/force-promote), add Release bundles, and build the web UI.
 
 See `docs/superpowers/specs/2026-04-18-configurable-rollout-strategies-design.md` for the full design.
+
+## Config rollouts
+
+Flag and config changes can be rolled out progressively through the same strategy system. A config rollout targets a specific targeting rule — the engine advances the rule's `percentage` field through the strategy's phases.
+
+### Attach via API
+
+```
+PUT /api/v1/flags/:id/rules/:ruleId
+Content-Type: application/json
+
+{
+  "rule_type": "percentage",
+  "value": "true",
+  "percentage": 100,
+  "rollout": { "strategy_name": "slow-canary" }
+}
+```
+
+When the request body includes a `rollout` block, the server returns **202 Accepted** and does NOT apply the rule change immediately. Instead, a Rollout is created and the engine drives the rule's percentage through the strategy's phases.
+
+### 409 on active rollout
+
+If a rule already has an active rollout, the rule-edit request returns 409:
+
+```json
+{ "error": "rollout_in_progress", "options": ["abort", "wait", "amend"] }
+```
+
+The client should either wait, call `POST /rollouts/:id/rollback` to abort the existing one, or (future) `amend` its target value.
+
+### Revert and previous percentage
+
+When a config rollout rolls back, the rule's percentage is restored to its pre-rollout value (captured at attach time). This preserves whatever partial rollout state existed before the user started the new rollout.
+
+### Current limitations (Plan 3)
+
+- Config rollouts use a no-op health reader — they advance on time alone. Wiring a real HealthMonitor is future work.
+- A rule whose `percentage` decreases during a rollout (e.g., from 25% → 1% as the first step) is allowed; the engine treats the strategy's step values as absolute. Users should pick strategies whose first step matches or exceeds the current percentage.
+- Only the `percentage` field of a rule is rolled out. Changing the rule's `Value` or type requires a direct edit (no progressive rollout of `Value` yet).
+- Config rollouts advance by percentage only — no SDK-side bucket hashing logic changed; evaluation uses whatever the existing rule's percentage field is.

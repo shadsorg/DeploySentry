@@ -180,3 +180,91 @@ func scanStrategies(rows pgx.Rows) ([]*models.Strategy, error) {
 	}
 	return out, rows.Err()
 }
+
+// StrategyDefaultsRepo is a Postgres-backed rollout.StrategyDefaultRepository.
+type StrategyDefaultsRepo struct {
+	db *pgxpool.Pool
+}
+
+// NewStrategyDefaultsRepo returns a new StrategyDefaultsRepo.
+func NewStrategyDefaultsRepo(db *pgxpool.Pool) *StrategyDefaultsRepo {
+	return &StrategyDefaultsRepo{db: db}
+}
+
+var _ rollout.StrategyDefaultRepository = (*StrategyDefaultsRepo)(nil)
+
+func (r *StrategyDefaultsRepo) Upsert(ctx context.Context, d *models.StrategyDefault) error {
+	if d.ID == uuid.Nil {
+		d.ID = uuid.New()
+	}
+	now := time.Now().UTC()
+	d.UpdatedAt = now
+	if d.CreatedAt.IsZero() {
+		d.CreatedAt = now
+	}
+	envStr := ""
+	if d.Environment != nil {
+		envStr = *d.Environment
+	}
+	ttStr := ""
+	if d.TargetType != nil {
+		ttStr = string(*d.TargetType)
+	}
+	_, err := r.db.Exec(ctx, `
+        INSERT INTO strategy_defaults (id, scope_type, scope_id, environment, target_type, strategy_id, created_by, updated_by, created_at, updated_at)
+        VALUES ($1,$2,$3, NULLIF($4,''), NULLIF($5,''), $6, $7, $8, $9, $10)
+        ON CONFLICT (scope_type, scope_id, COALESCE(environment,''), COALESCE(target_type,''))
+        DO UPDATE SET strategy_id=EXCLUDED.strategy_id, updated_by=EXCLUDED.updated_by, updated_at=EXCLUDED.updated_at`,
+		d.ID, d.ScopeType, d.ScopeID, envStr, ttStr, d.StrategyID, d.CreatedBy, d.UpdatedBy, d.CreatedAt, d.UpdatedAt,
+	)
+	return err
+}
+
+func (r *StrategyDefaultsRepo) ListByScope(ctx context.Context, scopeType models.ScopeType, scopeID uuid.UUID) ([]*models.StrategyDefault, error) {
+	rows, err := r.db.Query(ctx, `
+        SELECT id, scope_type, scope_id, environment, target_type, strategy_id, created_by, updated_by, created_at, updated_at
+        FROM strategy_defaults WHERE scope_type=$1 AND scope_id=$2 ORDER BY COALESCE(environment,''), COALESCE(target_type,'')`,
+		scopeType, scopeID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*models.StrategyDefault
+	for rows.Next() {
+		var d models.StrategyDefault
+		var env *string
+		var tt *models.TargetType
+		var createdBy, updatedBy *uuid.UUID
+		if err := rows.Scan(&d.ID, &d.ScopeType, &d.ScopeID, &env, &tt, &d.StrategyID, &createdBy, &updatedBy, &d.CreatedAt, &d.UpdatedAt); err != nil {
+			return nil, err
+		}
+		d.Environment = env
+		d.TargetType = tt
+		d.CreatedBy = createdBy
+		d.UpdatedBy = updatedBy
+		out = append(out, &d)
+	}
+	return out, rows.Err()
+}
+
+func (r *StrategyDefaultsRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `DELETE FROM strategy_defaults WHERE id=$1`, id)
+	return err
+}
+
+func (r *StrategyDefaultsRepo) DeleteByKey(ctx context.Context, scopeType models.ScopeType, scopeID uuid.UUID, env *string, target *models.TargetType) error {
+	envStr, ttStr := "", ""
+	if env != nil {
+		envStr = *env
+	}
+	if target != nil {
+		ttStr = string(*target)
+	}
+	_, err := r.db.Exec(ctx, `
+        DELETE FROM strategy_defaults
+        WHERE scope_type=$1 AND scope_id=$2 AND COALESCE(environment,'')=$3 AND COALESCE(target_type,'')=$4`,
+		scopeType, scopeID, envStr, ttStr,
+	)
+	return err
+}

@@ -95,3 +95,58 @@ func TestStrategyRepo_SoftDelete(t *testing.T) {
 		t.Fatalf("expected not-found after soft delete")
 	}
 }
+
+func TestStrategyDefaultsRepo_Upsert(t *testing.T) {
+	ctx := context.Background()
+	db := testDB(t)
+	srepo := NewStrategyRepo(db)
+	drepo := NewStrategyDefaultsRepo(db)
+	orgID := uuid.New()
+	s := sampleStrategy(orgID)
+	if err := srepo.Create(ctx, s); err != nil {
+		t.Fatal(err)
+	}
+	env := "prod"
+	tt := models.TargetTypeDeploy
+	d := &models.StrategyDefault{ScopeType: models.ScopeOrg, ScopeID: orgID, Environment: &env, TargetType: &tt, StrategyID: s.ID}
+	if err := drepo.Upsert(ctx, d); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	// Upsert again replaces
+	s2 := sampleStrategy(orgID)
+	if err := srepo.Create(ctx, s2); err != nil {
+		t.Fatal(err)
+	}
+	d.StrategyID = s2.ID
+	if err := drepo.Upsert(ctx, d); err != nil {
+		t.Fatalf("upsert: %v", err)
+	}
+	got, err := drepo.ListByScope(ctx, models.ScopeOrg, orgID)
+	if err != nil || len(got) != 1 || got[0].StrategyID != s2.ID {
+		t.Fatalf("list: err=%v, got=%+v", err, got)
+	}
+}
+
+func TestStrategyDefaultsRepo_WildcardKeyUniqueness(t *testing.T) {
+	ctx := context.Background()
+	db := testDB(t)
+	srepo := NewStrategyRepo(db)
+	drepo := NewStrategyDefaultsRepo(db)
+	orgID := uuid.New()
+	s := sampleStrategy(orgID)
+	if err := srepo.Create(ctx, s); err != nil {
+		t.Fatal(err)
+	}
+	// Two rows: (nil env, deploy target) and (nil env, nil target) must coexist.
+	tt := models.TargetTypeDeploy
+	if err := drepo.Upsert(ctx, &models.StrategyDefault{ScopeType: models.ScopeOrg, ScopeID: orgID, TargetType: &tt, StrategyID: s.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if err := drepo.Upsert(ctx, &models.StrategyDefault{ScopeType: models.ScopeOrg, ScopeID: orgID, StrategyID: s.ID}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := drepo.ListByScope(ctx, models.ScopeOrg, orgID)
+	if err != nil || len(rows) != 2 {
+		t.Fatalf("expected 2 rows, got %d (err=%v)", len(rows), err)
+	}
+}

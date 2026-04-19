@@ -17,6 +17,7 @@
 | Sidecar Traffic Management | Design | [Spec](./superpowers/specs/2026-04-17-sidecar-traffic-management-design.md) / [Plan](./superpowers/plans/2026-04-17-sidecar-traffic-management.md) | Envoy-based sidecar for canary traffic splitting, header routing, and observability. |
 | SDK npm Publishing | Implementation | [Plan](./superpowers/plans/2026-04-16-sdk-npm-publishing.md) | Dual ESM/CJS build + publish `@dr-sentry/sdk` and `@dr-sentry/react` to npm; unblocks Railway/Render deploys and `vite build`. |
 | Configurable Rollout Strategies | Implementation (Plans 1+2+3+4) | [Spec](./superpowers/specs/2026-04-18-configurable-rollout-strategies-design.md) / [Plan 1](./superpowers/plans/2026-04-18-rollout-strategies-foundation.md) / [Plan 2](./superpowers/plans/2026-04-18-rollout-engine-deploy.md) / [Plan 3](./superpowers/plans/2026-04-19-rollout-config-integration.md) / [Plan 4](./superpowers/plans/2026-04-19-releases-and-coordination.md) | Plans 1 (templates) + 2 (engine + deploy) + 3 (config) + 4 (rollout groups + coordination) merged. Plan 5 (web UI) to follow. |
+| Feature Lifecycle Layer | Implementation | [Spec](./superpowers/specs/2026-04-19-feature-lifecycle-layer-design.md) / [Plan](./superpowers/plans/2026-04-19-feature-lifecycle-layer.md) / [Guide](./Feature_Lifecycle.md) | Additive layer on top of flags: smoke/user test status, scheduled removal, iteration tracking, 8 new webhook events. Migration 052. Consumed by the CrowdSoft feature-agent + portal. |
 
 ## Archived
 

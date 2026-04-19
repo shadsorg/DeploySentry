@@ -192,3 +192,20 @@ Both deploy rollouts and config rollouts accept `release_id` in their attach req
 
 - Coordination fires on `rollouts.rollout.rolled_back` NATS events. Rollbacks that happened before Plan 4 shipped are not replayed.
 - Sibling rollback via `cascade_abort` calls `RolloutService.Rollback` which updates state but does NOT trigger applicator `Revert`. The engine performs Revert only on its own abort path; manually-triggered rollbacks (operator or cascade) leave traffic/rule unchanged in place. A follow-up should wire manual rollback to also call Revert.
+
+## Smoke-test targeting convention
+
+When integrating with the CrowdSoft feature-agent (or any controller that runs scoped smoke tests), consumer apps tag the DS evaluation context with `is_smoke_test: true` for the duration of the test request. See [`docs/Feature_Lifecycle.md`](./Feature_Lifecycle.md) for the header-based delivery channel (`X-DS-Test-Context` + HMAC-signed `X-DS-Test-Signature`).
+
+To let a rule fire exclusively inside a smoke test:
+
+```yaml
+rules:
+  - attribute: is_smoke_test
+    operator: equals
+    target_values: ["true"]
+    value: "true"
+    priority: 1
+```
+
+DeploySentry does not verify the header itself — the contract is between the agent and the consumer app. We document the attribute name here so users writing targeting rules know the convention.

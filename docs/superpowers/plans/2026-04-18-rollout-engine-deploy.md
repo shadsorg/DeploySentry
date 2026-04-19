@@ -3686,7 +3686,7 @@ git commit -m "feat(api): wire rollout engine, handler, attacher, and deploy eng
 - Create: `cmd/cli/rollouts.go`
 - Modify: `cmd/cli/deploy.go`
 
-- [ ] **Step 1: Create the rollouts command file**
+- [x] **Step 1: Create the rollouts command file**
 
 Create `cmd/cli/rollouts.go`:
 
@@ -3794,7 +3794,7 @@ func init() {
 }
 ```
 
-- [ ] **Step 2: Extend `cmd/cli/deploy.go` with rollout flags**
+- [x] **Step 2: Extend `cmd/cli/deploy.go` with rollout flags**
 
 Read the current file, find where the deploy command declares its flags, and add:
 
@@ -3817,7 +3817,7 @@ if ai, _ := cmd.Flags().GetBool("apply-immediately"); ai {
 
 (If a release flag is set, defer until Plan 4 — log a warning or ignore.)
 
-- [ ] **Step 3: Build and smoke test**
+- [x] **Step 3: Build and smoke test**
 
 ```bash
 go build ./cmd/cli
@@ -3828,7 +3828,7 @@ go build ./cmd/cli
 
 Each help output should list the subcommands and `--reason` where relevant.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add cmd/cli/rollouts.go cmd/cli/deploy.go

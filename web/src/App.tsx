@@ -21,6 +21,7 @@ import MembersPage from './pages/MembersPage';
 import APIKeysPage from './pages/APIKeysPage';
 import StrategiesPage from './pages/StrategiesPage';
 import RolloutsPage from './pages/RolloutsPage';
+import RolloutDetailPage from './pages/RolloutDetailPage';
 import CreateAppPage from './pages/CreateAppPage';
 import ProjectPage from './pages/ProjectPage';
 import AppPage from './pages/AppPage';
@@ -59,6 +60,7 @@ export default function App() {
             <Route path="api-keys" element={<APIKeysPage />} />
             <Route path="strategies" element={<StrategiesPage />} />
             <Route path="rollouts" element={<RolloutsPage />} />
+            <Route path="rollouts/:id" element={<RolloutDetailPage />} />
             <Route path="settings" element={<SettingsPage level="org" />} />
 
             {/* Project-level — wrapped by ProjectPage (tabs) */}

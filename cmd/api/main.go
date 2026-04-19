@@ -482,6 +482,31 @@ func run() error {
 		}
 	}()
 
+	// Subscribe to rollback.rollback_triggered events (manual rollbacks) and trigger coordinator.
+	go func() {
+		if err := (&natsEngineSubscriber{nats: nc, ctx: ctx}).Subscribe(
+			"rollouts.rollout.rollback_triggered",
+			func(msg []byte) {
+				var payload struct {
+					RolloutID string `json:"rollout_id"`
+				}
+				if err := json.Unmarshal(msg, &payload); err != nil {
+					log.Printf("coordinator: bad payload: %v", err)
+					return
+				}
+				id, err := uuid.Parse(payload.RolloutID)
+				if err != nil {
+					return
+				}
+				if err := coordinator.OnRollback(ctx, id); err != nil {
+					log.Printf("coordinator: apply failed rollout_id=%s: %v", id, err)
+				}
+			},
+		); err != nil && err != context.Canceled {
+			log.Printf("warning: coordinator subscriber failed: %v", err)
+		}
+	}()
+
 	// Rollback handler: manual rollback triggers and rollback history.
 	rollbackExecutor := &deployServiceRollbackExecutor{service: deployService}
 	rollbackController := rollback.NewRollbackController(

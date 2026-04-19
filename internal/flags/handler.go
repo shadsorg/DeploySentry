@@ -3,6 +3,7 @@ package flags
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -31,6 +32,25 @@ type EntityResolver interface {
 type EnvironmentSlugResolver interface {
 	ResolveEnvironmentSlug(ctx context.Context, orgID uuid.UUID, slug string) (uuid.UUID, error)
 }
+
+// RolloutAttacher is implemented by the rollout package and injected at wiring time.
+// A nil attacher means rollouts are not enabled; rule edits apply immediately.
+type RolloutAttacher interface {
+	AttachFromRuleRequest(ctx context.Context, rule *models.TargetingRule, previousPercentage int, req *RolloutAttachRequest, actor uuid.UUID) error
+}
+
+// RolloutAttachRequest is the client-supplied rollout intent on a rule edit.
+type RolloutAttachRequest struct {
+	StrategyName     string          `json:"strategy_name,omitempty"`
+	StrategyID       *uuid.UUID      `json:"strategy_id,omitempty"`
+	Overrides        json.RawMessage `json:"overrides,omitempty"`
+	ReleaseID        *uuid.UUID      `json:"release_id,omitempty"`
+	ApplyImmediately bool            `json:"apply_immediately,omitempty"`
+}
+
+// ErrRolloutInProgress is returned by the attacher when the target rule already
+// has an active rollout (client should abort/wait/amend).
+var ErrRolloutInProgress = errors.New("rollout in progress on this rule")
 
 // AuditWriter persists audit log entries.
 type AuditWriter interface {
@@ -64,6 +84,7 @@ type Handler struct {
 	entityRepo   EntityResolver
 	envResolver  EnvironmentSlugResolver
 	auditWriter  AuditWriter
+	rollouts     RolloutAttacher
 }
 
 // NewHandler creates a new feature flag HTTP handler.
@@ -78,6 +99,14 @@ func NewHandler(service FlagService, rbac *auth.RBACChecker, webhookSvc *webhook
 		envResolver:  envResolver,
 		auditWriter:  auditWriter,
 	}
+}
+
+// NewHandlerWithRollouts creates a Handler with an optional rollout attacher.
+// All other behaviour is identical to NewHandler.
+func NewHandlerWithRollouts(service FlagService, rbac *auth.RBACChecker, webhookSvc *webhooks.Service, analyticsSvc *analytics.Service, entityRepo EntityResolver, envResolver EnvironmentSlugResolver, auditWriter AuditWriter, rollouts RolloutAttacher) *Handler {
+	h := NewHandler(service, rbac, webhookSvc, analyticsSvc, entityRepo, envResolver, auditWriter)
+	h.rollouts = rollouts
+	return h
 }
 
 // SetRatingService wires up an optional rating service for augmented flag responses.
@@ -898,6 +927,7 @@ type addRuleRequest struct {
 	Operator     string     `json:"operator"`
 	TargetValues []string   `json:"target_values"`
 	SegmentID    *uuid.UUID `json:"segment_id"`
+	Rollout      *RolloutAttachRequest `json:"rollout,omitempty"`
 }
 
 func (h *Handler) addRule(c *gin.Context) {
@@ -973,6 +1003,30 @@ func (h *Handler) updateRule(c *gin.Context) {
 		TargetValues: req.TargetValues,
 		SegmentID:    req.SegmentID,
 		Enabled:      true,
+	}
+
+	// If a rollout attacher is configured and the request includes rollout intent
+	// without apply_immediately, delegate to the rollout engine instead of
+	// applying the rule change directly. The rollout engine will call UpdateRule
+	// when it is ready to apply the new percentage.
+	//
+	// Note: previousPercentage is currently assumed to be 0. A follow-up will
+	// read the actual current rule from the DB via a GetRule method on FlagService.
+	if h.rollouts != nil && req.Rollout != nil && !req.Rollout.ApplyImmediately {
+		actor := actorFromFlagContext(c)
+		if err := h.rollouts.AttachFromRuleRequest(c.Request.Context(), rule, 0, req.Rollout, actor); err != nil {
+			if errors.Is(err, ErrRolloutInProgress) {
+				c.JSON(http.StatusConflict, gin.H{
+					"error":   "rollout_in_progress",
+					"options": []string{"abort", "wait", "amend"},
+				})
+				return
+			}
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusAccepted, rule)
+		return
 	}
 
 	if err := h.service.UpdateRule(c.Request.Context(), rule); err != nil {
@@ -1351,4 +1405,15 @@ func (h *Handler) streamFlags(c *gin.Context) {
 			return false
 		}
 	})
+}
+
+// actorFromFlagContext extracts the authenticated user's UUID from the Gin
+// context. Returns uuid.Nil when no user_id has been set (e.g. API-key flows).
+func actorFromFlagContext(c *gin.Context) uuid.UUID {
+	if v, ok := c.Get("user_id"); ok {
+		if id, ok := v.(uuid.UUID); ok {
+			return id
+		}
+	}
+	return uuid.Nil
 }

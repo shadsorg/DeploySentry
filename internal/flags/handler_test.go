@@ -1110,3 +1110,64 @@ func TestBroadcastEvent(t *testing.T) {
 		t.Error("expected to receive SSE event")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// PUT /flags/:id/rules/:ruleId with rollout field  (updateRule + RolloutAttacher)
+// ---------------------------------------------------------------------------
+
+type fakeFlagRolloutAttacher struct {
+	called   bool
+	lastPrev int
+}
+
+func (f *fakeFlagRolloutAttacher) AttachFromRuleRequest(_ context.Context, _ *models.TargetingRule, prev int, _ *RolloutAttachRequest, _ uuid.UUID) error {
+	f.called = true
+	f.lastPrev = prev
+	return nil
+}
+
+func setupFlagRouterWithRollouts(svc FlagService, attacher RolloutAttacher) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set("role", auth.RoleOwner)
+		c.Next()
+	})
+	rbac := auth.NewRBACChecker()
+	handler := NewHandlerWithRollouts(svc, rbac, nil, nil, nil, nil, nil, attacher)
+	handler.RegisterRoutes(router.Group("/api"))
+	return router
+}
+
+func TestUpdateRule_WithRolloutField_AttacherCalled(t *testing.T) {
+	flagID := uuid.New()
+	ruleID := uuid.New()
+
+	svc := &mockFlagService{
+		updateRuleFn: func(_ context.Context, _ *models.TargetingRule) error {
+			return nil
+		},
+	}
+	attacher := &fakeFlagRolloutAttacher{}
+	router := setupFlagRouterWithRollouts(svc, attacher)
+
+	body := map[string]interface{}{
+		"rule_type":  "percentage",
+		"priority":   1,
+		"value":      "on",
+		"percentage": 50,
+		"rollout": map[string]interface{}{
+			"strategy_name": "slow",
+		},
+	}
+	req := httptest.NewRequest(http.MethodPut, "/api/flags/"+flagID.String()+"/rules/"+ruleID.String(), toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusAccepted, w.Code)
+	assert.True(t, attacher.called, "expected AttachFromRuleRequest to be called")
+	// previousPercentage is currently assumed 0 (GetRule not yet on FlagService)
+	assert.Equal(t, 0, attacher.lastPrev)
+}

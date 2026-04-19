@@ -107,3 +107,62 @@ func (a *Attacher) AttachDeploy(ctx context.Context, d *models.Deployment, inten
 	}
 	return nil
 }
+
+// AttachConfig attaches a rollout to a targeting rule. previousPercentage is
+// captured so Revert can restore the pre-rollout value.
+func (a *Attacher) AttachConfig(ctx context.Context, ruleID uuid.UUID, previousPercentage int, intent *AttachIntent, actor uuid.UUID) error {
+	target := models.TargetTypeConfig
+
+	// Resolve explicit strategy first.
+	var tmpl *models.Strategy
+	if intent.StrategyID != nil {
+		got, err := a.strategies.Get(ctx, *intent.StrategyID)
+		if err != nil {
+			return fmt.Errorf("strategy not found by id: %w", err)
+		}
+		tmpl = got
+	} else if intent.StrategyName != "" {
+		ancestors := AncestorScopes(intent.Leaf, intent.ProjectID, intent.OrgID)
+		for _, anc := range ancestors {
+			got, err := a.strategies.GetByName(ctx, anc.Type, anc.ID, intent.StrategyName)
+			if err == nil && got != nil {
+				tmpl = got
+				break
+			}
+		}
+		if tmpl == nil {
+			return fmt.Errorf("strategy %q not found in scope ancestry", intent.StrategyName)
+		}
+	}
+
+	if tmpl == nil {
+		def, err := a.defaults.Resolve(ctx, intent.Leaf, intent.ProjectID, intent.OrgID, intent.Environment, &target)
+		if err == nil && def != nil {
+			got, err := a.strategies.Get(ctx, def.StrategyID)
+			if err == nil {
+				tmpl = got
+			}
+		}
+	}
+
+	policy, _ := a.policies.Resolve(ctx, intent.Leaf, intent.ProjectID, intent.OrgID, intent.Environment, &target)
+	if policy != nil && policy.Enabled && policy.Policy == models.PolicyMandate && tmpl == nil {
+		return ErrMandateWithoutStrategy
+	}
+	if tmpl == nil {
+		return nil
+	}
+
+	var overrides *StrategyOverrides
+	if len(intent.Overrides) > 0 {
+		var o StrategyOverrides
+		if err := json.Unmarshal(intent.Overrides, &o); err != nil {
+			return fmt.Errorf("overrides invalid: %w", err)
+		}
+		overrides = &o
+	}
+	snap := BuildSnapshot(tmpl, overrides)
+
+	_, err := a.rollouts.AttachConfig(ctx, ruleID, previousPercentage, snap, intent.ReleaseID, &actor)
+	return err
+}

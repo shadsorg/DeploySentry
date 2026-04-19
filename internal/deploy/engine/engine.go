@@ -98,7 +98,7 @@ func (e *Engine) Advance(ctx context.Context, deploymentID uuid.UUID) error {
 	}
 	if activePhase != nil {
 		now := time.Now().UTC()
-		activePhase.Status = models.PhaseStatusPassed
+		activePhase.Status = models.DeploymentPhaseStatusPassed
 		activePhase.CompletedAt = &now
 		if err := e.repo.UpdatePhase(ctx, activePhase); err != nil {
 			return fmt.Errorf("engine.Advance: mark phase passed: %w", err)
@@ -129,7 +129,7 @@ func BuildPhases(deploymentID uuid.UUID, config strategies.CanaryConfig) []*mode
 			ID:             uuid.New(),
 			DeploymentID:   deploymentID,
 			Name:           fmt.Sprintf("canary-%d%%", step.TrafficPercent),
-			Status:         models.PhaseStatusPending,
+			Status:         models.DeploymentPhaseStatusPending,
 			TrafficPercent: step.TrafficPercent,
 			Duration:       int(step.Duration.Seconds()),
 			SortOrder:      i,
@@ -187,7 +187,7 @@ func (e *Engine) driveDeployment(ctx context.Context, deploymentID uuid.UUID) er
 	// 5. Find start position: first non-passed phase.
 	startIdx := len(phases) // default: all done
 	for i, ph := range phases {
-		if ph.Status != models.PhaseStatusPassed {
+		if ph.Status != models.DeploymentPhaseStatusPassed {
 			startIdx = i
 			break
 		}
@@ -207,7 +207,7 @@ func (e *Engine) driveDeployment(ctx context.Context, deploymentID uuid.UUID) er
 
 		// a. Set phase active.
 		now := time.Now().UTC()
-		ph.Status = models.PhaseStatusActive
+		ph.Status = models.DeploymentPhaseStatusActive
 		ph.StartedAt = &now
 		if err := e.repo.UpdatePhase(ctx, ph); err != nil {
 			return fmt.Errorf("driveDeployment: update phase active: %w", err)
@@ -243,7 +243,7 @@ func (e *Engine) driveDeployment(ctx context.Context, deploymentID uuid.UUID) er
 			if err == nil && !h.Healthy {
 				// f. Unhealthy + RollbackOnFailure: rollback.
 				if config.RollbackOnFailure {
-					ph.Status = models.PhaseStatusFailed
+					ph.Status = models.DeploymentPhaseStatusFailed
 					completedAt := time.Now().UTC()
 					ph.CompletedAt = &completedAt
 					_ = e.repo.UpdatePhase(ctx, ph)
@@ -264,7 +264,7 @@ func (e *Engine) driveDeployment(ctx context.Context, deploymentID uuid.UUID) er
 		}
 
 		// h. Mark phase passed.
-		ph.Status = models.PhaseStatusPassed
+		ph.Status = models.DeploymentPhaseStatusPassed
 		completedAt := time.Now().UTC()
 		ph.CompletedAt = &completedAt
 		if err := e.repo.UpdatePhase(ctx, ph); err != nil {

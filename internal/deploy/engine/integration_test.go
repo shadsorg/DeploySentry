@@ -132,7 +132,7 @@ func TestIntegration_FullCanaryFlow(t *testing.T) {
 		t.Fatalf("expected 3 phases, got %d", len(phases))
 	}
 	for i, ph := range phases {
-		if ph.Status != models.PhaseStatusPassed {
+		if ph.Status != models.DeploymentPhaseStatusPassed {
 			t.Errorf("phase[%d] expected passed, got %s", i, ph.Status)
 		}
 	}

@@ -117,7 +117,7 @@ func (s *RollingStrategy) Execute(ctx context.Context, deployment *models.Deploy
 			ID:             uuid.New(),
 			DeploymentID:   deployment.ID,
 			Name:           fmt.Sprintf("rolling-batch-%d", batchNum),
-			Status:         models.PhaseStatusActive,
+			Status:         models.DeploymentPhaseStatusActive,
 			TrafficPercent: percent,
 			Duration:       int(s.config.BatchDelay.Seconds()),
 			SortOrder:      batchNum - 1,

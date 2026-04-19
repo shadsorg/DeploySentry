@@ -144,7 +144,7 @@ func (r *mockEngineRepo) GetActivePhase(_ context.Context, deploymentID uuid.UUI
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	for _, p := range r.phases[deploymentID] {
-		if p.Status == models.PhaseStatusActive {
+		if p.Status == models.DeploymentPhaseStatusActive {
 			copy := *p
 			return &copy, nil
 		}
@@ -220,7 +220,7 @@ func TestBuildPhases(t *testing.T) {
 		if ph.SortOrder != c.sortOrder {
 			t.Errorf("phase[%d] sort_order: want %d, got %d", i, c.sortOrder, ph.SortOrder)
 		}
-		if ph.Status != models.PhaseStatusPending {
+		if ph.Status != models.DeploymentPhaseStatusPending {
 			t.Errorf("phase[%d] status: want pending, got %s", i, ph.Status)
 		}
 		if ph.ID == uuid.Nil {
@@ -357,7 +357,7 @@ func TestDriveDeployment_CanaryHappyPath(t *testing.T) {
 		t.Fatalf("expected 3 phases, got %d", len(phases))
 	}
 	for i, ph := range phases {
-		if ph.Status != models.PhaseStatusPassed {
+		if ph.Status != models.DeploymentPhaseStatusPassed {
 			t.Errorf("phase[%d] expected passed, got %s", i, ph.Status)
 		}
 		if ph.StartedAt == nil {

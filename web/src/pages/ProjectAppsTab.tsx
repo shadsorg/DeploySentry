@@ -52,18 +52,38 @@ export default function ProjectAppsTab() {
           {apps.map((app) => {
             const isDeleted = !!app.deleted_at;
             return (
-              <div key={app.id} className="project-card" style={isDeleted ? { opacity: 0.5 } : undefined}>
-                <Link to={`${base}/apps/${app.slug}/flags`} style={{ textDecoration: 'none', color: 'inherit' }}>
+              <div
+                key={app.id}
+                className="project-card"
+                style={isDeleted ? { opacity: 0.5 } : undefined}
+              >
+                <Link
+                  to={`${base}/apps/${app.slug}/flags`}
+                  style={{ textDecoration: 'none', color: 'inherit' }}
+                >
                   <h3 className="project-card-name" style={{ margin: 0 }}>
                     {app.name}
-                    {isDeleted && <span className="badge badge-disabled" style={{ marginLeft: 8, fontSize: 11 }}>Deleted</span>}
+                    {isDeleted && (
+                      <span
+                        className="badge badge-disabled"
+                        style={{ marginLeft: 8, fontSize: 11 }}
+                      >
+                        Deleted
+                      </span>
+                    )}
                   </h3>
                   <span className="project-card-slug">{app.slug}</span>
                 </Link>
                 {isDeleted && app.deleted_at && (
                   <div style={{ marginTop: 8 }}>
-                    <p className="text-muted text-sm" style={{ margin: '4px 0' }}>Hard delete available on {formatHardDeleteDate(app.deleted_at)}</p>
-                    <button className="btn btn-sm" onClick={() => handleRestore(app.slug)} disabled={restoring === app.slug}>
+                    <p className="text-muted text-sm" style={{ margin: '4px 0' }}>
+                      Hard delete available on {formatHardDeleteDate(app.deleted_at)}
+                    </p>
+                    <button
+                      className="btn btn-sm"
+                      onClick={() => handleRestore(app.slug)}
+                      disabled={restoring === app.slug}
+                    >
                       {restoring === app.slug ? 'Restoring...' : 'Restore'}
                     </button>
                   </div>

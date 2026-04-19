@@ -29,9 +29,19 @@ export default function MembersPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   // Groups state
-  const { groups, loading: groupsLoading, error: groupsError, refresh: refreshGroups } = useGroups(orgSlug);
+  const {
+    groups,
+    loading: groupsLoading,
+    error: groupsError,
+    refresh: refreshGroups,
+  } = useGroups(orgSlug);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
-  const { members: groupMembers, loading: groupMembersLoading, error: groupMembersError, refresh: refreshGroupMembers } = useGroupMembers(orgSlug, selectedGroup?.slug);
+  const {
+    members: groupMembers,
+    loading: groupMembersLoading,
+    error: groupMembersError,
+    refresh: refreshGroupMembers,
+  } = useGroupMembers(orgSlug, selectedGroup?.slug);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDescription, setNewGroupDescription] = useState('');
@@ -127,7 +137,11 @@ export default function MembersPage() {
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
             />
-            <select className="form-select" value={newRole} onChange={(e) => setNewRole(e.target.value)}>
+            <select
+              className="form-select"
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value)}
+            >
               <option value="member">Member</option>
               <option value="admin">Admin</option>
               <option value="viewer">Viewer</option>
@@ -242,7 +256,9 @@ export default function MembersPage() {
               </button>
               <h3>{selectedGroup.name}</h3>
               {selectedGroup.description && (
-                <p className="text-muted" style={{ marginBottom: 16 }}>{selectedGroup.description}</p>
+                <p className="text-muted" style={{ marginBottom: 16 }}>
+                  {selectedGroup.description}
+                </p>
               )}
 
               {(() => {
@@ -274,7 +290,9 @@ export default function MembersPage() {
                           refreshGroupMembers();
                           refreshGroups();
                         } catch (err) {
-                          setGroupActionError(err instanceof Error ? err.message : 'Failed to add member');
+                          setGroupActionError(
+                            err instanceof Error ? err.message : 'Failed to add member',
+                          );
                         }
                       }}
                     >
@@ -289,7 +307,9 @@ export default function MembersPage() {
               })()}
 
               {groupMembersError && (
-                <p className="form-error" style={{ marginBottom: 8 }}>{groupMembersError}</p>
+                <p className="form-error" style={{ marginBottom: 8 }}>
+                  {groupMembersError}
+                </p>
               )}
 
               {groupMembersLoading ? (
@@ -320,18 +340,29 @@ export default function MembersPage() {
                                   if (!orgSlug) return;
                                   setGroupActionError(null);
                                   try {
-                                    await groupsApi.removeMember(orgSlug, selectedGroup.slug, gm.user_id);
+                                    await groupsApi.removeMember(
+                                      orgSlug,
+                                      selectedGroup.slug,
+                                      gm.user_id,
+                                    );
                                     setConfirmRemoveGroupMember(null);
                                     refreshGroupMembers();
                                   } catch (err) {
-                                    setGroupActionError(err instanceof Error ? err.message : 'Failed to remove member');
+                                    setGroupActionError(
+                                      err instanceof Error
+                                        ? err.message
+                                        : 'Failed to remove member',
+                                    );
                                     setConfirmRemoveGroupMember(null);
                                   }
                                 }}
                               >
                                 Yes
                               </button>{' '}
-                              <button className="btn btn-sm" onClick={() => setConfirmRemoveGroupMember(null)}>
+                              <button
+                                className="btn btn-sm"
+                                onClick={() => setConfirmRemoveGroupMember(null)}
+                              >
                                 No
                               </button>
                             </span>
@@ -394,20 +425,31 @@ export default function MembersPage() {
                         setShowCreateGroup(false);
                         refreshGroups();
                       } catch (err) {
-                        setGroupActionError(err instanceof Error ? err.message : 'Failed to create group');
+                        setGroupActionError(
+                          err instanceof Error ? err.message : 'Failed to create group',
+                        );
                       }
                     }}
                   >
                     Create
                   </button>
-                  <button className="btn btn-sm" onClick={() => { setShowCreateGroup(false); setNewGroupName(''); setNewGroupDescription(''); }}>
+                  <button
+                    className="btn btn-sm"
+                    onClick={() => {
+                      setShowCreateGroup(false);
+                      setNewGroupName('');
+                      setNewGroupDescription('');
+                    }}
+                  >
                     Cancel
                   </button>
                 </div>
               )}
 
               {groupsError && (
-                <p className="form-error" style={{ marginBottom: 8 }}>{groupsError}</p>
+                <p className="form-error" style={{ marginBottom: 8 }}>
+                  {groupsError}
+                </p>
               )}
 
               {groupsLoading ? (
@@ -430,7 +472,13 @@ export default function MembersPage() {
                         <td>
                           <button
                             className="btn btn-sm"
-                            style={{ textDecoration: 'underline', padding: 0, background: 'none', color: '#5b9bd5', cursor: 'pointer' }}
+                            style={{
+                              textDecoration: 'underline',
+                              padding: 0,
+                              background: 'none',
+                              color: '#5b9bd5',
+                              cursor: 'pointer',
+                            }}
                             onClick={() => setSelectedGroup(g)}
                           >
                             {g.name}
@@ -452,14 +500,19 @@ export default function MembersPage() {
                                     setConfirmDeleteGroup(null);
                                     refreshGroups();
                                   } catch (err) {
-                                    setGroupActionError(err instanceof Error ? err.message : 'Failed to delete group');
+                                    setGroupActionError(
+                                      err instanceof Error ? err.message : 'Failed to delete group',
+                                    );
                                     setConfirmDeleteGroup(null);
                                   }
                                 }}
                               >
                                 Yes
                               </button>{' '}
-                              <button className="btn btn-sm" onClick={() => setConfirmDeleteGroup(null)}>
+                              <button
+                                className="btn btn-sm"
+                                onClick={() => setConfirmDeleteGroup(null)}
+                              >
                                 No
                               </button>
                             </span>

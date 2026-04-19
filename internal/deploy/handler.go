@@ -219,6 +219,7 @@ func (h *Handler) promoteDeployment(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "promoting"})
 }
 
+//nolint:unused
 func (h *Handler) rollbackDeployment(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {

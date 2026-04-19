@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { DeploySentryProvider, useFlag } from '@dr-sentry/react';

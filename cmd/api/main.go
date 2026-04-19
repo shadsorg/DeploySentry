@@ -45,6 +45,8 @@ import (
 	"github.com/deploysentry/deploysentry/internal/releases"
 	"github.com/deploysentry/deploysentry/internal/rollback"
 	"github.com/deploysentry/deploysentry/internal/rollout"
+	"github.com/deploysentry/deploysentry/internal/rollout/applicator"
+	applicatorconfig "github.com/deploysentry/deploysentry/internal/rollout/applicator/config"
 	applicatordeploy "github.com/deploysentry/deploysentry/internal/rollout/applicator/deploy"
 	rolloutengine "github.com/deploysentry/deploysentry/internal/rollout/engine"
 	"github.com/deploysentry/deploysentry/internal/settings"
@@ -346,10 +348,6 @@ func run() error {
 	orgRoleLookup := postgres.NewOrgRoleLookup(db.Pool)
 	api.Use(auth.ResolveOrgRole(orgRoleLookup))
 
-	flagHandler := flags.NewHandler(flagService, rbacChecker, webhookService, analyticsService, entityRepo, envRepo, auditRepo)
-	flagHandler.SetRatingService(ratingService)
-	flagHandler.RegisterRoutes(api)
-	flagHandler.RegisterSegmentRoutes(api)
 	releases.NewHandler(releaseService).RegisterRoutes(api)
 	analytics.NewHandler(analyticsService).RegisterRoutes(api)
 	webhooks.NewHandler(webhookService).RegisterRoutes(api)
@@ -387,6 +385,8 @@ func run() error {
 
 	trafficSetter := &deployTrafficSetter{svc: deployService}
 	deployApp := applicatordeploy.NewApplicator(trafficSetter, &noopHealthReader{})
+	configApp := applicatorconfig.NewApplicator(&flagRuleUpdater{svc: flagService})
+	routerApp := applicator.NewRouter(deployApp, configApp)
 
 	engineRepos := &rolloutEngineRepoAdapter{
 		rollouts: rolloutRepo,
@@ -394,7 +394,7 @@ func run() error {
 		events:   rolloutEventRepo,
 	}
 
-	rolloutExecEngine := rolloutengine.New(engineRepos, deployApp, nc, rolloutengine.EngineOptions{
+	rolloutExecEngine := rolloutengine.New(engineRepos, routerApp, nc, rolloutengine.EngineOptions{
 		PollInterval: 2 * time.Second,
 	})
 
@@ -406,6 +406,17 @@ func run() error {
 
 	// Register the deploy handler with the rollout attacher.
 	deploy.NewHandlerWithRollouts(deployService, webhookService, analyticsService, phaseEngine, deployHandlerAdapter).RegisterRoutes(api, rbacChecker)
+
+	// Now that rolloutAttacher is ready, wire the flag handler with rollout support.
+	flagRolloutAttacher := &flagRolloutAttacherAdapter{
+		attacher: rolloutAttacher,
+		flagSvc:  flagService,
+		entities: entityRepo,
+	}
+	flagHandler := flags.NewHandlerWithRollouts(flagService, rbacChecker, webhookService, analyticsService, entityRepo, envRepo, auditRepo, flagRolloutAttacher)
+	flagHandler.SetRatingService(ratingService)
+	flagHandler.RegisterRoutes(api)
+	flagHandler.RegisterSegmentRoutes(api)
 
 	// Wire rollout lookup into the deploy phase engine so it skips canary phases
 	// when a rollout engine is already managing traffic for a deployment.
@@ -762,4 +773,53 @@ type noopHealthReader struct{}
 
 func (noopHealthReader) GetHealth(_ uuid.UUID) (*health.DeploymentHealth, error) {
 	return &health.DeploymentHealth{Overall: 1.0, Healthy: true}, nil
+}
+
+// flagRuleUpdater adapts flags.FlagService to applicatorconfig.RuleUpdater.
+// Implements UpdateRulePercentage by reading the rule, mutating its
+// Percentage field, and calling UpdateRule.
+type flagRuleUpdater struct{ svc flags.FlagService }
+
+func (u *flagRuleUpdater) UpdateRulePercentage(ctx context.Context, ruleID uuid.UUID, pct int) error {
+	rule, err := u.svc.GetRule(ctx, ruleID)
+	if err != nil {
+		return err
+	}
+	p := pct
+	rule.Percentage = &p
+	return u.svc.UpdateRule(ctx, rule)
+}
+
+// flagRolloutAttacherAdapter satisfies flags.RolloutAttacher by delegating to
+// rollout.Attacher.AttachConfig with scope context resolved from the rule's flag.
+type flagRolloutAttacherAdapter struct {
+	attacher *rollout.Attacher
+	flagSvc  flags.FlagService
+	entities entities.EntityRepository
+}
+
+func (a *flagRolloutAttacherAdapter) AttachFromRuleRequest(ctx context.Context, rule *models.TargetingRule, prev int, req *flags.RolloutAttachRequest, actor uuid.UUID) error {
+	flag, err := a.flagSvc.GetFlag(ctx, rule.FlagID)
+	if err != nil {
+		return err
+	}
+	// Build the scope leaf from the flag. Ancestor IDs (project, org) are not
+	// directly available via ID-based lookups in the current entity repository, so
+	// we pass nil — AttachConfig tolerates partial ancestry and falls back to
+	// app/project-scoped or global defaults/policies.
+	var leaf rollout.ScopeRef
+	if flag.ApplicationID != nil {
+		leaf = rollout.ScopeRef{Type: models.ScopeApp, ID: *flag.ApplicationID}
+	} else {
+		leaf = rollout.ScopeRef{Type: models.ScopeProject, ID: flag.ProjectID}
+	}
+
+	intent := &rollout.AttachIntent{
+		StrategyID:   req.StrategyID,
+		StrategyName: req.StrategyName,
+		Overrides:    req.Overrides,
+		ReleaseID:    req.ReleaseID,
+		Leaf:         leaf,
+	}
+	return a.attacher.AttachConfig(ctx, rule.ID, prev, intent, actor)
 }

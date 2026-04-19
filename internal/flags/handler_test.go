@@ -106,6 +106,10 @@ func (m *mockFlagService) UpdateRule(ctx context.Context, rule *models.Targeting
 	return nil
 }
 
+func (m *mockFlagService) GetRule(ctx context.Context, ruleID uuid.UUID) (*models.TargetingRule, error) {
+	return nil, nil
+}
+
 func (m *mockFlagService) DeleteRule(ctx context.Context, ruleID uuid.UUID) error {
 	if m.deleteRuleFn != nil {
 		return m.deleteRuleFn(ctx, ruleID)

@@ -1009,12 +1009,14 @@ func (h *Handler) updateRule(c *gin.Context) {
 	// without apply_immediately, delegate to the rollout engine instead of
 	// applying the rule change directly. The rollout engine will call UpdateRule
 	// when it is ready to apply the new percentage.
-	//
-	// Note: previousPercentage is currently assumed to be 0. A follow-up will
-	// read the actual current rule from the DB via a GetRule method on FlagService.
 	if h.rollouts != nil && req.Rollout != nil && !req.Rollout.ApplyImmediately {
+		// Read the current rule from DB so we can capture the real previousPercentage.
+		prevPct := 0
+		if existing, err := h.service.GetRule(c.Request.Context(), ruleID); err == nil && existing != nil && existing.Percentage != nil {
+			prevPct = *existing.Percentage
+		}
 		actor := actorFromFlagContext(c)
-		if err := h.rollouts.AttachFromRuleRequest(c.Request.Context(), rule, 0, req.Rollout, actor); err != nil {
+		if err := h.rollouts.AttachFromRuleRequest(c.Request.Context(), rule, prevPct, req.Rollout, actor); err != nil {
 			if errors.Is(err, ErrRolloutInProgress) {
 				c.JSON(http.StatusConflict, gin.H{
 					"error":   "rollout_in_progress",

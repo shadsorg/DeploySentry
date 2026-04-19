@@ -63,6 +63,9 @@ type FlagService interface {
 	// UpdateRule updates an existing targeting rule.
 	UpdateRule(ctx context.Context, rule *models.TargetingRule) error
 
+	// GetRule retrieves a targeting rule by ID.
+	GetRule(ctx context.Context, ruleID uuid.UUID) (*models.TargetingRule, error)
+
 	// DeleteRule removes a targeting rule.
 	DeleteRule(ctx context.Context, ruleID uuid.UUID) error
 
@@ -347,6 +350,15 @@ func (s *flagService) UpdateRule(ctx context.Context, rule *models.TargetingRule
 }
 
 // DeleteRule removes a targeting rule by its ID.
+// GetRule retrieves a targeting rule by its unique identifier.
+func (s *flagService) GetRule(ctx context.Context, ruleID uuid.UUID) (*models.TargetingRule, error) {
+	rule, err := s.repo.GetRule(ctx, ruleID)
+	if err != nil {
+		return nil, fmt.Errorf("getting rule: %w", err)
+	}
+	return rule, nil
+}
+
 func (s *flagService) DeleteRule(ctx context.Context, ruleID uuid.UUID) error {
 	if err := s.repo.DeleteRule(ctx, ruleID); err != nil {
 		return fmt.Errorf("deleting rule: %w", err)

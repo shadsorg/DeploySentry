@@ -10,8 +10,11 @@ import (
 type PolicyKind string
 
 const (
-	PolicyOff     PolicyKind = "off"
-	PolicyPrompt  PolicyKind = "prompt"
+	// PolicyOff means rollout control is disabled; changes apply immediately (default / backward compat).
+	PolicyOff PolicyKind = "off"
+	// PolicyPrompt means user is prompted to attach a strategy; apply-immediately remains an option.
+	PolicyPrompt PolicyKind = "prompt"
+	// PolicyMandate means changes on this scope must attach a strategy; no immediate-apply path.
 	PolicyMandate PolicyKind = "mandate"
 )
 

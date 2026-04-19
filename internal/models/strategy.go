@@ -10,18 +10,24 @@ import (
 type TargetType string
 
 const (
+	// TargetTypeDeploy means the rollout target is a deployment (version shift).
 	TargetTypeDeploy TargetType = "deploy"
+	// TargetTypeConfig means the rollout target is a managed config value (flags included).
 	TargetTypeConfig TargetType = "config"
-	TargetTypeAny    TargetType = "any"
+	// TargetTypeAny means the strategy can be applied to any target type.
+	TargetTypeAny TargetType = "any"
 )
 
 // ScopeType identifies the level at which a rollout-control entity is attached.
 type ScopeType string
 
 const (
-	ScopeOrg     ScopeType = "org"
+	// ScopeOrg is organization scope.
+	ScopeOrg ScopeType = "org"
+	// ScopeProject is project scope.
 	ScopeProject ScopeType = "project"
-	ScopeApp     ScopeType = "app"
+	// ScopeApp is application scope.
+	ScopeApp ScopeType = "app"
 )
 
 // Strategy is a reusable rollout template.

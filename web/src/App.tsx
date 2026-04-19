@@ -22,6 +22,8 @@ import APIKeysPage from './pages/APIKeysPage';
 import StrategiesPage from './pages/StrategiesPage';
 import RolloutsPage from './pages/RolloutsPage';
 import RolloutDetailPage from './pages/RolloutDetailPage';
+import RolloutGroupsPage from './pages/RolloutGroupsPage';
+import RolloutGroupDetailPage from './pages/RolloutGroupDetailPage';
 import CreateAppPage from './pages/CreateAppPage';
 import ProjectPage from './pages/ProjectPage';
 import AppPage from './pages/AppPage';
@@ -61,6 +63,8 @@ export default function App() {
             <Route path="strategies" element={<StrategiesPage />} />
             <Route path="rollouts" element={<RolloutsPage />} />
             <Route path="rollouts/:id" element={<RolloutDetailPage />} />
+            <Route path="rollout-groups" element={<RolloutGroupsPage />} />
+            <Route path="rollout-groups/:id" element={<RolloutGroupDetailPage />} />
             <Route path="settings" element={<SettingsPage level="org" />} />
 
             {/* Project-level — wrapped by ProjectPage (tabs) */}

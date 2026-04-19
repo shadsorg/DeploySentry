@@ -49,6 +49,13 @@ export default function Sidebar() {
               Rollouts
             </NavLink>
             <NavLink
+              to={`/orgs/${orgSlug}/rollout-groups`}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <span className="nav-icon">⊕</span>
+              Rollout Groups
+            </NavLink>
+            <NavLink
               to={`/orgs/${orgSlug}/settings`}
               className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
             >

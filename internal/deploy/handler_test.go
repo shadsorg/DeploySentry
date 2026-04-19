@@ -30,6 +30,7 @@ type mockDeployService struct {
 	getActiveFn         func(ctx context.Context, applicationID uuid.UUID) ([]*models.Deployment, error)
 	listPhasesFn        func(ctx context.Context, deploymentID uuid.UUID) ([]*models.DeploymentPhase, error)
 	listRollbacksFn     func(ctx context.Context, deploymentID uuid.UUID) ([]*models.RollbackRecord, error)
+	setTrafficPercentFn func(ctx context.Context, deploymentID uuid.UUID, pct int) error
 }
 
 func (m *mockDeployService) CreateDeployment(ctx context.Context, d *models.Deployment) error {
@@ -103,6 +104,13 @@ func (m *mockDeployService) ListRollbackRecords(ctx context.Context, deploymentI
 }
 
 func (m *mockDeployService) CancelDeployment(_ context.Context, _ uuid.UUID) error {
+	return nil
+}
+
+func (m *mockDeployService) SetTrafficPercent(ctx context.Context, deploymentID uuid.UUID, pct int) error {
+	if m.setTrafficPercentFn != nil {
+		return m.setTrafficPercentFn(ctx, deploymentID, pct)
+	}
 	return nil
 }
 

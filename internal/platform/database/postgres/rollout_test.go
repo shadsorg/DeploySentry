@@ -150,3 +150,22 @@ func TestStrategyDefaultsRepo_WildcardKeyUniqueness(t *testing.T) {
 		t.Fatalf("expected 2 rows, got %d (err=%v)", len(rows), err)
 	}
 }
+
+func TestRolloutPolicyRepo_Upsert(t *testing.T) {
+	ctx := context.Background()
+	db := testDB(t)
+	repo := NewRolloutPolicyRepo(db)
+	orgID := uuid.New()
+	p := &models.RolloutPolicy{ScopeType: models.ScopeOrg, ScopeID: orgID, Enabled: true, Policy: models.PolicyPrompt}
+	if err := repo.Upsert(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	p.Policy = models.PolicyMandate
+	if err := repo.Upsert(ctx, p); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := repo.ListByScope(ctx, models.ScopeOrg, orgID)
+	if err != nil || len(rows) != 1 || rows[0].Policy != models.PolicyMandate {
+		t.Fatalf("list: err=%v rows=%+v", err, rows)
+	}
+}

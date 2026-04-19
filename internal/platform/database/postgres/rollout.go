@@ -268,3 +268,75 @@ func (r *StrategyDefaultsRepo) DeleteByKey(ctx context.Context, scopeType models
 	)
 	return err
 }
+
+// RolloutPolicyRepo is a Postgres-backed rollout.RolloutPolicyRepository.
+type RolloutPolicyRepo struct {
+	db *pgxpool.Pool
+}
+
+// NewRolloutPolicyRepo returns a new RolloutPolicyRepo.
+func NewRolloutPolicyRepo(db *pgxpool.Pool) *RolloutPolicyRepo {
+	return &RolloutPolicyRepo{db: db}
+}
+
+var _ rollout.RolloutPolicyRepository = (*RolloutPolicyRepo)(nil)
+
+func (r *RolloutPolicyRepo) Upsert(ctx context.Context, p *models.RolloutPolicy) error {
+	if p.ID == uuid.Nil {
+		p.ID = uuid.New()
+	}
+	now := time.Now().UTC()
+	p.UpdatedAt = now
+	if p.CreatedAt.IsZero() {
+		p.CreatedAt = now
+	}
+	envStr := ""
+	if p.Environment != nil {
+		envStr = *p.Environment
+	}
+	ttStr := ""
+	if p.TargetType != nil {
+		ttStr = string(*p.TargetType)
+	}
+	_, err := r.db.Exec(ctx, `
+        INSERT INTO rollout_policies (id, scope_type, scope_id, environment, target_type, enabled, policy, created_by, updated_by, created_at, updated_at)
+        VALUES ($1,$2,$3, NULLIF($4,''), NULLIF($5,''), $6, $7, $8, $9, $10, $11)
+        ON CONFLICT (scope_type, scope_id, COALESCE(environment,''), COALESCE(target_type,''))
+        DO UPDATE SET enabled=EXCLUDED.enabled, policy=EXCLUDED.policy, updated_by=EXCLUDED.updated_by, updated_at=EXCLUDED.updated_at`,
+		p.ID, p.ScopeType, p.ScopeID, envStr, ttStr, p.Enabled, p.Policy, p.CreatedBy, p.UpdatedBy, p.CreatedAt, p.UpdatedAt,
+	)
+	return err
+}
+
+func (r *RolloutPolicyRepo) ListByScope(ctx context.Context, scopeType models.ScopeType, scopeID uuid.UUID) ([]*models.RolloutPolicy, error) {
+	rows, err := r.db.Query(ctx, `
+        SELECT id, scope_type, scope_id, environment, target_type, enabled, policy, created_by, updated_by, created_at, updated_at
+        FROM rollout_policies WHERE scope_type=$1 AND scope_id=$2 ORDER BY COALESCE(environment,''), COALESCE(target_type,'')`,
+		scopeType, scopeID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*models.RolloutPolicy
+	for rows.Next() {
+		var p models.RolloutPolicy
+		var env *string
+		var tt *models.TargetType
+		var createdBy, updatedBy *uuid.UUID
+		if err := rows.Scan(&p.ID, &p.ScopeType, &p.ScopeID, &env, &tt, &p.Enabled, &p.Policy, &createdBy, &updatedBy, &p.CreatedAt, &p.UpdatedAt); err != nil {
+			return nil, err
+		}
+		p.Environment = env
+		p.TargetType = tt
+		p.CreatedBy = createdBy
+		p.UpdatedBy = updatedBy
+		out = append(out, &p)
+	}
+	return out, rows.Err()
+}
+
+func (r *RolloutPolicyRepo) Delete(ctx context.Context, id uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `DELETE FROM rollout_policies WHERE id=$1`, id)
+	return err
+}

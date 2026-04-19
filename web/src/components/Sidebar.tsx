@@ -35,6 +35,13 @@ export default function Sidebar() {
               API Keys
             </NavLink>
             <NavLink
+              to={`/orgs/${orgSlug}/strategies`}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <span className="nav-icon">~</span>
+              Strategies
+            </NavLink>
+            <NavLink
               to={`/orgs/${orgSlug}/settings`}
               className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
             >

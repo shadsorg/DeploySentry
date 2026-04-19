@@ -19,6 +19,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import SettingsPage from './pages/SettingsPage';
 import MembersPage from './pages/MembersPage';
 import APIKeysPage from './pages/APIKeysPage';
+import StrategiesPage from './pages/StrategiesPage';
 import CreateAppPage from './pages/CreateAppPage';
 import ProjectPage from './pages/ProjectPage';
 import AppPage from './pages/AppPage';
@@ -55,6 +56,7 @@ export default function App() {
             <Route path="projects/new" element={<CreateProjectPage />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="api-keys" element={<APIKeysPage />} />
+            <Route path="strategies" element={<StrategiesPage />} />
             <Route path="settings" element={<SettingsPage level="org" />} />
 
             {/* Project-level — wrapped by ProjectPage (tabs) */}

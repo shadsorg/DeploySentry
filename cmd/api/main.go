@@ -40,6 +40,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/ratings"
 	"github.com/deploysentry/deploysentry/internal/releases"
 	"github.com/deploysentry/deploysentry/internal/rollback"
+	"github.com/deploysentry/deploysentry/internal/rollout"
 	"github.com/deploysentry/deploysentry/internal/settings"
 	"github.com/deploysentry/deploysentry/internal/webhooks"
 	"github.com/nats-io/nats.go/jetstream"
@@ -359,6 +360,18 @@ func run() error {
 	notifications.NewPreferencesHandler(prefStore, notificationService, rbacChecker).RegisterRoutes(api)
 	registry.NewHandler(agentService).RegisterRoutes(api, rbacChecker)
 
+	// Rollout control plane: strategies, defaults, onboarding policies.
+	strategyRepo := postgres.NewStrategyRepo(db.Pool)
+	strategyDefRepo := postgres.NewStrategyDefaultsRepo(db.Pool)
+	rolloutPolicyRepo := postgres.NewRolloutPolicyRepo(db.Pool)
+	rolloutScopeResolver := &rolloutScopeAdapter{entities: entityRepo}
+	rollout.NewHandler(
+		rollout.NewStrategyService(strategyRepo, nil),
+		rollout.NewStrategyDefaultService(strategyDefRepo),
+		rollout.NewRolloutPolicyService(rolloutPolicyRepo),
+		rolloutScopeResolver,
+	).RegisterRoutes(api)
+
 	// Rollback handler: manual rollback triggers and rollback history.
 	rollbackExecutor := &deployServiceRollbackExecutor{service: deployService}
 	rollbackController := rollback.NewRollbackController(
@@ -524,6 +537,44 @@ type deployServiceRollbackExecutor struct {
 
 func (a *deployServiceRollbackExecutor) Execute(ctx context.Context, deploymentID uuid.UUID, _ rollback.RollbackStrategy) error {
 	return a.service.RollbackDeployment(ctx, deploymentID)
+}
+
+// rolloutScopeAdapter bridges rollout.ScopeResolver to the existing entity
+// repository. It reads path params set by gin.
+type rolloutScopeAdapter struct {
+	entities entities.EntityRepository
+}
+
+func (a *rolloutScopeAdapter) ResolveOrg(c *gin.Context) (uuid.UUID, error) {
+	org, err := a.entities.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return org.ID, nil
+}
+
+func (a *rolloutScopeAdapter) ResolveProject(c *gin.Context) (uuid.UUID, uuid.UUID, error) {
+	orgID, err := a.ResolveOrg(c)
+	if err != nil {
+		return uuid.Nil, uuid.Nil, err
+	}
+	proj, err := a.entities.GetProjectBySlug(c.Request.Context(), orgID, c.Param("projectSlug"))
+	if err != nil {
+		return uuid.Nil, uuid.Nil, err
+	}
+	return orgID, proj.ID, nil
+}
+
+func (a *rolloutScopeAdapter) ResolveApp(c *gin.Context) (uuid.UUID, uuid.UUID, uuid.UUID, error) {
+	orgID, projID, err := a.ResolveProject(c)
+	if err != nil {
+		return uuid.Nil, uuid.Nil, uuid.Nil, err
+	}
+	app, err := a.entities.GetAppBySlug(c.Request.Context(), projID, c.Param("appSlug"))
+	if err != nil {
+		return uuid.Nil, uuid.Nil, uuid.Nil, err
+	}
+	return orgID, projID, app.ID, nil
 }
 
 // apiKeyValidatorAdapter adapts *auth.APIKeyService to the auth.APIKeyValidator

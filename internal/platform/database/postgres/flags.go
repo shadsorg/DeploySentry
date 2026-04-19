@@ -34,6 +34,7 @@ func scanFeatureFlag(row pgx.Row) (*models.FeatureFlag, error) {
 	var f models.FeatureFlag
 	var defaultValueBytes []byte
 	var archivedAt *time.Time
+	var smokeStatus, userStatus *string
 
 	err := row.Scan(
 		&f.ID,
@@ -55,6 +56,13 @@ func scanFeatureFlag(row pgx.Row) (*models.FeatureFlag, error) {
 		&f.Owners,
 		&f.IsPermanent,
 		&f.ExpiresAt,
+		&smokeStatus,
+		&userStatus,
+		&f.ScheduledRemovalAt,
+		&f.IterationCount,
+		&f.IterationExhausted,
+		&f.LastSmokeTestNotes,
+		&f.LastUserTestNotes,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -67,6 +75,14 @@ func scanFeatureFlag(row pgx.Row) (*models.FeatureFlag, error) {
 		f.DefaultValue = string(defaultValueBytes)
 	}
 	f.Archived = archivedAt != nil
+	if smokeStatus != nil {
+		s := models.LifecycleTestStatus(*smokeStatus)
+		f.SmokeTestStatus = &s
+	}
+	if userStatus != nil {
+		s := models.LifecycleTestStatus(*userStatus)
+		f.UserTestStatus = &s
+	}
 
 	return &f, nil
 }
@@ -133,7 +149,14 @@ const flagSelectCols = `
 	COALESCE(purpose, ''),
 	COALESCE(owners, '{}'),
 	is_permanent,
-	expires_at`
+	expires_at,
+	smoke_test_status,
+	user_test_status,
+	scheduled_removal_at,
+	COALESCE(iteration_count, 0),
+	COALESCE(iteration_exhausted, false),
+	last_smoke_test_notes,
+	last_user_test_notes`
 
 const ruleSelectCols = `
 	id, flag_id, rule_type, priority,
@@ -215,6 +238,21 @@ func (r *FlagRepository) GetFlag(ctx context.Context, id uuid.UUID) (*models.Fea
 			return nil, ErrNotFound
 		}
 		return nil, fmt.Errorf("postgres.GetFlag: %w", err)
+	}
+	return f, nil
+}
+
+// GetFlagByProjectKey retrieves a feature flag by project and key, ignoring
+// environment. Used by lifecycle endpoints where the API key scopes the
+// caller to a single project and flags are per-project (not per-environment).
+func (r *FlagRepository) GetFlagByProjectKey(ctx context.Context, projectID uuid.UUID, key string) (*models.FeatureFlag, error) {
+	q := `SELECT` + flagSelectCols + ` FROM feature_flags WHERE project_id = $1 AND key = $2 ORDER BY environment_id ASC NULLS FIRST LIMIT 1`
+	f, err := scanFeatureFlag(r.pool.QueryRow(ctx, q, projectID, key))
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("postgres.GetFlagByProjectKey: %w", err)
 	}
 	return f, nil
 }
@@ -326,6 +364,119 @@ func (r *FlagRepository) UpdateFlag(ctx context.Context, flag *models.FeatureFla
 	)
 	if err != nil {
 		return fmt.Errorf("postgres.UpdateFlag: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// UpdateFlagLifecycle applies a partial update to the lifecycle-only columns
+// of a flag. Any field left nil / zero is ignored. When disableEverywhere is
+// true the flag's enabled flag is also set to false in the same transaction
+// and every per-environment override is forced off — used when a smoke or
+// user test fails and we need to lock the flag down immediately.
+func (r *FlagRepository) UpdateFlagLifecycle(ctx context.Context, id uuid.UUID, patch flags.LifecyclePatch, disableEverywhere bool) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("postgres.UpdateFlagLifecycle: begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	// COALESCE($n, col) — nil args keep the existing value.
+	const q = `
+		UPDATE feature_flags SET
+			smoke_test_status          = COALESCE($2, smoke_test_status),
+			user_test_status           = COALESCE($3, user_test_status),
+			scheduled_removal_at       = CASE WHEN $4::boolean THEN $5 ELSE scheduled_removal_at END,
+			scheduled_removal_fired_at = CASE WHEN $4::boolean THEN NULL ELSE scheduled_removal_fired_at END,
+			iteration_count            = iteration_count + $6,
+			iteration_exhausted        = COALESCE($7, iteration_exhausted),
+			last_smoke_test_notes      = CASE WHEN $8::boolean THEN $9 ELSE last_smoke_test_notes END,
+			last_user_test_notes       = CASE WHEN $10::boolean THEN $11 ELSE last_user_test_notes END,
+			enabled                    = CASE WHEN $12::boolean THEN false ELSE enabled END,
+			updated_at                 = now()
+		WHERE id = $1`
+
+	var smoke, user *string
+	if patch.SmokeTestStatus != nil {
+		v := string(*patch.SmokeTestStatus)
+		smoke = &v
+	}
+	if patch.UserTestStatus != nil {
+		v := string(*patch.UserTestStatus)
+		user = &v
+	}
+
+	tag, err := tx.Exec(ctx, q,
+		id,
+		smoke,
+		user,
+		patch.SetScheduledRemovalAt,
+		patch.ScheduledRemovalAt,
+		patch.IterationIncrement,
+		patch.IterationExhausted,
+		patch.SetSmokeNotes,
+		patch.SmokeNotes,
+		patch.SetUserNotes,
+		patch.UserNotes,
+		disableEverywhere,
+	)
+	if err != nil {
+		return fmt.Errorf("postgres.UpdateFlagLifecycle: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+
+	if disableEverywhere {
+		if _, err := tx.Exec(ctx, `UPDATE flag_environment_state SET enabled = false, updated_at = now() WHERE flag_id = $1`, id); err != nil {
+			return fmt.Errorf("postgres.UpdateFlagLifecycle: disable env states: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("postgres.UpdateFlagLifecycle: commit: %w", err)
+	}
+	return nil
+}
+
+// ListFlagsDueForRemoval returns every flag whose scheduled_removal_at has
+// passed and whose 'due' webhook has not yet been fired.
+func (r *FlagRepository) ListFlagsDueForRemoval(ctx context.Context, now time.Time) ([]*models.FeatureFlag, error) {
+	q := `SELECT` + flagSelectCols + ` FROM feature_flags
+		WHERE scheduled_removal_at IS NOT NULL
+		  AND scheduled_removal_fired_at IS NULL
+		  AND scheduled_removal_at <= $1
+		  AND archived_at IS NULL
+		ORDER BY scheduled_removal_at ASC
+		LIMIT 500`
+	rows, err := r.pool.Query(ctx, q, now)
+	if err != nil {
+		return nil, fmt.Errorf("postgres.ListFlagsDueForRemoval: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*models.FeatureFlag
+	for rows.Next() {
+		f, err := scanFeatureFlag(rows)
+		if err != nil {
+			return nil, fmt.Errorf("postgres.ListFlagsDueForRemoval: %w", err)
+		}
+		result = append(result, f)
+	}
+	return result, rows.Err()
+}
+
+// MarkFlagRemovalFired records the time the scheduler emitted the 'due'
+// webhook for a flag so subsequent ticks don't re-fire it.
+func (r *FlagRepository) MarkFlagRemovalFired(ctx context.Context, id uuid.UUID, firedAt time.Time) error {
+	tag, err := r.pool.Exec(ctx,
+		`UPDATE feature_flags SET scheduled_removal_fired_at = $2 WHERE id = $1 AND scheduled_removal_fired_at IS NULL`,
+		id, firedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("postgres.MarkFlagRemovalFired: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return ErrNotFound

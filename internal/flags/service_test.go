@@ -201,6 +201,62 @@ func (m *mockFlagRepo) ListRuleEnvironmentStatesByEnv(ctx context.Context, flagI
 	return result, nil
 }
 
+func (m *mockFlagRepo) GetFlagByProjectKey(ctx context.Context, projectID uuid.UUID, key string) (*models.FeatureFlag, error) {
+	for _, f := range m.flags {
+		if f.ProjectID == projectID && f.Key == key {
+			return f, nil
+		}
+	}
+	return nil, errors.New("flag not found")
+}
+
+func (m *mockFlagRepo) UpdateFlagLifecycle(ctx context.Context, id uuid.UUID, patch LifecyclePatch, disableEverywhere bool) error {
+	f, ok := m.flags[id]
+	if !ok {
+		return errors.New("flag not found")
+	}
+	if patch.SmokeTestStatus != nil {
+		f.SmokeTestStatus = patch.SmokeTestStatus
+	}
+	if patch.UserTestStatus != nil {
+		f.UserTestStatus = patch.UserTestStatus
+	}
+	if patch.SetScheduledRemovalAt {
+		f.ScheduledRemovalAt = patch.ScheduledRemovalAt
+	}
+	if patch.SetSmokeNotes {
+		f.LastSmokeTestNotes = patch.SmokeNotes
+	}
+	if patch.SetUserNotes {
+		f.LastUserTestNotes = patch.UserNotes
+	}
+	if patch.IterationExhausted != nil {
+		f.IterationExhausted = *patch.IterationExhausted
+	}
+	f.IterationCount += patch.IterationIncrement
+	if disableEverywhere {
+		f.Enabled = false
+	}
+	return nil
+}
+
+func (m *mockFlagRepo) ListFlagsDueForRemoval(ctx context.Context, now time.Time) ([]*models.FeatureFlag, error) {
+	var out []*models.FeatureFlag
+	for _, f := range m.flags {
+		if f.ScheduledRemovalAt != nil && !f.ScheduledRemovalAt.After(now) {
+			out = append(out, f)
+		}
+	}
+	return out, nil
+}
+
+func (m *mockFlagRepo) MarkFlagRemovalFired(ctx context.Context, id uuid.UUID, firedAt time.Time) error {
+	if _, ok := m.flags[id]; !ok {
+		return errors.New("flag not found")
+	}
+	return nil
+}
+
 // mockCache is a test double for Cache.
 type mockCache struct {
 	flags map[string]*models.FeatureFlag   // key: "projectID:envID:key"

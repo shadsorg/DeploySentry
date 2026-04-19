@@ -152,3 +152,20 @@ When a config rollout rolls back, the rule's percentage is restored to its pre-r
 - A rule whose `percentage` decreases during a rollout (e.g., from 25% → 1% as the first step) is allowed; the engine treats the strategy's step values as absolute. Users should pick strategies whose first step matches or exceeds the current percentage.
 - Only the `percentage` field of a rule is rolled out. Changing the rule's `Value` or type requires a direct edit (no progressive rollout of `Value` yet).
 - Config rollouts advance by percentage only — no SDK-side bucket hashing logic changed; evaluation uses whatever the existing rule's percentage field is.
+
+## Smoke-test targeting convention
+
+When integrating with the CrowdSoft feature-agent (or any controller that runs scoped smoke tests), consumer apps tag the DS evaluation context with `is_smoke_test: true` for the duration of the test request. See [`docs/Feature_Lifecycle.md`](./Feature_Lifecycle.md) for the header-based delivery channel (`X-DS-Test-Context` + HMAC-signed `X-DS-Test-Signature`).
+
+To let a rule fire exclusively inside a smoke test:
+
+```yaml
+rules:
+  - attribute: is_smoke_test
+    operator: equals
+    target_values: ["true"]
+    value: "true"
+    priority: 1
+```
+
+DeploySentry does not verify the header itself — the contract is between the agent and the consumer app. We document the attribute name here so users writing targeting rules know the convention.

@@ -821,5 +821,11 @@ func (a *flagRolloutAttacherAdapter) AttachFromRuleRequest(ctx context.Context, 
 		ReleaseID:    req.ReleaseID,
 		Leaf:         leaf,
 	}
-	return a.attacher.AttachConfig(ctx, rule.ID, prev, intent, actor)
+	if err := a.attacher.AttachConfig(ctx, rule.ID, prev, intent, actor); err != nil {
+		if errors.Is(err, rollout.ErrAlreadyActiveOnTarget) {
+			return flags.ErrRolloutInProgress
+		}
+		return err
+	}
+	return nil
 }

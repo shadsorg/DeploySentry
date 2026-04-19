@@ -169,3 +169,54 @@ func TestRolloutRepo_GetActiveByRule(t *testing.T) {
 		t.Fatalf("expected ErrRolloutNotFound for terminal rollout")
 	}
 }
+
+func TestRolloutRepo_ListByRelease(t *testing.T) {
+	ctx := context.Background()
+	repo := NewRolloutRepo(testDB(t))
+
+	relID := uuid.New()
+	r1 := sampleRollout(t)
+	r1.ReleaseID = &relID
+	r2 := sampleRollout(t)
+	r2.ReleaseID = &relID
+	r3 := sampleRollout(t)
+	if err := repo.Create(ctx, r1); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Create(ctx, r2); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Create(ctx, r3); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repo.ListByRelease(ctx, relID)
+	if err != nil || len(got) != 2 {
+		t.Fatalf("list: err=%v len=%d", err, len(got))
+	}
+}
+
+func TestRolloutRepo_SetReleaseID(t *testing.T) {
+	ctx := context.Background()
+	repo := NewRolloutRepo(testDB(t))
+
+	r := sampleRollout(t)
+	if err := repo.Create(ctx, r); err != nil {
+		t.Fatal(err)
+	}
+	relID := uuid.New()
+	if err := repo.SetReleaseID(ctx, r.ID, &relID); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := repo.Get(ctx, r.ID)
+	if got.ReleaseID == nil || *got.ReleaseID != relID {
+		t.Fatalf("release_id not set: %+v", got.ReleaseID)
+	}
+
+	if err := repo.SetReleaseID(ctx, r.ID, nil); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = repo.Get(ctx, r.ID)
+	if got.ReleaseID != nil {
+		t.Fatalf("expected nil release_id, got %+v", got.ReleaseID)
+	}
+}

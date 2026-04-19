@@ -70,6 +70,22 @@ func (f *fakeRolloutRepo) UpdatePhasePointer(_ context.Context, _ uuid.UUID, _ i
 	return nil
 }
 func (f *fakeRolloutRepo) MarkCompleted(_ context.Context, _ uuid.UUID) error { return nil }
+func (f *fakeRolloutRepo) ListByRelease(_ context.Context, relID uuid.UUID) ([]*models.Rollout, error) {
+	var out []*models.Rollout
+	for _, r := range f.rows {
+		if r.ReleaseID != nil && *r.ReleaseID == relID {
+			out = append(out, r)
+		}
+	}
+	return out, nil
+}
+func (f *fakeRolloutRepo) SetReleaseID(_ context.Context, id uuid.UUID, relID *uuid.UUID) error {
+	if r, ok := f.rows[id]; ok {
+		r.ReleaseID = relID
+		return nil
+	}
+	return errors.New("not found")
+}
 
 type fakeEventRepo struct{ events []*models.RolloutEvent }
 

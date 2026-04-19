@@ -149,6 +149,28 @@ func (r *RolloutRepo) MarkCompleted(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+// ListByRelease returns all rollouts (any status) attached to a rollout group.
+func (r *RolloutRepo) ListByRelease(ctx context.Context, releaseID uuid.UUID) ([]*models.Rollout, error) {
+	rows, err := r.db.Query(ctx, selectRolloutCols+" FROM rollouts WHERE release_id=$1 ORDER BY created_at ASC", releaseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanRollouts(rows)
+}
+
+// SetReleaseID attaches (or detaches with nil) a rollout to a group.
+func (r *RolloutRepo) SetReleaseID(ctx context.Context, rolloutID uuid.UUID, releaseID *uuid.UUID) error {
+	tag, err := r.db.Exec(ctx, `UPDATE rollouts SET release_id=$1 WHERE id=$2`, releaseID, rolloutID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrRolloutNotFound
+	}
+	return nil
+}
+
 func (r *RolloutRepo) scanOne(ctx context.Context, where string, args ...any) (*models.Rollout, error) {
 	rows, err := r.db.Query(ctx, selectRolloutCols+" FROM rollouts "+where, args...)
 	if err != nil {

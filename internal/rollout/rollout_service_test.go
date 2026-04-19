@@ -46,6 +46,14 @@ func (f *fakeRolloutRepo) GetActiveByDeployment(_ context.Context, dep uuid.UUID
 func (f *fakeRolloutRepo) GetActiveByConfig(_ context.Context, _, _ string) (*models.Rollout, error) {
 	return nil, errors.New("not found")
 }
+func (f *fakeRolloutRepo) GetActiveByRule(_ context.Context, ruleID uuid.UUID) (*models.Rollout, error) {
+	for _, r := range f.rows {
+		if r.TargetRef.RuleID != nil && *r.TargetRef.RuleID == ruleID.String() && !r.IsTerminal() {
+			return r, nil
+		}
+	}
+	return nil, errors.New("not found")
+}
 func (f *fakeRolloutRepo) List(_ context.Context, _ RolloutListOptions) ([]*models.Rollout, error) {
 	return nil, nil
 }
@@ -169,5 +177,36 @@ func TestRolloutService_StateMachine_PauseNonActive(t *testing.T) {
 	// Pending rollout should not be pausable.
 	if err := svc.Pause(context.Background(), ro.ID, uuid.New(), ""); err == nil {
 		t.Fatalf("expected state-machine error")
+	}
+}
+
+func TestRolloutService_AttachConfig_CreatesRollout(t *testing.T) {
+	svc := newTestService()
+	snap := &models.Strategy{Name: "c", TargetType: models.TargetTypeConfig, Steps: []models.Step{{Percent: 100}}, DefaultHealthThreshold: 0.95}
+	ruleID := uuid.New()
+	ro, err := svc.AttachConfig(context.Background(), ruleID, 15, snap, nil, nil)
+	if err != nil {
+		t.Fatalf("attach: %v", err)
+	}
+	if ro.TargetType != models.TargetTypeConfig || ro.TargetRef.RuleID == nil || *ro.TargetRef.RuleID != ruleID.String() {
+		t.Fatalf("wrong rollout: %+v", ro)
+	}
+	if ro.TargetRef.PreviousPercentage == nil || *ro.TargetRef.PreviousPercentage != 15 {
+		t.Fatalf("expected previous_percentage=15, got %+v", ro.TargetRef.PreviousPercentage)
+	}
+	if ro.Status != models.RolloutPending {
+		t.Fatalf("expected pending, got %s", ro.Status)
+	}
+}
+
+func TestRolloutService_AttachConfig_RejectsIfRuleActive(t *testing.T) {
+	svc := newTestService()
+	snap := &models.Strategy{Name: "c", TargetType: models.TargetTypeConfig, Steps: []models.Step{{Percent: 100}}, DefaultHealthThreshold: 0.95}
+	ruleID := uuid.New()
+	if _, err := svc.AttachConfig(context.Background(), ruleID, 0, snap, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.AttachConfig(context.Background(), ruleID, 0, snap, nil, nil); err == nil {
+		t.Fatalf("expected ErrAlreadyActiveOnTarget on second attach")
 	}
 }

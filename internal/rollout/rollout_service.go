@@ -60,6 +60,37 @@ func (s *RolloutService) AttachDeploy(ctx context.Context, depID uuid.UUID, snap
 	return ro, nil
 }
 
+// AttachConfig creates a pending Rollout for a targeting rule. It captures the
+// current (pre-rollout) percentage so Revert can restore it. Returns
+// ErrAlreadyActiveOnTarget if a rollout already owns this rule.
+func (s *RolloutService) AttachConfig(ctx context.Context, ruleID uuid.UUID, previousPct int, snapshot *models.Strategy, releaseID *uuid.UUID, createdBy *uuid.UUID) (*models.Rollout, error) {
+	if existing, _ := s.rollouts.GetActiveByRule(ctx, ruleID); existing != nil {
+		return existing, ErrAlreadyActiveOnTarget
+	}
+	ref := ruleID.String()
+	prev := previousPct
+	ro := &models.Rollout{
+		ReleaseID:        releaseID,
+		TargetType:       models.TargetTypeConfig,
+		TargetRef:        models.RolloutTargetRef{RuleID: &ref, PreviousPercentage: &prev},
+		StrategySnapshot: *snapshot,
+		SignalSource:     models.SignalSource{Kind: "app_env"},
+		Status:           models.RolloutPending,
+		CreatedBy:        createdBy,
+	}
+	if err := s.rollouts.Create(ctx, ro); err != nil {
+		return nil, fmt.Errorf("create rollout: %w", err)
+	}
+	s.emit(ctx, ro.ID, models.EventAttached, createdBy, nil, nil)
+	s.publishRolloutSubject(ctx, "rollouts.rollout.created", ro.ID)
+	return ro, nil
+}
+
+// GetActiveByRule is a pass-through for handler 409 checks on config rollouts.
+func (s *RolloutService) GetActiveByRule(ctx context.Context, ruleID uuid.UUID) (*models.Rollout, error) {
+	return s.rollouts.GetActiveByRule(ctx, ruleID)
+}
+
 // Pause freezes an active rollout. The engine's next tick observes the status
 // change; callers assume eventual consistency.
 func (s *RolloutService) Pause(ctx context.Context, id uuid.UUID, actorID uuid.UUID, reason string) error {

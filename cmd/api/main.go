@@ -27,8 +27,9 @@ import (
 	"github.com/deploysentry/deploysentry/internal/flags"
 	"github.com/deploysentry/deploysentry/internal/grants"
 	"github.com/deploysentry/deploysentry/internal/groups"
-	"github.com/deploysentry/deploysentry/internal/members"
+	"github.com/deploysentry/deploysentry/internal/health"
 	githubint "github.com/deploysentry/deploysentry/internal/integrations/github"
+	"github.com/deploysentry/deploysentry/internal/members"
 	"github.com/deploysentry/deploysentry/internal/models"
 	"github.com/deploysentry/deploysentry/internal/notifications"
 	"github.com/deploysentry/deploysentry/internal/platform/cache"
@@ -385,7 +386,7 @@ func run() error {
 	rolloutEventRepo := postgres.NewRolloutEventRepo(db.Pool)
 
 	trafficSetter := &deployTrafficSetter{svc: deployService}
-	deployApp := applicatordeploy.NewApplicator(trafficSetter, nil)
+	deployApp := applicatordeploy.NewApplicator(trafficSetter, &noopHealthReader{})
 
 	engineRepos := &rolloutEngineRepoAdapter{
 		rollouts: rolloutRepo,
@@ -752,4 +753,13 @@ func (g *deployEngineRolloutGuard) HasActiveRolloutForDeployment(ctx context.Con
 		return false, err
 	}
 	return ro != nil, nil
+}
+
+// noopHealthReader is used when no HealthMonitor is wired — returns a constant
+// healthy signal so the rollout engine advances on time alone (matching legacy
+// engine behavior that also runs without health data today).
+type noopHealthReader struct{}
+
+func (noopHealthReader) GetHealth(_ uuid.UUID) (*health.DeploymentHealth, error) {
+	return &health.DeploymentHealth{Overall: 1.0, Healthy: true}, nil
 }

@@ -161,6 +161,60 @@ func (c *apiClient) delete(path string) (map[string]interface{}, error) {
 	return c.do(req)
 }
 
+// doBytes executes an HTTP request and returns the raw response body.
+func (c *apiClient) doBytes(req *http.Request) ([]byte, error) {
+	if isVerbose() {
+		fmt.Printf("--> %s %s\n", req.Method, req.URL.String())
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if isVerbose() {
+		fmt.Printf("<-- %d %s\n", resp.StatusCode, resp.Status)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, parseAPIError(resp.StatusCode, data)
+	}
+
+	return data, nil
+}
+
+// getRaw performs an HTTP GET request and returns the raw response body.
+func (c *apiClient) getRaw(path string) ([]byte, error) {
+	req, err := c.newRequest(http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+	return c.doBytes(req)
+}
+
+// postRaw performs an HTTP POST request with an arbitrary content type and raw body.
+func (c *apiClient) postRaw(path, contentType string, body []byte) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodPost, c.baseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("User-Agent", c.userAgent)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", contentType)
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	} else if c.apiKey != "" {
+		req.Header.Set("Authorization", "ApiKey "+c.apiKey)
+	}
+	return c.doBytes(req)
+}
+
 // apiError represents a structured error response from the DeploySentry API.
 type apiError struct {
 	StatusCode int

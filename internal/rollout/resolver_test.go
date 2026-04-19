@@ -34,8 +34,8 @@ func TestResolveDefault_MatchesMostSpecificKey(t *testing.T) {
 	env := "prod"
 	tt := models.TargetTypeDeploy
 	rows := []*models.StrategyDefault{
-		{ScopeType: models.ScopeOrg, ScopeID: orgID, StrategyID: uuid.New()},                                // (org, any, any)
-		{ScopeType: models.ScopeOrg, ScopeID: orgID, TargetType: &tt, StrategyID: uuid.New()},               // (org, any, deploy)
+		{ScopeType: models.ScopeOrg, ScopeID: orgID, StrategyID: uuid.New()},                                          // (org, any, any)
+		{ScopeType: models.ScopeOrg, ScopeID: orgID, TargetType: &tt, StrategyID: uuid.New()},                         // (org, any, deploy)
 		{ScopeType: models.ScopeProject, ScopeID: projID, Environment: &env, TargetType: &tt, StrategyID: uuid.New()}, // (project, prod, deploy)
 	}
 	ancestors := []ScopeRef{{models.ScopeProject, projID}, {models.ScopeOrg, orgID}}

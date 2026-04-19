@@ -51,15 +51,15 @@ type Strategy struct {
 
 // Step is a single phase of a strategy.
 type Step struct {
-	Percent          float64              `json:"percent"`
-	MinDuration      time.Duration        `json:"min_duration"`
-	MaxDuration      time.Duration        `json:"max_duration"`
-	BakeTimeHealthy  time.Duration        `json:"bake_time_healthy"`
-	HealthThreshold  *float64             `json:"health_threshold,omitempty"`
-	Approval         *StepApproval        `json:"approval,omitempty"`
-	Notify           *StepNotify          `json:"notify,omitempty"`
-	AbortConditions  []StepAbortCondition `json:"abort_conditions,omitempty"`
-	SignalOverride   *SignalSource        `json:"signal_override,omitempty"`
+	Percent         float64              `json:"percent"`
+	MinDuration     time.Duration        `json:"min_duration"`
+	MaxDuration     time.Duration        `json:"max_duration"`
+	BakeTimeHealthy time.Duration        `json:"bake_time_healthy"`
+	HealthThreshold *float64             `json:"health_threshold,omitempty"`
+	Approval        *StepApproval        `json:"approval,omitempty"`
+	Notify          *StepNotify          `json:"notify,omitempty"`
+	AbortConditions []StepAbortCondition `json:"abort_conditions,omitempty"`
+	SignalOverride  *SignalSource        `json:"signal_override,omitempty"`
 }
 
 // StepApproval declares that a phase pauses at `awaiting_approval` until granted.

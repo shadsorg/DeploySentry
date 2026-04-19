@@ -12,7 +12,9 @@ import (
 
 // --- in-memory fake repos ---
 
-type fakeStratRepo struct{ rows map[uuid.UUID]*models.Strategy }
+type fakeStratRepo struct {
+	rows map[uuid.UUID]*models.Strategy
+}
 
 func newFakeStratRepo() *fakeStratRepo { return &fakeStratRepo{rows: map[uuid.UUID]*models.Strategy{}} }
 
@@ -76,8 +78,13 @@ func (f *fakeStratRepo) Update(_ context.Context, s *models.Strategy, expected i
 	cur.Description, cur.Steps, cur.Version = s.Description, s.Steps, cur.Version+1
 	return nil
 }
-func (f *fakeStratRepo) SoftDelete(_ context.Context, id uuid.UUID) error { delete(f.rows, id); return nil }
-func (f *fakeStratRepo) IsReferenced(_ context.Context, id uuid.UUID) (bool, error) { return false, nil }
+func (f *fakeStratRepo) SoftDelete(_ context.Context, id uuid.UUID) error {
+	delete(f.rows, id)
+	return nil
+}
+func (f *fakeStratRepo) IsReferenced(_ context.Context, id uuid.UUID) (bool, error) {
+	return false, nil
+}
 
 // --- tests ---
 
@@ -93,8 +100,8 @@ func TestStrategyService_EffectiveList_Inheritance(t *testing.T) {
 	repo := newFakeStratRepo()
 	orgID, projID := uuid.New(), uuid.New()
 	orgStrat := &models.Strategy{ScopeType: models.ScopeOrg, ScopeID: orgID, Name: "std",
-		TargetType: models.TargetTypeDeploy,
-		Steps:      []models.Step{{Percent: 100}},
+		TargetType:             models.TargetTypeDeploy,
+		Steps:                  []models.Step{{Percent: 100}},
 		DefaultHealthThreshold: 0.95, DefaultRollbackOnFailure: true}
 	if err := repo.Create(context.Background(), orgStrat); err != nil {
 		t.Fatal(err)

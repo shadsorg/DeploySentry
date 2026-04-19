@@ -19,15 +19,15 @@ type yamlStrategy struct {
 }
 
 type yamlStep struct {
-	Percent          float64               `yaml:"percent"`
-	MinDuration      string                `yaml:"min_duration"`
-	MaxDuration      string                `yaml:"max_duration"`
-	BakeTimeHealthy  string                `yaml:"bake_time_healthy"`
-	HealthThreshold  *float64              `yaml:"health_threshold,omitempty"`
-	Approval         *yamlApproval         `yaml:"approval,omitempty"`
-	Notify           *yamlNotify           `yaml:"notify,omitempty"`
-	AbortConditions  []yamlAbortCondition  `yaml:"abort_conditions,omitempty"`
-	SignalOverride   *yamlSignalSource     `yaml:"signal_override,omitempty"`
+	Percent         float64              `yaml:"percent"`
+	MinDuration     string               `yaml:"min_duration"`
+	MaxDuration     string               `yaml:"max_duration"`
+	BakeTimeHealthy string               `yaml:"bake_time_healthy"`
+	HealthThreshold *float64             `yaml:"health_threshold,omitempty"`
+	Approval        *yamlApproval        `yaml:"approval,omitempty"`
+	Notify          *yamlNotify          `yaml:"notify,omitempty"`
+	AbortConditions []yamlAbortCondition `yaml:"abort_conditions,omitempty"`
+	SignalOverride  *yamlSignalSource    `yaml:"signal_override,omitempty"`
 }
 
 type yamlApproval struct {

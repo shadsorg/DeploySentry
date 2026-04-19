@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import type { Flag, TargetingRule, OrgEnvironment, FlagEnvironmentState, RuleEnvironmentState, FlagCategory, AuditLogEntry } from '@/types';
 import { flagsApi, entitiesApi, flagEnvStateApi, auditApi } from '@/api';
 import type { Application } from '@/types';
+import { StrategyPicker } from '@/components/rollout/StrategyPicker';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -143,6 +144,10 @@ export default function FlagDetailPage() {
   const [settingsSuccess, setSettingsSuccess] = useState(false);
   const [history, setHistory] = useState<AuditLogEntry[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
+  const [ruleStrategyName, setRuleStrategyName] = useState('');
+  const [ruleImmediate, setRuleImmediate] = useState(true);
+  const [ruleSaveMsg, setRuleSaveMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -240,6 +245,27 @@ export default function FlagDetailPage() {
       setRules((prev) => prev.filter((r) => r.id !== ruleId));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete rule');
+    }
+  };
+
+  const handleUpdateRule = async (ruleId: string) => {
+    if (!id) return;
+    try {
+      const body: Partial<TargetingRule> & { rollout?: { strategy_name?: string; apply_immediately?: boolean } } = {};
+      if (ruleStrategyName && !ruleImmediate) {
+        body.rollout = { strategy_name: ruleStrategyName };
+      } else if (ruleImmediate) {
+        body.rollout = { apply_immediately: true };
+      }
+      await flagsApi.updateRule(id, ruleId, body as Partial<TargetingRule>);
+      const isRollout = ruleStrategyName && !ruleImmediate;
+      setRuleSaveMsg(isRollout ? 'Rollout started' : 'Rule saved');
+      setEditingRuleId(null);
+      setRuleStrategyName('');
+      setRuleImmediate(true);
+      setTimeout(() => setRuleSaveMsg(null), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update rule');
     }
   };
 
@@ -479,6 +505,11 @@ export default function FlagDetailPage() {
             </div>
           )}
 
+          {ruleSaveMsg && (
+            <div style={{ marginBottom: 12, padding: '8px 12px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 4, color: 'var(--color-success)' }}>
+              {ruleSaveMsg}
+            </div>
+          )}
           <table>
             <thead>
               <tr>
@@ -490,14 +521,54 @@ export default function FlagDetailPage() {
             </thead>
             <tbody>
               {rules.map((rule) => (
-                <tr key={rule.id}>
-                  <td>{rule.priority}</td>
-                  <td>{rule.attribute} {rule.operator} {(rule.target_values ?? []).join(', ')}</td>
-                  <td className="font-mono">{rule.value}</td>
-                  <td>
-                    <button className="btn btn-sm btn-danger" onClick={() => handleDeleteRule(rule.id)}>Delete</button>
-                  </td>
-                </tr>
+                <Fragment key={rule.id}>
+                  <tr>
+                    <td>{rule.priority}</td>
+                    <td>{rule.attribute} {rule.operator} {(rule.target_values ?? []).join(', ')}</td>
+                    <td className="font-mono">{rule.value}</td>
+                    <td style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => {
+                          if (editingRuleId === rule.id) {
+                            setEditingRuleId(null);
+                          } else {
+                            setEditingRuleId(rule.id);
+                            setRuleStrategyName('');
+                            setRuleImmediate(true);
+                          }
+                        }}
+                      >
+                        {editingRuleId === rule.id ? 'Cancel' : 'Edit'}
+                      </button>
+                      <button className="btn btn-sm btn-danger" onClick={() => handleDeleteRule(rule.id)}>Delete</button>
+                    </td>
+                  </tr>
+                  {editingRuleId === rule.id && orgSlug && (
+                    <tr>
+                      <td colSpan={4}>
+                        <div style={{ padding: '12px 0' }}>
+                          <StrategyPicker
+                            orgSlug={orgSlug}
+                            targetType="config"
+                            value={ruleStrategyName}
+                            onChange={setRuleStrategyName}
+                            allowImmediate
+                            immediate={ruleImmediate}
+                            onImmediateChange={setRuleImmediate}
+                          />
+                          <button
+                            className="btn btn-primary btn-sm"
+                            style={{ marginTop: 8 }}
+                            onClick={() => handleUpdateRule(rule.id)}
+                          >
+                            Save
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               ))}
               {rules.length === 0 && (
                 <tr><td colSpan={4} style={{ textAlign: 'center' }}>No targeting rules defined.</td></tr>

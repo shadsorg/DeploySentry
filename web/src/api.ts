@@ -80,14 +80,19 @@ export const flagsApi = {
       body: JSON.stringify(data),
     }),
   listRuleEnvStates: (flagId: string) =>
-    request<{ rule_environment_states: RuleEnvironmentState[] }>(`/flags/${flagId}/rules/environment-states`),
+    request<{ rule_environment_states: RuleEnvironmentState[] }>(
+      `/flags/${flagId}/rules/environment-states`,
+    ),
   exportFlags: async (projectId: string, application: string, format: 'yaml' | 'json' = 'yaml') => {
     const token = localStorage.getItem('ds_token') || '';
-    const res = await fetch(`${BASE}/flags/export?project_id=${projectId}&application=${application}&format=${format}`, {
-      headers: {
-        Authorization: token.startsWith('ds_') ? `ApiKey ${token}` : `Bearer ${token}`,
+    const res = await fetch(
+      `${BASE}/flags/export?project_id=${projectId}&application=${application}&format=${format}`,
+      {
+        headers: {
+          Authorization: token.startsWith('ds_') ? `ApiKey ${token}` : `Bearer ${token}`,
+        },
       },
-    });
+    );
     if (!res.ok) throw new Error(`Export failed: ${res.status}`);
     return res.text();
   },
@@ -111,14 +116,14 @@ export const deploymentsApi = {
   cancel: (id: string) => request<Deployment>(`/deployments/${id}/cancel`, { method: 'POST' }),
   advance: (id: string) => request<Deployment>(`/deployments/${id}/advance`, { method: 'POST' }),
   desiredState: (id: string) => request<any>(`/deployments/${id}/desired-state`),
-  rollbackHistory: (id: string) => request<{ rollbacks: any[] }>(`/deployments/${id}/rollback-history`),
+  rollbackHistory: (id: string) =>
+    request<{ rollbacks: any[] }>(`/deployments/${id}/rollback-history`),
   phases: (id: string) => request<{ phases: DeploymentPhase[] }>(`/deployments/${id}/phases`),
 };
 
 // Agents
 export const agentsApi = {
-  listByApp: (appId: string) =>
-    request<{ agents: Agent[] }>(`/applications/${appId}/agents`),
+  listByApp: (appId: string) => request<{ agents: Agent[] }>(`/applications/${appId}/agents`),
   heartbeats: (agentId: string, deploymentId?: string) => {
     const qs = deploymentId ? `?deployment_id=${deploymentId}` : '';
     return request<{ heartbeats: AgentHeartbeat[] }>(`/agents/${agentId}/heartbeats${qs}`);
@@ -352,12 +357,18 @@ export const entitiesApi = {
 
   // Projects
   listProjects: (orgSlug: string, includeDeleted = false) =>
-    request<{ projects: Project[] }>(`/orgs/${orgSlug}/projects${includeDeleted ? '?include_deleted=true' : ''}`),
+    request<{ projects: Project[] }>(
+      `/orgs/${orgSlug}/projects${includeDeleted ? '?include_deleted=true' : ''}`,
+    ),
   getProject: (orgSlug: string, projectSlug: string) =>
     request<Project>(`/orgs/${orgSlug}/projects/${projectSlug}`),
   createProject: (orgSlug: string, data: { name: string; slug: string }) =>
     request<Project>(`/orgs/${orgSlug}/projects`, { method: 'POST', body: JSON.stringify(data) }),
-  updateProject: (orgSlug: string, projectSlug: string, data: { name?: string; description?: string; repo_url?: string }) =>
+  updateProject: (
+    orgSlug: string,
+    projectSlug: string,
+    data: { name?: string; description?: string; repo_url?: string },
+  ) =>
     request<Project>(`/orgs/${orgSlug}/projects/${projectSlug}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -371,7 +382,9 @@ export const entitiesApi = {
 
   // Apps
   listApps: (orgSlug: string, projectSlug: string, includeDeleted = false) =>
-    request<{ applications: Application[] }>(`/orgs/${orgSlug}/projects/${projectSlug}/apps${includeDeleted ? '?include_deleted=true' : ''}`),
+    request<{ applications: Application[] }>(
+      `/orgs/${orgSlug}/projects/${projectSlug}/apps${includeDeleted ? '?include_deleted=true' : ''}`,
+    ),
   getApp: (orgSlug: string, projectSlug: string, appSlug: string) =>
     request<Application>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}`),
   createApp: (
@@ -394,11 +407,17 @@ export const entitiesApi = {
       body: JSON.stringify(data),
     }),
   deleteApp: (orgSlug: string, projectSlug: string, appSlug: string) =>
-    request<DeleteResult>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}`, { method: 'DELETE' }),
+    request<DeleteResult>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}`, {
+      method: 'DELETE',
+    }),
   hardDeleteApp: (orgSlug: string, projectSlug: string, appSlug: string) =>
-    request<void>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/permanent`, { method: 'DELETE' }),
+    request<void>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/permanent`, {
+      method: 'DELETE',
+    }),
   restoreApp: (orgSlug: string, projectSlug: string, appSlug: string) =>
-    request<Application>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/restore`, { method: 'POST' }),
+    request<Application>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/restore`, {
+      method: 'POST',
+    }),
 
   // Environments (app-level, legacy)
   listEnvironments: (orgSlug: string, projectSlug: string, appSlug: string) =>
@@ -409,12 +428,19 @@ export const entitiesApi = {
   // Org-level environments
   listOrgEnvironments: (orgSlug: string) =>
     request<{ environments: OrgEnvironment[] }>(`/orgs/${orgSlug}/environments`),
-  createEnvironment: (orgSlug: string, data: { name: string; slug: string; is_production: boolean }) =>
+  createEnvironment: (
+    orgSlug: string,
+    data: { name: string; slug: string; is_production: boolean },
+  ) =>
     request<OrgEnvironment>(`/orgs/${orgSlug}/environments`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  updateEnvironment: (orgSlug: string, envSlug: string, data: Partial<{ name: string; slug: string; is_production: boolean; sort_order: number }>) =>
+  updateEnvironment: (
+    orgSlug: string,
+    envSlug: string,
+    data: Partial<{ name: string; slug: string; is_production: boolean; sort_order: number }>,
+  ) =>
     request<OrgEnvironment>(`/orgs/${orgSlug}/environments/${envSlug}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -451,13 +477,21 @@ export const groupsApi = {
   create: (orgSlug: string, data: { name: string; description?: string }) =>
     request<Group>(`/orgs/${orgSlug}/groups`, { method: 'POST', body: JSON.stringify(data) }),
   update: (orgSlug: string, groupSlug: string, data: { name: string; description?: string }) =>
-    request<Group>(`/orgs/${orgSlug}/groups/${groupSlug}`, { method: 'PUT', body: JSON.stringify(data) }),
+    request<Group>(`/orgs/${orgSlug}/groups/${groupSlug}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
   delete: (orgSlug: string, groupSlug: string) =>
     request<void>(`/orgs/${orgSlug}/groups/${groupSlug}`, { method: 'DELETE' }),
   listMembers: (orgSlug: string, groupSlug: string) =>
-    request<{ members: GroupMember[] }>(`/orgs/${orgSlug}/groups/${groupSlug}/members`).then((r) => r.members),
+    request<{ members: GroupMember[] }>(`/orgs/${orgSlug}/groups/${groupSlug}/members`).then(
+      (r) => r.members,
+    ),
   addMember: (orgSlug: string, groupSlug: string, userId: string) =>
-    request<void>(`/orgs/${orgSlug}/groups/${groupSlug}/members`, { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
+    request<void>(`/orgs/${orgSlug}/groups/${groupSlug}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId }),
+    }),
   removeMember: (orgSlug: string, groupSlug: string, userId: string) =>
     request<void>(`/orgs/${orgSlug}/groups/${groupSlug}/members/${userId}`, { method: 'DELETE' }),
 };
@@ -478,13 +512,32 @@ export interface ResourceGrant {
 
 export const grantsApi = {
   listProjectGrants: (orgSlug: string, projectSlug: string) =>
-    request<{ grants: ResourceGrant[] }>(`/orgs/${orgSlug}/projects/${projectSlug}/grants`).then((r) => r.grants),
-  createProjectGrant: (orgSlug: string, projectSlug: string, data: { user_id?: string; group_id?: string; permission: string }) =>
-    request<ResourceGrant>(`/orgs/${orgSlug}/projects/${projectSlug}/grants`, { method: 'POST', body: JSON.stringify(data) }),
+    request<{ grants: ResourceGrant[] }>(`/orgs/${orgSlug}/projects/${projectSlug}/grants`).then(
+      (r) => r.grants,
+    ),
+  createProjectGrant: (
+    orgSlug: string,
+    projectSlug: string,
+    data: { user_id?: string; group_id?: string; permission: string },
+  ) =>
+    request<ResourceGrant>(`/orgs/${orgSlug}/projects/${projectSlug}/grants`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   listAppGrants: (orgSlug: string, projectSlug: string, appSlug: string) =>
-    request<{ grants: ResourceGrant[] }>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/grants`).then((r) => r.grants),
-  createAppGrant: (orgSlug: string, projectSlug: string, appSlug: string, data: { user_id?: string; group_id?: string; permission: string }) =>
-    request<ResourceGrant>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/grants`, { method: 'POST', body: JSON.stringify(data) }),
+    request<{ grants: ResourceGrant[] }>(
+      `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/grants`,
+    ).then((r) => r.grants),
+  createAppGrant: (
+    orgSlug: string,
+    projectSlug: string,
+    appSlug: string,
+    data: { user_id?: string; group_id?: string; permission: string },
+  ) =>
+    request<ResourceGrant>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/grants`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   deleteGrant: (orgSlug: string, projectSlug: string, grantId: string, appSlug?: string) => {
     const base = appSlug
       ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/grants/${grantId}`
@@ -516,14 +569,12 @@ export const webhooksApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  delete: (id: string) =>
-    request<{ deleted: boolean }>(`/webhooks/${id}`, { method: 'DELETE' }),
+  delete: (id: string) => request<{ deleted: boolean }>(`/webhooks/${id}`, { method: 'DELETE' }),
   test: (id: string) =>
     request<{ success: boolean; status_code: number }>(`/webhooks/${id}/test`, {
       method: 'POST',
     }),
-  deliveries: (id: string) =>
-    request<{ deliveries: unknown[] }>(`/webhooks/${id}/deliveries`),
+  deliveries: (id: string) => request<{ deliveries: unknown[] }>(`/webhooks/${id}/deliveries`),
 };
 
 // Notifications
@@ -546,8 +597,7 @@ export interface NotificationPreferences {
 }
 
 export const notificationsApi = {
-  getPreferences: () =>
-    request<NotificationPreferences>('/notifications/preferences'),
+  getPreferences: () => request<NotificationPreferences>('/notifications/preferences'),
   savePreferences: (data: {
     channels?: Record<string, Partial<ChannelConfig>>;
     event_routing?: Record<string, string[]>;
@@ -564,7 +614,12 @@ export const notificationsApi = {
 
 // Audit Log
 export const auditApi = {
-  query: (params: { resource_type?: string; resource_id?: string; limit?: number; offset?: number }) => {
+  query: (params: {
+    resource_type?: string;
+    resource_id?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
     const qs = new URLSearchParams();
     if (params.resource_type) qs.set('resource_type', params.resource_type);
     if (params.resource_id) qs.set('resource_id', params.resource_id);

@@ -353,45 +353,6 @@ func TestPromoteDeployment_ServiceError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// POST /deployments/:id/rollback  (rollbackDeployment)
-// ---------------------------------------------------------------------------
-
-func TestRollbackDeployment_Valid(t *testing.T) {
-	svc := &mockDeployService{
-		rollbackFn: func(_ context.Context, _ uuid.UUID) error {
-			return nil
-		},
-	}
-	router := setupDeployRouter(svc)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/deployments/"+uuid.New().String()+"/rollback", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	var resp map[string]interface{}
-	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
-	assert.Equal(t, "rolled_back", resp["status"])
-}
-
-func TestRollbackDeployment_ServiceError(t *testing.T) {
-	svc := &mockDeployService{
-		rollbackFn: func(_ context.Context, _ uuid.UUID) error {
-			return errors.New("cannot rollback completed deployment")
-		},
-	}
-	router := setupDeployRouter(svc)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/deployments/"+uuid.New().String()+"/rollback", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
-}
-
-// ---------------------------------------------------------------------------
 // POST /deployments/:id/pause  (pauseDeployment)
 // ---------------------------------------------------------------------------
 

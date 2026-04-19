@@ -7,7 +7,9 @@ import (
 
 func TestEncryptDecrypt_RoundTrip(t *testing.T) {
 	key := make([]byte, 32)
-	rand.Read(key)
+	if _, err := rand.Read(key); err != nil {
+		t.Fatalf("rand.Read failed: %v", err)
+	}
 	plaintext := []byte("my-webhook-secret-value")
 	ciphertext, err := Encrypt(plaintext, key)
 	if err != nil {
@@ -28,8 +30,12 @@ func TestEncryptDecrypt_RoundTrip(t *testing.T) {
 func TestDecrypt_WrongKey(t *testing.T) {
 	key1 := make([]byte, 32)
 	key2 := make([]byte, 32)
-	rand.Read(key1)
-	rand.Read(key2)
+	if _, err := rand.Read(key1); err != nil {
+		t.Fatalf("rand.Read failed: %v", err)
+	}
+	if _, err := rand.Read(key2); err != nil {
+		t.Fatalf("rand.Read failed: %v", err)
+	}
 	ciphertext, _ := Encrypt([]byte("secret"), key1)
 	_, err := Decrypt(ciphertext, key2)
 	if err == nil {

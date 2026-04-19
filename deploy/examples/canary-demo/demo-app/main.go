@@ -16,12 +16,12 @@ func main() {
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprintf(w, "version=%s\n", appVersion)
+		_, _ = fmt.Fprintf(w, "version=%s\n", appVersion)
 	})
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprint(w, "ok\n")
+		_, _ = fmt.Fprint(w, "ok\n")
 	})
 
 	port := os.Getenv("PORT")

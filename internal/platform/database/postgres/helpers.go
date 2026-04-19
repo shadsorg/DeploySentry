@@ -1,9 +1,36 @@
 package postgres
 
 import (
+	"context"
 	"fmt"
+	"os"
 	"strings"
+	"testing"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// testDB returns a *pgxpool.Pool connected to the integration-test Postgres
+// instance. It reads DS_TEST_DATABASE_DSN from the environment, falling back
+// to the standard local dev DSN used by `make dev-up` / `make migrate-up`.
+// The pool is closed automatically when the test (and all its sub-tests) finish.
+func testDB(t *testing.T) *pgxpool.Pool {
+	t.Helper()
+	dsn := os.Getenv("DS_TEST_DATABASE_DSN")
+	if dsn == "" {
+		dsn = "postgres://deploysentry:deploysentry@localhost:5432/deploysentry?sslmode=disable&search_path=deploy"
+	}
+	pool, err := pgxpool.New(context.Background(), dsn)
+	if err != nil {
+		t.Fatalf("testDB: connect: %v", err)
+	}
+	if err := pool.Ping(context.Background()); err != nil {
+		pool.Close()
+		t.Fatalf("testDB: ping: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	return pool
+}
 
 // whereBuilder accumulates WHERE conditions and positional arguments for
 // building dynamic SQL queries safely.

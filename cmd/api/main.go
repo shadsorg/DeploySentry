@@ -926,15 +926,20 @@ func (a *flagRolloutAttacherAdapter) AttachFromRuleRequest(ctx context.Context, 
 	if err != nil {
 		return err
 	}
-	// Build the scope leaf from the flag. Ancestor IDs (project, org) are not
-	// directly available via ID-based lookups in the current entity repository, so
-	// we pass nil — AttachConfig tolerates partial ancestry and falls back to
-	// app/project-scoped or global defaults/policies.
+
+	// Build the scope leaf from the flag and resolve the full org/project ancestry
+	// so org-scoped strategies are visible during resolution.
 	var leaf rollout.ScopeRef
 	if flag.ApplicationID != nil {
 		leaf = rollout.ScopeRef{Type: models.ScopeApp, ID: *flag.ApplicationID}
 	} else {
 		leaf = rollout.ScopeRef{Type: models.ScopeProject, ID: flag.ProjectID}
+	}
+
+	projID := flag.ProjectID
+	var orgID *uuid.UUID
+	if proj, lookupErr := a.entities.GetProjectByID(ctx, projID); lookupErr == nil && proj != nil {
+		orgID = &proj.OrgID
 	}
 
 	intent := &rollout.AttachIntent{
@@ -943,6 +948,8 @@ func (a *flagRolloutAttacherAdapter) AttachFromRuleRequest(ctx context.Context, 
 		Overrides:    req.Overrides,
 		ReleaseID:    req.ReleaseID,
 		Leaf:         leaf,
+		ProjectID:    &projID,
+		OrgID:        orgID,
 	}
 	if err := a.attacher.AttachConfig(ctx, rule.ID, prev, intent, actor); err != nil {
 		if errors.Is(err, rollout.ErrAlreadyActiveOnTarget) {

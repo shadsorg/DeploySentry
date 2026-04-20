@@ -156,6 +156,34 @@ func (r *EntityRepository) CreateProject(ctx context.Context, project *models.Pr
 	return nil
 }
 
+// GetProjectByID retrieves a project by its primary key.
+// Returns nil, nil when no row is found.
+func (r *EntityRepository) GetProjectByID(ctx context.Context, id uuid.UUID) (*models.Project, error) {
+	const q = `
+		SELECT id, org_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), created_at, updated_at, deleted_at
+		FROM projects WHERE id = $1`
+
+	var p models.Project
+	err := r.pool.QueryRow(ctx, q, id).Scan(
+		&p.ID,
+		&p.OrgID,
+		&p.Name,
+		&p.Slug,
+		&p.Description,
+		&p.RepoURL,
+		&p.CreatedAt,
+		&p.UpdatedAt,
+		&p.DeletedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("postgres.GetProjectByID: %w", err)
+	}
+	return &p, nil
+}
+
 // GetProjectBySlug retrieves a project by org ID and slug.
 // Returns nil, nil when no row is found.
 func (r *EntityRepository) GetProjectBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error) {
@@ -321,6 +349,35 @@ func (r *EntityRepository) CreateApp(ctx context.Context, app *models.Applicatio
 		return fmt.Errorf("postgres.CreateApp: %w", err)
 	}
 	return nil
+}
+
+// GetAppByID retrieves an application by its primary key.
+// Returns nil, nil when no row is found.
+func (r *EntityRepository) GetAppByID(ctx context.Context, id uuid.UUID) (*models.Application, error) {
+	const q = `
+		SELECT id, project_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), created_by, created_at, updated_at, deleted_at
+		FROM applications WHERE id = $1`
+
+	var a models.Application
+	err := r.pool.QueryRow(ctx, q, id).Scan(
+		&a.ID,
+		&a.ProjectID,
+		&a.Name,
+		&a.Slug,
+		&a.Description,
+		&a.RepoURL,
+		&a.CreatedBy,
+		&a.CreatedAt,
+		&a.UpdatedAt,
+		&a.DeletedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("postgres.GetAppByID: %w", err)
+	}
+	return &a, nil
 }
 
 // GetAppBySlug retrieves an application by project ID and slug.

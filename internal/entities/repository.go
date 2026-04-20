@@ -16,6 +16,7 @@ type EntityRepository interface {
 	UpdateOrg(ctx context.Context, org *models.Organization) error
 
 	CreateProject(ctx context.Context, project *models.Project) error
+	GetProjectByID(ctx context.Context, id uuid.UUID) (*models.Project, error)
 	GetProjectBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*models.Project, error)
 	ListProjectsByOrg(ctx context.Context, orgID uuid.UUID, includeDeleted bool, userID uuid.UUID, orgRole string) ([]*models.Project, error)
 	UpdateProject(ctx context.Context, project *models.Project) error
@@ -25,6 +26,7 @@ type EntityRepository interface {
 	RestoreProject(ctx context.Context, id uuid.UUID) error
 
 	CreateApp(ctx context.Context, app *models.Application) error
+	GetAppByID(ctx context.Context, id uuid.UUID) (*models.Application, error)
 	GetAppBySlug(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
 	ListAppsByProject(ctx context.Context, projectID uuid.UUID, includeDeleted bool, userID uuid.UUID, orgRole string) ([]*models.Application, error)
 	UpdateApp(ctx context.Context, app *models.Application) error

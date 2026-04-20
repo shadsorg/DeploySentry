@@ -42,6 +42,9 @@ var (
 	ErrReasonRequired        = errors.New("reason is required for this action")
 	ErrInvalidStateForOp     = errors.New("rollout is not in a valid state for this operation")
 	ErrAlreadyActiveOnTarget = errors.New("an active rollout already exists for this target")
+	// ErrStrategyMovesBackward is returned when a config rollout's first step
+	// would decrease the current rule percentage.
+	ErrStrategyMovesBackward = errors.New("strategy's first step drops below current percentage")
 )
 
 // AttachDeploy creates a pending Rollout for a deployment, using the provided
@@ -75,6 +78,10 @@ func (s *RolloutService) AttachDeploy(ctx context.Context, depID uuid.UUID, snap
 func (s *RolloutService) AttachConfig(ctx context.Context, ruleID uuid.UUID, previousPct int, snapshot *models.Strategy, releaseID *uuid.UUID, createdBy *uuid.UUID) (*models.Rollout, error) {
 	if existing, _ := s.rollouts.GetActiveByRule(ctx, ruleID); existing != nil {
 		return existing, ErrAlreadyActiveOnTarget
+	}
+	if len(snapshot.Steps) > 0 && snapshot.Steps[0].Percent < float64(previousPct) {
+		return nil, fmt.Errorf("%w: first step is %g%%, current is %d%%",
+			ErrStrategyMovesBackward, snapshot.Steps[0].Percent, previousPct)
 	}
 	ref := ruleID.String()
 	prev := previousPct

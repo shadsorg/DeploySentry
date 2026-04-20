@@ -228,6 +228,38 @@ func TestRolloutService_AttachConfig_RejectsIfRuleActive(t *testing.T) {
 	}
 }
 
+func TestRolloutService_AttachConfig_RejectsBackwardMotion(t *testing.T) {
+	svc := newTestService()
+	snap := &models.Strategy{Name: "bad", TargetType: models.TargetTypeConfig,
+		Steps: []models.Step{{Percent: 5}, {Percent: 100}}, DefaultHealthThreshold: 0.95}
+	// Rule is currently at 25%, strategy's first step is 5% — regression.
+	_, err := svc.AttachConfig(context.Background(), uuid.New(), 25, snap, nil, nil)
+	if err == nil || !errors.Is(err, ErrStrategyMovesBackward) {
+		t.Fatalf("expected ErrStrategyMovesBackward, got %v", err)
+	}
+}
+
+func TestRolloutService_AttachConfig_AllowsForwardMotion(t *testing.T) {
+	svc := newTestService()
+	snap := &models.Strategy{Name: "ok", TargetType: models.TargetTypeConfig,
+		Steps: []models.Step{{Percent: 30}, {Percent: 100}}, DefaultHealthThreshold: 0.95}
+	// Rule is at 25%, strategy's first step is 30% — forward motion.
+	_, err := svc.AttachConfig(context.Background(), uuid.New(), 25, snap, nil, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestRolloutService_AttachConfig_AllowsEqualFirstStep(t *testing.T) {
+	svc := newTestService()
+	snap := &models.Strategy{Name: "equal", TargetType: models.TargetTypeConfig,
+		Steps: []models.Step{{Percent: 25}, {Percent: 100}}, DefaultHealthThreshold: 0.95}
+	_, err := svc.AttachConfig(context.Background(), uuid.New(), 25, snap, nil, nil)
+	if err != nil {
+		t.Fatalf("equal first step should be allowed: %v", err)
+	}
+}
+
 // fakeApplicator satisfies applicator.Applicator for rollback tests.
 type fakeApplicator struct {
 	revertCalls int

@@ -119,6 +119,10 @@ func (d *DatadogCheck) Check(ctx context.Context, deploymentID uuid.UUID) (*heal
 	result.Healthy = healthy
 	result.Score = score
 	result.Message = fmt.Sprintf("error_rate=%.4f latency=%.3fs", errorRate, latency)
+	result.Metrics = map[string]float64{
+		"error_rate":     errorRate,
+		"latency_p99_ms": latency * 1000,
+	}
 	return result, nil
 }
 

@@ -67,9 +67,6 @@ func (a *Applicator) Revert(ctx context.Context, ro *models.Rollout) error {
 }
 
 // CurrentSignal reads the health monitor and maps into a normalized HealthScore.
-// Note: health.DeploymentHealth only exposes Overall (overall score) and Healthy;
-// it does not carry ErrorRate, LatencyP99, LatencyP50, or RequestRate fields,
-// so those are left as zero in the returned HealthScore.
 func (a *Applicator) CurrentSignal(ctx context.Context, ro *models.Rollout, _ *models.SignalSource) (applicator.HealthScore, error) {
 	depID, err := a.deploymentID(ro)
 	if err != nil {
@@ -79,7 +76,12 @@ func (a *Applicator) CurrentSignal(ctx context.Context, ro *models.Rollout, _ *m
 	if err != nil {
 		return applicator.HealthScore{}, err
 	}
-	return applicator.HealthScore{
-		Score: h.Overall,
-	}, nil
+	score := applicator.HealthScore{Score: h.Overall}
+	if h.Metrics != nil {
+		score.ErrorRate = h.Metrics["error_rate"]
+		score.LatencyP99Ms = h.Metrics["latency_p99_ms"]
+		score.LatencyP50Ms = h.Metrics["latency_p50_ms"]
+		score.RequestRate = h.Metrics["request_rate"]
+	}
+	return score, nil
 }

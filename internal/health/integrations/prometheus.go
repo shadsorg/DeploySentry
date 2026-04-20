@@ -121,6 +121,10 @@ func (p *PrometheusCheck) Check(ctx context.Context, deploymentID uuid.UUID) (*h
 	result.Healthy = healthy
 	result.Score = score
 	result.Message = fmt.Sprintf("error_rate=%.4f latency_p99=%.3fs", errorRate, latency)
+	result.Metrics = map[string]float64{
+		"error_rate":     errorRate,
+		"latency_p99_ms": latency * 1000,
+	}
 	return result, nil
 }
 

@@ -98,6 +98,9 @@ func (s *SentryCheck) Check(ctx context.Context, deploymentID uuid.UUID) (*healt
 	result.Healthy = healthy
 	result.Score = score
 	result.Message = fmt.Sprintf("recent_errors=%d threshold=%d", errorCount, s.config.ErrorThreshold)
+	result.Metrics = map[string]float64{
+		"error_count": float64(errorCount),
+	}
 	return result, nil
 }
 

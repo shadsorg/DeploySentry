@@ -71,8 +71,6 @@ func TestDeployApplicator_Revert_SetsZero(t *testing.T) {
 }
 
 func TestDeployApplicator_CurrentSignal_MapsHealth(t *testing.T) {
-	// DeploymentHealth only exposes Overall (overall score) and Healthy.
-	// ErrorRate, LatencyP99, LatencyP50, RequestRate are not present in the struct.
 	h := &stubHealth{score: &health.DeploymentHealth{
 		Overall: 0.98,
 		Healthy: true,
@@ -84,8 +82,28 @@ func TestDeployApplicator_CurrentSignal_MapsHealth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.Score != 0.98 {
+	if s.Score != 0.98 || s.ErrorRate != 0 || s.LatencyP99Ms != 0 {
 		t.Fatalf("mapping wrong: %+v", s)
+	}
+}
+
+func TestDeployApplicator_CurrentSignal_MapsMetrics(t *testing.T) {
+	h := &stubHealth{score: &health.DeploymentHealth{
+		Overall: 0.98,
+		Metrics: map[string]float64{
+			"error_rate":     0.012,
+			"latency_p99_ms": 145,
+		},
+	}}
+	app := NewApplicator(&stubTrafficSetter{}, h)
+	did := uuid.NewString()
+	ro := &models.Rollout{TargetType: models.TargetTypeDeploy, TargetRef: models.RolloutTargetRef{DeploymentID: &did}}
+	s, err := app.CurrentSignal(context.Background(), ro, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Score != 0.98 || s.ErrorRate != 0.012 || s.LatencyP99Ms != 145 {
+		t.Fatalf("wrong mapping: %+v", s)
 	}
 }
 

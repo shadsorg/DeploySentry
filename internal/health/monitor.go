@@ -18,6 +18,10 @@ type CheckResult struct {
 	Score     float64   `json:"score"`
 	Message   string    `json:"message,omitempty"`
 	CheckedAt time.Time `json:"checked_at"`
+	// Metrics holds raw metric values reported by the check (e.g., "error_rate": 0.02,
+	// "latency_p99_ms": 120). Used by rollout abort conditions which operate on
+	// raw metric thresholds, not the normalized Score.
+	Metrics map[string]float64 `json:"metrics,omitempty"`
 }
 
 // HealthCheck defines the interface for a single health check probe.
@@ -31,11 +35,12 @@ type HealthCheck interface {
 
 // DeploymentHealth aggregates health information for a single deployment.
 type DeploymentHealth struct {
-	DeploymentID uuid.UUID      `json:"deployment_id"`
-	Overall      float64        `json:"overall_score"`
-	Healthy      bool           `json:"healthy"`
-	Checks       []*CheckResult `json:"checks"`
-	EvaluatedAt  time.Time      `json:"evaluated_at"`
+	DeploymentID uuid.UUID          `json:"deployment_id"`
+	Overall      float64            `json:"overall_score"`
+	Healthy      bool               `json:"healthy"`
+	Checks       []*CheckResult     `json:"checks"`
+	Metrics      map[string]float64 `json:"metrics,omitempty"` // aggregated from Checks[].Metrics
+	EvaluatedAt  time.Time          `json:"evaluated_at"`
 }
 
 // HealthListener receives health evaluation results.
@@ -165,11 +170,18 @@ func (m *HealthMonitor) evaluate(ctx context.Context) {
 		}
 
 		overall := m.scorer.ComputeScore(results)
+		metrics := map[string]float64{}
+		for _, result := range results {
+			for k, v := range result.Metrics {
+				metrics[k] = v
+			}
+		}
 		health := &DeploymentHealth{
 			DeploymentID: deploymentID,
 			Overall:      overall,
 			Healthy:      overall >= m.threshold,
 			Checks:       results,
+			Metrics:      metrics,
 			EvaluatedAt:  time.Now().UTC(),
 		}
 

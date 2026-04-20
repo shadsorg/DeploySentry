@@ -708,6 +708,8 @@ export const rolloutsApi = {
     }),
   events: (orgSlug: string, id: string, limit = 100) =>
     request<{ items: RolloutEvent[] }>(`/orgs/${orgSlug}/rollouts/${id}/events?limit=${limit}`),
+  eventsStreamURL: (orgSlug: string, id: string) =>
+    `${BASE}/orgs/${orgSlug}/rollouts/${id}/events/stream`,
 };
 
 // ---- Rollout groups ----

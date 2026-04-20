@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/deploysentry/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
@@ -105,6 +107,28 @@ func TestRolloutHandler_Get_ReturnsShape(t *testing.T) {
 		t.Fatalf("unexpected: %+v", out)
 	}
 	_ = context.Background
+}
+
+func TestRolloutHandler_EventsStream_EmitsSnapshot(t *testing.T) {
+	h, repo := newTestRolloutHandler()
+	ro := &models.Rollout{
+		ID: uuid.New(), TargetType: models.TargetTypeDeploy, Status: models.RolloutActive,
+		TargetRef: models.RolloutTargetRef{DeploymentID: func() *string { s := uuid.NewString(); return &s }()},
+	}
+	repo.rows[ro.ID] = ro
+	r := gin.New()
+	h.RegisterRoutes(r.Group("/api/v1"))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	req := httptest.NewRequest("GET", "/api/v1/orgs/a/rollouts/"+ro.ID.String()+"/events/stream", nil).WithContext(ctx)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	body := w.Body.String()
+	if !strings.Contains(body, "event: snapshot") {
+		t.Fatalf("expected snapshot event in stream, got: %s", body)
+	}
 }
 
 var _ = http.StatusOK // silence import if unused in test trim

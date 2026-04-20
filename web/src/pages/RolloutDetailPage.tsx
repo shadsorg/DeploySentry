@@ -35,14 +35,33 @@ export default function RolloutDetailPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Poll while the rollout is non-terminal.
+  // Replace polling with SSE for live rollout updates.
   useEffect(() => {
-    if (!rollout) return;
-    const terminal = ['succeeded', 'rolled_back', 'aborted', 'superseded'];
-    if (terminal.includes(rollout.status)) return;
-    const t = setInterval(load, 3000);
-    return () => clearInterval(t);
-  }, [rollout, load]);
+    const url = rolloutsApi.eventsStreamURL(orgSlug, id);
+    const token = localStorage.getItem('ds_token') || '';
+    const withAuth = token ? `${url}?token=${encodeURIComponent(token)}` : url;
+    const es = new EventSource(withAuth);
+
+    es.addEventListener('snapshot', (e) => {
+      try { setRollout(JSON.parse((e as MessageEvent).data)); } catch { /* ignore */ }
+    });
+    es.addEventListener('update', (e) => {
+      try { setRollout(JSON.parse((e as MessageEvent).data)); } catch { /* ignore */ }
+    });
+    es.addEventListener('event', (e) => {
+      try {
+        const ev = JSON.parse((e as MessageEvent).data);
+        setEvents((prev) => [ev, ...prev]);
+      } catch { /* ignore */ }
+    });
+    es.addEventListener('done', (e) => {
+      try { setRollout(JSON.parse((e as MessageEvent).data)); } catch { /* ignore */ }
+      es.close();
+    });
+    es.onerror = () => { /* browser auto-reconnects */ };
+
+    return () => es.close();
+  }, [orgSlug, id]);
 
   async function runAction(name: string, fn: () => Promise<unknown>) {
     setBusy(name);

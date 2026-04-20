@@ -1,9 +1,12 @@
 package rollout
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/deploysentry/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
@@ -32,6 +35,7 @@ func (h *RolloutHandler) RegisterRoutes(api *gin.RouterGroup) {
 	org.POST("/rollouts/:id/approve", h.approve)
 	org.POST("/rollouts/:id/force-promote", h.forcePromote)
 	org.GET("/rollouts/:id/events", h.events)
+	org.GET("/rollouts/:id/events/stream", h.eventsStream)
 }
 
 func (h *RolloutHandler) list(c *gin.Context) {
@@ -144,6 +148,104 @@ func (h *RolloutHandler) forcePromote(c *gin.Context) {
 	h.runControl(c, func(c ctx, id, actor uuid.UUID, reason string) error {
 		return h.svc.ForcePromote(c.Request.Context(), id, actor, reason)
 	})
+}
+
+// eventsStream is a Server-Sent Events endpoint that pushes rollout state
+// updates to the client. It emits an initial "snapshot" event, then polls
+// every 2 seconds for status changes and new events. The stream closes when
+// the client disconnects or the rollout reaches a terminal state.
+func (h *RolloutHandler) eventsStream(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	c.Writer.Header().Set("Content-Type", "text/event-stream")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.Header().Set("X-Accel-Buffering", "no")
+	c.Writer.WriteHeader(http.StatusOK)
+	c.Writer.Flush()
+
+	ctx := c.Request.Context()
+
+	emit := func(event string, payload any) bool {
+		data, err := json.Marshal(payload)
+		if err != nil {
+			return false
+		}
+		if _, err := fmt.Fprintf(c.Writer, "event: %s\ndata: %s\n\n", event, data); err != nil {
+			return false
+		}
+		c.Writer.Flush()
+		return true
+	}
+
+	// Initial snapshot.
+	ro, err := h.svc.Get(ctx, id)
+	if err != nil {
+		emit("error", gin.H{"error": err.Error()})
+		return
+	}
+	if !emit("snapshot", ro) {
+		return
+	}
+
+	lastStatus := ro.Status
+	lastPhaseIdx := ro.CurrentPhaseIndex
+
+	// Emit recent events oldest-first so the client builds a chronological log.
+	var lastEventID uuid.UUID
+	initialEvents, _ := h.svc.Events(ctx, id, 10)
+	for i := len(initialEvents) - 1; i >= 0; i-- {
+		emit("event", initialEvents[i])
+		lastEventID = initialEvents[i].ID
+	}
+
+	// Close immediately if already terminal.
+	if ro.IsTerminal() {
+		emit("done", ro)
+		return
+	}
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			ro, err := h.svc.Get(ctx, id)
+			if err != nil {
+				emit("error", gin.H{"error": err.Error()})
+				return
+			}
+			if ro.Status != lastStatus || ro.CurrentPhaseIndex != lastPhaseIdx {
+				emit("update", ro)
+				lastStatus = ro.Status
+				lastPhaseIdx = ro.CurrentPhaseIndex
+			}
+			// Emit new events since lastEventID in chronological order.
+			evs, _ := h.svc.Events(ctx, id, 50)
+			var fresh []*models.RolloutEvent
+			for _, ev := range evs {
+				if lastEventID != uuid.Nil && ev.ID == lastEventID {
+					break
+				}
+				fresh = append(fresh, ev)
+			}
+			for i := len(fresh) - 1; i >= 0; i-- {
+				emit("event", fresh[i])
+				lastEventID = fresh[i].ID
+			}
+			if ro.IsTerminal() {
+				emit("done", ro)
+				return
+			}
+		}
+	}
 }
 
 // events streams rollout events (simple long-poll for now; SSE upgrade can be

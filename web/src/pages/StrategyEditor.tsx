@@ -48,6 +48,51 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
     setSteps((prev) => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
   }
 
+  function addAbort(stepIdx: number) {
+    setSteps((prev) =>
+      prev.map((s, i) =>
+        i === stepIdx
+          ? {
+              ...s,
+              abort_conditions: [
+                ...(s.abort_conditions || []),
+                { metric: 'error_rate', operator: '>', threshold: 0.02, window: 60 * 1000 * MS },
+              ],
+            }
+          : s,
+      ),
+    );
+  }
+
+  function removeAbort(stepIdx: number, acIdx: number) {
+    setSteps((prev) =>
+      prev.map((s, i) =>
+        i === stepIdx
+          ? { ...s, abort_conditions: (s.abort_conditions || []).filter((_, j) => j !== acIdx) }
+          : s,
+      ),
+    );
+  }
+
+  function updateAbort(
+    stepIdx: number,
+    acIdx: number,
+    patch: Partial<{ metric: string; operator: string; threshold: number; window: number }>,
+  ) {
+    setSteps((prev) =>
+      prev.map((s, i) =>
+        i === stepIdx
+          ? {
+              ...s,
+              abort_conditions: (s.abort_conditions || []).map((ac, j) =>
+                j === acIdx ? { ...ac, ...patch } : ac,
+              ),
+            }
+          : s,
+      ),
+    );
+  }
+
   function removeStep(idx: number) {
     setSteps((prev) => prev.filter((_, i) => i !== idx));
   }
@@ -149,18 +194,138 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
           </thead>
           <tbody>
             {steps.map((s, idx) => (
-              <tr key={idx}>
-                <td>{idx + 1}</td>
-                <td><input type="number" value={s.percent} onChange={(e) => updateStep(idx, { percent: Number(e.target.value) })} /></td>
-                <td><input type="number" value={s.min_duration / MS} onChange={(e) => updateStep(idx, { min_duration: Number(e.target.value) * MS })} /></td>
-                <td><input type="number" value={s.max_duration / MS} onChange={(e) => updateStep(idx, { max_duration: Number(e.target.value) * MS })} /></td>
-                <td><input type="number" value={s.bake_time_healthy / MS} onChange={(e) => updateStep(idx, { bake_time_healthy: Number(e.target.value) * MS })} /></td>
-                <td>
-                  {steps.length > 1 && (
-                    <button type="button" onClick={() => removeStep(idx)}>×</button>
-                  )}
-                </td>
-              </tr>
+              <>
+                <tr key={idx}>
+                  <td>{idx + 1}</td>
+                  <td><input type="number" value={s.percent} onChange={(e) => updateStep(idx, { percent: Number(e.target.value) })} /></td>
+                  <td><input type="number" value={s.min_duration / MS} onChange={(e) => updateStep(idx, { min_duration: Number(e.target.value) * MS })} /></td>
+                  <td><input type="number" value={s.max_duration / MS} onChange={(e) => updateStep(idx, { max_duration: Number(e.target.value) * MS })} /></td>
+                  <td><input type="number" value={s.bake_time_healthy / MS} onChange={(e) => updateStep(idx, { bake_time_healthy: Number(e.target.value) * MS })} /></td>
+                  <td>
+                    {steps.length > 1 && (
+                      <button type="button" onClick={() => removeStep(idx)}>×</button>
+                    )}
+                  </td>
+                </tr>
+                <tr key={`${idx}-advanced`}>
+                  <td colSpan={6}>
+                    <details className="step-advanced">
+                      <summary>Advanced: approval, abort conditions, health threshold</summary>
+
+                      <label>Health threshold (leave blank for strategy default)
+                        <input
+                          type="number"
+                          min={0}
+                          max={1}
+                          step={0.01}
+                          value={s.health_threshold ?? ''}
+                          onChange={(e) =>
+                            updateStep(idx, {
+                              health_threshold: e.target.value === '' ? undefined : Number(e.target.value),
+                            } as Partial<Step>)
+                          }
+                        />
+                      </label>
+
+                      <fieldset>
+                        <legend>Approval (optional)</legend>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={!!s.approval}
+                            onChange={(e) =>
+                              updateStep(idx, {
+                                approval: e.target.checked ? { required_role: '', timeout: 0 } : undefined,
+                              } as Partial<Step>)
+                            }
+                          />
+                          Require manual approval
+                        </label>
+                        {s.approval && (
+                          <>
+                            <label>Required role
+                              <input
+                                type="text"
+                                value={s.approval.required_role}
+                                onChange={(e) =>
+                                  updateStep(idx, { approval: { ...s.approval!, required_role: e.target.value } })
+                                }
+                              />
+                            </label>
+                            <label>Timeout (ms)
+                              <input
+                                type="number"
+                                value={s.approval.timeout / MS}
+                                onChange={(e) =>
+                                  updateStep(idx, { approval: { ...s.approval!, timeout: Number(e.target.value) * MS } })
+                                }
+                              />
+                            </label>
+                          </>
+                        )}
+                      </fieldset>
+
+                      <fieldset>
+                        <legend>Abort conditions</legend>
+                        {(s.abort_conditions || []).map((ac, acIdx) => (
+                          <div key={acIdx} className="abort-row">
+                            <select
+                              value={ac.metric.startsWith('custom:') ? '__custom__' : ac.metric}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                updateAbort(idx, acIdx, { metric: v === '__custom__' ? 'custom:' : v });
+                              }}
+                            >
+                              <option value="score">score</option>
+                              <option value="error_rate">error_rate</option>
+                              <option value="latency_p99_ms">latency_p99_ms</option>
+                              <option value="latency_p50_ms">latency_p50_ms</option>
+                              <option value="request_rate">request_rate</option>
+                              <option value="__custom__">custom…</option>
+                            </select>
+                            {ac.metric.startsWith('custom:') && (
+                              <input
+                                type="text"
+                                placeholder="custom:my_metric"
+                                value={ac.metric}
+                                onChange={(e) => {
+                                  const v = e.target.value.startsWith('custom:')
+                                    ? e.target.value
+                                    : 'custom:' + e.target.value;
+                                  updateAbort(idx, acIdx, { metric: v });
+                                }}
+                              />
+                            )}
+                            <select
+                              value={ac.operator}
+                              onChange={(e) => updateAbort(idx, acIdx, { operator: e.target.value })}
+                            >
+                              {(['>', '>=', '<', '<=', '==', '!='] as const).map((op) => (
+                                <option key={op} value={op}>{op}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="number"
+                              step="any"
+                              value={ac.threshold}
+                              onChange={(e) => updateAbort(idx, acIdx, { threshold: Number(e.target.value) })}
+                              placeholder="threshold"
+                            />
+                            <input
+                              type="number"
+                              value={ac.window / MS}
+                              onChange={(e) => updateAbort(idx, acIdx, { window: Number(e.target.value) * MS })}
+                              placeholder="window (ms)"
+                            />
+                            <button type="button" onClick={() => removeAbort(idx, acIdx)}>×</button>
+                          </div>
+                        ))}
+                        <button type="button" onClick={() => addAbort(idx)}>+ Add abort condition</button>
+                      </fieldset>
+                    </details>
+                  </td>
+                </tr>
+              </>
             ))}
           </tbody>
         </table>

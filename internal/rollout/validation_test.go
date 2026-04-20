@@ -101,3 +101,23 @@ func TestValidateStrategy_AbortConditionOperators(t *testing.T) {
 		t.Fatalf("expected error for bogus operator")
 	}
 }
+
+func TestValidateStrategy_RejectsUnknownAbortMetric(t *testing.T) {
+	s := validStrategy()
+	s.Steps[0].AbortConditions = []models.StepAbortCondition{
+		{Metric: "cpu_usage", Operator: ">", Threshold: 0.8, Window: time.Minute},
+	}
+	if err := ValidateStrategy(s); err == nil {
+		t.Fatalf("expected unknown metric error")
+	}
+}
+
+func TestValidateStrategy_AcceptsCustomMetric(t *testing.T) {
+	s := validStrategy()
+	s.Steps[0].AbortConditions = []models.StepAbortCondition{
+		{Metric: "custom:queue_depth", Operator: ">", Threshold: 100, Window: time.Minute},
+	}
+	if err := ValidateStrategy(s); err != nil {
+		t.Fatalf("custom:* metric should be accepted, got %v", err)
+	}
+}

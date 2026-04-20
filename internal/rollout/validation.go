@@ -5,6 +5,7 @@ package rollout
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/deploysentry/deploysentry/internal/models"
 )
@@ -16,6 +17,27 @@ var validAbortOperators = map[string]bool{
 	"<=": true,
 	"==": true,
 	"!=": true,
+}
+
+// validAbortMetrics lists the metric names that abort conditions may reference.
+// These must stay in sync with engine.metricValue() in internal/rollout/engine/gates.go.
+// Names prefixed with "custom:" are accepted as escape hatch for future extensions.
+var validAbortMetrics = map[string]bool{
+	"score":          true,
+	"error_rate":     true,
+	"latency_p99_ms": true,
+	"latency_p50_ms": true,
+	"request_rate":   true,
+}
+
+func isValidAbortMetric(name string) bool {
+	if validAbortMetrics[name] {
+		return true
+	}
+	if strings.HasPrefix(name, "custom:") && len(name) > len("custom:") {
+		return true
+	}
+	return false
 }
 
 // ValidateStrategy returns a non-nil error when the Strategy is not
@@ -67,6 +89,9 @@ func ValidateStrategy(s *models.Strategy) error {
 		for j, ac := range st.AbortConditions {
 			if ac.Metric == "" {
 				return fmt.Errorf("step %d abort[%d]: metric is required", i, j)
+			}
+			if !isValidAbortMetric(ac.Metric) {
+				return fmt.Errorf("step %d abort[%d]: unknown metric %q (allowed: score, error_rate, latency_p99_ms, latency_p50_ms, request_rate, or custom:*)", i, j, ac.Metric)
 			}
 			if !validAbortOperators[ac.Operator] {
 				return fmt.Errorf("step %d abort[%d]: invalid operator %q", i, j, ac.Operator)

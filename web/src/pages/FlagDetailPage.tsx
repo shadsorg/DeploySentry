@@ -1,9 +1,10 @@
 import { useState, useEffect, Fragment } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import type { Flag, TargetingRule, OrgEnvironment, FlagEnvironmentState, RuleEnvironmentState, FlagCategory, AuditLogEntry } from '@/types';
-import { flagsApi, entitiesApi, flagEnvStateApi, auditApi } from '@/api';
+import type { Flag, TargetingRule, OrgEnvironment, FlagEnvironmentState, RuleEnvironmentState, FlagCategory, AuditLogEntry, RolloutPolicy } from '@/types';
+import { flagsApi, entitiesApi, flagEnvStateApi, auditApi, rolloutPolicyApi } from '@/api';
 import type { Application } from '@/types';
 import { StrategyPicker } from '@/components/rollout/StrategyPicker';
+import { resolvePolicy } from '@/lib/policyResolver';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -148,6 +149,7 @@ export default function FlagDetailPage() {
   const [ruleStrategyName, setRuleStrategyName] = useState('');
   const [ruleImmediate, setRuleImmediate] = useState(true);
   const [ruleSaveMsg, setRuleSaveMsg] = useState<string | null>(null);
+  const [policies, setPolicies] = useState<RolloutPolicy[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -197,6 +199,11 @@ export default function FlagDetailPage() {
       .catch(() => setHistory([]))
       .finally(() => setHistoryLoading(false));
   }, [activeTab, id]);
+
+  useEffect(() => {
+    if (activeTab !== 'rules' || !orgSlug) return;
+    rolloutPolicyApi.list(orgSlug).then((r) => setPolicies(r.items ?? [])).catch(() => {});
+  }, [activeTab, orgSlug]);
 
   useEffect(() => {
     if (flag) {
@@ -544,30 +551,46 @@ export default function FlagDetailPage() {
                       <button className="btn btn-sm btn-danger" onClick={() => handleDeleteRule(rule.id)}>Delete</button>
                     </td>
                   </tr>
-                  {editingRuleId === rule.id && orgSlug && (
-                    <tr>
-                      <td colSpan={4}>
-                        <div style={{ padding: '12px 0' }}>
-                          <StrategyPicker
-                            orgSlug={orgSlug}
-                            targetType="config"
-                            value={ruleStrategyName}
-                            onChange={setRuleStrategyName}
-                            allowImmediate
-                            immediate={ruleImmediate}
-                            onImmediateChange={setRuleImmediate}
-                          />
-                          <button
-                            className="btn btn-primary btn-sm"
-                            style={{ marginTop: 8 }}
-                            onClick={() => handleUpdateRule(rule.id)}
-                          >
-                            Save
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
+                  {editingRuleId === rule.id && orgSlug && (() => {
+                    const flagEnvName = environments.find((e) => e.id === flag?.environment_id)?.name;
+                    const eff = resolvePolicy(policies, flagEnvName, 'config');
+                    const ruleBlocked = eff.enabled && eff.policy === 'mandate' && !ruleStrategyName && !ruleImmediate;
+                    return (
+                      <tr>
+                        <td colSpan={4}>
+                          <div style={{ padding: '12px 0' }}>
+                            {eff.enabled && eff.policy === 'mandate' && (
+                              <p className="helper-text" style={{ color: 'var(--color-danger)', marginBottom: 6 }}>
+                                Strategy required for this scope.
+                              </p>
+                            )}
+                            {eff.enabled && eff.policy === 'prompt' && (
+                              <p className="helper-text" style={{ marginBottom: 6 }}>
+                                Strategy recommended; uncheck &ldquo;apply immediately&rdquo; to attach one.
+                              </p>
+                            )}
+                            <StrategyPicker
+                              orgSlug={orgSlug}
+                              targetType="config"
+                              value={ruleStrategyName}
+                              onChange={setRuleStrategyName}
+                              allowImmediate={eff.policy !== 'mandate' || !eff.enabled}
+                              immediate={ruleImmediate}
+                              onImmediateChange={setRuleImmediate}
+                            />
+                            <button
+                              className="btn btn-primary btn-sm"
+                              style={{ marginTop: 8 }}
+                              onClick={() => handleUpdateRule(rule.id)}
+                              disabled={ruleBlocked}
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })()}
                 </Fragment>
               ))}
               {rules.length === 0 && (

@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import type { Deployment, DeployStrategy, DeployStatus, OrgEnvironment } from '@/types';
-import { entitiesApi, deploymentsApi } from '@/api';
+import type { Deployment, DeployStrategy, DeployStatus, OrgEnvironment, RolloutPolicy } from '@/types';
+import { entitiesApi, deploymentsApi, rolloutPolicyApi } from '@/api';
 import { StrategyPicker } from '@/components/rollout/StrategyPicker';
+import { resolvePolicy } from '@/lib/policyResolver';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -112,6 +113,7 @@ const DeploymentsPage: React.FC = () => {
   const [environments, setEnvironments] = useState<OrgEnvironment[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [policies, setPolicies] = useState<RolloutPolicy[]>([]);
 
   const load = useCallback(() => {
     if (!orgSlug || !projectSlug || !appSlug) {
@@ -139,6 +141,27 @@ const DeploymentsPage: React.FC = () => {
       if (r.environments?.length) setEnvId(r.environments[0].id);
     }).catch(() => {});
   }, [orgSlug]);
+
+  // Fetch rollout policies when the modal opens
+  useEffect(() => {
+    if (!creating || !orgSlug) return;
+    rolloutPolicyApi.list(orgSlug).then((r) => setPolicies(r.items ?? [])).catch(() => {});
+  }, [creating, orgSlug]);
+
+  const envName = environments.find((e) => e.id === envId)?.name;
+  const effective = resolvePolicy(policies, envName, 'deploy');
+
+  // Adjust defaults when effective policy changes
+  useEffect(() => {
+    if (effective.policy === 'mandate' && effective.enabled) {
+      setApplyImmediately(false);
+    } else if (effective.policy === 'prompt' && effective.enabled && strategyName === '') {
+      setApplyImmediately(false);
+    }
+    // 'off' or disabled: keep user's choices
+  }, [effective.policy, effective.enabled]);
+
+  const mandateBlocked = effective.enabled && effective.policy === 'mandate' && !strategyName && !applyImmediately;
 
   const openCreateModal = () => {
     setArtifact('');
@@ -262,13 +285,23 @@ const DeploymentsPage: React.FC = () => {
             </div>
             <div className="form-group">
               <label className="form-label">Rollout Strategy</label>
+              {effective.enabled && effective.policy === 'mandate' && (
+                <p className="helper-text" style={{ color: 'var(--color-danger)', marginBottom: 6 }}>
+                  Strategy required for this environment.
+                </p>
+              )}
+              {effective.enabled && effective.policy === 'prompt' && (
+                <p className="helper-text" style={{ marginBottom: 6 }}>
+                  Strategy recommended; uncheck &ldquo;apply immediately&rdquo; to attach one.
+                </p>
+              )}
               {orgSlug && (
                 <StrategyPicker
                   orgSlug={orgSlug}
                   targetType="deploy"
                   value={strategyName}
                   onChange={setStrategyName}
-                  allowImmediate
+                  allowImmediate={effective.policy !== 'mandate' || !effective.enabled}
                   immediate={applyImmediately}
                   onImmediateChange={setApplyImmediately}
                 />
@@ -279,7 +312,7 @@ const DeploymentsPage: React.FC = () => {
               <button className="btn" onClick={() => setCreating(false)} disabled={submitting}>
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleCreate} disabled={submitting}>
+              <button className="btn btn-primary" onClick={handleCreate} disabled={submitting || mandateBlocked}>
                 {submitting ? 'Creating…' : 'Create Deployment'}
               </button>
             </div>

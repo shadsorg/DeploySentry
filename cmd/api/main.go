@@ -400,7 +400,12 @@ func run() error {
 
 	trafficSetter := &deployTrafficSetter{svc: deployService}
 	deployApp := applicatordeploy.NewApplicator(trafficSetter, healthMonitor)
-	configApp := applicatorconfig.NewApplicator(&flagRuleUpdater{svc: flagService})
+	configApp := applicatorconfig.NewApplicator(
+		&flagRuleUpdater{svc: flagService},
+		&flagRuleResolver{svc: flagService},
+		healthMonitor,
+		&deploymentFinder{svc: deployService},
+	)
 	routerApp := applicator.NewRouter(deployApp, configApp)
 
 	engineRepos := &rolloutEngineRepoAdapter{
@@ -877,6 +882,35 @@ func (u *flagRuleUpdater) UpdateRulePercentage(ctx context.Context, ruleID uuid.
 	p := pct
 	rule.Percentage = &p
 	return u.svc.UpdateRule(ctx, rule)
+}
+
+// flagRuleResolver adapts flags.FlagService to applicatorconfig.RuleFlagResolver.
+type flagRuleResolver struct{ svc flags.FlagService }
+
+func (f *flagRuleResolver) GetRule(ctx context.Context, id uuid.UUID) (*models.TargetingRule, error) {
+	return f.svc.GetRule(ctx, id)
+}
+
+func (f *flagRuleResolver) GetFlag(ctx context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
+	return f.svc.GetFlag(ctx, id)
+}
+
+// deploymentFinder adapts deploy.DeployService to applicatorconfig.DeploymentFinder.
+// It returns the most recent active deployment for the given (appID, envID), or
+// (nil, nil) when none exists.
+type deploymentFinder struct{ svc deploy.DeployService }
+
+func (d *deploymentFinder) CurrentDeploymentFor(ctx context.Context, appID, envID uuid.UUID) (*models.Deployment, error) {
+	deps, err := d.svc.GetActiveDeployments(ctx, appID)
+	if err != nil {
+		return nil, err
+	}
+	for _, dep := range deps {
+		if dep.EnvironmentID == envID {
+			return dep, nil
+		}
+	}
+	return nil, nil
 }
 
 // flagRolloutAttacherAdapter satisfies flags.RolloutAttacher by delegating to

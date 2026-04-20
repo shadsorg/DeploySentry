@@ -229,12 +229,33 @@ The six control actions (pause, resume, promote, approve, rollback, force-promot
 
 ### Integration points
 
-- **Deploy create**: currently covered by CLI `ds deploy --strategy`. Web deploy-create form is a future enhancement.
-- **Flag rule edit**: each targeting rule row in `FlagDetailPage` now has an "Edit" button. The edit panel includes a strategy picker; when a strategy is attached, the save returns 202 Accepted and creates a rollout — the user can track progress on the Rollouts page.
+- **Deploy create**: `DeploymentsPage` has a create modal with strategy picker, apply-immediately opt-out, and an optional rollout-group picker. `ds deploy --strategy` still works from the CLI.
+- **Flag rule edit**: each targeting rule row in `FlagDetailPage` has an Edit button. The panel includes a strategy picker + optional group picker. When a strategy is attached, the save returns 202 Accepted and creates a rollout — the user can track progress on the Rollouts page.
+- **Dashboard**: an "Active Rollouts" summary card is shown on the org landing page (`ProjectListPage`) — compact list of running rollouts with a View-all link.
+- **Policy-aware forms**: both deploy-create and rule-edit forms resolve the scope's rollout policy client-side. `mandate` requires a strategy (blocks submit), `prompt` defaults to strategy-first with immediate-apply as opt-out, `off` preserves pre-existing behavior.
 
-### Limitations (Plan 5)
+### Rollout detail updates
 
-- Strategies/policies/defaults are only manageable at the **org** level in the UI. Project- and app-scoped equivalents remain reachable via API + CLI.
-- Rollout progress uses **polling** (3s for detail, 5s for list); SSE upgrade deferred.
-- No timeline graph of health signals — just textual phase state and status badges.
-- Dashboard-level "Active rollouts" summary card deferred.
+`RolloutDetailPage` uses **Server-Sent Events** (`GET /rollouts/:id/events/stream`) to push status + event updates in real time. Auth is via `?token=` query param. Falls back to REST fetch on initial load for resilience.
+
+### Limitations (current)
+
+- Strategies/policies/defaults are manageable only at the **org** level in the UI. Project- and app-scoped equivalents remain reachable via API + CLI.
+- Step editor's Advanced panel covers `approval` + `abort_conditions` per step, but `notify` and `signal_override` are YAML-only.
+- No timeline graph of health signals — just textual phase state + status badges.
+- Client-side policy resolver walks only org-level policy rows; project/app-level overrides aren't visible to the picker (resolves correctly server-side on attach).
+
+## Future enhancements
+
+Listed in rough priority order; not actively scheduled.
+
+- **Playwright E2E for rollout pages.** End-to-end browser tests covering: create strategy via UI → deploy with strategy → observe phase progression → pause/resume/rollback with reason modal → rollout-group cascade_abort sibling behavior → policy=mandate blocks submit. Reuses the existing `web/e2e/helpers/seed-via-ui.ts` + `flag-delivery.spec.ts` patterns. Estimate 15–20 test cases across ~4 spec files. Maintenance cost is real (browser timing, selector drift), but catches whole-stack regressions (routes, auth, form submission) that unit + integration tests don't.
+- **Project/app-scoped UI pages** for strategies, policy, and defaults. API + CLI already cover them; web adds convenience for teams managing many projects.
+- **Rollout `amend` endpoint**: mid-rollout target-value changes. Currently a hint in 409 responses; not implemented. Risky feature — users are expected to abort + restart instead.
+- **Advanced runtime controls**: skip-to-step-N, split (branch across environments), extend-dwell. Niche SRE asks.
+- **Health signal timeline chart** on `RolloutDetailPage` — sparkline of health score through phase history.
+- **Strategy inheritance shadow warning** in `StrategiesPage` — highlight name collisions between org and project scopes.
+- **Rich `notify` + `signal_override` editors** in `StrategyEditor`.
+- **SSE auth via session cookie** instead of `?token=` query param (avoids token-in-URL exposure in proxy logs).
+- **Column rename**: `rollouts.release_id` → `rollouts.group_id` to match the `rollout_groups` naming. Pure cosmetic migration.
+- **409 error body standardization** across deploy + flag rule edit endpoints (they use slightly different shapes).

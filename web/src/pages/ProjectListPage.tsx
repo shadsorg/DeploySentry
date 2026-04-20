@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useProjects } from '@/hooks/useEntities';
 import { entitiesApi } from '@/api';
+import { ActiveRolloutsCard } from '@/components/rollout/ActiveRolloutsCard';
 
 export default function ProjectListPage() {
   const { orgSlug } = useParams();
@@ -32,6 +33,7 @@ export default function ProjectListPage() {
 
   return (
     <div>
+      <ActiveRolloutsCard orgSlug={orgSlug} />
       <div className="page-header-row">
         <h1 className="page-header">Projects</h1>
         <Link to={`/orgs/${orgSlug}/projects/new`} className="btn btn-primary">

@@ -297,9 +297,24 @@ func run() error {
 	}
 
 	// -------------------------------------------------------------------------
+	// Health Monitor (shared between deploy engine + rollout applicator)
+	// -------------------------------------------------------------------------
+	healthScorer := health.NewHealthScorer(health.DefaultWeights(), 0.2)
+	healthMonitor := health.NewHealthMonitor(healthScorer, 30*time.Second, 0.95)
+
+	// No real integrations are configured yet. Register an always-healthy sentinel
+	// so the rollout engine can still advance phases on time alone (matching the
+	// legacy behavior). Wire real checks via healthMonitor.AddCheck(check) when
+	// observability config is available (Prometheus, Datadog, Sentry, etc.).
+	healthMonitor.AddCheck(&alwaysHealthyCheck{})
+	log.Printf("health: no integrations configured; using always-healthy sentinel")
+
+	go healthMonitor.Start(ctx)
+
+	// -------------------------------------------------------------------------
 	// Phase Engine (canary rollout)
 	// -------------------------------------------------------------------------
-	phaseEngine := engine.New(deployRepo, nc, nil, nil)
+	phaseEngine := engine.New(deployRepo, nc, healthMonitor, nil)
 
 	// Start event subscriber to bridge NATS events to notifications
 	eventSubscriber := notifications.NewEventSubscriber(nc, notificationService)
@@ -384,7 +399,7 @@ func run() error {
 	rolloutEventRepo := postgres.NewRolloutEventRepo(db.Pool)
 
 	trafficSetter := &deployTrafficSetter{svc: deployService}
-	deployApp := applicatordeploy.NewApplicator(trafficSetter, &noopHealthReader{})
+	deployApp := applicatordeploy.NewApplicator(trafficSetter, healthMonitor)
 	configApp := applicatorconfig.NewApplicator(&flagRuleUpdater{svc: flagService})
 	routerApp := applicator.NewRouter(deployApp, configApp)
 
@@ -831,13 +846,21 @@ func (g *deployEngineRolloutGuard) HasActiveRolloutForDeployment(ctx context.Con
 	return ro != nil, nil
 }
 
-// noopHealthReader is used when no HealthMonitor is wired — returns a constant
-// healthy signal so the rollout engine advances on time alone (matching legacy
-// engine behavior that also runs without health data today).
-type noopHealthReader struct{}
+// alwaysHealthyCheck is a HealthCheck that reports healthy with full score and
+// no metrics. Used when no real integrations are configured so the rollout
+// engine's health-adaptive dwell still promotes phases (matches legacy noop
+// behavior: rollouts advance on time alone).
+type alwaysHealthyCheck struct{}
 
-func (noopHealthReader) GetHealth(_ uuid.UUID) (*health.DeploymentHealth, error) {
-	return &health.DeploymentHealth{Overall: 1.0, Healthy: true}, nil
+func (c *alwaysHealthyCheck) Name() string { return "always-healthy" }
+
+func (c *alwaysHealthyCheck) Check(_ context.Context, _ uuid.UUID) (*health.CheckResult, error) {
+	return &health.CheckResult{
+		Name:      "always-healthy",
+		Healthy:   true,
+		Score:     1.0,
+		CheckedAt: time.Now(),
+	}, nil
 }
 
 // flagRuleUpdater adapts flags.FlagService to applicatorconfig.RuleUpdater.

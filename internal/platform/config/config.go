@@ -21,6 +21,46 @@ type Config struct {
 	Notifications NotificationsConfig
 	GitHub        GitHubConfig
 	Security      SecurityConfig
+	Health        HealthConfig
+}
+
+// HealthConfig holds configuration for the health monitoring subsystem.
+type HealthConfig struct {
+	CheckIntervalSeconds int     `mapstructure:"check_interval_seconds"`
+	Threshold            float64 `mapstructure:"threshold"`
+
+	Prometheus PrometheusIntegrationConfig `mapstructure:"prometheus"`
+	Datadog    DatadogIntegrationConfig    `mapstructure:"datadog"`
+	Sentry     SentryIntegrationConfig     `mapstructure:"sentry"`
+}
+
+// PrometheusIntegrationConfig holds configuration for the Prometheus health check.
+type PrometheusIntegrationConfig struct {
+	BaseURL              string  `mapstructure:"base_url"`
+	ErrorRateQuery       string  `mapstructure:"error_rate_query"`
+	LatencyQuery         string  `mapstructure:"latency_query"`
+	ErrorRateThreshold   float64 `mapstructure:"error_rate_threshold"`
+	LatencyThresholdSec  float64 `mapstructure:"latency_threshold_sec"`
+}
+
+// DatadogIntegrationConfig holds configuration for the Datadog health check.
+type DatadogIntegrationConfig struct {
+	APIKey              string  `mapstructure:"api_key"`
+	AppKey              string  `mapstructure:"app_key"`
+	Site                string  `mapstructure:"site"`
+	ErrorRateMetric     string  `mapstructure:"error_rate_metric"`
+	LatencyMetric       string  `mapstructure:"latency_metric"`
+	ErrorRateThreshold  float64 `mapstructure:"error_rate_threshold"`
+	LatencyThresholdSec float64 `mapstructure:"latency_threshold_sec"`
+}
+
+// SentryIntegrationConfig holds configuration for the Sentry health check.
+type SentryIntegrationConfig struct {
+	BaseURL        string `mapstructure:"base_url"`
+	AuthToken      string `mapstructure:"auth_token"`
+	Organization   string `mapstructure:"organization"`
+	Project        string `mapstructure:"project"`
+	ErrorThreshold int    `mapstructure:"error_threshold"`
 }
 
 // SecurityConfig holds security-related configuration.
@@ -274,6 +314,19 @@ func setDefaults(v *viper.Viper) {
 
 	// Security defaults.
 	v.SetDefault("security.encryption_key", "")
+
+	// Health monitor defaults.
+	v.SetDefault("health.check_interval_seconds", 30)
+	v.SetDefault("health.threshold", 0.95)
+	v.SetDefault("health.prometheus.error_rate_query", `rate(http_requests_total{status=~"5.."}[1m])`)
+	v.SetDefault("health.prometheus.latency_query", `histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[1m]))`)
+	v.SetDefault("health.prometheus.error_rate_threshold", 0.02)
+	v.SetDefault("health.prometheus.latency_threshold_sec", 0.5)
+	v.SetDefault("health.datadog.site", "datadoghq.com")
+	v.SetDefault("health.datadog.error_rate_threshold", 0.02)
+	v.SetDefault("health.datadog.latency_threshold_sec", 0.5)
+	v.SetDefault("health.sentry.base_url", "https://sentry.io/api/0")
+	v.SetDefault("health.sentry.error_threshold", 10)
 
 	// Notification defaults (all disabled by default).
 	v.SetDefault("notifications.slack.enabled", false)

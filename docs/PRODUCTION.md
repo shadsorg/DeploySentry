@@ -309,3 +309,40 @@ DeploySentry production deployment supports:
 - **GDPR**: Data isolation via namespaces, configurable retention
 - **HIPAA**: End-to-end encryption, secure defaults
 - **FedRAMP**: Strong authentication, comprehensive monitoring
+
+## Health integrations (optional)
+
+The rollout engine's health-adaptive dwell and abort-condition features become functional when at least one health integration is configured. Without any, the engine uses an always-healthy sentinel and rollouts advance on time alone.
+
+General health monitor settings:
+
+- `DS_HEALTH_CHECK_INTERVAL_SECONDS` — how often checks run (default: `30`)
+- `DS_HEALTH_THRESHOLD` — minimum acceptable health score 0.0–1.0 (default: `0.95`)
+
+### Prometheus
+
+- `DS_HEALTH_PROMETHEUS_BASE_URL` — e.g. `http://prometheus:9090` (required to enable)
+- `DS_HEALTH_PROMETHEUS_ERROR_RATE_QUERY` — PromQL query for error rate (default: `rate(http_requests_total{status=~"5.."}[1m])`)
+- `DS_HEALTH_PROMETHEUS_LATENCY_QUERY` — PromQL query for p99 latency in seconds (default: `histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[1m]))`)
+- `DS_HEALTH_PROMETHEUS_ERROR_RATE_THRESHOLD` — max acceptable error rate (default: `0.02`)
+- `DS_HEALTH_PROMETHEUS_LATENCY_THRESHOLD_SEC` — max acceptable p99 latency in seconds (default: `0.5`)
+
+### Datadog
+
+- `DS_HEALTH_DATADOG_API_KEY` — Datadog API key (required to enable)
+- `DS_HEALTH_DATADOG_APP_KEY` — Datadog application key
+- `DS_HEALTH_DATADOG_SITE` — Datadog site (default: `datadoghq.com`)
+- `DS_HEALTH_DATADOG_ERROR_RATE_METRIC` — Datadog metric name for error rate (e.g. `http.server.errors`)
+- `DS_HEALTH_DATADOG_LATENCY_METRIC` — Datadog metric name for p99 latency (e.g. `http.server.latency.p99`)
+- `DS_HEALTH_DATADOG_ERROR_RATE_THRESHOLD` — max acceptable error rate (default: `0.02`)
+- `DS_HEALTH_DATADOG_LATENCY_THRESHOLD_SEC` — max acceptable latency in seconds (default: `0.5`)
+
+### Sentry
+
+- `DS_HEALTH_SENTRY_AUTH_TOKEN` — Sentry auth token (required to enable)
+- `DS_HEALTH_SENTRY_ORGANIZATION` — Sentry organization slug (required to enable)
+- `DS_HEALTH_SENTRY_PROJECT` — Sentry project slug (required to enable)
+- `DS_HEALTH_SENTRY_BASE_URL` — Sentry API base URL (default: `https://sentry.io/api/0`)
+- `DS_HEALTH_SENTRY_ERROR_THRESHOLD` — max acceptable new errors per check window (default: `10`)
+
+Startup logs confirm which integrations were enabled (e.g. `health: Prometheus integration enabled (http://prometheus:9090)`).

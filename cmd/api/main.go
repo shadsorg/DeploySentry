@@ -28,6 +28,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/grants"
 	"github.com/deploysentry/deploysentry/internal/groups"
 	"github.com/deploysentry/deploysentry/internal/health"
+	"github.com/deploysentry/deploysentry/internal/health/integrations"
 	githubint "github.com/deploysentry/deploysentry/internal/integrations/github"
 	"github.com/deploysentry/deploysentry/internal/members"
 	"github.com/deploysentry/deploysentry/internal/models"
@@ -300,14 +301,62 @@ func run() error {
 	// Health Monitor (shared between deploy engine + rollout applicator)
 	// -------------------------------------------------------------------------
 	healthScorer := health.NewHealthScorer(health.DefaultWeights(), 0.2)
-	healthMonitor := health.NewHealthMonitor(healthScorer, 30*time.Second, 0.95)
+	healthInterval := time.Duration(cfg.Health.CheckIntervalSeconds) * time.Second
+	if healthInterval <= 0 {
+		healthInterval = 30 * time.Second
+	}
+	healthMonitor := health.NewHealthMonitor(healthScorer, healthInterval, cfg.Health.Threshold)
 
-	// No real integrations are configured yet. Register an always-healthy sentinel
-	// so the rollout engine can still advance phases on time alone (matching the
-	// legacy behavior). Wire real checks via healthMonitor.AddCheck(check) when
-	// observability config is available (Prometheus, Datadog, Sentry, etc.).
-	healthMonitor.AddCheck(&alwaysHealthyCheck{})
-	log.Printf("health: no integrations configured; using always-healthy sentinel")
+	healthCheckCount := 0
+
+	// Prometheus
+	if cfg.Health.Prometheus.BaseURL != "" {
+		promCheck := integrations.NewPrometheusCheck(integrations.PrometheusConfig{
+			BaseURL:            cfg.Health.Prometheus.BaseURL,
+			ErrorRateQuery:     cfg.Health.Prometheus.ErrorRateQuery,
+			LatencyQuery:       cfg.Health.Prometheus.LatencyQuery,
+			ErrorRateThreshold: cfg.Health.Prometheus.ErrorRateThreshold,
+			LatencyThreshold:   cfg.Health.Prometheus.LatencyThresholdSec,
+		})
+		healthMonitor.AddCheck(promCheck)
+		healthCheckCount++
+		log.Printf("health: Prometheus integration enabled (%s)", cfg.Health.Prometheus.BaseURL)
+	}
+
+	// Datadog
+	if cfg.Health.Datadog.APIKey != "" {
+		ddCheck := integrations.NewDatadogCheck(integrations.DatadogConfig{
+			APIKey:             cfg.Health.Datadog.APIKey,
+			AppKey:             cfg.Health.Datadog.AppKey,
+			Site:               cfg.Health.Datadog.Site,
+			ErrorRateMetric:    cfg.Health.Datadog.ErrorRateMetric,
+			LatencyMetric:      cfg.Health.Datadog.LatencyMetric,
+			ErrorRateThreshold: cfg.Health.Datadog.ErrorRateThreshold,
+			LatencyThreshold:   cfg.Health.Datadog.LatencyThresholdSec,
+		})
+		healthMonitor.AddCheck(ddCheck)
+		healthCheckCount++
+		log.Printf("health: Datadog integration enabled")
+	}
+
+	// Sentry
+	if cfg.Health.Sentry.AuthToken != "" && cfg.Health.Sentry.Organization != "" && cfg.Health.Sentry.Project != "" {
+		sentryCheck := integrations.NewSentryCheck(integrations.SentryConfig{
+			BaseURL:        cfg.Health.Sentry.BaseURL,
+			AuthToken:      cfg.Health.Sentry.AuthToken,
+			Organization:   cfg.Health.Sentry.Organization,
+			Project:        cfg.Health.Sentry.Project,
+			ErrorThreshold: cfg.Health.Sentry.ErrorThreshold,
+		})
+		healthMonitor.AddCheck(sentryCheck)
+		healthCheckCount++
+		log.Printf("health: Sentry integration enabled (org=%s project=%s)", cfg.Health.Sentry.Organization, cfg.Health.Sentry.Project)
+	}
+
+	if healthCheckCount == 0 {
+		healthMonitor.AddCheck(&alwaysHealthyCheck{})
+		log.Printf("health: no integrations configured; using always-healthy sentinel")
+	}
 
 	go healthMonitor.Start(ctx)
 

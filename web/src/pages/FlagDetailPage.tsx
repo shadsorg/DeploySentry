@@ -4,6 +4,7 @@ import type { Flag, TargetingRule, OrgEnvironment, FlagEnvironmentState, RuleEnv
 import { flagsApi, entitiesApi, flagEnvStateApi, auditApi, rolloutPolicyApi } from '@/api';
 import type { Application } from '@/types';
 import { StrategyPicker } from '@/components/rollout/StrategyPicker';
+import { GroupPicker } from '@/components/rollout/GroupPicker';
 import { resolvePolicy } from '@/lib/policyResolver';
 
 function formatDate(iso: string): string {
@@ -148,6 +149,7 @@ export default function FlagDetailPage() {
   const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
   const [ruleStrategyName, setRuleStrategyName] = useState('');
   const [ruleImmediate, setRuleImmediate] = useState(true);
+  const [ruleGroupID, setRuleGroupID] = useState('');
   const [ruleSaveMsg, setRuleSaveMsg] = useState<string | null>(null);
   const [policies, setPolicies] = useState<RolloutPolicy[]>([]);
 
@@ -260,7 +262,7 @@ export default function FlagDetailPage() {
     try {
       const body: Partial<TargetingRule> & { rollout?: { strategy_name?: string; apply_immediately?: boolean } } = {};
       if (ruleStrategyName && !ruleImmediate) {
-        body.rollout = { strategy_name: ruleStrategyName };
+        body.rollout = { strategy_name: ruleStrategyName, ...(ruleGroupID ? { release_id: ruleGroupID } : {}) };
       } else if (ruleImmediate) {
         body.rollout = { apply_immediately: true };
       }
@@ -270,6 +272,7 @@ export default function FlagDetailPage() {
       setEditingRuleId(null);
       setRuleStrategyName('');
       setRuleImmediate(true);
+      setRuleGroupID('');
       setTimeout(() => setRuleSaveMsg(null), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update rule');
@@ -543,6 +546,7 @@ export default function FlagDetailPage() {
                             setEditingRuleId(rule.id);
                             setRuleStrategyName('');
                             setRuleImmediate(true);
+                            setRuleGroupID('');
                           }
                         }}
                       >
@@ -578,6 +582,12 @@ export default function FlagDetailPage() {
                               immediate={ruleImmediate}
                               onImmediateChange={setRuleImmediate}
                             />
+                            {!ruleImmediate && ruleStrategyName && (
+                              <div style={{ marginTop: 8 }}>
+                                <label className="form-label" style={{ fontSize: 13 }}>Rollout Group (optional)</label>
+                                <GroupPicker orgSlug={orgSlug} value={ruleGroupID} onChange={setRuleGroupID} />
+                              </div>
+                            )}
                             <button
                               className="btn btn-primary btn-sm"
                               style={{ marginTop: 8 }}

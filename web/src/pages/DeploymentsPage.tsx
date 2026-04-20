@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import type { Deployment, DeployStrategy, DeployStatus, OrgEnvironment, RolloutPolicy } from '@/types';
 import { entitiesApi, deploymentsApi, rolloutPolicyApi } from '@/api';
 import { StrategyPicker } from '@/components/rollout/StrategyPicker';
+import { GroupPicker } from '@/components/rollout/GroupPicker';
 import { resolvePolicy } from '@/lib/policyResolver';
 
 // ---------------------------------------------------------------------------
@@ -109,6 +110,7 @@ const DeploymentsPage: React.FC = () => {
   const [version, setVersion] = useState('');
   const [strategyName, setStrategyName] = useState('');
   const [applyImmediately, setApplyImmediately] = useState(false);
+  const [groupID, setGroupID] = useState('');
   const [envId, setEnvId] = useState('');
   const [environments, setEnvironments] = useState<OrgEnvironment[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -168,6 +170,7 @@ const DeploymentsPage: React.FC = () => {
     setVersion('');
     setStrategyName('');
     setApplyImmediately(false);
+    setGroupID('');
     setSubmitError(null);
     if (environments.length) setEnvId(environments[0].id);
     setCreating(true);
@@ -196,7 +199,7 @@ const DeploymentsPage: React.FC = () => {
         rollout: applyImmediately
           ? { apply_immediately: true }
           : strategyName
-          ? { strategy_name: strategyName }
+          ? { strategy_name: strategyName, ...(groupID ? { release_id: groupID } : {}) }
           : undefined,
       });
       setCreating(false);
@@ -307,6 +310,12 @@ const DeploymentsPage: React.FC = () => {
                 />
               )}
             </div>
+            {orgSlug && !applyImmediately && strategyName && (
+              <div className="form-group">
+                <label className="form-label">Rollout Group (optional)</label>
+                <GroupPicker orgSlug={orgSlug} value={groupID} onChange={setGroupID} />
+              </div>
+            )}
             {submitError && <p className="text-danger text-sm">{submitError}</p>}
             <div className="modal-actions">
               <button className="btn" onClick={() => setCreating(false)} disabled={submitting}>

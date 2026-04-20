@@ -414,6 +414,7 @@ func run() error {
 	})
 
 	rolloutExecSvc := rollout.NewRolloutService(rolloutRepo, rolloutPhaseRepo, rolloutEventRepo, nc)
+	rolloutExecSvc.SetApplicator(routerApp)
 	rollout.NewRolloutHandler(rolloutExecSvc).RegisterRoutes(api)
 
 	rolloutAttacher := rollout.NewAttacher(strategySvc, strategyDefaultSvc, rolloutPolicySvc, rolloutExecSvc)

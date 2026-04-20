@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/deploysentry/deploysentry/internal/rollout/applicator"
 	"github.com/google/uuid"
 )
 
@@ -224,5 +225,50 @@ func TestRolloutService_AttachConfig_RejectsIfRuleActive(t *testing.T) {
 	}
 	if _, err := svc.AttachConfig(context.Background(), ruleID, 0, snap, nil, nil); err == nil {
 		t.Fatalf("expected ErrAlreadyActiveOnTarget on second attach")
+	}
+}
+
+// fakeApplicator satisfies applicator.Applicator for rollback tests.
+type fakeApplicator struct {
+	revertCalls int
+	revertID    uuid.UUID
+}
+
+func (f *fakeApplicator) Apply(_ context.Context, _ *models.Rollout, _ models.Step) error {
+	return nil
+}
+func (f *fakeApplicator) Revert(_ context.Context, ro *models.Rollout) error {
+	f.revertCalls++
+	f.revertID = ro.ID
+	return nil
+}
+func (f *fakeApplicator) CurrentSignal(_ context.Context, _ *models.Rollout, _ *models.SignalSource) (applicator.HealthScore, error) {
+	return applicator.HealthScore{Score: 1.0}, nil
+}
+
+func TestRolloutService_Rollback_CallsRevert(t *testing.T) {
+	svc := newTestService()
+	fapp := &fakeApplicator{}
+	svc.SetApplicator(fapp)
+
+	snap := &models.Strategy{Name: "t", TargetType: models.TargetTypeDeploy, Steps: []models.Step{{Percent: 100}}, DefaultHealthThreshold: 0.95}
+	ro, _ := svc.AttachDeploy(context.Background(), uuid.New(), snap, nil, nil)
+	ro.Status = models.RolloutActive
+	if err := svc.Rollback(context.Background(), ro.ID, uuid.New(), "broken"); err != nil {
+		t.Fatal(err)
+	}
+	if fapp.revertCalls != 1 || fapp.revertID != ro.ID {
+		t.Fatalf("expected 1 revert call on rollout %v, got calls=%d id=%v", ro.ID, fapp.revertCalls, fapp.revertID)
+	}
+}
+
+func TestRolloutService_Rollback_NoApplicator_OK(t *testing.T) {
+	// Legacy path: no applicator set, rollback still works (state-only).
+	svc := newTestService()
+	snap := &models.Strategy{Name: "t", TargetType: models.TargetTypeDeploy, Steps: []models.Step{{Percent: 100}}, DefaultHealthThreshold: 0.95}
+	ro, _ := svc.AttachDeploy(context.Background(), uuid.New(), snap, nil, nil)
+	ro.Status = models.RolloutActive
+	if err := svc.Rollback(context.Background(), ro.ID, uuid.New(), "broken"); err != nil {
+		t.Fatalf("no-applicator rollback should succeed: %v", err)
 	}
 }

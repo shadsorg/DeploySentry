@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/deploysentry/deploysentry/internal/rollout/applicator"
 	"github.com/google/uuid"
 )
 
@@ -17,10 +18,18 @@ type Publisher interface {
 
 // RolloutService owns rollout creation and the 6 runtime controls.
 type RolloutService struct {
-	rollouts RolloutRepository
-	phases   RolloutPhaseRepository
-	events   RolloutEventRepository
-	pub      Publisher
+	rollouts   RolloutRepository
+	phases     RolloutPhaseRepository
+	events     RolloutEventRepository
+	pub        Publisher
+	applicator applicator.Applicator // optional; nil = state-only rollback
+}
+
+// SetApplicator injects the Applicator used to revert targets on manual rollback.
+// Must be called at wiring time. If nil (tests, etc.), Rollback falls back to
+// state-only updates (legacy behavior).
+func (s *RolloutService) SetApplicator(a applicator.Applicator) {
+	s.applicator = a
 }
 
 // NewRolloutService builds a RolloutService.
@@ -136,9 +145,25 @@ func (s *RolloutService) Rollback(ctx context.Context, id uuid.UUID, actorID uui
 	if reason == "" {
 		return ErrReasonRequired
 	}
-	return s.transition(ctx, id, actorID, reason, models.EventRollbackTriggered, models.RolloutRolledBack, func(cur models.RolloutStatus) bool {
+	// Capture the rollout before transition so we can revert via its target_ref.
+	ro, err := s.rollouts.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := s.transition(ctx, id, actorID, reason, models.EventRollbackTriggered, models.RolloutRolledBack, func(cur models.RolloutStatus) bool {
 		return cur == models.RolloutActive || cur == models.RolloutPaused || cur == models.RolloutAwaitingApproval
-	}, true)
+	}, true); err != nil {
+		return err
+	}
+	// Revert target state (traffic percent / rule percentage) if applicator available.
+	// Nil applicator is accepted for tests / legacy paths.
+	if s.applicator != nil {
+		if err := s.applicator.Revert(ctx, ro); err != nil {
+			// State already transitioned; surface revert error but don't try to unwind.
+			return fmt.Errorf("rollback state OK but revert failed: %w", err)
+		}
+	}
+	return nil
 }
 
 // transition is the single state-machine helper for all six runtime controls.

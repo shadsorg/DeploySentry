@@ -132,10 +132,12 @@ export const deploymentsApi = {
     request<{ deployments: Deployment[] }>(`/deployments?app_id=${applicationId}`),
   get: (id: string) => request<Deployment>(`/deployments/${id}`),
   create: (data: {
-    project_id: string;
+    application_id: string;
     environment_id: string;
+    artifact: string;
     version: string;
     strategy: string;
+    rollout?: { strategy_name?: string; apply_immediately?: boolean };
   }) => request<Deployment>('/deployments', { method: 'POST', body: JSON.stringify(data) }),
   promote: (id: string) => request<Deployment>(`/deployments/${id}/promote`, { method: 'POST' }),
   rollback: (id: string) => request<Deployment>(`/deployments/${id}/rollback`, { method: 'POST' }),

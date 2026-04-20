@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import type { Deployment, DeployStrategy, DeployStatus } from '@/types';
+import type { Deployment, DeployStrategy, DeployStatus, OrgEnvironment } from '@/types';
 import { entitiesApi, deploymentsApi } from '@/api';
+import { StrategyPicker } from '@/components/rollout/StrategyPicker';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -101,7 +102,18 @@ const DeploymentsPage: React.FC = () => {
   const [strategyFilter, setStrategyFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
-  useEffect(() => {
+  // Create modal state
+  const [creating, setCreating] = useState(false);
+  const [artifact, setArtifact] = useState('');
+  const [version, setVersion] = useState('');
+  const [strategyName, setStrategyName] = useState('');
+  const [applyImmediately, setApplyImmediately] = useState(false);
+  const [envId, setEnvId] = useState('');
+  const [environments, setEnvironments] = useState<OrgEnvironment[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
     if (!orgSlug || !projectSlug || !appSlug) {
       setLoading(false);
       return;
@@ -116,6 +128,62 @@ const DeploymentsPage: React.FC = () => {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [orgSlug, projectSlug, appSlug]);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Load org environments for the create form
+  useEffect(() => {
+    if (!orgSlug) return;
+    entitiesApi.listOrgEnvironments(orgSlug).then((r) => {
+      setEnvironments(r.environments ?? []);
+      if (r.environments?.length) setEnvId(r.environments[0].id);
+    }).catch(() => {});
+  }, [orgSlug]);
+
+  const openCreateModal = () => {
+    setArtifact('');
+    setVersion('');
+    setStrategyName('');
+    setApplyImmediately(false);
+    setSubmitError(null);
+    if (environments.length) setEnvId(environments[0].id);
+    setCreating(true);
+  };
+
+  const handleCreate = async () => {
+    if (!orgSlug || !projectSlug || !appSlug) return;
+    if (!artifact.trim() || !version.trim()) {
+      setSubmitError('Artifact and version are required.');
+      return;
+    }
+    if (!envId) {
+      setSubmitError('Select an environment.');
+      return;
+    }
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const app = await entitiesApi.getApp(orgSlug, projectSlug, appSlug);
+      await deploymentsApi.create({
+        application_id: app.id,
+        environment_id: envId,
+        artifact: artifact.trim(),
+        version: version.trim(),
+        strategy: applyImmediately ? 'rolling' : (strategyName || 'rolling'),
+        rollout: applyImmediately
+          ? { apply_immediately: true }
+          : strategyName
+          ? { strategy_name: strategyName }
+          : undefined,
+      });
+      setCreating(false);
+      load();
+    } catch (err: any) {
+      setSubmitError(err.message ?? 'Failed to create deployment.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const filtered = useMemo(() => {
     return deployments.filter((d) => {
@@ -152,8 +220,72 @@ const DeploymentsPage: React.FC = () => {
           <h1>{appName ? `${appName} — Deployments` : 'Deployments'}</h1>
           <p>Monitor and manage application deployments across environments</p>
         </div>
-        <button className="btn btn-primary">+ New Deployment</button>
+        <button className="btn btn-primary" onClick={openCreateModal}>+ New Deployment</button>
       </div>
+
+      {creating && (
+        <div className="modal-backdrop" onClick={() => setCreating(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>New Deployment</h3>
+            <div className="form-group">
+              <label className="form-label">Artifact URL / Version Ref</label>
+              <input
+                className="form-input"
+                type="text"
+                placeholder="e.g. gcr.io/my-project/app:v1.2.3"
+                value={artifact}
+                onChange={(e) => setArtifact(e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Version</label>
+              <input
+                className="form-input"
+                type="text"
+                placeholder="e.g. v1.2.3"
+                value={version}
+                onChange={(e) => setVersion(e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Environment</label>
+              <select
+                className="form-select"
+                value={envId}
+                onChange={(e) => setEnvId(e.target.value)}
+              >
+                {environments.length === 0 && <option value="">No environments found</option>}
+                {environments.map((env) => (
+                  <option key={env.id} value={env.id}>{env.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Rollout Strategy</label>
+              {orgSlug && (
+                <StrategyPicker
+                  orgSlug={orgSlug}
+                  targetType="deploy"
+                  value={strategyName}
+                  onChange={setStrategyName}
+                  allowImmediate
+                  immediate={applyImmediately}
+                  onImmediateChange={setApplyImmediately}
+                />
+              )}
+            </div>
+            {submitError && <p className="text-danger text-sm">{submitError}</p>}
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setCreating(false)} disabled={submitting}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={handleCreate} disabled={submitting}>
+                {submitting ? 'Creating…' : 'Create Deployment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filter bar */}
       <div className="filter-bar">

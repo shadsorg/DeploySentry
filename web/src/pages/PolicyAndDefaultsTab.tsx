@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
-import type { RolloutPolicy, StrategyDefault, PolicyKind, TargetType, EffectiveStrategy } from '@/types';
+import type {
+  RolloutPolicy,
+  StrategyDefault,
+  PolicyKind,
+  TargetType,
+  EffectiveStrategy,
+} from '@/types';
 import { rolloutPolicyApi, strategyDefaultsApi, strategiesApi } from '@/api';
 
 interface Props {
@@ -35,7 +41,9 @@ export default function PolicyAndDefaultsTab({ orgSlug }: Props) {
     }
   }
 
-  useEffect(() => { load(); }, [orgSlug]);
+  useEffect(() => {
+    load();
+  }, [orgSlug]);
 
   async function saveTopPolicy() {
     await rolloutPolicyApi.set(orgSlug, { enabled: topEnabled, policy: topPolicy });
@@ -65,10 +73,16 @@ export default function PolicyAndDefaultsTab({ orgSlug }: Props) {
             value={topPolicy}
             onChange={(e) => setTopPolicy(e.target.value as PolicyKind)}
           >
-            {POLICIES.map((p) => <option key={p} value={p}>{p}</option>)}
+            {POLICIES.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
           </select>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={saveTopPolicy}>Save</button>
+        <button className="btn btn-primary btn-sm" onClick={saveTopPolicy}>
+          Save
+        </button>
       </div>
 
       <div className="card">
@@ -141,7 +155,15 @@ export default function PolicyAndDefaultsTab({ orgSlug }: Props) {
   );
 }
 
-function DefaultRowEditor({ orgSlug, strategies, onSaved }: { orgSlug: string; strategies: EffectiveStrategy[]; onSaved: () => void }) {
+function DefaultRowEditor({
+  orgSlug,
+  strategies,
+  onSaved,
+}: {
+  orgSlug: string;
+  strategies: EffectiveStrategy[];
+  onSaved: () => void;
+}) {
   const [env, setEnv] = useState('');
   const [target, setTarget] = useState<TargetType | ''>('');
   const [strategyName, setStrategyName] = useState('');
@@ -153,7 +175,9 @@ function DefaultRowEditor({ orgSlug, strategies, onSaved }: { orgSlug: string; s
       target_type: (target || undefined) as TargetType | undefined,
       strategy_name: strategyName,
     });
-    setEnv(''); setTarget(''); setStrategyName('');
+    setEnv('');
+    setTarget('');
+    setStrategyName('');
     onSaved();
   }
 
@@ -179,7 +203,11 @@ function DefaultRowEditor({ orgSlug, strategies, onSaved }: { orgSlug: string; s
           onChange={(e) => setTarget(e.target.value as TargetType | '')}
         >
           <option value="">(any)</option>
-          {TARGETS.map((t) => <option key={t} value={t}>{t}</option>)}
+          {TARGETS.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
         </select>
       </div>
       <div className="form-group">
@@ -191,11 +219,15 @@ function DefaultRowEditor({ orgSlug, strategies, onSaved }: { orgSlug: string; s
         >
           <option value="">— pick —</option>
           {strategies.map((s) => (
-            <option key={s.strategy.id} value={s.strategy.name}>{s.strategy.name}</option>
+            <option key={s.strategy.id} value={s.strategy.name}>
+              {s.strategy.name}
+            </option>
           ))}
         </select>
       </div>
-      <button className="btn btn-primary btn-sm" onClick={save} disabled={!strategyName}>Save</button>
+      <button className="btn btn-primary btn-sm" onClick={save} disabled={!strategyName}>
+        Save
+      </button>
     </div>
   );
 }

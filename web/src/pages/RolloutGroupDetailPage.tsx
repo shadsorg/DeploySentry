@@ -23,7 +23,9 @@ export default function RolloutGroupDetailPage() {
     }
   }, [orgSlug, id]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function savePolicy(next: CoordinationPolicy) {
     if (!group) return;
@@ -40,8 +42,18 @@ export default function RolloutGroupDetailPage() {
     }
   }
 
-  if (loading) return <div className="page"><p>Loading…</p></div>;
-  if (!group) return <div className="page"><p>Group not found.</p></div>;
+  if (loading)
+    return (
+      <div className="page">
+        <p>Loading…</p>
+      </div>
+    );
+  if (!group)
+    return (
+      <div className="page">
+        <p>Group not found.</p>
+      </div>
+    );
 
   return (
     <div className="page">
@@ -52,15 +64,19 @@ export default function RolloutGroupDetailPage() {
       <section className="card">
         <p>{group.description || <em>No description.</em>}</p>
         <p>
-          Coordination: <strong>{group.coordination_policy}</strong>
-          {' '}<button onClick={() => setEditing(!editing)}>Edit</button>
+          Coordination: <strong>{group.coordination_policy}</strong>{' '}
+          <button onClick={() => setEditing(!editing)}>Edit</button>
         </p>
         {editing && (
           <select
             defaultValue={group.coordination_policy}
             onChange={(e) => savePolicy(e.target.value as CoordinationPolicy)}
           >
-            {POLICIES.map((p) => <option key={p} value={p}>{p}</option>)}
+            {POLICIES.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
           </select>
         )}
       </section>
@@ -72,14 +88,22 @@ export default function RolloutGroupDetailPage() {
         ) : (
           <table className="data-table">
             <thead>
-              <tr><th>ID</th><th>Target</th><th>Status</th></tr>
+              <tr>
+                <th>ID</th>
+                <th>Target</th>
+                <th>Status</th>
+              </tr>
             </thead>
             <tbody>
               {members.map((r) => (
                 <tr key={r.id}>
-                  <td><Link to={`/orgs/${orgSlug}/rollouts/${r.id}`}>{r.id.slice(0, 8)}</Link></td>
+                  <td>
+                    <Link to={`/orgs/${orgSlug}/rollouts/${r.id}`}>{r.id.slice(0, 8)}</Link>
+                  </td>
                   <td>{r.target_type}</td>
-                  <td><RolloutStatusBadge status={r.status} /></td>
+                  <td>
+                    <RolloutStatusBadge status={r.status} />
+                  </td>
                 </tr>
               ))}
             </tbody>

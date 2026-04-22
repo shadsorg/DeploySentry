@@ -12,15 +12,26 @@ interface Props {
   onImmediateChange: (v: boolean) => void;
 }
 
-export function StrategyPicker({ orgSlug, targetType, value, onChange, allowImmediate, immediate, onImmediateChange }: Props) {
+export function StrategyPicker({
+  orgSlug,
+  targetType,
+  value,
+  onChange,
+  allowImmediate,
+  immediate,
+  onImmediateChange,
+}: Props) {
   const [options, setOptions] = useState<EffectiveStrategy[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    strategiesApi.list(orgSlug)
+    strategiesApi
+      .list(orgSlug)
       .then((r) => {
         const filtered = targetType
-          ? r.items.filter((e) => e.strategy.target_type === targetType || e.strategy.target_type === 'any')
+          ? r.items.filter(
+              (e) => e.strategy.target_type === targetType || e.strategy.target_type === 'any',
+            )
           : r.items;
         setOptions(filtered);
       })

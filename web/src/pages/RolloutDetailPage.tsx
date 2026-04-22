@@ -33,7 +33,9 @@ export default function RolloutDetailPage() {
     }
   }, [orgSlug, id]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // Replace polling with SSE for live rollout updates.
   useEffect(() => {
@@ -43,22 +45,38 @@ export default function RolloutDetailPage() {
     const es = new EventSource(withAuth);
 
     es.addEventListener('snapshot', (e) => {
-      try { setRollout(JSON.parse((e as MessageEvent).data)); } catch { /* ignore */ }
+      try {
+        setRollout(JSON.parse((e as MessageEvent).data));
+      } catch {
+        /* ignore */
+      }
     });
     es.addEventListener('update', (e) => {
-      try { setRollout(JSON.parse((e as MessageEvent).data)); } catch { /* ignore */ }
+      try {
+        setRollout(JSON.parse((e as MessageEvent).data));
+      } catch {
+        /* ignore */
+      }
     });
     es.addEventListener('event', (e) => {
       try {
         const ev = JSON.parse((e as MessageEvent).data);
         setEvents((prev) => [ev, ...prev]);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     });
     es.addEventListener('done', (e) => {
-      try { setRollout(JSON.parse((e as MessageEvent).data)); } catch { /* ignore */ }
+      try {
+        setRollout(JSON.parse((e as MessageEvent).data));
+      } catch {
+        /* ignore */
+      }
       es.close();
     });
-    es.onerror = () => { /* browser auto-reconnects */ };
+    es.onerror = () => {
+      /* browser auto-reconnects */
+    };
 
     return () => es.close();
   }, [orgSlug, id]);
@@ -75,9 +93,24 @@ export default function RolloutDetailPage() {
     }
   }
 
-  if (loading) return <div className="page"><p>Loading…</p></div>;
-  if (error) return <div className="page"><p className="error">{error}</p></div>;
-  if (!rollout) return <div className="page"><p>Rollout not found.</p></div>;
+  if (loading)
+    return (
+      <div className="page">
+        <p>Loading…</p>
+      </div>
+    );
+  if (error)
+    return (
+      <div className="page">
+        <p className="error">{error}</p>
+      </div>
+    );
+  if (!rollout)
+    return (
+      <div className="page">
+        <p>Rollout not found.</p>
+      </div>
+    );
 
   const canAct = !['succeeded', 'rolled_back', 'aborted', 'superseded'].includes(rollout.status);
 
@@ -93,8 +126,12 @@ export default function RolloutDetailPage() {
       <section className="card">
         <h3>Strategy: {rollout.strategy_snapshot.name}</h3>
         <p>Target type: {rollout.target_type}</p>
-        <p>Phase: {rollout.current_phase_index + 1} / {rollout.strategy_snapshot.steps.length}</p>
-        {rollout.rollback_reason && <p className="error">Rollback reason: {rollout.rollback_reason}</p>}
+        <p>
+          Phase: {rollout.current_phase_index + 1} / {rollout.strategy_snapshot.steps.length}
+        </p>
+        {rollout.rollback_reason && (
+          <p className="error">Rollback reason: {rollout.rollback_reason}</p>
+        )}
         <PhaseTimeline rollout={rollout} />
       </section>
 
@@ -154,7 +191,10 @@ export default function RolloutDetailPage() {
               <li key={ev.id}>
                 <span className="event-time">{new Date(ev.occurred_at).toLocaleString()}</span>
                 <span className="event-type">{ev.event_type}</span>
-                <span className="event-actor">{ev.actor_type}{ev.actor_id ? ` · ${ev.actor_id.slice(0, 8)}` : ''}</span>
+                <span className="event-actor">
+                  {ev.actor_type}
+                  {ev.actor_id ? ` · ${ev.actor_id.slice(0, 8)}` : ''}
+                </span>
                 {ev.reason && <span className="event-reason">"{ev.reason}"</span>}
               </li>
             ))}
@@ -181,7 +221,9 @@ export default function RolloutDetailPage() {
           required
           onConfirm={async (reason) => {
             setReasonModal(null);
-            await runAction('force-promote', () => rolloutsApi.forcePromote(orgSlug, rollout.id, reason));
+            await runAction('force-promote', () =>
+              rolloutsApi.forcePromote(orgSlug, rollout.id, reason),
+            );
           }}
           onCancel={() => setReasonModal(null)}
         />

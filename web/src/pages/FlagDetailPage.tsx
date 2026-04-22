@@ -1,6 +1,15 @@
 import { useState, useEffect, Fragment } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import type { Flag, TargetingRule, OrgEnvironment, FlagEnvironmentState, RuleEnvironmentState, FlagCategory, AuditLogEntry, RolloutPolicy } from '@/types';
+import type {
+  Flag,
+  TargetingRule,
+  OrgEnvironment,
+  FlagEnvironmentState,
+  RuleEnvironmentState,
+  FlagCategory,
+  AuditLogEntry,
+  RolloutPolicy,
+} from '@/types';
 import { flagsApi, entitiesApi, flagEnvStateApi, auditApi, rolloutPolicyApi } from '@/api';
 import type { Application } from '@/types';
 import { StrategyPicker } from '@/components/rollout/StrategyPicker';
@@ -31,20 +40,34 @@ function getAppNameById(appId: string, apps: Application[]): string {
 
 function describeAction(entry: AuditLogEntry): string {
   switch (entry.action) {
-    case 'flag.created': return 'Created flag';
-    case 'flag.updated': return 'Updated flag settings';
-    case 'flag.toggled': return 'Toggled flag';
-    case 'flag.archived': return 'Archived flag';
-    case 'flag.env_state.updated': return 'Updated environment state';
-    case 'flag.rule.created': return 'Added targeting rule';
-    case 'flag.rule.deleted': return 'Deleted targeting rule';
-    case 'flag.rule.env_state.updated': return 'Updated rule environment state';
-    case 'flag.smoke_test.recorded': return 'Smoke test recorded';
-    case 'flag.user_test.recorded': return 'User test recorded';
-    case 'flag.scheduled_for_removal.set': return 'Scheduled for removal';
-    case 'flag.scheduled_for_removal.cancelled': return 'Removal cancelled';
-    case 'flag.iteration_exhausted': return 'Iteration exhausted';
-    default: return entry.action;
+    case 'flag.created':
+      return 'Created flag';
+    case 'flag.updated':
+      return 'Updated flag settings';
+    case 'flag.toggled':
+      return 'Toggled flag';
+    case 'flag.archived':
+      return 'Archived flag';
+    case 'flag.env_state.updated':
+      return 'Updated environment state';
+    case 'flag.rule.created':
+      return 'Added targeting rule';
+    case 'flag.rule.deleted':
+      return 'Deleted targeting rule';
+    case 'flag.rule.env_state.updated':
+      return 'Updated rule environment state';
+    case 'flag.smoke_test.recorded':
+      return 'Smoke test recorded';
+    case 'flag.user_test.recorded':
+      return 'User test recorded';
+    case 'flag.scheduled_for_removal.set':
+      return 'Scheduled for removal';
+    case 'flag.scheduled_for_removal.cancelled':
+      return 'Removal cancelled';
+    case 'flag.iteration_exhausted':
+      return 'Iteration exhausted';
+    default:
+      return entry.action;
   }
 }
 
@@ -60,10 +83,14 @@ function formatCountdown(targetIso: string): string {
 
 function statusPillClass(status?: string | null): string {
   switch (status) {
-    case 'pass': return 'badge-success';
-    case 'fail': return 'badge-error';
-    case 'pending': return 'badge-warning';
-    default: return 'badge-neutral';
+    case 'pass':
+      return 'badge-success';
+    case 'fail':
+      return 'badge-error';
+    case 'pending':
+      return 'badge-warning';
+    default:
+      return 'badge-neutral';
   }
 }
 
@@ -94,7 +121,9 @@ function generateFlagYaml(
     for (const rule of rules) {
       lines.push(`    - attribute: ${rule.attribute}`);
       lines.push(`      operator: ${rule.operator}`);
-      lines.push(`      target_values: [${(rule.target_values ?? []).map((v) => `"${v}"`).join(', ')}]`);
+      lines.push(
+        `      target_values: [${(rule.target_values ?? []).map((v) => `"${v}"`).join(', ')}]`,
+      );
       lines.push(`      value: "${rule.value}"`);
       lines.push(`      priority: ${rule.priority}`);
       lines.push(`      environments:`);
@@ -118,7 +147,9 @@ export default function FlagDetailPage() {
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'environments' | 'rules' | 'yaml' | 'settings' | 'history' | 'lifecycle'>('environments');
+  const [activeTab, setActiveTab] = useState<
+    'environments' | 'rules' | 'yaml' | 'settings' | 'history' | 'lifecycle'
+  >('environments');
   const [environments, setEnvironments] = useState<OrgEnvironment[]>([]);
   const [envStates, setEnvStates] = useState<FlagEnvironmentState[]>([]);
   const [ruleEnvStates, setRuleEnvStates] = useState<RuleEnvironmentState[]>([]);
@@ -183,7 +214,8 @@ export default function FlagDetailPage() {
       .list(id)
       .then((res) => setEnvStates(res.environment_states ?? []))
       .catch(() => {});
-    flagsApi.listRuleEnvStates(id)
+    flagsApi
+      .listRuleEnvStates(id)
       .then((res) => setRuleEnvStates(res.rule_environment_states ?? []))
       .catch(() => {});
   }, [orgSlug, id]);
@@ -204,7 +236,10 @@ export default function FlagDetailPage() {
 
   useEffect(() => {
     if (activeTab !== 'rules' || !orgSlug) return;
-    rolloutPolicyApi.list(orgSlug).then((r) => setPolicies(r.items ?? [])).catch(() => {});
+    rolloutPolicyApi
+      .list(orgSlug)
+      .then((r) => setPolicies(r.items ?? []))
+      .catch(() => {});
   }, [activeTab, orgSlug]);
 
   useEffect(() => {
@@ -227,7 +262,10 @@ export default function FlagDetailPage() {
     if (!id || !newRule.attribute || !newRule.value) return;
     try {
       const targetValues = ['in', 'not_in'].includes(newRule.operator)
-        ? newRule.target_values.split(',').map((s) => s.trim()).filter(Boolean)
+        ? newRule.target_values
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
         : [newRule.target_values.trim()];
       await flagsApi.addRule(id, {
         rule_type: 'attribute',
@@ -240,7 +278,13 @@ export default function FlagDetailPage() {
       const res = await flagsApi.listRules(id);
       setRules(res.rules ?? []);
       setShowAddRule(false);
-      setNewRule({ attribute: '', operator: 'equals', target_values: '', value: '', priority: (res.rules?.length ?? 0) + 1 });
+      setNewRule({
+        attribute: '',
+        operator: 'equals',
+        target_values: '',
+        value: '',
+        priority: (res.rules?.length ?? 0) + 1,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add rule');
     }
@@ -260,9 +304,14 @@ export default function FlagDetailPage() {
   const handleUpdateRule = async (ruleId: string) => {
     if (!id) return;
     try {
-      const body: Partial<TargetingRule> & { rollout?: { strategy_name?: string; apply_immediately?: boolean } } = {};
+      const body: Partial<TargetingRule> & {
+        rollout?: { strategy_name?: string; apply_immediately?: boolean };
+      } = {};
       if (ruleStrategyName && !ruleImmediate) {
-        body.rollout = { strategy_name: ruleStrategyName, ...(ruleGroupID ? { release_id: ruleGroupID } : {}) };
+        body.rollout = {
+          strategy_name: ruleStrategyName,
+          ...(ruleGroupID ? { release_id: ruleGroupID } : {}),
+        };
       } else if (ruleImmediate) {
         body.rollout = { apply_immediately: true };
       }
@@ -289,15 +338,31 @@ export default function FlagDetailPage() {
     setRuleEnvStates((prev) => {
       const existing = prev.find((s) => s.rule_id === ruleId && s.environment_id === envId);
       if (existing) {
-        return prev.map((s) => s.rule_id === ruleId && s.environment_id === envId ? { ...s, enabled: nextEnabled } : s);
+        return prev.map((s) =>
+          s.rule_id === ruleId && s.environment_id === envId ? { ...s, enabled: nextEnabled } : s,
+        );
       }
-      return [...prev, { id: '', rule_id: ruleId, environment_id: envId, enabled: nextEnabled, created_at: '', updated_at: '' }];
+      return [
+        ...prev,
+        {
+          id: '',
+          rule_id: ruleId,
+          environment_id: envId,
+          enabled: nextEnabled,
+          created_at: '',
+          updated_at: '',
+        },
+      ];
     });
     try {
       await flagsApi.setRuleEnvState(id, ruleId, envId, { enabled: nextEnabled });
     } catch (err) {
       setRuleEnvStates((prev) =>
-        prev.map((s) => s.rule_id === ruleId && s.environment_id === envId ? { ...s, enabled: currentEnabled } : s),
+        prev.map((s) =>
+          s.rule_id === ruleId && s.environment_id === envId
+            ? { ...s, enabled: currentEnabled }
+            : s,
+        ),
       );
       setError(err instanceof Error ? err.message : 'Failed to toggle rule');
     }
@@ -324,7 +389,18 @@ export default function FlagDetailPage() {
       if (existing) {
         return states.map((s) => (s.environment_id === envId ? { ...s, ...next } : s));
       }
-      return [...states, { id: '', flag_id: flag.id, environment_id: envId, enabled: next.enabled, value: next.value, updated_by: '', updated_at: '' } as FlagEnvironmentState];
+      return [
+        ...states,
+        {
+          id: '',
+          flag_id: flag.id,
+          environment_id: envId,
+          enabled: next.enabled,
+          value: next.value,
+          updated_by: '',
+          updated_at: '',
+        } as FlagEnvironmentState,
+      ];
     });
     try {
       await flagEnvStateApi.set(flag.id, envId, next);
@@ -360,9 +436,16 @@ export default function FlagDetailPage() {
         description: settingsForm.description,
         category: settingsForm.category as FlagCategory,
         purpose: settingsForm.purpose,
-        owners: settingsForm.owners.split(',').map((s) => s.trim()).filter(Boolean),
+        owners: settingsForm.owners
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
         is_permanent: settingsForm.is_permanent,
-        expires_at: settingsForm.is_permanent ? undefined : settingsForm.expires_at ? settingsForm.expires_at + ':00Z' : undefined,
+        expires_at: settingsForm.is_permanent
+          ? undefined
+          : settingsForm.expires_at
+            ? settingsForm.expires_at + ':00Z'
+            : undefined,
         default_value: settingsForm.default_value,
       });
       setFlag(updated);
@@ -466,23 +549,50 @@ export default function FlagDetailPage() {
       {/* Tab: Targeting Rules */}
       {activeTab === 'rules' && (
         <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <span>{rules.length} rule{rules.length !== 1 ? 's' : ''}</span>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '1rem',
+            }}
+          >
+            <span>
+              {rules.length} rule{rules.length !== 1 ? 's' : ''}
+            </span>
             <button className="btn btn-secondary" onClick={() => setShowAddRule(!showAddRule)}>
               {showAddRule ? 'Cancel' : 'Add Rule'}
             </button>
           </div>
 
           {showAddRule && (
-            <div style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 6, padding: 16, marginBottom: 16 }}>
+            <div
+              style={{
+                background: 'var(--color-bg-secondary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 6,
+                padding: 16,
+                marginBottom: 16,
+              }}
+            >
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Attribute</label>
-                  <input className="form-input" type="text" placeholder="e.g. userType" value={newRule.attribute} onChange={(e) => setNewRule({ ...newRule, attribute: e.target.value })} />
+                  <input
+                    className="form-input"
+                    type="text"
+                    placeholder="e.g. userType"
+                    value={newRule.attribute}
+                    onChange={(e) => setNewRule({ ...newRule, attribute: e.target.value })}
+                  />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Operator</label>
-                  <select className="form-select" value={newRule.operator} onChange={(e) => setNewRule({ ...newRule, operator: e.target.value })}>
+                  <select
+                    className="form-select"
+                    value={newRule.operator}
+                    onChange={(e) => setNewRule({ ...newRule, operator: e.target.value })}
+                  >
                     <option value="equals">equals</option>
                     <option value="not_equals">not equals</option>
                     <option value="in">in</option>
@@ -498,25 +608,62 @@ export default function FlagDetailPage() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label">Target Value(s)</label>
-                  <input className="form-input" type="text" placeholder={['in', 'not_in'].includes(newRule.operator) ? 'comma-separated values' : 'value'} value={newRule.target_values} onChange={(e) => setNewRule({ ...newRule, target_values: e.target.value })} />
+                  <input
+                    className="form-input"
+                    type="text"
+                    placeholder={
+                      ['in', 'not_in'].includes(newRule.operator)
+                        ? 'comma-separated values'
+                        : 'value'
+                    }
+                    value={newRule.target_values}
+                    onChange={(e) => setNewRule({ ...newRule, target_values: e.target.value })}
+                  />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Serve Value</label>
-                  <input className="form-input" type="text" placeholder="e.g. true" value={newRule.value} onChange={(e) => setNewRule({ ...newRule, value: e.target.value })} />
+                  <input
+                    className="form-input"
+                    type="text"
+                    placeholder="e.g. true"
+                    value={newRule.value}
+                    onChange={(e) => setNewRule({ ...newRule, value: e.target.value })}
+                  />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Priority</label>
-                  <input className="form-input" type="number" min={1} value={newRule.priority} onChange={(e) => setNewRule({ ...newRule, priority: parseInt(e.target.value) || 1 })} />
+                  <input
+                    className="form-input"
+                    type="number"
+                    min={1}
+                    value={newRule.priority}
+                    onChange={(e) =>
+                      setNewRule({ ...newRule, priority: parseInt(e.target.value) || 1 })
+                    }
+                  />
                 </div>
               </div>
-              <button className="btn btn-primary" onClick={handleAddRule} disabled={!newRule.attribute || !newRule.value}>
+              <button
+                className="btn btn-primary"
+                onClick={handleAddRule}
+                disabled={!newRule.attribute || !newRule.value}
+              >
                 Create Rule
               </button>
             </div>
           )}
 
           {ruleSaveMsg && (
-            <div style={{ marginBottom: 12, padding: '8px 12px', background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 4, color: 'var(--color-success)' }}>
+            <div
+              style={{
+                marginBottom: 12,
+                padding: '8px 12px',
+                background: 'var(--color-bg-secondary)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 4,
+                color: 'var(--color-success)',
+              }}
+            >
               {ruleSaveMsg}
             </div>
           )}
@@ -534,7 +681,9 @@ export default function FlagDetailPage() {
                 <Fragment key={rule.id}>
                   <tr>
                     <td>{rule.priority}</td>
-                    <td>{rule.attribute} {rule.operator} {(rule.target_values ?? []).join(', ')}</td>
+                    <td>
+                      {rule.attribute} {rule.operator} {(rule.target_values ?? []).join(', ')}
+                    </td>
                     <td className="font-mono">{rule.value}</td>
                     <td style={{ display: 'flex', gap: 6 }}>
                       <button
@@ -552,59 +701,86 @@ export default function FlagDetailPage() {
                       >
                         {editingRuleId === rule.id ? 'Cancel' : 'Edit'}
                       </button>
-                      <button className="btn btn-sm btn-danger" onClick={() => handleDeleteRule(rule.id)}>Delete</button>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => handleDeleteRule(rule.id)}
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
-                  {editingRuleId === rule.id && orgSlug && (() => {
-                    const flagEnvName = environments.find((e) => e.id === flag?.environment_id)?.name;
-                    const eff = resolvePolicy(policies, flagEnvName, 'config');
-                    const ruleBlocked = eff.enabled && eff.policy === 'mandate' && !ruleStrategyName && !ruleImmediate;
-                    return (
-                      <tr>
-                        <td colSpan={4}>
-                          <div style={{ padding: '12px 0' }}>
-                            {eff.enabled && eff.policy === 'mandate' && (
-                              <p className="helper-text" style={{ color: 'var(--color-danger)', marginBottom: 6 }}>
-                                Strategy required for this scope.
-                              </p>
-                            )}
-                            {eff.enabled && eff.policy === 'prompt' && (
-                              <p className="helper-text" style={{ marginBottom: 6 }}>
-                                Strategy recommended; uncheck &ldquo;apply immediately&rdquo; to attach one.
-                              </p>
-                            )}
-                            <StrategyPicker
-                              orgSlug={orgSlug}
-                              targetType="config"
-                              value={ruleStrategyName}
-                              onChange={setRuleStrategyName}
-                              allowImmediate={eff.policy !== 'mandate' || !eff.enabled}
-                              immediate={ruleImmediate}
-                              onImmediateChange={setRuleImmediate}
-                            />
-                            {!ruleImmediate && ruleStrategyName && (
-                              <div style={{ marginTop: 8 }}>
-                                <label className="form-label" style={{ fontSize: 13 }}>Rollout Group (optional)</label>
-                                <GroupPicker orgSlug={orgSlug} value={ruleGroupID} onChange={setRuleGroupID} />
-                              </div>
-                            )}
-                            <button
-                              className="btn btn-primary btn-sm"
-                              style={{ marginTop: 8 }}
-                              onClick={() => handleUpdateRule(rule.id)}
-                              disabled={ruleBlocked}
-                            >
-                              Save
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })()}
+                  {editingRuleId === rule.id &&
+                    orgSlug &&
+                    (() => {
+                      const flagEnvName = environments.find(
+                        (e) => e.id === flag?.environment_id,
+                      )?.name;
+                      const eff = resolvePolicy(policies, flagEnvName, 'config');
+                      const ruleBlocked =
+                        eff.enabled &&
+                        eff.policy === 'mandate' &&
+                        !ruleStrategyName &&
+                        !ruleImmediate;
+                      return (
+                        <tr>
+                          <td colSpan={4}>
+                            <div style={{ padding: '12px 0' }}>
+                              {eff.enabled && eff.policy === 'mandate' && (
+                                <p
+                                  className="helper-text"
+                                  style={{ color: 'var(--color-danger)', marginBottom: 6 }}
+                                >
+                                  Strategy required for this scope.
+                                </p>
+                              )}
+                              {eff.enabled && eff.policy === 'prompt' && (
+                                <p className="helper-text" style={{ marginBottom: 6 }}>
+                                  Strategy recommended; uncheck &ldquo;apply immediately&rdquo; to
+                                  attach one.
+                                </p>
+                              )}
+                              <StrategyPicker
+                                orgSlug={orgSlug}
+                                targetType="config"
+                                value={ruleStrategyName}
+                                onChange={setRuleStrategyName}
+                                allowImmediate={eff.policy !== 'mandate' || !eff.enabled}
+                                immediate={ruleImmediate}
+                                onImmediateChange={setRuleImmediate}
+                              />
+                              {!ruleImmediate && ruleStrategyName && (
+                                <div style={{ marginTop: 8 }}>
+                                  <label className="form-label" style={{ fontSize: 13 }}>
+                                    Rollout Group (optional)
+                                  </label>
+                                  <GroupPicker
+                                    orgSlug={orgSlug}
+                                    value={ruleGroupID}
+                                    onChange={setRuleGroupID}
+                                  />
+                                </div>
+                              )}
+                              <button
+                                className="btn btn-primary btn-sm"
+                                style={{ marginTop: 8 }}
+                                onClick={() => handleUpdateRule(rule.id)}
+                                disabled={ruleBlocked}
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })()}
                 </Fragment>
               ))}
               {rules.length === 0 && (
-                <tr><td colSpan={4} style={{ textAlign: 'center' }}>No targeting rules defined.</td></tr>
+                <tr>
+                  <td colSpan={4} style={{ textAlign: 'center' }}>
+                    No targeting rules defined.
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -625,17 +801,40 @@ export default function FlagDetailPage() {
                 const isEnabled = state?.enabled ?? false;
                 const isExpanded = expandedEnvs.has(env.id);
                 return (
-                  <div key={env.id} style={{ borderBottom: '1px solid var(--color-border)', paddingBottom: 12, marginBottom: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div
+                    key={env.id}
+                    style={{
+                      borderBottom: '1px solid var(--color-border)',
+                      paddingBottom: 12,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <button
                           onClick={() => toggleEnvAccordion(env.id)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text)', fontSize: 14 }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--color-text)',
+                            fontSize: 14,
+                          }}
                         >
                           {isExpanded ? '\u25be' : '\u25b8'}
                         </button>
                         <strong>{env.name}</strong>
-                        {env.is_production && <span className="badge badge-enabled" style={{ fontSize: 11 }}>production</span>}
+                        {env.is_production && (
+                          <span className="badge badge-enabled" style={{ fontSize: 11 }}>
+                            production
+                          </span>
+                        )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                         {flag.flag_type === 'boolean' ? (
@@ -656,12 +855,20 @@ export default function FlagDetailPage() {
                             onBlur={(e) => handleEnvValueChange(env.id, e.target.value)}
                             onChange={(e) => {
                               const v = e.target.value;
-                              setEnvStates((s) => s.map((st) => st.environment_id === env.id ? { ...st, value: v } : st));
+                              setEnvStates((s) =>
+                                s.map((st) =>
+                                  st.environment_id === env.id ? { ...st, value: v } : st,
+                                ),
+                              );
                             }}
                           />
                         )}
                         <label className="toggle-switch">
-                          <input type="checkbox" checked={isEnabled} onChange={() => handleEnvToggle(env.id, isEnabled)} />
+                          <input
+                            type="checkbox"
+                            checked={isEnabled}
+                            onChange={() => handleEnvToggle(env.id, isEnabled)}
+                          />
                           <span className="toggle-track"></span>
                         </label>
                       </div>
@@ -670,7 +877,9 @@ export default function FlagDetailPage() {
                     {isExpanded && (
                       <div style={{ marginLeft: 28, marginTop: 8 }}>
                         {rules.length === 0 ? (
-                          <p className="text-muted" style={{ fontSize: 13 }}>No targeting rules defined.</p>
+                          <p className="text-muted" style={{ fontSize: 13 }}>
+                            No targeting rules defined.
+                          </p>
                         ) : (
                           <table style={{ fontSize: 13 }}>
                             <thead>
@@ -688,14 +897,19 @@ export default function FlagDetailPage() {
                                 const ruleEnabled = ruleState?.enabled ?? false;
                                 return (
                                   <tr key={rule.id}>
-                                    <td>{rule.attribute} {rule.operator} {(rule.target_values ?? []).join(', ')}</td>
+                                    <td>
+                                      {rule.attribute} {rule.operator}{' '}
+                                      {(rule.target_values ?? []).join(', ')}
+                                    </td>
                                     <td className="font-mono">{rule.value}</td>
                                     <td>
                                       <label className="toggle-switch">
                                         <input
                                           type="checkbox"
                                           checked={ruleEnabled}
-                                          onChange={() => handleRuleEnvToggle(rule.id, env.id, ruleEnabled)}
+                                          onChange={() =>
+                                            handleRuleEnvToggle(rule.id, env.id, ruleEnabled)
+                                          }
                                         />
                                         <span className="toggle-track"></span>
                                       </label>
@@ -720,17 +934,20 @@ export default function FlagDetailPage() {
       {activeTab === 'yaml' && flag && (
         <div className="card">
           <p className="text-muted" style={{ marginBottom: 12, fontSize: 13 }}>
-            Read-only preview of this flag's configuration. Use the project-level export for the full file.
+            Read-only preview of this flag's configuration. Use the project-level export for the
+            full file.
           </p>
-          <pre style={{
-            background: 'var(--color-bg-secondary)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 6,
-            padding: 16,
-            fontSize: 13,
-            overflow: 'auto',
-            maxHeight: 500,
-          }}>
+          <pre
+            style={{
+              background: 'var(--color-bg-secondary)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 6,
+              padding: 16,
+              fontSize: 13,
+              overflow: 'auto',
+              maxHeight: 500,
+            }}
+          >
             {generateFlagYaml(flag, rules, environments, envStates, ruleEnvStates)}
           </pre>
         </div>
@@ -741,19 +958,29 @@ export default function FlagDetailPage() {
         <div className="card">
           <div className="form-group">
             <label className="form-label">Name</label>
-            <input className="form-input" value={settingsForm.name}
-              onChange={(e) => setSettingsForm({ ...settingsForm, name: e.target.value })} />
+            <input
+              className="form-input"
+              value={settingsForm.name}
+              onChange={(e) => setSettingsForm({ ...settingsForm, name: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label className="form-label">Description</label>
-            <textarea className="form-input" rows={3} value={settingsForm.description}
-              onChange={(e) => setSettingsForm({ ...settingsForm, description: e.target.value })} />
+            <textarea
+              className="form-input"
+              rows={3}
+              value={settingsForm.description}
+              onChange={(e) => setSettingsForm({ ...settingsForm, description: e.target.value })}
+            />
           </div>
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Category</label>
-              <select className="form-select" value={settingsForm.category}
-                onChange={(e) => setSettingsForm({ ...settingsForm, category: e.target.value })}>
+              <select
+                className="form-select"
+                value={settingsForm.category}
+                onChange={(e) => setSettingsForm({ ...settingsForm, category: e.target.value })}
+              >
                 <option value="release">Release</option>
                 <option value="feature">Feature</option>
                 <option value="experiment">Experiment</option>
@@ -764,53 +991,92 @@ export default function FlagDetailPage() {
             <div className="form-group">
               <label className="form-label">Default Value</label>
               {flag.flag_type === 'boolean' ? (
-                <select className="form-select" value={settingsForm.default_value}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, default_value: e.target.value })}>
+                <select
+                  className="form-select"
+                  value={settingsForm.default_value}
+                  onChange={(e) =>
+                    setSettingsForm({ ...settingsForm, default_value: e.target.value })
+                  }
+                >
                   <option value="true">true</option>
                   <option value="false">false</option>
                 </select>
               ) : (
-                <input className="form-input" value={settingsForm.default_value}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, default_value: e.target.value })} />
+                <input
+                  className="form-input"
+                  value={settingsForm.default_value}
+                  onChange={(e) =>
+                    setSettingsForm({ ...settingsForm, default_value: e.target.value })
+                  }
+                />
               )}
             </div>
           </div>
           <div className="form-group">
             <label className="form-label">Purpose</label>
-            <input className="form-input" value={settingsForm.purpose}
-              onChange={(e) => setSettingsForm({ ...settingsForm, purpose: e.target.value })} />
+            <input
+              className="form-input"
+              value={settingsForm.purpose}
+              onChange={(e) => setSettingsForm({ ...settingsForm, purpose: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label className="form-label">Owners (comma-separated)</label>
-            <input className="form-input" value={settingsForm.owners}
-              onChange={(e) => setSettingsForm({ ...settingsForm, owners: e.target.value })} />
+            <input
+              className="form-input"
+              value={settingsForm.owners}
+              onChange={(e) => setSettingsForm({ ...settingsForm, owners: e.target.value })}
+            />
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input type="checkbox" checked={settingsForm.is_permanent}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, is_permanent: e.target.checked })} />
+              <label
+                className="form-label"
+                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+              >
+                <input
+                  type="checkbox"
+                  checked={settingsForm.is_permanent}
+                  onChange={(e) =>
+                    setSettingsForm({ ...settingsForm, is_permanent: e.target.checked })
+                  }
+                />
                 Permanent flag
               </label>
             </div>
             {!settingsForm.is_permanent && (
               <div className="form-group">
                 <label className="form-label">Expires At</label>
-                <input className="form-input" type="datetime-local" value={settingsForm.expires_at}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, expires_at: e.target.value })} />
+                <input
+                  className="form-input"
+                  type="datetime-local"
+                  value={settingsForm.expires_at}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, expires_at: e.target.value })}
+                />
               </div>
             )}
           </div>
           <div className="form-group">
             <label className="form-label">Tags (comma-separated)</label>
-            <input className="form-input" value={settingsForm.tags}
-              onChange={(e) => setSettingsForm({ ...settingsForm, tags: e.target.value })} />
+            <input
+              className="form-input"
+              value={settingsForm.tags}
+              onChange={(e) => setSettingsForm({ ...settingsForm, tags: e.target.value })}
+            />
           </div>
           <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button className="btn btn-primary" onClick={handleSettingsSave} disabled={settingsSaving}>
+            <button
+              className="btn btn-primary"
+              onClick={handleSettingsSave}
+              disabled={settingsSaving}
+            >
               {settingsSaving ? 'Saving...' : 'Save Changes'}
             </button>
-            {settingsSuccess && <span style={{ color: 'var(--color-success)', fontSize: 13 }}>Saved successfully</span>}
+            {settingsSuccess && (
+              <span style={{ color: 'var(--color-success)', fontSize: 13 }}>
+                Saved successfully
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -821,13 +1087,29 @@ export default function FlagDetailPage() {
           <h3 style={{ marginTop: 0 }}>Feature Lifecycle</h3>
           <p className="text-muted" style={{ marginTop: 0 }}>
             Status reported by the CrowdSoft feature-agent (or any controller that calls the
-            lifecycle API). All fields are optional — a flag with no lifecycle data behaves
-            exactly like a flag in the traditional flow.
+            lifecycle API). All fields are optional — a flag with no lifecycle data behaves exactly
+            like a flag in the traditional flow.
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '1rem',
+              marginBottom: '1rem',
+            }}
+          >
             <div>
-              <label className="form-label" style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>Smoke test</label>
+              <label
+                className="form-label"
+                style={{
+                  fontSize: 12,
+                  textTransform: 'uppercase',
+                  color: 'var(--color-text-muted)',
+                }}
+              >
+                Smoke test
+              </label>
               <div>
                 <span className={`badge ${statusPillClass(flag.smoke_test_status)}`}>
                   {flag.smoke_test_status ?? 'not reported'}
@@ -840,7 +1122,16 @@ export default function FlagDetailPage() {
               )}
             </div>
             <div>
-              <label className="form-label" style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>User test</label>
+              <label
+                className="form-label"
+                style={{
+                  fontSize: 12,
+                  textTransform: 'uppercase',
+                  color: 'var(--color-text-muted)',
+                }}
+              >
+                User test
+              </label>
               <div>
                 <span className={`badge ${statusPillClass(flag.user_test_status)}`}>
                   {flag.user_test_status ?? 'not reported'}
@@ -856,20 +1147,47 @@ export default function FlagDetailPage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <div>
-              <label className="form-label" style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>Iteration</label>
+              <label
+                className="form-label"
+                style={{
+                  fontSize: 12,
+                  textTransform: 'uppercase',
+                  color: 'var(--color-text-muted)',
+                }}
+              >
+                Iteration
+              </label>
               <div>
                 <strong>{flag.iteration_count ?? 0}</strong>
                 {flag.iteration_exhausted && (
-                  <span className="badge badge-error" style={{ marginLeft: 8 }}>exhausted</span>
+                  <span className="badge badge-error" style={{ marginLeft: 8 }}>
+                    exhausted
+                  </span>
                 )}
               </div>
             </div>
             <div>
-              <label className="form-label" style={{ fontSize: 12, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>Scheduled removal</label>
+              <label
+                className="form-label"
+                style={{
+                  fontSize: 12,
+                  textTransform: 'uppercase',
+                  color: 'var(--color-text-muted)',
+                }}
+              >
+                Scheduled removal
+              </label>
               <div>
-                {flag.scheduled_removal_at
-                  ? <><strong>{formatCountdown(flag.scheduled_removal_at)}</strong> <span className="text-muted">({formatDateTime(flag.scheduled_removal_at)})</span></>
-                  : <span className="text-muted">not scheduled</span>}
+                {flag.scheduled_removal_at ? (
+                  <>
+                    <strong>{formatCountdown(flag.scheduled_removal_at)}</strong>{' '}
+                    <span className="text-muted">
+                      ({formatDateTime(flag.scheduled_removal_at)})
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-muted">not scheduled</span>
+                )}
               </div>
             </div>
           </div>
@@ -898,7 +1216,9 @@ export default function FlagDetailPage() {
               <tbody>
                 {history.map((entry) => (
                   <tr key={entry.id}>
-                    <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>{formatDateTime(entry.created_at)}</td>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: 12 }}>
+                      {formatDateTime(entry.created_at)}
+                    </td>
                     <td>{entry.actor_name || 'System'}</td>
                     <td>{describeAction(entry)}</td>
                     <td style={{ fontSize: 12 }}>

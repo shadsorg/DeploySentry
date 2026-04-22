@@ -34,7 +34,9 @@ export function ActiveRolloutsCard({ orgSlug }: Props) {
     <section className="card">
       <header className="card-header">
         <h3>Active Rollouts</h3>
-        <Link to={`/orgs/${orgSlug}/rollouts`} className="card-link">View all →</Link>
+        <Link to={`/orgs/${orgSlug}/rollouts`} className="card-link">
+          View all →
+        </Link>
       </header>
       {loading && <p>Loading…</p>}
       {items.length > 0 && (

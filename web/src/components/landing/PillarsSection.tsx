@@ -52,7 +52,9 @@ export default function PillarsSection() {
         >
           {PILLARS.map((p) => (
             <motion.article key={p.title} className="pillar-card" variants={fadeUp}>
-              <div className="pillar-icon" aria-hidden>{p.icon}</div>
+              <div className="pillar-icon" aria-hidden>
+                {p.icon}
+              </div>
               <div className="pillar-label">{p.label}</div>
               <h3 className="pillar-title">{p.title}</h3>
               <p className="pillar-body">{p.body}</p>

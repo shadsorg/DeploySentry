@@ -139,7 +139,8 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
 
         {error && <p className="error">{error}</p>}
 
-        <label>Name
+        <label>
+          Name
           <input
             type="text"
             value={name}
@@ -148,11 +149,13 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
           />
         </label>
 
-        <label>Description
+        <label>
+          Description
           <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} />
         </label>
 
-        <label>Target Type
+        <label>
+          Target Type
           <select value={targetType} onChange={(e) => setTargetType(e.target.value as TargetType)}>
             <option value="deploy">deploy</option>
             <option value="config">config</option>
@@ -160,7 +163,8 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
           </select>
         </label>
 
-        <label>Default Health Threshold (0–1)
+        <label>
+          Default Health Threshold (0–1)
           <input
             type="number"
             min={0}
@@ -197,13 +201,45 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
               <>
                 <tr key={idx}>
                   <td>{idx + 1}</td>
-                  <td><input type="number" value={s.percent} onChange={(e) => updateStep(idx, { percent: Number(e.target.value) })} /></td>
-                  <td><input type="number" value={s.min_duration / MS} onChange={(e) => updateStep(idx, { min_duration: Number(e.target.value) * MS })} /></td>
-                  <td><input type="number" value={s.max_duration / MS} onChange={(e) => updateStep(idx, { max_duration: Number(e.target.value) * MS })} /></td>
-                  <td><input type="number" value={s.bake_time_healthy / MS} onChange={(e) => updateStep(idx, { bake_time_healthy: Number(e.target.value) * MS })} /></td>
+                  <td>
+                    <input
+                      type="number"
+                      value={s.percent}
+                      onChange={(e) => updateStep(idx, { percent: Number(e.target.value) })}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      value={s.min_duration / MS}
+                      onChange={(e) =>
+                        updateStep(idx, { min_duration: Number(e.target.value) * MS })
+                      }
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      value={s.max_duration / MS}
+                      onChange={(e) =>
+                        updateStep(idx, { max_duration: Number(e.target.value) * MS })
+                      }
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      value={s.bake_time_healthy / MS}
+                      onChange={(e) =>
+                        updateStep(idx, { bake_time_healthy: Number(e.target.value) * MS })
+                      }
+                    />
+                  </td>
                   <td>
                     {steps.length > 1 && (
-                      <button type="button" onClick={() => removeStep(idx)}>×</button>
+                      <button type="button" onClick={() => removeStep(idx)}>
+                        ×
+                      </button>
                     )}
                   </td>
                 </tr>
@@ -212,7 +248,8 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
                     <details className="step-advanced">
                       <summary>Advanced: approval, abort conditions, health threshold</summary>
 
-                      <label>Health threshold (leave blank for strategy default)
+                      <label>
+                        Health threshold (leave blank for strategy default)
                         <input
                           type="number"
                           min={0}
@@ -221,7 +258,8 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
                           value={s.health_threshold ?? ''}
                           onChange={(e) =>
                             updateStep(idx, {
-                              health_threshold: e.target.value === '' ? undefined : Number(e.target.value),
+                              health_threshold:
+                                e.target.value === '' ? undefined : Number(e.target.value),
                             } as Partial<Step>)
                           }
                         />
@@ -235,7 +273,9 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
                             checked={!!s.approval}
                             onChange={(e) =>
                               updateStep(idx, {
-                                approval: e.target.checked ? { required_role: '', timeout: 0 } : undefined,
+                                approval: e.target.checked
+                                  ? { required_role: '', timeout: 0 }
+                                  : undefined,
                               } as Partial<Step>)
                             }
                           />
@@ -243,21 +283,30 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
                         </label>
                         {s.approval && (
                           <>
-                            <label>Required role
+                            <label>
+                              Required role
                               <input
                                 type="text"
                                 value={s.approval.required_role}
                                 onChange={(e) =>
-                                  updateStep(idx, { approval: { ...s.approval!, required_role: e.target.value } })
+                                  updateStep(idx, {
+                                    approval: { ...s.approval!, required_role: e.target.value },
+                                  })
                                 }
                               />
                             </label>
-                            <label>Timeout (ms)
+                            <label>
+                              Timeout (ms)
                               <input
                                 type="number"
                                 value={s.approval.timeout / MS}
                                 onChange={(e) =>
-                                  updateStep(idx, { approval: { ...s.approval!, timeout: Number(e.target.value) * MS } })
+                                  updateStep(idx, {
+                                    approval: {
+                                      ...s.approval!,
+                                      timeout: Number(e.target.value) * MS,
+                                    },
+                                  })
                                 }
                               />
                             </label>
@@ -273,7 +322,9 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
                               value={ac.metric.startsWith('custom:') ? '__custom__' : ac.metric}
                               onChange={(e) => {
                                 const v = e.target.value;
-                                updateAbort(idx, acIdx, { metric: v === '__custom__' ? 'custom:' : v });
+                                updateAbort(idx, acIdx, {
+                                  metric: v === '__custom__' ? 'custom:' : v,
+                                });
                               }}
                             >
                               <option value="score">score</option>
@@ -298,29 +349,41 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
                             )}
                             <select
                               value={ac.operator}
-                              onChange={(e) => updateAbort(idx, acIdx, { operator: e.target.value })}
+                              onChange={(e) =>
+                                updateAbort(idx, acIdx, { operator: e.target.value })
+                              }
                             >
                               {(['>', '>=', '<', '<=', '==', '!='] as const).map((op) => (
-                                <option key={op} value={op}>{op}</option>
+                                <option key={op} value={op}>
+                                  {op}
+                                </option>
                               ))}
                             </select>
                             <input
                               type="number"
                               step="any"
                               value={ac.threshold}
-                              onChange={(e) => updateAbort(idx, acIdx, { threshold: Number(e.target.value) })}
+                              onChange={(e) =>
+                                updateAbort(idx, acIdx, { threshold: Number(e.target.value) })
+                              }
                               placeholder="threshold"
                             />
                             <input
                               type="number"
                               value={ac.window / MS}
-                              onChange={(e) => updateAbort(idx, acIdx, { window: Number(e.target.value) * MS })}
+                              onChange={(e) =>
+                                updateAbort(idx, acIdx, { window: Number(e.target.value) * MS })
+                              }
                               placeholder="window (ms)"
                             />
-                            <button type="button" onClick={() => removeAbort(idx, acIdx)}>×</button>
+                            <button type="button" onClick={() => removeAbort(idx, acIdx)}>
+                              ×
+                            </button>
                           </div>
                         ))}
-                        <button type="button" onClick={() => addAbort(idx)}>+ Add abort condition</button>
+                        <button type="button" onClick={() => addAbort(idx)}>
+                          + Add abort condition
+                        </button>
                       </fieldset>
                     </details>
                   </td>
@@ -329,10 +392,14 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
             ))}
           </tbody>
         </table>
-        <button type="button" onClick={addStep}>+ Add Step</button>
+        <button type="button" onClick={addStep}>
+          + Add Step
+        </button>
 
         <div className="modal-actions">
-          <button type="button" onClick={onClose}>Cancel</button>
+          <button type="button" onClick={onClose}>
+            Cancel
+          </button>
           <button type="button" onClick={submit} disabled={submitting} className="btn-primary">
             {strategyName ? 'Save' : 'Create'}
           </button>

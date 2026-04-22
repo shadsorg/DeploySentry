@@ -57,7 +57,10 @@ export default function ProjectListPage() {
                 className="project-card"
                 style={isDeleted ? { opacity: 0.5, pointerEvents: 'auto' } : undefined}
               >
-                <div className="flex items-center gap-2" style={{ justifyContent: 'space-between' }}>
+                <div
+                  className="flex items-center gap-2"
+                  style={{ justifyContent: 'space-between' }}
+                >
                   <Link
                     to={`/orgs/${orgSlug}/projects/${project.slug}/apps`}
                     style={{ textDecoration: 'none', color: 'inherit', flex: 1 }}

@@ -13,7 +13,8 @@ export function GroupPicker({ orgSlug, value, onChange }: Props) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    rolloutGroupsApi.list(orgSlug)
+    rolloutGroupsApi
+      .list(orgSlug)
       .then((r) => setGroups(r.items || []))
       .finally(() => setLoading(false));
   }, [orgSlug]);

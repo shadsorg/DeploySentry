@@ -4,7 +4,13 @@ import type { Rollout, RolloutStatus } from '@/types';
 import { rolloutsApi } from '@/api';
 import { RolloutStatusBadge } from '@/components/rollout/RolloutStatusBadge';
 
-const STATUS_FILTERS: RolloutStatus[] = ['active', 'paused', 'awaiting_approval', 'succeeded', 'rolled_back'];
+const STATUS_FILTERS: RolloutStatus[] = [
+  'active',
+  'paused',
+  'awaiting_approval',
+  'succeeded',
+  'rolled_back',
+];
 
 export default function RolloutsPage() {
   const { orgSlug = '' } = useParams();
@@ -22,7 +28,9 @@ export default function RolloutsPage() {
     }
   }
 
-  useEffect(() => { load(); }, [orgSlug, filter]);
+  useEffect(() => {
+    load();
+  }, [orgSlug, filter]);
 
   // Auto-refresh active rollouts.
   useEffect(() => {
@@ -38,14 +46,18 @@ export default function RolloutsPage() {
           <select value={filter} onChange={(e) => setFilter(e.target.value as RolloutStatus | '')}>
             <option value="">All statuses</option>
             {STATUS_FILTERS.map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>
+                {s}
+              </option>
             ))}
           </select>
         </div>
       </header>
 
       {loading && <p>Loading…</p>}
-      {!loading && items.length === 0 && <p className="empty-state">No rollouts match the filter.</p>}
+      {!loading && items.length === 0 && (
+        <p className="empty-state">No rollouts match the filter.</p>
+      )}
 
       {items.length > 0 && (
         <table className="data-table">
@@ -76,7 +88,9 @@ export default function RolloutsPage() {
                   {' • '}
                   {r.strategy_snapshot.steps[r.current_phase_index]?.percent ?? '?'}%
                 </td>
-                <td><RolloutStatusBadge status={r.status} /></td>
+                <td>
+                  <RolloutStatusBadge status={r.status} />
+                </td>
                 <td>{new Date(r.created_at).toLocaleString()}</td>
               </tr>
             ))}

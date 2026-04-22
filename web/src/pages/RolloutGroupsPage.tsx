@@ -24,14 +24,18 @@ export default function RolloutGroupsPage() {
     }
   }
 
-  useEffect(() => { load(); }, [orgSlug]);
+  useEffect(() => {
+    load();
+  }, [orgSlug]);
 
   async function handleCreate() {
     if (!name.trim()) return;
     try {
       await rolloutGroupsApi.create(orgSlug, { name, description, coordination_policy: policy });
       setCreating(false);
-      setName(''); setDescription(''); setPolicy('independent');
+      setName('');
+      setDescription('');
+      setPolicy('independent');
       await load();
     } catch (e) {
       alert(`Create failed: ${e}`);
@@ -43,7 +47,9 @@ export default function RolloutGroupsPage() {
       <header className="page-header">
         <h1>Rollout Groups</h1>
         <div className="header-actions">
-          <button className="btn btn-primary" onClick={() => setCreating(true)}>New Group</button>
+          <button className="btn btn-primary" onClick={() => setCreating(true)}>
+            New Group
+          </button>
         </div>
       </header>
 
@@ -53,12 +59,18 @@ export default function RolloutGroupsPage() {
       {items.length > 0 && (
         <table className="data-table">
           <thead>
-            <tr><th>Name</th><th>Policy</th><th>Created</th></tr>
+            <tr>
+              <th>Name</th>
+              <th>Policy</th>
+              <th>Created</th>
+            </tr>
           </thead>
           <tbody>
             {items.map((g) => (
               <tr key={g.id}>
-                <td><Link to={`/orgs/${orgSlug}/rollout-groups/${g.id}`}>{g.name}</Link></td>
+                <td>
+                  <Link to={`/orgs/${orgSlug}/rollout-groups/${g.id}`}>{g.name}</Link>
+                </td>
                 <td>{g.coordination_policy}</td>
                 <td>{new Date(g.created_at).toLocaleString()}</td>
               </tr>
@@ -71,16 +83,32 @@ export default function RolloutGroupsPage() {
         <div className="modal-backdrop" onClick={() => setCreating(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>New Rollout Group</h3>
-            <label>Name<input value={name} onChange={(e) => setName(e.target.value)} /></label>
-            <label>Description<input value={description} onChange={(e) => setDescription(e.target.value)} /></label>
-            <label>Coordination Policy
-              <select value={policy} onChange={(e) => setPolicy(e.target.value as CoordinationPolicy)}>
-                {POLICIES.map((p) => <option key={p} value={p}>{p}</option>)}
+            <label>
+              Name
+              <input value={name} onChange={(e) => setName(e.target.value)} />
+            </label>
+            <label>
+              Description
+              <input value={description} onChange={(e) => setDescription(e.target.value)} />
+            </label>
+            <label>
+              Coordination Policy
+              <select
+                value={policy}
+                onChange={(e) => setPolicy(e.target.value as CoordinationPolicy)}
+              >
+                {POLICIES.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
               </select>
             </label>
             <div className="modal-actions">
               <button onClick={() => setCreating(false)}>Cancel</button>
-              <button className="btn-primary" onClick={handleCreate}>Create</button>
+              <button className="btn-primary" onClick={handleCreate}>
+                Create
+              </button>
             </div>
           </div>
         </div>

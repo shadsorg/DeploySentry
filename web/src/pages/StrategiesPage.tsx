@@ -91,7 +91,13 @@ export default function StrategiesPage() {
             {items.map((eff) => (
               <tr key={eff.strategy.id}>
                 <td>
-                  <Link to="#" onClick={(e) => { e.preventDefault(); setEditing(eff.strategy.name); }}>
+                  <Link
+                    to="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setEditing(eff.strategy.name);
+                    }}
+                  >
                     {eff.strategy.name}
                   </Link>
                 </td>
@@ -131,7 +137,10 @@ export default function StrategiesPage() {
         <StrategyEditor
           orgSlug={orgSlug}
           strategyName={editing === 'new' ? null : editing}
-          onClose={() => { setEditing(null); load(); }}
+          onClose={() => {
+            setEditing(null);
+            load();
+          }}
         />
       )}
     </div>

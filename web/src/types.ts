@@ -191,6 +191,12 @@ export interface Organization {
   updated_at: string;
 }
 
+export interface MonitoringLink {
+  label: string;
+  url: string;
+  icon?: string;
+}
+
 export interface Application {
   id: string;
   project_id: string;
@@ -198,9 +204,76 @@ export interface Application {
   slug: string;
   description?: string;
   repo_url?: string;
+  monitoring_links?: MonitoringLink[];
   created_at: string;
   updated_at: string;
   deleted_at?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Org-level status + deploy history (see internal/models/org_status.go)
+// ---------------------------------------------------------------------------
+
+export type HealthState = 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+export type HealthStaleness = 'fresh' | 'stale' | 'missing';
+
+export interface OrgStatusHealthBlock {
+  state: HealthState;
+  score?: number | null;
+  reason?: string;
+  source: string;
+  last_reported_at?: string | null;
+  staleness: HealthStaleness;
+}
+
+export interface OrgStatusDeploymentMini {
+  id: string;
+  version: string;
+  commit_sha?: string;
+  status: string;
+  mode: string;
+  source?: string | null;
+  completed_at?: string | null;
+}
+
+export interface OrgStatusEnvCell {
+  environment: { id: string; slug?: string; name?: string };
+  current_deployment?: OrgStatusDeploymentMini | null;
+  health: OrgStatusHealthBlock;
+  never_deployed: boolean;
+}
+
+export interface OrgStatusApplicationNode {
+  application: {
+    id: string;
+    slug: string;
+    name: string;
+    monitoring_links?: MonitoringLink[] | null;
+  };
+  environments: OrgStatusEnvCell[];
+}
+
+export interface OrgStatusProjectNode {
+  project: { id: string; slug: string; name: string };
+  aggregate_health: HealthState;
+  applications: OrgStatusApplicationNode[];
+}
+
+export interface OrgStatusResponse {
+  org: { id: string; slug: string; name: string };
+  generated_at: string;
+  projects: OrgStatusProjectNode[];
+}
+
+export interface OrgDeploymentRow extends Deployment {
+  application: { id: string; slug: string; name: string };
+  environment: { id: string; slug?: string; name?: string };
+  project: { id: string; slug: string; name: string };
+}
+
+export interface OrgDeploymentsResponse {
+  deployments: OrgDeploymentRow[];
+  next_cursor?: string;
 }
 
 export interface FlagActivitySummary {

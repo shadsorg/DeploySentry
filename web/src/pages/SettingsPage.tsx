@@ -6,8 +6,9 @@ import { useNotifications } from '../hooks/useNotifications';
 import { entitiesApi, webhooksApi, flagsApi, grantsApi, membersApi, Webhook } from '../api';
 import { useGrants } from '../hooks/useGrants';
 import { useGroups } from '../hooks/useGroups';
-import type { FlagActivitySummary, Member } from '../types';
+import type { Application, FlagActivitySummary, Member, MonitoringLink } from '../types';
 import PolicyAndDefaultsTab from './PolicyAndDefaultsTab';
+import MonitoringLinksEditor from '../components/MonitoringLinksEditor';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -141,6 +142,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
   const [appName, setAppName] = useState('');
   const [appDescription, setAppDescription] = useState('');
   const [appRepoUrl, setAppRepoUrl] = useState('');
+  const [appMonitoringLinks, setAppMonitoringLinks] = useState<MonitoringLink[]>([]);
 
   // ---------------------------------------------------------------------------
   // Authorization — Tasks 17/18
@@ -164,6 +166,27 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
     if (!orgSlug) return;
     membersApi.listByOrg(orgSlug).then((r) => setOrgMembers(r.members)).catch(() => {});
   }, [orgSlug]);
+
+  // Hydrate app-level form state + monitoring links when viewing app settings.
+  useEffect(() => {
+    if (level !== 'app' || !orgSlug || !projectSlug || !appSlug) return;
+    let cancelled = false;
+    entitiesApi
+      .getApp(orgSlug, projectSlug, appSlug)
+      .then((app: Application) => {
+        if (cancelled) return;
+        setAppName(app.name ?? '');
+        setAppDescription(app.description ?? '');
+        setAppRepoUrl(app.repo_url ?? '');
+        setAppMonitoringLinks(app.monitoring_links ?? []);
+      })
+      .catch(() => {
+        /* pre-existing behavior: silent */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [level, orgSlug, projectSlug, appSlug]);
 
   // ---------------------------------------------------------------------------
   // Handlers — Environments
@@ -997,6 +1020,16 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             </button>
             {settingsSuccess && <span className="text-sm text-success">Settings saved.</span>}
           </div>
+
+          {orgSlug && projectSlug && appSlug && (
+            <MonitoringLinksEditor
+              orgSlug={orgSlug}
+              projectSlug={projectSlug}
+              appSlug={appSlug}
+              initial={appMonitoringLinks}
+              onSaved={setAppMonitoringLinks}
+            />
+          )}
 
           <div style={{ marginTop: 24, borderTop: '1px solid var(--color-border)', paddingTop: 24 }}>
             <h3>Export Flag Config</h3>

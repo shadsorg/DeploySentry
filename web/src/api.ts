@@ -33,6 +33,9 @@ import type {
   RolloutEvent,
   CoordinationPolicy,
   RolloutGroup,
+  MonitoringLink,
+  OrgStatusResponse,
+  OrgDeploymentsResponse,
 } from './types';
 
 const BASE = '/api/v1';
@@ -430,6 +433,16 @@ export const entitiesApi = {
     }),
   deleteApp: (orgSlug: string, projectSlug: string, appSlug: string) =>
     request<DeleteResult>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}`, { method: 'DELETE' }),
+  updateAppMonitoringLinks: (
+    orgSlug: string,
+    projectSlug: string,
+    appSlug: string,
+    links: MonitoringLink[],
+  ) =>
+    request<Application>(
+      `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/monitoring-links`,
+      { method: 'PUT', body: JSON.stringify({ monitoring_links: links }) },
+    ),
   hardDeleteApp: (orgSlug: string, projectSlug: string, appSlug: string) =>
     request<void>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/permanent`, { method: 'DELETE' }),
   restoreApp: (orgSlug: string, projectSlug: string, appSlug: string) =>
@@ -732,4 +745,36 @@ export const rolloutGroupsApi = {
     request<{ ok: boolean }>(`/orgs/${orgSlug}/rollout-groups/${id}/attach`, {
       method: 'POST', body: JSON.stringify({ rollout_id: rolloutId }),
     }),
+};
+
+// ---------------------------------------------------------------------------
+// Org Status & Deploy History (agentless reporting consumer)
+// ---------------------------------------------------------------------------
+
+export interface OrgDeploymentsFilters {
+  project_id?: string;
+  application_id?: string;
+  environment_id?: string;
+  status?: string;
+  mode?: string;
+  from?: string;
+  to?: string;
+  cursor?: string;
+  limit?: number;
+}
+
+function buildQueryString(params: Record<string, string | number | undefined>): string {
+  const parts = Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== '' && v !== null)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`);
+  return parts.length ? `?${parts.join('&')}` : '';
+}
+
+export const orgStatusApi = {
+  get: (orgSlug: string) =>
+    request<OrgStatusResponse>(`/orgs/${orgSlug}/status`),
+  listDeployments: (orgSlug: string, filters: OrgDeploymentsFilters = {}) =>
+    request<OrgDeploymentsResponse>(
+      `/orgs/${orgSlug}/deployments${buildQueryString(filters as Record<string, string | number | undefined>)}`,
+    ),
 };

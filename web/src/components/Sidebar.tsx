@@ -14,6 +14,20 @@ export default function Sidebar() {
         {orgSlug && (
           <>
             <NavLink
+              to={`/orgs/${orgSlug}/status`}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <span className="nav-icon">▦</span>
+              Status
+            </NavLink>
+            <NavLink
+              to={`/orgs/${orgSlug}/deployments`}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <span className="nav-icon">⧗</span>
+              Deploy History
+            </NavLink>
+            <NavLink
               to={`/orgs/${orgSlug}/projects`}
               className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
             >

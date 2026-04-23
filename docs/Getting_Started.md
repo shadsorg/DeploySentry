@@ -16,7 +16,7 @@ The CLI is the foundation for everything else — including the MCP server, whic
 
 ```bash
 # macOS / Linux
-curl -fsSL https://install.deploysentry.com | sh
+curl -fsSL https://api.dr-sentry.com/install.sh | sh
 
 # or from source (requires Go 1.22+)
 go install github.com/deploysentry/deploysentry/cmd/cli@latest

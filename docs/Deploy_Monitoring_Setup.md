@@ -19,7 +19,7 @@ Before starting you need:
 
 - A DeploySentry account with an organization you belong to.
 - A **project** and **application** created inside that org.
-- The `deploysentry` CLI installed (`curl -fsSL https://dr-sentry.com/install.sh | sh`) and authenticated (`deploysentry auth login`).
+- The `deploysentry` CLI installed (`curl -fsSL https://api.dr-sentry.com/install.sh | sh`) and authenticated (`deploysentry auth login`).
 
 Create a project and app via the dashboard (`Settings → Projects → Create`) or via the CLI:
 

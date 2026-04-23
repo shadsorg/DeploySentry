@@ -236,7 +236,7 @@ Percentage rollouts use a deterministic hash-based algorithm to assign users to 
 
 ```bash
 # One-line install (Linux / macOS)
-curl -fsSL https://raw.githubusercontent.com/shadsorg/DeploySentry/main/scripts/install.sh | sh
+curl -fsSL https://api.dr-sentry.com/install.sh | sh
 
 # Or build from source
 go install ./cmd/cli

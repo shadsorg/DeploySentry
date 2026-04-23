@@ -15,11 +15,19 @@ A ten-minute path from "I have an account" to "my MCP-assisted agent can drive D
 The CLI is the foundation for everything else — including the MCP server, which is a CLI subcommand.
 
 ```bash
-# macOS / Linux
+# macOS / Linux — default install to /usr/local/bin (prompts for sudo)
 curl -fsSL https://api.dr-sentry.com/install.sh | sh
 
-# or from source (requires Go 1.22+)
-go install github.com/deploysentry/deploysentry/cmd/cli@latest
+# macOS / Linux — no-sudo install (recommended for dev machines)
+INSTALL_DIR=$HOME/bin sh -c "$(curl -fsSL https://api.dr-sentry.com/install.sh)"
+# then make sure $HOME/bin is on your PATH:
+#   export PATH="$HOME/bin:$PATH"   (add to ~/.zshrc or ~/.bashrc)
+
+# or from source — REQUIRED today. The latest GitHub release predates the
+# 2026-04-23 auth-flow fix, so the one-liner above still pulls a binary
+# that lacks the `--token` flag. Build from main until a new release lands.
+go install github.com/deploysentry/deploysentry/cmd/cli@main
+# `go install` writes to $GOPATH/bin as `cli`; rename to `deploysentry`
 mv "$(go env GOPATH)/bin/cli" "$(go env GOPATH)/bin/deploysentry"
 ```
 
@@ -27,6 +35,8 @@ Verify:
 ```bash
 deploysentry --version
 ```
+
+> **If you installed via the one-liner on a machine with Claude Code present**, the installer already ran `claude mcp add deploysentry -- deploysentry mcp serve` on your behalf — Step 3 below is a no-op (but you still need to restart Claude Code once for the new MCP tools to register). The installer prints a confirmation line.
 
 ## 2. Authenticate the CLI
 
@@ -71,6 +81,10 @@ The MCP server lets Claude Code / Cursor / any MCP client drive DeploySentry dir
 # Add the DeploySentry MCP server to Claude Code
 claude mcp add deploysentry -- deploysentry mcp serve
 ```
+
+> If the one-liner installer in Step 1 already registered it (it auto-runs this command when Claude Code is detected), you'll get `Error: MCP server 'deploysentry' already exists` — harmless, skip to the restart below.
+
+**Restart Claude Code** after registering — MCP tools are loaded at session start, so they won't appear in your running agent until you `/reload` or start a new session. Other MCP clients (Cursor, Continue, …) have similar requirements; consult the client's docs.
 
 For other MCP clients, point them at the same `deploysentry mcp serve` process — it speaks standard MCP over stdio. The MCP server reads the same credentials file that Step 2 wrote; no separate auth flow.
 

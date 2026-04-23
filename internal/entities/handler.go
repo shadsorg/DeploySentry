@@ -142,12 +142,49 @@ func (h *Handler) createOrg(c *gin.Context) {
 }
 
 func (h *Handler) listOrgs(c *gin.Context) {
+	// API-key authenticated callers have an org_id stamped in context by
+	// the auth middleware, but no user_id. Resolve that single scoped org
+	// directly so `orgs list` doesn't silently return [] for valid keys.
+	if method, _ := c.Get("auth_method"); method == "api_key" {
+		if orgIDRaw, exists := c.Get("org_id"); exists {
+			orgIDStr, _ := orgIDRaw.(string)
+			if orgIDStr != "" {
+				if orgID, err := uuid.Parse(orgIDStr); err == nil {
+					org, err := h.service.GetOrgByID(c.Request.Context(), orgID)
+					if err != nil {
+						c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+						return
+					}
+					if org == nil {
+						c.JSON(http.StatusOK, gin.H{"organizations": []*models.Organization{}})
+						return
+					}
+					c.JSON(http.StatusOK, gin.H{"organizations": []*models.Organization{org}})
+					return
+				}
+			}
+		}
+		// API key with no org scoping falls through to the empty response
+		// with a clear hint for diagnostics.
+		c.JSON(http.StatusOK, gin.H{
+			"organizations": []*models.Organization{},
+			"hint":          "this API key is not scoped to an organization; mint a key under the target org",
+		})
+		return
+	}
+
 	uid, _ := c.Get("user_id")
 	userID, _ := uid.(uuid.UUID)
-
 	orgs, err := h.service.ListOrgsByUser(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if len(orgs) == 0 {
+		c.JSON(http.StatusOK, gin.H{
+			"organizations": orgs,
+			"hint":          "you are not a member of any organization; create one or ask an admin to invite you",
+		})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"organizations": orgs})

@@ -19,6 +19,7 @@ const (
 type EntityService interface {
 	CreateOrg(ctx context.Context, org *models.Organization, creatorID uuid.UUID) error
 	GetOrgBySlug(ctx context.Context, slug string) (*models.Organization, error)
+	GetOrgByID(ctx context.Context, id uuid.UUID) (*models.Organization, error)
 	ListOrgsByUser(ctx context.Context, userID uuid.UUID) ([]*models.Organization, error)
 	UpdateOrg(ctx context.Context, org *models.Organization) error
 
@@ -86,6 +87,13 @@ func (s *entityService) GetOrgBySlug(ctx context.Context, slug string) (*models.
 		return nil, errors.New("slug is required")
 	}
 	return s.repo.GetOrgBySlug(ctx, slug)
+}
+
+func (s *entityService) GetOrgByID(ctx context.Context, id uuid.UUID) (*models.Organization, error) {
+	if id == uuid.Nil {
+		return nil, errors.New("id is required")
+	}
+	return s.repo.GetOrgByID(ctx, id)
 }
 
 func (s *entityService) ListOrgsByUser(ctx context.Context, userID uuid.UUID) ([]*models.Organization, error) {

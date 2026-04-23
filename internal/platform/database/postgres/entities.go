@@ -77,6 +77,32 @@ func (r *EntityRepository) GetOrgBySlug(ctx context.Context, slug string) (*mode
 	return &org, nil
 }
 
+// GetOrgByID retrieves an organization by its UUID.
+// Returns nil, nil when no row is found.
+func (r *EntityRepository) GetOrgByID(ctx context.Context, id uuid.UUID) (*models.Organization, error) {
+	const q = `
+		SELECT id, name, slug, owner_id, plan, created_at, updated_at
+		FROM organizations WHERE id = $1`
+
+	var org models.Organization
+	err := r.pool.QueryRow(ctx, q, id).Scan(
+		&org.ID,
+		&org.Name,
+		&org.Slug,
+		&org.OwnerID,
+		&org.Plan,
+		&org.CreatedAt,
+		&org.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("postgres.GetOrgByID: %w", err)
+	}
+	return &org, nil
+}
+
 // ListOrgsByUser returns all organizations the user belongs to, ordered by name.
 func (r *EntityRepository) ListOrgsByUser(ctx context.Context, userID uuid.UUID) ([]*models.Organization, error) {
 	const q = `

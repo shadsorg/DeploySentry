@@ -140,6 +140,10 @@ func (m *mockEntityService) UpdateAppMonitoringLinks(_ context.Context, _ uuid.U
 	return links, nil
 }
 
+func (m *mockEntityService) GetOrgByID(_ context.Context, _ uuid.UUID) (*models.Organization, error) {
+	return nil, nil
+}
+
 func (m *mockEntityService) ListEnvironmentsByApp(ctx context.Context, appID uuid.UUID) ([]*models.Environment, error) {
 	if m.listEnvironmentsByAppFn != nil {
 		return m.listEnvironmentsByAppFn(ctx, appID)

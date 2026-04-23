@@ -8,6 +8,11 @@ REPO="shadsorg/DeploySentry"
 INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
 BINARY_NAME="deploysentry"
 
+# Release lag sentinel: binaries at or below this version predate the
+# 2026-04-23 auth-flow fix. Incoming releases must bump this guard or
+# remove it entirely.
+STALE_VERSION_MAX="0.1.0"
+
 # Detect OS
 OS=$(uname -s)
 case "$OS" in
@@ -79,11 +84,19 @@ fi
 SUDO=""
 if [ ! -w "$INSTALL_DIR" ]; then
   if command -v sudo >/dev/null 2>&1; then
-    echo "Need elevated permissions to install to $INSTALL_DIR"
+    cat <<EOF
+Need elevated permissions to install to $INSTALL_DIR.
+
+To skip the sudo prompt, re-run with a user-writable directory:
+
+  INSTALL_DIR=\$HOME/bin  sh -c "\$(curl -fsSL https://api.dr-sentry.com/install.sh)"
+
+(Make sure \$HOME/bin is on your PATH.)
+EOF
     SUDO="sudo"
   else
     echo "Error: $INSTALL_DIR is not writable and sudo is not available." >&2
-    echo "  Try: INSTALL_DIR=\$HOME/.local/bin sh -c \"\$(curl -fsSL https://api.dr-sentry.com/install.sh)\"" >&2
+    echo "  Try: INSTALL_DIR=\$HOME/bin sh -c \"\$(curl -fsSL https://api.dr-sentry.com/install.sh)\"" >&2
     exit 1
   fi
 fi
@@ -94,12 +107,41 @@ $SUDO chmod +x "$INSTALL_DIR/$BINARY_NAME"
 echo "Successfully installed $BINARY_NAME to $INSTALL_DIR/$BINARY_NAME"
 
 # Verify installation and print version
+VERSION_OUTPUT=""
 if "$INSTALL_DIR/$BINARY_NAME" --version >/dev/null 2>&1; then
   echo "Version info:"
-  "$INSTALL_DIR/$BINARY_NAME" --version
+  VERSION_OUTPUT=$("$INSTALL_DIR/$BINARY_NAME" --version 2>&1)
+  echo "$VERSION_OUTPUT"
 else
   echo "Warning: Could not verify installation (--version flag not available)"
 fi
+
+# Warn loudly when the downloaded binary predates the auth-flow fix.
+# The canonical `deploysentry auth login --token …` path did not exist
+# in the v0.1.0 release; users running `auth login` with no flag get
+# routed to a phantom OAuth endpoint.
+case "$VERSION_OUTPUT" in
+  *"version $STALE_VERSION_MAX"*|*"version 0.0."*)
+    cat >&2 <<EOF
+
+!! WARNING !!
+The binary just installed ($VERSION_OUTPUT) predates the 2026-04-23
+CLI auth-flow fix. 'deploysentry auth login --token ...' will fail
+with 'unknown flag: --token'.
+
+Two workarounds:
+  1. Build from source:
+       go install github.com/deploysentry/deploysentry/cmd/cli@main
+
+  2. Skip 'auth login' on this binary and export the API key:
+       export DEPLOYSENTRY_API_KEY=ds_live_...
+     Every CLI command + the MCP server read that env var as a
+     fallback when no credentials file exists.
+
+See docs/Getting_Started.md §2 Troubleshooting for more.
+EOF
+    ;;
+esac
 
 # Auto-register MCP server if Claude Code is installed
 if command -v claude >/dev/null 2>&1; then

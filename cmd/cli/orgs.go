@@ -138,9 +138,14 @@ func runOrgsList(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	orgs, _ := resp["orgs"].([]interface{})
+	// Server returns `{"organizations": [...], "hint": "…"}`.
+	orgs, _ := resp["organizations"].([]interface{})
 	if len(orgs) == 0 {
-		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No organizations found.")
+		if hint, ok := resp["hint"].(string); ok && hint != "" {
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "No organizations found — %s.\n", hint)
+		} else {
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No organizations found.")
+		}
 		return nil
 	}
 

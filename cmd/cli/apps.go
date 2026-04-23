@@ -51,15 +51,19 @@ Examples:
 
 var appsListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List applications in the project",
-	Long: `List all applications in the current project.
+	Short: "List applications in the project (or across the whole org with --all)",
+	Long: `List applications in the current project, or across every project
+in the org when --all is passed.
 
 Examples:
-  # List all applications
+  # Apps in the current project (requires --project)
   deploysentry apps list
 
-  # List in JSON format
-  deploysentry apps list -o json`,
+  # Every app across the whole org, grouped by project
+  deploysentry apps list --all
+
+  # JSON output
+  deploysentry apps list --all -o json`,
 	RunE: runAppsList,
 }
 
@@ -86,6 +90,9 @@ func init() {
 	appsCreateCmd.Flags().String("repo", "", "repository URL")
 	_ = appsCreateCmd.MarkFlagRequired("name")
 	_ = appsCreateCmd.MarkFlagRequired("slug")
+
+	// apps list flags
+	appsListCmd.Flags().Bool("all", false, "list apps across every project in the org (no --project required)")
 
 	appsCmd.AddCommand(appsCreateCmd)
 	appsCmd.AddCommand(appsListCmd)
@@ -152,17 +159,24 @@ func runAppsList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
-	if err != nil {
-		return err
-	}
+	all, _ := cmd.Flags().GetBool("all")
 
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/apps", org, project)
+	var path string
+	if all {
+		path = fmt.Sprintf("/api/v1/orgs/%s/apps", org)
+	} else {
+		project, err := requireProject()
+		if err != nil {
+			return fmt.Errorf("%w (or pass --all to list every app across the org)", err)
+		}
+		path = fmt.Sprintf("/api/v1/orgs/%s/projects/%s/apps", org, project)
+	}
+
 	resp, err := client.get(path)
 	if err != nil {
 		return fmt.Errorf("failed to list applications: %w", err)
@@ -174,14 +188,19 @@ func runAppsList(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	apps, _ := resp["apps"].([]interface{})
+	// Server returns `{"applications": [...]}` in both scopes.
+	apps, _ := resp["applications"].([]interface{})
 	if len(apps) == 0 {
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No applications found.")
 		return nil
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "SLUG\tNAME\tDESCRIPTION\tREPO\tCREATED")
+	if all {
+		_, _ = fmt.Fprintln(w, "PROJECT\tSLUG\tNAME\tDESCRIPTION\tREPO\tCREATED")
+	} else {
+		_, _ = fmt.Fprintln(w, "SLUG\tNAME\tDESCRIPTION\tREPO\tCREATED")
+	}
 	for _, a := range apps {
 		app, ok := a.(map[string]interface{})
 		if !ok {
@@ -197,13 +216,22 @@ func runAppsList(cmd *cobra.Command, args []string) error {
 		if len(description) > 40 {
 			description = description[:37] + "..."
 		}
-
 		// Truncate repo for table display.
 		if len(repo) > 40 {
 			repo = repo[:37] + "..."
 		}
 
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", slug, name, description, repo, createdAt)
+		if all {
+			projectName := ""
+			if p, ok := app["project"].(map[string]interface{}); ok {
+				if s, ok := p["slug"].(string); ok {
+					projectName = s
+				}
+			}
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", projectName, slug, name, description, repo, createdAt)
+		} else {
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", slug, name, description, repo, createdAt)
+		}
 	}
 	return w.Flush()
 }

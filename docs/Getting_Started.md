@@ -112,6 +112,17 @@ Whether you click through the dashboard or paste into your MCP-connected agent, 
 4. **Applications** — the unit flags and deployments target.
 5. **Members + roles** — add teammates with org/project roles.
 
+### CLI quick reference
+
+```bash
+deploysentry orgs list                          # orgs this key has visibility into
+deploysentry environments list                  # every env in the current org
+deploysentry projects list                      # every project
+deploysentry apps list --all                    # every app across the whole org
+deploysentry apps list                          # apps in the current project (requires --project)
+deploysentry apps create --name … --slug …      # new app in the current project
+```
+
 See [README → Authentication](../README.md#authentication) and [README → Applications](../README.md#applications) for concrete examples.
 
 ## 6. Start tracking deployments

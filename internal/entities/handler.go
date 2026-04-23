@@ -46,6 +46,11 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 			envs.DELETE("/:envSlug", auth.RequirePermission(h.rbac, auth.PermOrgManage), h.deleteEnvironment)
 		}
 
+		// Org-wide apps listing — aggregates across every project the caller can see.
+		// Callers who want to enumerate apps without iterating projects can hit this
+		// single endpoint (matches the pattern used by /orgs/:slug/status).
+		orgs.GET("/:orgSlug/apps", h.listAppsByOrg)
+
 		projects := orgs.Group("/:orgSlug/projects")
 		{
 			projects.POST("", auth.RequirePermission(h.rbac, auth.PermOrgManage), h.createProject)
@@ -503,6 +508,52 @@ func (h *Handler) listApps(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"applications": apps})
+}
+
+// listAppsByOrg returns every application across every project in the org
+// that the caller has visibility into. Saves MCP agents (and the CLI) from
+// iterating projects × apps when they just want the full set.
+//
+// Each row in the response carries its parent project's id + slug + name
+// so callers can render a grouped view without a second round-trip.
+func (h *Handler) listAppsByOrg(c *gin.Context) {
+	org, err := h.service.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
+	if err != nil || org == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		return
+	}
+
+	uid, _ := c.Get("user_id")
+	userID, _ := uid.(uuid.UUID)
+	roleVal, _ := c.Get("role")
+	orgRole := fmt.Sprintf("%v", roleVal)
+	includeDeleted := c.Query("include_deleted") == "true"
+
+	projects, err := h.service.ListProjectsByOrg(c.Request.Context(), org.ID, includeDeleted, userID, orgRole)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	type orgAppRow struct {
+		*models.Application
+		Project models.ProjectSummary `json:"project"`
+	}
+	rows := make([]orgAppRow, 0)
+	for _, p := range projects {
+		apps, err := h.service.ListAppsByProject(c.Request.Context(), p.ID, includeDeleted, userID, orgRole)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		for _, a := range apps {
+			rows = append(rows, orgAppRow{
+				Application: a,
+				Project:     models.ProjectSummary{ID: p.ID, Slug: p.Slug, Name: p.Name},
+			})
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"applications": rows})
 }
 
 func (h *Handler) getApp(c *gin.Context) {

@@ -76,6 +76,32 @@ func (r *EnvironmentRepository) ListByOrg(ctx context.Context, orgID uuid.UUID) 
 	return result, nil
 }
 
+// GetByID looks up an environment by UUID. Returns (nil, nil) when not found.
+func (r *EnvironmentRepository) GetByID(ctx context.Context, id uuid.UUID) (*OrgEnvironment, error) {
+	const q = `
+		SELECT id, org_id, name, slug, is_production, sort_order, created_at, updated_at
+		FROM environments WHERE id = $1`
+
+	var env OrgEnvironment
+	err := r.pool.QueryRow(ctx, q, id).Scan(
+		&env.ID,
+		&env.OrgID,
+		&env.Name,
+		&env.Slug,
+		&env.IsProduction,
+		&env.SortOrder,
+		&env.CreatedAt,
+		&env.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("EnvironmentRepository.GetByID: %w", err)
+	}
+	return &env, nil
+}
+
 func (r *EnvironmentRepository) GetBySlug(ctx context.Context, orgID uuid.UUID, slug string) (*OrgEnvironment, error) {
 	const q = `
 		SELECT id, org_id, name, slug, is_production, sort_order, created_at, updated_at

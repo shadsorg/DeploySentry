@@ -65,6 +65,10 @@ const (
 
 	// PermGroupManage allows managing groups and group memberships.
 	PermGroupManage Permission = "group:manage"
+
+	// PermStatusWrite allows an app (or agent) to push self-reported
+	// version + health status for an application/environment.
+	PermStatusWrite Permission = "status:write"
 )
 
 // Role defines a named set of permissions.
@@ -103,6 +107,7 @@ var rolePermissions = map[Role][]Permission{
 		PermProjectManage, PermOrgManage, PermAuditRead,
 		PermSettingsRead, PermSettingsWrite,
 		PermGroupManage,
+		PermStatusWrite,
 	},
 	RoleAdmin: {
 		PermDeployCreate, PermDeployRead, PermDeployPromote, PermDeployRollback, PermDeployManage,
@@ -111,12 +116,14 @@ var rolePermissions = map[Role][]Permission{
 		PermProjectManage, PermAuditRead,
 		PermSettingsRead, PermSettingsWrite,
 		PermGroupManage,
+		PermStatusWrite,
 	},
 	RoleDeveloper: {
 		PermDeployCreate, PermDeployRead, PermDeployPromote, PermDeployRollback, PermDeployManage,
 		PermFlagCreate, PermFlagRead, PermFlagUpdate, PermFlagToggle,
 		PermReleaseCreate, PermReleaseRead, PermReleasePromote,
 		PermSettingsRead,
+		PermStatusWrite,
 	},
 	RoleViewer: {
 		PermDeployRead, PermFlagRead, PermReleaseRead,
@@ -132,6 +139,7 @@ var rolePermissions = map[Role][]Permission{
 		PermAPIKeyManage, PermUserManage, PermEnvDeploy, PermBillingManage,
 		PermSettingsRead, PermSettingsWrite,
 		PermGroupManage,
+		PermStatusWrite,
 	},
 	RoleOrgAdmin: {
 		PermDeployCreate, PermDeployRead, PermDeployPromote, PermDeployRollback, PermDeployManage,
@@ -141,6 +149,7 @@ var rolePermissions = map[Role][]Permission{
 		PermAPIKeyManage, PermUserManage, PermEnvDeploy, PermBillingManage,
 		PermSettingsRead, PermSettingsWrite,
 		PermGroupManage,
+		PermStatusWrite,
 	},
 
 	// Granular project-level roles.
@@ -149,12 +158,14 @@ var rolePermissions = map[Role][]Permission{
 		PermFlagCreate, PermFlagRead, PermFlagUpdate, PermFlagToggle, PermFlagArchive,
 		PermReleaseCreate, PermReleaseRead, PermReleasePromote,
 		PermProjectManage, PermAuditRead, PermAPIKeyManage, PermUserManage, PermEnvDeploy,
+		PermStatusWrite,
 	},
 	RoleProjectEditor: {
 		PermDeployCreate, PermDeployRead, PermDeployPromote, PermDeployRollback, PermDeployManage,
 		PermFlagCreate, PermFlagRead, PermFlagUpdate, PermFlagToggle,
 		PermReleaseCreate, PermReleaseRead, PermReleasePromote,
 		PermEnvDeploy,
+		PermStatusWrite,
 	},
 	RoleProjectViewer: {
 		PermDeployRead, PermFlagRead, PermReleaseRead,
@@ -163,6 +174,7 @@ var rolePermissions = map[Role][]Permission{
 	// Environment-level role.
 	RoleEnvDeployer: {
 		PermDeployCreate, PermDeployRead, PermEnvDeploy,
+		PermStatusWrite,
 	},
 }
 

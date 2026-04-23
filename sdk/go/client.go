@@ -34,6 +34,19 @@ type Client struct {
 	logger       *log.Logger
 	registry     map[string][]registration
 	registryMu   sync.RWMutex
+
+	// Agentless status reporting
+	applicationID    string
+	reportStatus     bool
+	statusInterval   time.Duration
+	statusVersion    string
+	statusCommitSHA  string
+	statusDeploySlot string
+	statusTags       map[string]string
+	healthProvider   func() (HealthReport, error)
+
+	statusReporter *statusReporter
+	statusStop     context.CancelFunc
 }
 
 // Option configures a Client. Pass options to NewClient.
@@ -87,6 +100,52 @@ func WithSessionID(id string) Option {
 // WithLogger sets a custom logger. By default the SDK logs to stderr.
 func WithLogger(l *log.Logger) Option {
 	return func(c *Client) { c.logger = l }
+}
+
+// WithApplicationID sets the application UUID. Required when ReportStatus
+// is enabled; the status endpoint is keyed on the application UUID.
+func WithApplicationID(id string) Option {
+	return func(c *Client) { c.applicationID = id }
+}
+
+// WithReportStatus enables the status reporter. When enabled and
+// ApplicationID is set, the SDK POSTs a status sample to DeploySentry on
+// Initialize and on an interval.
+func WithReportStatus(enabled bool) Option {
+	return func(c *Client) { c.reportStatus = enabled }
+}
+
+// WithReportStatusInterval sets the status-report cadence. The default is
+// 30 seconds; pass 0 for startup-only.
+func WithReportStatusInterval(d time.Duration) Option {
+	return func(c *Client) { c.statusInterval = d }
+}
+
+// WithReportStatusVersion overrides the auto-detected version string.
+func WithReportStatusVersion(v string) Option {
+	return func(c *Client) { c.statusVersion = v }
+}
+
+// WithReportStatusCommitSHA sets the commit SHA reported with status.
+func WithReportStatusCommitSHA(sha string) Option {
+	return func(c *Client) { c.statusCommitSHA = sha }
+}
+
+// WithReportStatusDeploySlot sets the deploy-slot tag (e.g. "stable" / "canary").
+func WithReportStatusDeploySlot(slot string) Option {
+	return func(c *Client) { c.statusDeploySlot = slot }
+}
+
+// WithReportStatusTags attaches arbitrary tags to every status report.
+func WithReportStatusTags(tags map[string]string) Option {
+	return func(c *Client) { c.statusTags = tags }
+}
+
+// WithHealthProvider supplies a callback that resolves the app's current
+// health. Without a provider the reporter sends `state=healthy` on every
+// tick (the "process alive" floor).
+func WithHealthProvider(fn func() (HealthReport, error)) Option {
+	return func(c *Client) { c.healthProvider = fn }
 }
 
 // NewClient creates a new DeploySentry client. At minimum you should provide
@@ -158,7 +217,24 @@ func (c *Client) Initialize(ctx context.Context) error {
 	}, c.logger)
 	c.sse.start(ctx)
 
+	// Start status reporter if enabled.
+	c.startStatusReporter(ctx)
+
 	return nil
+}
+
+func (c *Client) startStatusReporter(ctx context.Context) {
+	if !c.reportStatus {
+		return
+	}
+	if c.applicationID == "" {
+		c.logger.Println("deploysentry: ReportStatus=true but ApplicationID is empty; status reporter disabled")
+		return
+	}
+	c.statusReporter = newStatusReporter(c)
+	reporterCtx, cancel := context.WithCancel(ctx)
+	c.statusStop = cancel
+	go c.statusReporter.run(reporterCtx)
 }
 
 // RefreshSession clears the flag cache and re-fetches all flags from the
@@ -173,6 +249,9 @@ func (c *Client) RefreshSession(ctx context.Context) error {
 func (c *Client) Close() {
 	if c.sse != nil {
 		c.sse.stop()
+	}
+	if c.statusStop != nil {
+		c.statusStop()
 	}
 }
 

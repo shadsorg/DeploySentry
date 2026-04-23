@@ -4,6 +4,222 @@
 
 > **Agent-based monitoring:** For traffic splitting with the DeploySentry agent sidecar, see the [Deploy Monitoring Setup](./Deploy_Monitoring_Setup.md) guide.
 
+---
+
+## Reporting deploys from a PaaS (Railway, Render, Fly, Heroku, …)
+
+If your application is hosted on a PaaS that performs its own rollouts (Railway, Render, Fly, Heroku, Vercel, Netlify) you don't need to run a sidecar agent and you don't need DeploySentry to drive the deploy — you just want DeploySentry to **record** what shipped so history, version, and (later) health show up on the dashboard.
+
+`POST /api/v1/deployments` supports an optional `mode` field for this:
+
+| `mode` | Behavior |
+|---|---|
+| `orchestrate` (default) | DeploySentry drives the rollout through the phase engine. A `strategy` is required. Emits `deployment.created`. |
+| `record` | The platform already deployed the artifact. The record is inserted with `status=completed`, `traffic_percent=100`, and timestamps set to now. The phase engine is bypassed. Emits `deployment.recorded`. `strategy` is optional. |
+
+### Recording a platform-driven deploy via curl
+
+```bash
+curl -X POST https://api.deploysentry.com/api/v1/deployments \
+  -H "Authorization: Bearer $DS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "application_id": "…",
+    "environment_id": "…",
+    "artifact": "image:registry/app:1.4.2",
+    "version": "1.4.2",
+    "commit_sha": "abc123",
+    "mode": "record",
+    "source": "manual"
+  }'
+```
+
+`source` is a free-form audit trail — conventional values include `railway-webhook`, `render-webhook`, `github-actions`, `manual`. It's optional; when provided it's stored on the deployment row and included in the outbound `deployment.recorded` webhook payload.
+
+### Listing deploy history per environment
+
+```bash
+# All deploys for the app
+curl -H "Authorization: Bearer $DS_API_KEY" \
+  "https://api.deploysentry.com/api/v1/deployments?app_id=$APP_ID"
+
+# Scoped to a single environment (new)
+curl -H "Authorization: Bearer $DS_API_KEY" \
+  "https://api.deploysentry.com/api/v1/deployments?app_id=$APP_ID&environment_id=$ENV_ID&limit=50"
+```
+
+`limit` defaults to 20 and is capped at 100 server-side; `offset` is supported for pagination.
+
+### Reporting live app status (version + health)
+
+`POST /api/v1/applications/:app_id/status` accepts a self-reported status sample from the running app. Use an env-scoped API key with the `status:write` scope; the environment is inferred from the key.
+
+```bash
+curl -X POST https://api.deploysentry.com/api/v1/applications/$APP_ID/status \
+  -H "Authorization: ApiKey $DS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "version": "1.4.2",
+    "commit_sha": "abc123",
+    "health": "healthy",
+    "health_score": 0.99
+  }'
+```
+
+Fields:
+
+- `version` (required) — what the app reports it's running.
+- `commit_sha` — optional, recommended.
+- `health` (required) — one of `healthy`, `degraded`, `unhealthy`, `unknown`.
+- `health_score` — optional number in `[0, 1]`.
+- `health_reason` — optional free-text note, shown on the dashboard when health is not `healthy`.
+- `deploy_slot` — optional (`stable` / `canary`) — forward-compat with traffic-shift canaries.
+- `tags` — optional string map (e.g. `{"region": "us-east"}`).
+
+Behavior:
+
+- Latest sample per `(application, environment)` is upserted into `app_status`.
+- A retained sample is appended to `app_status_history` (used by later phases for sparkline/forensics).
+- The **first** `/status` report with a version that DeploySentry has never seen for this `(app, environment)` auto-creates a `mode=record` deployment with `source="app-push"`. Subsequent reports of the same version are idempotent — they do not create duplicate deployments. This means: even if the Railway webhook path isn't wired, your deploy history still populates as soon as your app calls `/status` on startup.
+
+Constraints:
+
+- The API key **must** be scoped to the requested application (`api_key_app_id` matches `:app_id`) and to exactly one environment. Keys scoped to zero or multiple environments are rejected with `400` — ambiguity here would make the stored sample meaningless.
+- Session-based (JWT) callers must pass `?environment_id=<uuid>` on the URL; this is primarily a testing convenience.
+
+A recommended startup + periodic pattern for an SDK-less service:
+
+```bash
+# on boot, and every 30s
+curl -sS -X POST "$DS_API/api/v1/applications/$APP_ID/status" \
+  -H "Authorization: ApiKey $DS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"version\":\"$APP_VERSION\",\"health\":\"healthy\"}" \
+  >/dev/null
+```
+
+### Wiring a PaaS deploy webhook
+
+Every supported provider + the generic canonical endpoint funnel into the same internal `mode=record` plumbing — deploy rows are created idempotently from signed webhook deliveries.
+
+**1. Create a deploy integration**
+
+```bash
+curl -X POST https://api.deploysentry.com/api/v1/integrations/deploys \
+  -H "Authorization: Bearer $DS_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "application_id": "…",
+    "provider": "railway",
+    "auth_mode": "hmac",
+    "webhook_secret": "…generate one, store it in Railway…",
+    "provider_config": { "service_id": "…" },
+    "env_mapping": { "production": "…", "staging": "…" }
+  }'
+```
+
+The response returns the integration ID. The `webhook_secret` is stored encrypted server-side (AES-256) and never returned on subsequent reads.
+
+**2. Wire the provider webhook**
+
+- **Railway**: set the webhook URL in the service settings to `https://api.deploysentry.com/api/v1/integrations/railway/webhook`. Signing header: `X-Railway-Signature: sha256=<hex>`. Match key: `provider_config.service_id`.
+- **Render**: service → Settings → Webhooks. Signing header: `Render-Webhook-Signature: t=<ts>,v1=<hex>` (HMAC over `ts + "." + body`). Match key: `provider_config.service_id`.
+- **Fly.io**: POST the Fly-shaped payload from your deploy pipeline. Signing header: `X-Fly-Signature: sha256=<hex>`. Match key: `provider_config.app_name`.
+- **Heroku**: `heroku webhooks:add -u <URL> -i api:release --secret <secret>`. Signing header: `Heroku-Webhook-Hmac-SHA256: <base64>`. Match key: `provider_config.app_name`.
+- **Vercel**: project → Settings → Webhooks. Signing header: `x-vercel-signature: <hex>` (no prefix). Match key: `provider_config.project_id`.
+- **Netlify**: site → Build & deploy → Deploy notifications → Outgoing webhook (HMAC signed). Signing header: `x-webhook-signature: sha256=<hex>`. Match key: `provider_config.site_id`.
+- **GitHub Actions**: repo/org settings → Webhooks, content type `application/json`, subscribe to `workflow_run`. Signing header: `X-Hub-Signature-256: sha256=<hex>`. Match key: `provider_config.repository` (e.g. `"acme/api"`); optional `provider_config.workflow_name` filter to isolate the deploy workflow from CI-only runs; optional `provider_config.environment` pins deliveries to a specific env-mapping key.
+- **Generic / CI**: point your CI job at `https://api.deploysentry.com/api/v1/integrations/deploys/webhook` and send the canonical `DeployEvent` payload plus `X-DeploySentry-Integration-Id: <id>`. Use `Authorization: Bearer <webhook_secret>` if `auth_mode=bearer`, or an HMAC signature in `X-DeploySentry-Signature: sha256=<hex>` if `auth_mode=hmac`.
+
+Example generic payload from a GitHub Actions deploy job:
+
+```bash
+curl -X POST "$DS_API/api/v1/integrations/deploys/webhook" \
+  -H "Authorization: Bearer $DS_INTEGRATION_TOKEN" \
+  -H "X-DeploySentry-Integration-Id: $DS_INTEGRATION_ID" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"event_type\": \"deploy.succeeded\",
+    \"environment\": \"production\",
+    \"version\": \"${GITHUB_SHA}\",
+    \"commit_sha\": \"${GITHUB_SHA}\"
+  }"
+```
+
+**3. Verify deliveries**
+
+```bash
+curl -H "Authorization: Bearer $DS_API_KEY" \
+  "https://api.deploysentry.com/api/v1/integrations/deploys/$DS_INTEGRATION_ID/events?limit=10"
+```
+
+Behavior:
+
+- A successful delivery with `event_type=deploy.succeeded` auto-creates a `mode=record` deployment row (`source="railway-webhook"` or `"generic-webhook"`) and records the event for dedup.
+- Duplicate deliveries (same app + env + version + event_type) are idempotent — they return the existing deployment without re-creating anything.
+- `deploy.failed` / `deploy.crashed` events are recorded but do not create a deployment row.
+- Unknown environment names (not in `env_mapping`) respond with `202 Accepted` and the payload is stored but no deployment is created — fail closed, not silent.
+
+### Using a first-party SDK
+
+If you're already using one of the DeploySentry SDKs for feature flags, enabling status reporting is a one-line config change — no new dependency, no handwritten HTTP call. All server SDKs share the same contract: set `reportStatus` / `report_status` / `WithReportStatus(true)`, pass the application UUID, and optionally supply a health provider.
+
+- Node / TypeScript — [`sdk/node/README.md`](../sdk/node/README.md#status-reporting-optional)
+- Go — [`sdk/go/README.md`](../sdk/go/README.md#status-reporting)
+- Python — [`sdk/python/README.md`](../sdk/python/README.md#status-reporting-optional)
+- Java — [`sdk/java/README.md`](../sdk/java/README.md#status-reporting)
+- Ruby — [`sdk/ruby/README.md`](../sdk/ruby/README.md#status-reporting-optional)
+
+See [`docs/archives/2026-04-23-agentless-deploy-reporting-design.md`](./archives/2026-04-23-agentless-deploy-reporting-design.md) for the full agentless reporting design + completion record.
+
+### Viewing current state for an environment
+
+One read assembles everything the dashboard needs: current deployment, health, and recent history.
+
+```bash
+curl -H "Authorization: Bearer $DS_API_KEY" \
+  "https://api.deploysentry.com/api/v1/applications/$APP_ID/environments/$ENV_ID/current-state?limit=10"
+```
+
+Response shape:
+
+```jsonc
+{
+  "environment":  { "id": "…", "slug": "production", "name": "Production" },
+  "current_deployment": {
+    "id": "…",
+    "version": "1.4.2",
+    "commit_sha": "abc123",
+    "status": "completed",
+    "mode": "record",
+    "source": "app-push",
+    "traffic_percent": 100,
+    "started_at":   "…",
+    "completed_at": "…"
+  },
+  "health": {
+    "state": "healthy",
+    "score": 0.99,
+    "source": "app-push",       // app-push | agent | observability | unknown
+    "last_reported_at": "…",
+    "staleness": "fresh"        // fresh (<60s) | stale (<5m) | missing
+  },
+  "recent_deployments": [
+    { "id": "…", "version": "1.4.2", "status": "completed", "mode": "record", "completed_at": "…" },
+    …
+  ],
+  "active_rollout": null        // populated by a future phase when a rollout is in flight
+}
+```
+
+Notes:
+
+- `limit` on the recent list defaults to 10 and is capped at 50 server-side.
+- When no status has ever been reported the `health` block returns `state="unknown"`, `source="unknown"`, `staleness="missing"`.
+- When the most recent deploy is already terminal (e.g. `completed`), `current_deployment` falls back to that row rather than returning `null` — this matches operator intuition ("what's running right now").
+
+---
+
 ## Overview
 
 This guide covers how to connect a GitHub repository to DeploySentry so that deployments are automatically created, monitored, and (optionally) rolled back when you push or release code. It covers setup on three sides: DeploySentry, GitHub, and your repository.

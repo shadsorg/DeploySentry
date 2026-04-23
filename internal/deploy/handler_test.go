@@ -305,6 +305,204 @@ func TestListDeployments_InvalidAppID(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
+func TestListDeployments_EnvFilter(t *testing.T) {
+	applicationID := uuid.New()
+	environmentID := uuid.New()
+	var capturedOpts ListOptions
+	svc := &mockDeployService{
+		listFn: func(_ context.Context, _ uuid.UUID, opts ListOptions) ([]*models.Deployment, error) {
+			capturedOpts = opts
+			return nil, nil
+		},
+	}
+	router := setupDeployRouter(svc)
+
+	url := "/api/deployments?app_id=" + applicationID.String() + "&environment_id=" + environmentID.String() + "&limit=5&offset=10"
+	req := httptest.NewRequest(http.MethodGet, url, nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	if assert.NotNil(t, capturedOpts.EnvironmentID) {
+		assert.Equal(t, environmentID, *capturedOpts.EnvironmentID)
+	}
+	assert.Equal(t, 5, capturedOpts.Limit)
+	assert.Equal(t, 10, capturedOpts.Offset)
+}
+
+func TestListDeployments_InvalidEnvID(t *testing.T) {
+	router := setupDeployRouter(&mockDeployService{})
+
+	url := "/api/deployments?app_id=" + uuid.New().String() + "&environment_id=not-a-uuid"
+	req := httptest.NewRequest(http.MethodGet, url, nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// POST /deployments with mode=record  (agentless reporting — Phase 1)
+// ---------------------------------------------------------------------------
+
+func TestCreateDeployment_ModeRecord_DefaultsCompleted(t *testing.T) {
+	var captured *models.Deployment
+	svc := &mockDeployService{
+		createFn: func(_ context.Context, d *models.Deployment) error {
+			// Simulate the service's record-mode shortcut so the handler's
+			// response reflects the final stored state.
+			d.ID = uuid.New()
+			d.Status = models.DeployStatusCompleted
+			d.TrafficPercent = 100
+			captured = d
+			return nil
+		},
+	}
+	router := setupDeployRouter(svc)
+
+	body := map[string]interface{}{
+		"application_id": uuid.New().String(),
+		"environment_id": uuid.New().String(),
+		"artifact":       "img:1.4.2",
+		"version":        "1.4.2",
+		"mode":           "record",
+		"source":         "railway-webhook",
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/deployments", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	if assert.NotNil(t, captured) {
+		assert.Equal(t, models.DeployModeRecord, captured.Mode)
+		if assert.NotNil(t, captured.Source) {
+			assert.Equal(t, "railway-webhook", *captured.Source)
+		}
+	}
+
+	var resp models.Deployment
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, models.DeployStatusCompleted, resp.Status)
+	assert.Equal(t, 100, resp.TrafficPercent)
+}
+
+func TestCreateDeployment_ModeRecord_StrategyOptional(t *testing.T) {
+	svc := &mockDeployService{
+		createFn: func(_ context.Context, d *models.Deployment) error {
+			d.ID = uuid.New()
+			return nil
+		},
+	}
+	router := setupDeployRouter(svc)
+
+	body := map[string]interface{}{
+		"application_id": uuid.New().String(),
+		"environment_id": uuid.New().String(),
+		"artifact":       "img:1",
+		"version":        "1",
+		"mode":           "record",
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/deployments", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+}
+
+func TestCreateDeployment_ModeRecord_SkipsRollout(t *testing.T) {
+	attachCalled := false
+	svc := &mockDeployService{
+		createFn: func(_ context.Context, d *models.Deployment) error {
+			d.ID = uuid.New()
+			return nil
+		},
+	}
+	rollouts := &mockRolloutAttacher{
+		attachFn: func(_ context.Context, _ *models.Deployment, _ *RolloutAttachRequest, _ uuid.UUID) error {
+			attachCalled = true
+			return nil
+		},
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handler := NewHandlerWithRollouts(svc, nil, nil, nil, rollouts)
+	handler.RegisterRoutes(router.Group("/api"), nil)
+
+	body := map[string]interface{}{
+		"application_id": uuid.New().String(),
+		"environment_id": uuid.New().String(),
+		"artifact":       "img:1",
+		"version":        "1",
+		"mode":           "record",
+		"rollout":        map[string]interface{}{"strategy_name": "canary"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/deployments", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	assert.False(t, attachCalled, "rollout attach must not run for mode=record")
+}
+
+func TestCreateDeployment_InvalidMode(t *testing.T) {
+	router := setupDeployRouter(&mockDeployService{})
+
+	body := map[string]interface{}{
+		"application_id": uuid.New().String(),
+		"environment_id": uuid.New().String(),
+		"artifact":       "img:1",
+		"version":        "1",
+		"mode":           "totally-wrong",
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/deployments", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestCreateDeployment_OrchestrateRequiresStrategy(t *testing.T) {
+	router := setupDeployRouter(&mockDeployService{})
+
+	body := map[string]interface{}{
+		"application_id": uuid.New().String(),
+		"environment_id": uuid.New().String(),
+		"artifact":       "img:1",
+		"version":        "1",
+		// no mode, no strategy
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/deployments", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// mockRolloutAttacher satisfies RolloutAttacher for the record-skips-rollout test.
+type mockRolloutAttacher struct {
+	attachFn func(ctx context.Context, d *models.Deployment, req *RolloutAttachRequest, actor uuid.UUID) error
+}
+
+func (m *mockRolloutAttacher) AttachFromDeployRequest(ctx context.Context, d *models.Deployment, req *RolloutAttachRequest, actor uuid.UUID) error {
+	if m.attachFn != nil {
+		return m.attachFn(ctx, d, req, actor)
+	}
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // POST /deployments/:id/promote  (promoteDeployment)
 // ---------------------------------------------------------------------------

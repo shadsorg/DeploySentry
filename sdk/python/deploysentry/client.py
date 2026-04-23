@@ -17,6 +17,7 @@ from .models import (
     FlagCategory,
     FlagMetadata,
 )
+from .status_reporter import HealthReport, StatusReporter
 from .streaming import SSEClient
 
 logger = logging.getLogger("deploysentry.client")
@@ -55,6 +56,15 @@ class DeploySentryClient:
         cache_timeout: float = 30,
         offline_mode: bool = False,
         session_id: Optional[str] = None,
+        *,
+        application_id: Optional[str] = None,
+        report_status: bool = False,
+        report_status_interval: float = 30.0,
+        report_status_version: Optional[str] = None,
+        report_status_commit_sha: Optional[str] = None,
+        report_status_deploy_slot: Optional[str] = None,
+        report_status_tags: Optional[Dict[str, str]] = None,
+        report_status_health_provider: Optional[Callable[[], HealthReport]] = None,
     ) -> None:
         self._api_key = api_key
         self._base_url = base_url.rstrip("/")
@@ -69,6 +79,16 @@ class DeploySentryClient:
         self._http: Optional[httpx.Client] = None
         self._sse: Optional[SSEClient] = None
         self._initialized = False
+
+        self._application_id = application_id
+        self._report_status = report_status
+        self._report_status_interval = report_status_interval
+        self._report_status_version = report_status_version
+        self._report_status_commit_sha = report_status_commit_sha
+        self._report_status_deploy_slot = report_status_deploy_slot
+        self._report_status_tags = report_status_tags
+        self._report_status_health_provider = report_status_health_provider
+        self._status_reporter: Optional[StatusReporter] = None
 
     # ------------------------------------------------------------------
     # Headers
@@ -123,8 +143,34 @@ class DeploySentryClient:
         self._initialized = True
         logger.info("DeploySentryClient initialised (project=%s, env=%s)", self._project, self._environment)
 
+        self._start_status_reporter()
+
+    def _start_status_reporter(self) -> None:
+        if not self._report_status:
+            return
+        if not self._application_id:
+            logger.warning(
+                "report_status=True but application_id is empty; status reporter disabled"
+            )
+            return
+        self._status_reporter = StatusReporter(
+            base_url=self._base_url,
+            api_key=self._api_key,
+            application_id=self._application_id,
+            interval_s=self._report_status_interval,
+            version=self._report_status_version,
+            commit_sha=self._report_status_commit_sha,
+            deploy_slot=self._report_status_deploy_slot,
+            tags=self._report_status_tags,
+            health_provider=self._report_status_health_provider,
+        )
+        self._status_reporter.start()
+
     def close(self) -> None:
         """Release resources held by the client."""
+        if self._status_reporter is not None:
+            self._status_reporter.stop()
+            self._status_reporter = None
         if self._sse is not None:
             self._sse.stop()
             self._sse = None

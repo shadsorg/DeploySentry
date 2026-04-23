@@ -54,6 +54,30 @@ try (DeploySentryClient client = new DeploySentryClient(options)) {
 }
 ```
 
+## Status Reporting
+
+Enable `reportStatus(true)` to have the SDK push version + health to DeploySentry automatically. No separate startup code needed — the SDK posts `POST /applications/:id/status` on `initialize()` and on an interval.
+
+```java
+ClientOptions options = ClientOptions.builder()
+        .apiKey(System.getenv("DS_API_KEY"))
+        .environment("production")
+        .project("my-app")
+        .applicationId(System.getenv("DS_APPLICATION_ID"))
+        .reportStatus(true)
+        .reportStatusInterval(Duration.ofSeconds(30))   // Duration.ZERO = startup-only
+        .reportStatusVersion(System.getenv("APP_VERSION"))
+        .reportStatusCommitSha(System.getenv("GIT_SHA"))
+        .reportStatusDeploySlot(System.getenv("DS_DEPLOY_SLOT"))
+        .reportStatusTags(Map.of("region", "us-east"))
+        .healthProvider(() -> dbUp()
+                ? new HealthReport("healthy", 0.99, null)
+                : new HealthReport("degraded", null, "db unreachable"))
+        .build();
+```
+
+The API key must carry the `status:write` scope and be scoped to a single application + environment. Without a `healthProvider`, the SDK sends `state: "healthy"` on every tick (the "process alive" floor). Version auto-detection checks `APP_VERSION`, `GIT_SHA`, `GIT_COMMIT`, `SOURCE_COMMIT`, `RAILWAY_GIT_COMMIT_SHA`, `RENDER_GIT_COMMIT`, `VERCEL_GIT_COMMIT_SHA`, `HEROKU_SLUG_COMMIT` in order, then the jar's `Implementation-Version`, then falls back to `"unknown"`.
+
 ## Detailed Evaluation
 
 Use `detail()` to retrieve a full `EvaluationResult` that includes the resolved value, variant, reason, and flag metadata:

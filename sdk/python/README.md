@@ -64,6 +64,37 @@ async def main():
 asyncio.run(main())
 ```
 
+## Status reporting (optional)
+
+Enable `report_status` to have the SDK push version + health to DeploySentry automatically. No separate startup code needed — the SDK posts `POST /applications/:id/status` on `initialize()` and on an interval.
+
+```python
+from deploysentry import DeploySentryClient, HealthReport
+
+client = DeploySentryClient(
+    api_key=os.environ["DS_API_KEY"],
+    base_url="https://api.dr-sentry.com",
+    environment="production",
+    project="my-project",
+
+    # Agentless status reporting
+    application_id=os.environ["DS_APPLICATION_ID"],   # UUID
+    report_status=True,
+    report_status_interval=30.0,                       # seconds; 0 = startup-only
+    report_status_version=os.environ.get("APP_VERSION"),
+    report_status_commit_sha=os.environ.get("GIT_SHA"),
+    report_status_deploy_slot=os.environ.get("DS_DEPLOY_SLOT"),
+    report_status_tags={"region": os.environ.get("REGION", "unknown")},
+    report_status_health_provider=lambda: HealthReport(
+        state="healthy" if db_up() else "degraded",
+        score=0.99,
+    ),
+)
+client.initialize()
+```
+
+The API key must carry the `status:write` scope and be scoped to a single application + environment. Without a `report_status_health_provider`, the SDK sends `state="healthy"` on every tick (the "process alive" floor). Version auto-detection checks `APP_VERSION`, `GIT_SHA`, `GIT_COMMIT`, `SOURCE_COMMIT`, `RAILWAY_GIT_COMMIT_SHA`, `RENDER_GIT_COMMIT`, `VERCEL_GIT_COMMIT_SHA`, `HEROKU_SLUG_COMMIT` in order and falls back to the literal `"unknown"`.
+
 ## Evaluation Methods
 
 | Method | Return type | Description |

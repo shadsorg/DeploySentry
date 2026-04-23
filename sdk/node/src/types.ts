@@ -85,6 +85,38 @@ export interface ClientOptions {
   flagFilePath?: string;
   /** Called whenever the flag cache is refreshed from an SSE change event. */
   onFlagChange?: (flags: Flag[]) => void;
+
+  // --- Status reporting (agentless deploy reporting) ---
+  /**
+   * Application UUID. Required when `reportStatus` is true. Distinct from
+   * `application` (the slug used for flag evaluation) because the status
+   * endpoint is keyed on the UUID.
+   */
+  applicationId?: string;
+  /** Enable the status reporter. Default: false. */
+  reportStatus?: boolean;
+  /** Interval in ms between status reports. Default: 30_000. 0 = send once on init. */
+  reportStatusIntervalMs?: number;
+  /** Override the auto-detected version string. */
+  reportStatusVersion?: string;
+  /** Commit SHA reported alongside the version. */
+  reportStatusCommitSha?: string;
+  /** Optional deploy-slot tag (`stable` / `canary`). */
+  reportStatusDeploySlot?: string;
+  /** Arbitrary tags attached to every report. */
+  reportStatusTags?: Record<string, string>;
+  /**
+   * Optional callback resolving the current health. If omitted the reporter
+   * sends `state: 'healthy'` on every tick (the "process alive" floor).
+   */
+  reportStatusHealthProvider?: () => HealthReport | Promise<HealthReport>;
+}
+
+/** Shape returned by a status reporter's health provider. */
+export interface HealthReport {
+  state: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+  score?: number;
+  reason?: string;
 }
 
 export interface FlagConfig {

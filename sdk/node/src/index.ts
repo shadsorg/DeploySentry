@@ -26,6 +26,7 @@ export { FlagCache } from './cache';
 export { FlagStreamClient } from './streaming';
 export { loadFlagConfig } from './file-loader';
 export { evaluateLocal } from './local-evaluator';
+export { StatusReporter, resolveVersion } from './status-reporter';
 
 export type {
   ClientOptions,
@@ -39,4 +40,5 @@ export type {
   FlagConfigRule,
   FlagConfigEnvironment,
   ApiError,
+  HealthReport,
 } from './types';

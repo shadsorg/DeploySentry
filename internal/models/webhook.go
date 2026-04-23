@@ -78,6 +78,7 @@ const (
 
 	// Deployment events
 	EventDeploymentCreated    WebhookEvent = "deployment.created"
+	EventDeploymentRecorded   WebhookEvent = "deployment.recorded"
 	EventDeploymentStarted    WebhookEvent = "deployment.started"
 	EventDeploymentCompleted  WebhookEvent = "deployment.completed"
 	EventDeploymentFailed     WebhookEvent = "deployment.failed"
@@ -115,6 +116,7 @@ func AllWebhookEvents() []WebhookEvent {
 		EventFlagScheduledForRemovalDue,
 		EventFlagIterationExhausted,
 		EventDeploymentCreated,
+		EventDeploymentRecorded,
 		EventDeploymentStarted,
 		EventDeploymentCompleted,
 		EventDeploymentFailed,

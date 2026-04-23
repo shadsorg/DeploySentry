@@ -216,6 +216,54 @@ func TestCreateDeployment_ValidationError(t *testing.T) {
 	assert.Contains(t, err.Error(), "validation failed")
 }
 
+func TestCreateDeployment_Record_CompletesImmediately(t *testing.T) {
+	repo := newMockRepo()
+	pub := &mockPublisher{}
+	svc := NewDeployService(repo, pub)
+
+	d := validDeployment()
+	d.Mode = models.DeployModeRecord
+	src := "railway-webhook"
+	d.Source = &src
+
+	err := svc.CreateDeployment(context.Background(), d)
+	assert.NoError(t, err)
+
+	assert.Equal(t, models.DeployStatusCompleted, d.Status)
+	assert.Equal(t, 100, d.TrafficPercent)
+	assert.NotNil(t, d.StartedAt)
+	assert.NotNil(t, d.CompletedAt)
+
+	events := pub.events()
+	assert.Contains(t, events, "deployments.deployment.recorded")
+	assert.NotContains(t, events, "deployments.deployment.created")
+}
+
+func TestCreateDeployment_Record_StrategyOptional(t *testing.T) {
+	repo := newMockRepo()
+	pub := &mockPublisher{}
+	svc := NewDeployService(repo, pub)
+
+	d := validDeployment()
+	d.Mode = models.DeployModeRecord
+	d.Strategy = "" // should still be valid in record mode
+
+	err := svc.CreateDeployment(context.Background(), d)
+	assert.NoError(t, err)
+}
+
+func TestCreateDeployment_Orchestrate_DefaultMode(t *testing.T) {
+	repo := newMockRepo()
+	pub := &mockPublisher{}
+	svc := NewDeployService(repo, pub)
+
+	d := validDeployment() // Mode unset
+	err := svc.CreateDeployment(context.Background(), d)
+	assert.NoError(t, err)
+	assert.Equal(t, models.DeployModeOrchestrate, d.Mode, "empty mode should default to orchestrate")
+	assert.Equal(t, models.DeployStatusPending, d.Status)
+}
+
 func TestCreateDeployment_PublishesEvent(t *testing.T) {
 	repo := newMockRepo()
 	pub := &mockPublisher{}

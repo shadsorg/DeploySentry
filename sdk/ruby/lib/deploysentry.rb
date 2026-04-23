@@ -1,10 +1,5 @@
 # frozen_string_literal: true
 
-require_relative "deploysentry/models"
-require_relative "deploysentry/cache"
-require_relative "deploysentry/streaming"
-require_relative "deploysentry/client"
-
 module DeploySentry
   VERSION = "1.0.0"
 
@@ -13,3 +8,9 @@ module DeploySentry
   class ApiError < Error; end
   class ConnectionError < Error; end
 end
+
+require_relative "deploysentry/models"
+require_relative "deploysentry/cache"
+require_relative "deploysentry/streaming"
+require_relative "deploysentry/status_reporter"
+require_relative "deploysentry/client"

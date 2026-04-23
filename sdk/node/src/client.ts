@@ -11,6 +11,7 @@ import { FlagCache } from './cache';
 import { FlagStreamClient } from './streaming';
 import { loadFlagConfig } from './file-loader';
 import { evaluateLocal } from './local-evaluator';
+import { StatusReporter } from './status-reporter';
 
 const DEFAULT_BASE_URL = 'https://api.dr-sentry.com';
 
@@ -95,6 +96,8 @@ export class DeploySentryClient {
   private _initialized = false;
   private flagConfig: FlagConfig | null = null;
   private registry: Map<string, Registration[]> = new Map();
+  private statusReporter: StatusReporter | null = null;
+  private readonly statusReporterOptions: ClientOptions;
 
   constructor(options: ClientOptions) {
     if (!options.apiKey) throw new Error('apiKey is required');
@@ -114,6 +117,7 @@ export class DeploySentryClient {
     this.onFlagChange = options.onFlagChange;
 
     this.cache = new FlagCache(options.cacheTimeout ?? DEFAULT_CACHE_TIMEOUT_MS);
+    this.statusReporterOptions = options;
   }
 
   // ---------------------------------------------------------------------------
@@ -166,6 +170,7 @@ export class DeploySentryClient {
       // Fire-and-forget; the stream reconnects automatically.
       this.streamClient.connect();
       this._initialized = true;
+      this.startStatusReporter();
     } catch (err) {
       if (this.mode === 'server-with-fallback') {
         console.warn('[DeploySentry] Server unavailable, falling back to flag config file');
@@ -181,8 +186,33 @@ export class DeploySentryClient {
   close(): void {
     this.streamClient?.close();
     this.streamClient = null;
+    this.statusReporter?.stop();
+    this.statusReporter = null;
     this.cache.clear();
     this._initialized = false;
+  }
+
+  private startStatusReporter(): void {
+    const o = this.statusReporterOptions;
+    if (!o.reportStatus) return;
+    if (!o.applicationId) {
+      console.warn(
+        '[DeploySentry] reportStatus=true but applicationId is not set; status reporter disabled',
+      );
+      return;
+    }
+    this.statusReporter = new StatusReporter({
+      baseURL: this.baseURL,
+      apiKey: this.apiKey,
+      applicationId: o.applicationId,
+      intervalMs: o.reportStatusIntervalMs,
+      version: o.reportStatusVersion,
+      commitSha: o.reportStatusCommitSha,
+      deploySlot: o.reportStatusDeploySlot,
+      tags: o.reportStatusTags,
+      healthProvider: o.reportStatusHealthProvider,
+    });
+    this.statusReporter.start();
   }
 
   /**

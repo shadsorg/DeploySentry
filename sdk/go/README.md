@@ -67,6 +67,49 @@ func main() {
 | `WithCacheTimeout`   | TTL for cached flag values (default 5 minutes)      |
 | `WithHTTPClient`     | Custom `*http.Client` for API requests              |
 | `WithLogger`         | Custom `*log.Logger`                                |
+| `WithApplicationID`  | Application UUID — required when `WithReportStatus(true)` |
+| `WithReportStatus`   | Enable the agentless status reporter                |
+| `WithReportStatusInterval` | Cadence (default 30s; 0 = startup-only)       |
+| `WithReportStatusVersion` | Override auto-detected version string          |
+| `WithReportStatusCommitSHA` | Commit SHA reported with status              |
+| `WithReportStatusDeploySlot` | "stable" / "canary" / etc.                  |
+| `WithReportStatusTags` | Arbitrary string tags on every report             |
+| `WithHealthProvider` | Callback resolving the current `HealthReport`       |
+
+## Status Reporting
+
+Enable `WithReportStatus(true)` to have the SDK push version + health to DeploySentry automatically. No separate startup code needed — the SDK calls `POST /applications/:id/status` on `Initialize` and on the configured interval.
+
+```go
+score := 0.99
+client := ds.NewClient(
+    ds.WithAPIKey(os.Getenv("DS_API_KEY")),
+    ds.WithEnvironment("production"),
+    ds.WithProject(os.Getenv("DS_PROJECT_ID")),
+    ds.WithApplicationID(os.Getenv("DS_APPLICATION_ID")),
+
+    ds.WithReportStatus(true),
+    ds.WithReportStatusInterval(30*time.Second),   // 0 = startup-only
+    ds.WithReportStatusVersion(os.Getenv("APP_VERSION")),
+    ds.WithReportStatusCommitSHA(os.Getenv("GIT_SHA")),
+    ds.WithReportStatusDeploySlot(os.Getenv("DS_DEPLOY_SLOT")),
+    ds.WithReportStatusTags(map[string]string{"region": "us-east"}),
+    ds.WithHealthProvider(func() (ds.HealthReport, error) {
+        if dbHealthy() {
+            return ds.HealthReport{State: "healthy", Score: &score}, nil
+        }
+        return ds.HealthReport{State: "degraded", Reason: "db unreachable"}, nil
+    }),
+)
+```
+
+Requirements:
+
+- API key must carry the `status:write` scope and be scoped to one application + environment.
+- Without a `WithHealthProvider`, the SDK sends `state: "healthy"` every tick (the "process alive" floor).
+- Version auto-detection falls through: explicit config → env vars (`APP_VERSION`, `GIT_SHA`, `GIT_COMMIT`, `SOURCE_COMMIT`, `RAILWAY_GIT_COMMIT_SHA`, `RENDER_GIT_COMMIT`, `VERCEL_GIT_COMMIT_SHA`, `HEROKU_SLUG_COMMIT`) → `debug.ReadBuildInfo()` → `"unknown"`.
+
+The first `/status` report with a new version auto-creates a `mode=record` deployment with `source="app-push"`, so deploy history populates without needing a PaaS webhook configured.
 
 ## Evaluation Methods
 

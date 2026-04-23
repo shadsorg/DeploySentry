@@ -42,5 +42,10 @@ func NewServer() *server.MCPServer {
 	s.AddTool(getTrafficStateTool, handleGetTrafficState)
 	s.AddTool(setupLocalDeployTool, handleSetupLocalDeploy)
 
+	// Agentless reporting setup
+	s.AddTool(setupDeployIntegrationTool, handleSetupDeployIntegration)
+	s.AddTool(checkDeployIntegrationTool, handleCheckDeployIntegration)
+	s.AddTool(reportingVerifyTool, handleReportingVerify)
+
 	return s
 }

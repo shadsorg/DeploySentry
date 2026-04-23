@@ -53,6 +53,7 @@ public final class DeploySentryClient implements AutoCloseable {
     private final ConcurrentHashMap<String, List<Registration<?>>> registry = new ConcurrentHashMap<>();
 
     private SSEClient sseClient;
+    private StatusReporter statusReporter;
 
     /**
      * Creates a new client with the given options. Call {@link #initialize()}
@@ -85,7 +86,19 @@ public final class DeploySentryClient implements AutoCloseable {
             startSSE();
         }
 
+        startStatusReporter();
+
         LOG.info("DeploySentry client initialized (flags cached: " + cache.size() + ")");
+    }
+
+    private void startStatusReporter() {
+        if (!options.isReportStatus()) return;
+        if (options.getApplicationId() == null || options.getApplicationId().isEmpty()) {
+            LOG.warning("reportStatus=true but applicationId is empty; status reporter disabled");
+            return;
+        }
+        statusReporter = new StatusReporter(options, httpClient);
+        statusReporter.start();
     }
 
     /**
@@ -93,6 +106,10 @@ public final class DeploySentryClient implements AutoCloseable {
      */
     @Override
     public void close() {
+        if (statusReporter != null) {
+            statusReporter.stop();
+            statusReporter = null;
+        }
         if (sseClient != null) {
             sseClient.close();
             sseClient = null;

@@ -9,7 +9,11 @@ module DeploySentry
   class Client
     attr_reader :environment, :project
 
-    def initialize(api_key:, base_url:, environment:, project:, cache_timeout: 30, offline_mode: false, session_id: nil)
+    def initialize(api_key:, base_url:, environment:, project:, cache_timeout: 30, offline_mode: false, session_id: nil,
+                   application_id: nil, report_status: false, report_status_interval: 30.0,
+                   report_status_version: nil, report_status_commit_sha: nil,
+                   report_status_deploy_slot: nil, report_status_tags: nil,
+                   report_status_health_provider: nil)
       raise ConfigurationError, "api_key is required" if api_key.nil? || api_key.empty?
       raise ConfigurationError, "base_url is required" if base_url.nil? || base_url.empty?
       raise ConfigurationError, "environment is required" if environment.nil? || environment.empty?
@@ -29,21 +33,56 @@ module DeploySentry
       @initialized = false
       @registry = {}
       @registry_mutex = Mutex.new
+
+      @application_id = application_id
+      @report_status = report_status
+      @report_status_interval = report_status_interval
+      @report_status_version = report_status_version
+      @report_status_commit_sha = report_status_commit_sha
+      @report_status_deploy_slot = report_status_deploy_slot
+      @report_status_tags = report_status_tags
+      @report_status_health_provider = report_status_health_provider
+      @status_reporter = nil
     end
 
     def initialize!
       fetch_flags
       start_streaming unless @offline_mode
+      start_status_reporter
       @initialized = true
       self
     end
 
     def close
+      @status_reporter&.stop
+      @status_reporter = nil
       @sse_client&.stop
       @sse_client = nil
       @cache.clear
       @initialized = false
     end
+
+    private def start_status_reporter
+      return unless @report_status
+      if @application_id.nil? || @application_id.empty?
+        warn "[DeploySentry] report_status=true but application_id is empty; status reporter disabled"
+        return
+      end
+      @status_reporter = StatusReporter.new(
+        base_url: @base_url,
+        api_key: @api_key,
+        application_id: @application_id,
+        interval_s: @report_status_interval,
+        version: @report_status_version,
+        commit_sha: @report_status_commit_sha,
+        deploy_slot: @report_status_deploy_slot,
+        tags: @report_status_tags,
+        health_provider: @report_status_health_provider,
+      )
+      @status_reporter.start
+    end
+
+    public
 
     def initialized?
       @initialized

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/deploysentry/deploysentry/internal/analytics"
@@ -119,14 +120,19 @@ func mw(rbac *auth.RBACChecker, perm auth.Permission) gin.HandlerFunc {
 
 // createDeploymentRequest is the JSON body for creating a new deployment.
 type createDeploymentRequest struct {
-	ApplicationID uuid.UUID            `json:"application_id" binding:"required"`
-	EnvironmentID uuid.UUID            `json:"environment_id" binding:"required"`
-	Strategy      string               `json:"strategy" binding:"required"`
-	Artifact      string               `json:"artifact" binding:"required"`
-	Version       string               `json:"version" binding:"required"`
-	CommitSHA     string               `json:"commit_sha"`
-	FlagTestKey   *string              `json:"flag_test_key"`
-	Rollout       *RolloutAttachRequest `json:"rollout,omitempty"`
+	ApplicationID uuid.UUID             `json:"application_id" binding:"required"`
+	EnvironmentID uuid.UUID             `json:"environment_id" binding:"required"`
+	Strategy      string                `json:"strategy"`
+	Artifact      string                `json:"artifact" binding:"required"`
+	Version       string                `json:"version" binding:"required"`
+	CommitSHA     string                `json:"commit_sha"`
+	FlagTestKey   *string               `json:"flag_test_key"`
+	// Mode is "orchestrate" (default) or "record". In record mode the platform
+	// (Railway, Render, …) already deployed the artifact; DeploySentry only
+	// stores the fact for history/status and does not drive a rollout.
+	Mode    string                `json:"mode,omitempty"`
+	Source  string                `json:"source,omitempty"`
+	Rollout *RolloutAttachRequest `json:"rollout,omitempty"`
 }
 
 func (h *Handler) createDeployment(c *gin.Context) {
@@ -143,6 +149,27 @@ func (h *Handler) createDeployment(c *gin.Context) {
 		createdBy = uuid.Nil
 	}
 
+	mode := models.DeployMode(req.Mode)
+	if mode == "" {
+		mode = models.DeployModeOrchestrate
+	}
+	if mode != models.DeployModeOrchestrate && mode != models.DeployModeRecord {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "mode must be 'orchestrate' or 'record'"})
+		return
+	}
+
+	// Strategy is required for orchestrated deploys but optional for recorded ones.
+	if mode == models.DeployModeOrchestrate && req.Strategy == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "strategy is required"})
+		return
+	}
+
+	var sourcePtr *string
+	if req.Source != "" {
+		s := req.Source
+		sourcePtr = &s
+	}
+
 	d := &models.Deployment{
 		ApplicationID: req.ApplicationID,
 		EnvironmentID: req.EnvironmentID,
@@ -152,6 +179,8 @@ func (h *Handler) createDeployment(c *gin.Context) {
 		CommitSHA:     req.CommitSHA,
 		FlagTestKey:   req.FlagTestKey,
 		CreatedBy:     createdBy,
+		Mode:          mode,
+		Source:        sourcePtr,
 	}
 
 	if err := h.service.CreateDeployment(c.Request.Context(), d); err != nil {
@@ -187,6 +216,10 @@ func (h *Handler) createDeployment(c *gin.Context) {
 			"artifact":       d.Artifact,
 			"commit_sha":     d.CommitSHA,
 			"status":         string(d.Status),
+			"mode":           string(d.Mode),
+		}
+		if d.Source != nil {
+			webhookData["source"] = *d.Source
 		}
 
 		var orgID uuid.UUID
@@ -194,12 +227,17 @@ func (h *Handler) createDeployment(c *gin.Context) {
 			orgID, _ = orgIDVal.(uuid.UUID)
 		}
 
-		if err := h.webhookSvc.PublishEvent(c.Request.Context(), models.EventDeploymentCreated, orgID, &d.ApplicationID, webhookData, &createdBy); err != nil {
-			log.Printf("failed to publish deployment created webhook: %v", err)
+		event := models.EventDeploymentCreated
+		if d.Mode == models.DeployModeRecord {
+			event = models.EventDeploymentRecorded
+		}
+		if err := h.webhookSvc.PublishEvent(c.Request.Context(), event, orgID, &d.ApplicationID, webhookData, &createdBy); err != nil {
+			log.Printf("failed to publish %s webhook: %v", event, err)
 		}
 	}
 
-	if h.rollouts != nil && req.Rollout != nil && !req.Rollout.ApplyImmediately {
+	// Recorded deploys never attach a rollout — the platform already shipped.
+	if d.Mode != models.DeployModeRecord && h.rollouts != nil && req.Rollout != nil && !req.Rollout.ApplyImmediately {
 		actor := actorFromDeployContext(c)
 		if err := h.rollouts.AttachFromDeployRequest(c.Request.Context(), d, req.Rollout, actor); err != nil {
 			if errors.Is(err, rollout.ErrAlreadyActiveOnTarget) {
@@ -249,6 +287,26 @@ func (h *Handler) listDeployments(c *gin.Context) {
 	opts := ListOptions{
 		Limit:  20,
 		Offset: 0,
+	}
+
+	if envIDStr := c.Query("environment_id"); envIDStr != "" {
+		envID, err := uuid.Parse(envIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid environment_id"})
+			return
+		}
+		opts.EnvironmentID = &envID
+	}
+
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if v, err := strconv.Atoi(limitStr); err == nil && v > 0 {
+			opts.Limit = v
+		}
+	}
+	if offsetStr := c.Query("offset"); offsetStr != "" {
+		if v, err := strconv.Atoi(offsetStr); err == nil && v >= 0 {
+			opts.Offset = v
+		}
 	}
 
 	deployments, err := h.service.ListDeployments(c.Request.Context(), applicationID, opts)

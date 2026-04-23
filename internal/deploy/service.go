@@ -74,14 +74,34 @@ func NewDeployService(repo DeployRepository, messaging MessagePublisher) DeployS
 
 // CreateDeployment validates and persists a new deployment, then publishes
 // a deployment.created event.
+//
+// When d.Mode == DeployModeRecord the deployment represents a rollout that
+// an external platform (Railway, Render, …) already completed. The record
+// is inserted as completed/100% and the phase engine is bypassed — callers
+// should publish deployment.recorded instead of deployment.created.
 func (s *deployService) CreateDeployment(ctx context.Context, d *models.Deployment) error {
 	if d.ID == uuid.Nil {
 		d.ID = uuid.New()
 	}
-	d.Status = models.DeployStatusPending
+	if d.Mode == "" {
+		d.Mode = models.DeployModeOrchestrate
+	}
 	now := time.Now().UTC()
 	d.CreatedAt = now
 	d.UpdatedAt = now
+
+	if d.Mode == models.DeployModeRecord {
+		d.Status = models.DeployStatusCompleted
+		d.TrafficPercent = 100
+		if d.StartedAt == nil {
+			d.StartedAt = &now
+		}
+		if d.CompletedAt == nil {
+			d.CompletedAt = &now
+		}
+	} else {
+		d.Status = models.DeployStatusPending
+	}
 
 	if err := d.Validate(); err != nil {
 		return fmt.Errorf("validation failed: %w", err)
@@ -98,7 +118,11 @@ func (s *deployService) CreateDeployment(ctx context.Context, d *models.Deployme
 		return fmt.Errorf("creating deployment: %w", err)
 	}
 
-	s.publishEvent(ctx, "deployment.created", d.ID)
+	if d.Mode == models.DeployModeRecord {
+		s.publishEvent(ctx, "deployment.recorded", d.ID)
+	} else {
+		s.publishEvent(ctx, "deployment.created", d.ID)
+	}
 	return nil
 }
 

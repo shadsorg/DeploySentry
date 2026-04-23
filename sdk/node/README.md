@@ -40,6 +40,42 @@ const config = await client.jsonValue('rate-limits', { rpm: 100 });
 client.close();
 ```
 
+## Status reporting (optional)
+
+Enable `reportStatus` to have the SDK push version + health to DeploySentry automatically. No separate startup code needed — the SDK posts `POST /applications/:id/status` on init and on an interval.
+
+```typescript
+const client = new DeploySentryClient({
+  apiKey: process.env.DS_API_KEY!,
+  environment: 'production',
+  project: 'my-app',
+  application: 'my-web-app',
+
+  // Agentless status reporting
+  applicationId: process.env.DS_APPLICATION_ID!, // UUID of the app
+  reportStatus: true,
+  reportStatusIntervalMs: 30_000,                // default; 0 = startup-only
+  reportStatusVersion: process.env.APP_VERSION,   // optional override
+  reportStatusCommitSha: process.env.GIT_SHA,
+  reportStatusDeploySlot: process.env.DS_DEPLOY_SLOT, // "stable" | "canary"
+  reportStatusTags: { region: process.env.REGION ?? 'unknown' },
+  reportStatusHealthProvider: async () => ({
+    state: (await isDbUp()) ? 'healthy' : 'degraded',
+    score: 0.99,
+  }),
+});
+
+await client.initialize();
+```
+
+The API key must carry the `status:write` scope and be scoped to a single application + environment. When `reportStatus` is `true` but `applicationId` is omitted, the reporter logs a warning and is disabled — flag evaluation continues to work.
+
+Without a `reportStatusHealthProvider`, the SDK sends `health: "healthy"` on every tick ("process alive" floor). Supply a provider if your app can detect degradation (stale DB, downstream outages, etc.).
+
+Version auto-detection (when `reportStatusVersion` is omitted) checks these env vars in order: `APP_VERSION`, `GIT_SHA`, `GIT_COMMIT`, `SOURCE_COMMIT`, `RAILWAY_GIT_COMMIT_SHA`, `RENDER_GIT_COMMIT`, `VERCEL_GIT_COMMIT_SHA`, `HEROKU_SLUG_COMMIT`, `npm_package_version` — falling back to the literal string `"unknown"`.
+
+The first `/status` report with a version DeploySentry has not seen auto-creates a `mode=record` deployment with `source="app-push"`, so deploy history populates even without a Railway/Render/etc. webhook configured.
+
 ## Evaluation Context
 
 Pass targeting context with every evaluation:

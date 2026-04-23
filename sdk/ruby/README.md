@@ -64,6 +64,36 @@ puts result.metadata # => FlagMetadata struct
 client.close
 ```
 
+## Status reporting (optional)
+
+Enable `report_status:` to have the SDK push version + health to DeploySentry automatically. No separate startup code needed — the SDK posts `POST /applications/:id/status` on `initialize!` and on an interval.
+
+```ruby
+client = DeploySentry::Client.new(
+  api_key:                      ENV.fetch("DS_API_KEY"),
+  base_url:                     "https://api.dr-sentry.com",
+  environment:                  "production",
+  project:                      "my-project",
+
+  application_id:               ENV.fetch("DS_APPLICATION_ID"),
+  report_status:                true,
+  report_status_interval:       30.0,
+  report_status_version:        ENV["APP_VERSION"],
+  report_status_commit_sha:     ENV["GIT_SHA"],
+  report_status_deploy_slot:    ENV["DS_DEPLOY_SLOT"],
+  report_status_tags:           { "region" => ENV.fetch("REGION", "unknown") },
+  report_status_health_provider: -> {
+    DeploySentry::StatusReporter::HealthReport.new(
+      state: db_up? ? "healthy" : "degraded",
+      score: 0.99,
+    )
+  },
+)
+client.initialize!
+```
+
+The API key must carry the `status:write` scope and be scoped to a single application + environment. Without a `report_status_health_provider`, the SDK sends `state: "healthy"` on every tick (the "process alive" floor). Version auto-detection checks `APP_VERSION`, `GIT_SHA`, `GIT_COMMIT`, `SOURCE_COMMIT`, `RAILWAY_GIT_COMMIT_SHA`, `RENDER_GIT_COMMIT`, `VERCEL_GIT_COMMIT_SHA`, `HEROKU_SLUG_COMMIT` in order and falls back to `"unknown"`.
+
 ## Flag Metadata
 
 Every flag can carry rich metadata:

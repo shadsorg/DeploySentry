@@ -10,6 +10,7 @@ from .models import (
     FlagCategory,
     FlagMetadata,
 )
+from .status_reporter import HealthReport, StatusReporter, resolve_version
 
 __all__ = [
     "AsyncDeploySentryClient",
@@ -20,6 +21,9 @@ __all__ = [
     "FlagCategory",
     "FlagMetadata",
     "TTLCache",
+    "HealthReport",
+    "StatusReporter",
+    "resolve_version",
 ]
 
 __version__ = "1.0.0"

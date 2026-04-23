@@ -42,6 +42,20 @@ const (
 	DeployStrategyRolling DeployStrategyType = "rolling"
 )
 
+// DeployMode distinguishes deployments DeploySentry actively orchestrates
+// from ones recorded after an external platform (Railway, Render, …) did
+// the rollout.
+type DeployMode string
+
+const (
+	// DeployModeOrchestrate is the default: DeploySentry drives the rollout
+	// through the phase engine.
+	DeployModeOrchestrate DeployMode = "orchestrate"
+	// DeployModeRecord represents a deploy that the platform already
+	// completed; DeploySentry only records it for history/status.
+	DeployModeRecord DeployMode = "record"
+)
+
 // DeploymentPhaseStatus represents the lifecycle state of a deployment phase.
 type DeploymentPhaseStatus string
 
@@ -79,6 +93,8 @@ type Deployment struct {
 	PreviousDeploymentID *uuid.UUID        `json:"previous_deployment_id,omitempty" db:"previous_deployment_id"`
 	FlagTestKey          *string            `json:"flag_test_key,omitempty" db:"flag_test_key"`
 	CreatedBy            uuid.UUID          `json:"created_by" db:"created_by"`
+	Mode                 DeployMode         `json:"mode" db:"mode"`
+	Source               *string            `json:"source,omitempty" db:"source"`
 	StartedAt      *time.Time         `json:"started_at,omitempty" db:"started_at"`
 	CompletedAt    *time.Time         `json:"completed_at,omitempty" db:"completed_at"`
 	CreatedAt      time.Time          `json:"created_at" db:"created_at"`
@@ -168,11 +184,18 @@ func (d *Deployment) Validate() error {
 	if d.CreatedBy == uuid.Nil {
 		return errors.New("created_by is required")
 	}
-	switch d.Strategy {
-	case DeployStrategyCanary, DeployStrategyBlueGreen, DeployStrategyRolling:
-		// valid
+	switch d.Mode {
+	case "", DeployModeOrchestrate:
+		switch d.Strategy {
+		case DeployStrategyCanary, DeployStrategyBlueGreen, DeployStrategyRolling:
+			// valid
+		default:
+			return errors.New("unsupported deploy strategy")
+		}
+	case DeployModeRecord:
+		// Record mode skips phase orchestration; strategy is informational only.
 	default:
-		return errors.New("unsupported deploy strategy")
+		return fmt.Errorf("unsupported deploy mode %q", d.Mode)
 	}
 	return nil
 }

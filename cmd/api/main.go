@@ -20,7 +20,9 @@ import (
 
 	"github.com/deploysentry/deploysentry/internal/agent/registry"
 	"github.com/deploysentry/deploysentry/internal/analytics"
+	"github.com/deploysentry/deploysentry/internal/appstatus"
 	"github.com/deploysentry/deploysentry/internal/auth"
+	"github.com/deploysentry/deploysentry/internal/currentstate"
 	"github.com/deploysentry/deploysentry/internal/deploy"
 	"github.com/deploysentry/deploysentry/internal/deploy/engine"
 	"github.com/deploysentry/deploysentry/internal/entities"
@@ -29,6 +31,7 @@ import (
 	"github.com/deploysentry/deploysentry/internal/groups"
 	"github.com/deploysentry/deploysentry/internal/health"
 	"github.com/deploysentry/deploysentry/internal/health/integrations"
+	deployintegrations "github.com/deploysentry/deploysentry/internal/integrations/deploys"
 	githubint "github.com/deploysentry/deploysentry/internal/integrations/github"
 	"github.com/deploysentry/deploysentry/internal/members"
 	"github.com/deploysentry/deploysentry/internal/models"
@@ -240,6 +243,8 @@ func run() error {
 	groupRepo := postgres.NewGroupRepository(db.Pool)
 	grantRepo := postgres.NewGrantRepository(db.Pool)
 	agentRepo := postgres.NewAgentRepository(db.Pool)
+	appStatusRepo := postgres.NewAppStatusRepository(db.Pool)
+	deployIntegrationRepo := postgres.NewDeployIntegrationRepository(db.Pool)
 
 	// -------------------------------------------------------------------------
 	// Services
@@ -476,6 +481,27 @@ func run() error {
 
 	// Register the deploy handler with the rollout attacher.
 	deploy.NewHandlerWithRollouts(deployService, webhookService, analyticsService, phaseEngine, deployHandlerAdapter).RegisterRoutes(api, rbacChecker)
+
+	// App-direct status reporting (agentless path).
+	appStatusService := appstatus.NewService(appStatusRepo, deployService)
+	appstatus.NewHandler(appStatusService).RegisterRoutes(api, rbacChecker)
+
+	// Per-environment current-state assembly (read-side for dashboards).
+	currentStateSvc := currentstate.NewService(deployService, appStatusRepo, envRepo)
+	currentstate.NewHandler(currentStateSvc).RegisterRoutes(api, rbacChecker)
+
+	// Deploy-event ingestion (generic + provider adapters).
+	deployIntegrationSvc := deployintegrations.NewService(deployIntegrationRepo, deployService, []byte(cfg.Security.EncryptionKey))
+	deployIntegrationReg := deployintegrations.NewRegistry()
+	deployIntegrationReg.Register(deployintegrations.GenericAdapter{})
+	deployIntegrationReg.Register(deployintegrations.RailwayAdapter{})
+	deployIntegrationReg.Register(deployintegrations.RenderAdapter{})
+	deployIntegrationReg.Register(deployintegrations.FlyAdapter{})
+	deployIntegrationReg.Register(deployintegrations.HerokuAdapter{})
+	deployIntegrationReg.Register(deployintegrations.VercelAdapter{})
+	deployIntegrationReg.Register(deployintegrations.NetlifyAdapter{})
+	deployIntegrationReg.Register(deployintegrations.GitHubActionsAdapter{})
+	deployintegrations.NewHandler(deployIntegrationSvc, deployIntegrationReg).RegisterRoutes(api, rbacChecker)
 
 	// ---- Plan 4: Rollout groups + coordination ----
 	rolloutGroupRepo := postgres.NewRolloutGroupRepo(db.Pool)

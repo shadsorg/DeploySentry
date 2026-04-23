@@ -104,21 +104,44 @@ Every supported provider + the generic canonical endpoint funnel into the same i
 
 **1. Create a deploy integration**
 
+Easiest path — the CLI, which accepts slugs on every flag and prints the webhook URL inline:
+
+```bash
+# Generate a random HMAC signing secret; store it in your password manager
+# AND paste it into the provider dashboard in step 2.
+WEBHOOK_SECRET=$(openssl rand -hex 32)
+
+deploysentry integrations deploy create \
+  --app api-server --provider railway \
+  --webhook-secret "$WEBHOOK_SECRET" \
+  --provider-config '{"service_id":"svc-abc-123"}' \
+  --env-mapping production=prod,staging=stg
+```
+
+Output:
+```
+Deploy integration created.
+  ID:           f47ac10b-58cc-4372-a567-0e02b2c3d479
+  Webhook URL:  https://api.deploysentry.com/api/v1/integrations/railway/webhook
+```
+
+Raw API equivalent (for CI pipelines that don't install the CLI):
+
 ```bash
 curl -X POST https://api.deploysentry.com/api/v1/integrations/deploys \
-  -H "Authorization: Bearer $DS_API_KEY" \
+  -H "Authorization: ApiKey $DS_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "application_id": "…",
     "provider": "railway",
     "auth_mode": "hmac",
-    "webhook_secret": "…generate one, store it in Railway…",
+    "webhook_secret": "…",
     "provider_config": { "service_id": "…" },
     "env_mapping": { "production": "…", "staging": "…" }
   }'
 ```
 
-The response returns the integration ID. The `webhook_secret` is stored encrypted server-side (AES-256) and never returned on subsequent reads.
+The `webhook_secret` is AES-256-encrypted at rest using `DS_SECURITY_ENCRYPTION_KEY` and is never returned on subsequent reads — store it yourself before the POST.
 
 **2. Wire the provider webhook**
 

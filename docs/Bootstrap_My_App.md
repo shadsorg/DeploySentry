@@ -24,16 +24,18 @@ If you use Claude Code, you can also install the DeploySentry MCP server for ric
 curl -fsSL https://api.dr-sentry.com/install.sh | sh
 ```
 
-**Authenticate the CLI** — create an API key in the dashboard (**Org → API Keys**), then paste it:
+**Authenticate the CLI** — create an API key in the dashboard (**Org → API Keys**), then **always pass it via `--token` or the env var** (bare `auth login` only works from a real terminal and will block LLM agents / scripts):
+
 ```bash
-deploysentry auth login            # interactive stdin prompt
-# — or —
+# Recommended
 deploysentry auth login --token ds_live_xxxxxxxxxxxx
 # — or —
 export DEPLOYSENTRY_API_KEY=ds_live_xxxxxxxxxxxx
 deploysentry auth login
 ```
 The key is validated against the server before it's saved. Credentials land in `~/.config/deploysentry/credentials.json` and are reused by both the CLI and the MCP server below.
+
+> **If `auth login` opens a browser that 404s**, your CLI is from before the 2026-04-23 fix. Either rebuild (`go install github.com/deploysentry/deploysentry/cmd/cli@main`) or skip `auth login` entirely and just `export DEPLOYSENTRY_API_KEY=…` — every other CLI command (and the MCP server) falls back to the env var.
 
 **Add the MCP server**:
 ```bash
@@ -460,7 +462,8 @@ Work through the steps below, pausing to verify anything that looks off. Ask me 
 2. Check if it's authenticated: look for `~/.config/deploysentry/credentials.json`.
    - If not authenticated, tell me to:
      1. Create an API key in the dashboard (**Org → API Keys**, any scopes matching what I'll do from this machine — commonly `deploys:write`, `flags:read`, `status:write`, `apikey:manage`).
-     2. Run `! deploysentry auth login` and paste the key into the prompt (or pass it via `--token` / `DEPLOYSENTRY_API_KEY`).
+     2. Run `! deploysentry auth login --token ds_live_…` with the key. **Always pass `--token`** (or `! DEPLOYSENTRY_API_KEY=ds_live_… deploysentry auth login`). Never tell the user to run a bare `deploysentry auth login` — the stdin prompt blocks non-interactive sessions, and pre-2026-04-23 binaries would open a browser to a stale 404 page.
+     3. If the CLI still opens a browser instead of accepting the token, the binary is stale. Tell the user to rebuild: `! go install github.com/deploysentry/deploysentry/cmd/cli@main`, or skip `auth login` entirely and set `DEPLOYSENTRY_API_KEY` in the shell — every other CLI command (and the MCP server) reads that env var as a fallback.
    - Do **not** expect a browser-based OAuth flow — the CLI uses API keys.
 
 3. Add the DeploySentry MCP server to Claude Code. Tell me to run:

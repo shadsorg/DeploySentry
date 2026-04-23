@@ -34,17 +34,17 @@ Create an API key in the dashboard and hand it to the CLI once per machine.
 
 **Step A — create the key.** Sign in to the dashboard, open **Org → API Keys**, click **Create key**. Pick scopes that match what you'll do from this machine: `deploys:read`, `deploys:write`, `flags:read`, `flags:write`, `status:write`, `apikey:manage` are common for a developer laptop. Save the key somewhere safe — the dashboard only shows it once.
 
-**Step B — hand it to the CLI.** Three options:
+**Step B — hand it to the CLI.** Three options — **pick one with the flag or env var**; don't run `deploysentry auth login` bare unless you specifically want the interactive stdin prompt (see the troubleshooting note below).
 
 ```bash
-# Interactive (pastes into a stdin prompt)
-deploysentry auth login
-
-# Non-interactive
+# Non-interactive (recommended — works in every shell, including LLM agents)
 deploysentry auth login --token ds_live_xxxxxxxxxxxx
 
-# From environment (useful in CI and dev-container setups)
+# From environment (useful in CI, dev containers, and Claude Code sessions)
 export DEPLOYSENTRY_API_KEY=ds_live_xxxxxxxxxxxx
+deploysentry auth login
+
+# Interactive — blocks waiting for paste on stdin; only use from a real terminal
 deploysentry auth login
 ```
 
@@ -56,7 +56,12 @@ deploysentry auth status
 deploysentry orgs list           # should return your orgs
 ```
 
-> **Note:** DeploySentry does not currently offer a browser-based OAuth flow for the CLI; API keys are the supported credential. If you see older docs that mention `deploysentry auth login` opening a browser, they're out of date — this page is canonical.
+> **Troubleshooting — "`auth login` opened my browser to a 404 page".** You have a CLI binary from before 2026-04-23, when the flow was still OAuth. Two fixes:
+>
+> 1. **Rebuild the CLI** — `go install github.com/deploysentry/deploysentry/cmd/cli@main` (or re-run `curl -fsSL https://api.dr-sentry.com/install.sh | sh` once the latest release has been cut). Then run `deploysentry auth login --token ds_live_…`.
+> 2. **Skip `auth login` on this binary.** Set `export DEPLOYSENTRY_API_KEY=ds_live_…` in your shell. Every CLI command (and the MCP server) falls back to the env var when no credentials file exists, so you can use the tool without persisting a key. Only the `auth login` / `auth status` commands will be broken — the rest work fine.
+>
+> DeploySentry does not currently offer a browser-based OAuth flow; API keys are the supported credential.
 
 ## 3. Install the MCP server (recommended)
 

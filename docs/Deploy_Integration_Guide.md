@@ -277,9 +277,13 @@ If you're using Claude Code or another LLM tool with MCP support, you can set up
 # 1. Install the CLI (skip if already installed)
 curl -fsSL https://api.dr-sentry.com/install.sh | sh
 
-# 2. Authenticate — create an API key in the dashboard (Org → API Keys),
-#    then paste it here. Add `--token <key>` or set DEPLOYSENTRY_API_KEY
-#    to skip the interactive prompt.
+# 2. Create an API key in the dashboard (Org → API Keys) and pass it
+#    with --token. Do NOT run `deploysentry auth login` bare — the
+#    interactive prompt blocks non-terminal sessions (LLM agents, CI,
+#    etc.) and pre-2026-04-23 binaries open a browser to a stale page.
+deploysentry auth login --token ds_live_xxxxxxxxxxxx
+# — or equivalently —
+export DEPLOYSENTRY_API_KEY=ds_live_xxxxxxxxxxxx
 deploysentry auth login
 
 # 3. Add the MCP server to Claude Code. It reads the same credentials
@@ -287,9 +291,12 @@ deploysentry auth login
 claude mcp add deploysentry -- deploysentry mcp serve
 ```
 
-> The CLI uses API keys, not browser OAuth. If you see docs that suggest
-> `auth login` opens a browser, they're out of date — `docs/Getting_Started.md`
-> is canonical.
+> **Troubleshooting.** The CLI uses API keys, not browser OAuth. If
+> `auth login` opens a browser that 404s, your binary is stale — rebuild
+> with `go install github.com/deploysentry/deploysentry/cmd/cli@main`,
+> or skip `auth login` entirely and just `export DEPLOYSENTRY_API_KEY=…`
+> (every other CLI command and the MCP server fall back to that env
+> var). `docs/Getting_Started.md` is canonical.
 
 ### Then just ask
 

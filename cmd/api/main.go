@@ -35,6 +35,7 @@ import (
 	githubint "github.com/deploysentry/deploysentry/internal/integrations/github"
 	"github.com/deploysentry/deploysentry/internal/members"
 	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/deploysentry/deploysentry/internal/orgstate"
 	"github.com/deploysentry/deploysentry/internal/notifications"
 	"github.com/deploysentry/deploysentry/internal/platform/cache"
 	"github.com/deploysentry/deploysentry/internal/platform/cache/flagcache"
@@ -245,6 +246,7 @@ func run() error {
 	agentRepo := postgres.NewAgentRepository(db.Pool)
 	appStatusRepo := postgres.NewAppStatusRepository(db.Pool)
 	deployIntegrationRepo := postgres.NewDeployIntegrationRepository(db.Pool)
+	orgStatusRepo := postgres.NewOrgStatusRepository(db.Pool)
 
 	// -------------------------------------------------------------------------
 	// Services
@@ -502,6 +504,11 @@ func run() error {
 	deployIntegrationReg.Register(deployintegrations.NetlifyAdapter{})
 	deployIntegrationReg.Register(deployintegrations.GitHubActionsAdapter{})
 	deployintegrations.NewHandler(deployIntegrationSvc, deployIntegrationReg).RegisterRoutes(api, rbacChecker)
+
+	// Org-wide status + deploy history read-sides.
+	orgStatusSvc := orgstate.NewStatusService(entityService, envRepo, orgStatusRepo)
+	orgDeploymentsSvc := orgstate.NewDeploymentsService(entityService, orgStatusRepo)
+	orgstate.NewHandler(orgStatusSvc, orgDeploymentsSvc).RegisterRoutes(api, rbacChecker)
 
 	// ---- Plan 4: Rollout groups + coordination ----
 	rolloutGroupRepo := postgres.NewRolloutGroupRepo(db.Pool)

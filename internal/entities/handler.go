@@ -62,6 +62,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 				apps.GET("", h.listApps)
 				apps.GET("/:appSlug", h.getApp)
 				apps.PUT("/:appSlug", auth.RequirePermission(h.rbac, auth.PermProjectManage), h.updateApp)
+			apps.PUT("/:appSlug/monitoring-links", auth.RequirePermission(h.rbac, auth.PermProjectManage), h.updateAppMonitoringLinks)
 				apps.DELETE("/:appSlug", auth.RequirePermission(h.rbac, auth.PermProjectManage), h.deleteApp)
 				apps.DELETE("/:appSlug/permanent", auth.RequirePermission(h.rbac, auth.PermOrgManage), h.hardDeleteApp)
 				apps.POST("/:appSlug/restore", auth.RequirePermission(h.rbac, auth.PermProjectManage), h.restoreApp)
@@ -537,6 +538,44 @@ func (h *Handler) updateApp(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
+	c.JSON(http.StatusOK, app)
+}
+
+// updateAppMonitoringLinks replaces the monitoring_links array for an app.
+func (h *Handler) updateAppMonitoringLinks(c *gin.Context) {
+	org, err := h.service.GetOrgBySlug(c.Request.Context(), c.Param("orgSlug"))
+	if err != nil || org == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "organization not found"})
+		return
+	}
+	project, err := h.service.GetProjectBySlug(c.Request.Context(), org.ID, c.Param("projectSlug"))
+	if err != nil || project == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
+		return
+	}
+	app, err := h.service.GetAppBySlug(c.Request.Context(), project.ID, c.Param("appSlug"))
+	if err != nil || app == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "application not found"})
+		return
+	}
+	if !h.checkAppAccess(c, project.ID, app.ID) {
+		return
+	}
+
+	var req struct {
+		MonitoringLinks []models.MonitoringLink `json:"monitoring_links"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	cleaned, err := h.service.UpdateAppMonitoringLinks(c.Request.Context(), app.ID, req.MonitoringLinks)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	app.MonitoringLinks = cleaned
 	c.JSON(http.StatusOK, app)
 }
 

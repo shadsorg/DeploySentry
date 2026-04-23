@@ -34,6 +34,7 @@ type EntityService interface {
 	GetAppBySlug(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
 	ListAppsByProject(ctx context.Context, projectID uuid.UUID, includeDeleted bool, userID uuid.UUID, orgRole string) ([]*models.Application, error)
 	UpdateApp(ctx context.Context, app *models.Application) error
+	UpdateAppMonitoringLinks(ctx context.Context, appID uuid.UUID, links []models.MonitoringLink) ([]models.MonitoringLink, error)
 	DeleteApp(ctx context.Context, projectID uuid.UUID, slug string) (*models.DeleteResult, error)
 	HardDeleteApp(ctx context.Context, projectID uuid.UUID, slug string) error
 	RestoreApp(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
@@ -216,6 +217,19 @@ func (s *entityService) ListAppsByProject(ctx context.Context, projectID uuid.UU
 func (s *entityService) UpdateApp(ctx context.Context, app *models.Application) error {
 	app.UpdatedAt = time.Now().UTC()
 	return s.repo.UpdateApp(ctx, app)
+}
+
+// UpdateAppMonitoringLinks validates + persists the monitoring_links set
+// for an application. Returns the normalized slice that was stored.
+func (s *entityService) UpdateAppMonitoringLinks(ctx context.Context, appID uuid.UUID, links []models.MonitoringLink) ([]models.MonitoringLink, error) {
+	cleaned, err := models.ValidateMonitoringLinks(links)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.repo.UpdateAppMonitoringLinks(ctx, appID, cleaned); err != nil {
+		return nil, err
+	}
+	return cleaned, nil
 }
 
 func (s *entityService) DeleteApp(ctx context.Context, projectID uuid.UUID, slug string) (*models.DeleteResult, error) {

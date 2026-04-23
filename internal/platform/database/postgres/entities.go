@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -327,17 +328,22 @@ func (r *EntityRepository) RestoreProject(ctx context.Context, id uuid.UUID) err
 
 // CreateApp inserts a new application into the database.
 func (r *EntityRepository) CreateApp(ctx context.Context, app *models.Application) error {
+	linksJSON, err := json.Marshal(appMonitoringLinksOrEmpty(app.MonitoringLinks))
+	if err != nil {
+		return fmt.Errorf("postgres.CreateApp marshal links: %w", err)
+	}
 	const q = `
-		INSERT INTO applications (id, project_id, name, slug, description, repo_url, created_by, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+		INSERT INTO applications (id, project_id, name, slug, description, repo_url, monitoring_links, created_by, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`
 
-	_, err := r.pool.Exec(ctx, q,
+	_, err = r.pool.Exec(ctx, q,
 		app.ID,
 		app.ProjectID,
 		app.Name,
 		app.Slug,
 		app.Description,
 		app.RepoURL,
+		linksJSON,
 		app.CreatedBy,
 		app.CreatedAt,
 		app.UpdatedAt,
@@ -355,10 +361,11 @@ func (r *EntityRepository) CreateApp(ctx context.Context, app *models.Applicatio
 // Returns nil, nil when no row is found.
 func (r *EntityRepository) GetAppByID(ctx context.Context, id uuid.UUID) (*models.Application, error) {
 	const q = `
-		SELECT id, project_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), created_by, created_at, updated_at, deleted_at
+		SELECT id, project_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), monitoring_links, created_by, created_at, updated_at, deleted_at
 		FROM applications WHERE id = $1`
 
 	var a models.Application
+	var linksJSON []byte
 	err := r.pool.QueryRow(ctx, q, id).Scan(
 		&a.ID,
 		&a.ProjectID,
@@ -366,6 +373,7 @@ func (r *EntityRepository) GetAppByID(ctx context.Context, id uuid.UUID) (*model
 		&a.Slug,
 		&a.Description,
 		&a.RepoURL,
+		&linksJSON,
 		&a.CreatedBy,
 		&a.CreatedAt,
 		&a.UpdatedAt,
@@ -377,6 +385,7 @@ func (r *EntityRepository) GetAppByID(ctx context.Context, id uuid.UUID) (*model
 		}
 		return nil, fmt.Errorf("postgres.GetAppByID: %w", err)
 	}
+	a.MonitoringLinks = decodeMonitoringLinks(linksJSON)
 	return &a, nil
 }
 
@@ -384,10 +393,11 @@ func (r *EntityRepository) GetAppByID(ctx context.Context, id uuid.UUID) (*model
 // Returns nil, nil when no row is found.
 func (r *EntityRepository) GetAppBySlug(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error) {
 	const q = `
-		SELECT id, project_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), created_by, created_at, updated_at, deleted_at
+		SELECT id, project_id, name, slug, COALESCE(description, ''), COALESCE(repo_url, ''), monitoring_links, created_by, created_at, updated_at, deleted_at
 		FROM applications WHERE project_id = $1 AND slug = $2`
 
 	var a models.Application
+	var linksJSON []byte
 	err := r.pool.QueryRow(ctx, q, projectID, slug).Scan(
 		&a.ID,
 		&a.ProjectID,
@@ -395,6 +405,7 @@ func (r *EntityRepository) GetAppBySlug(ctx context.Context, projectID uuid.UUID
 		&a.Slug,
 		&a.Description,
 		&a.RepoURL,
+		&linksJSON,
 		&a.CreatedBy,
 		&a.CreatedAt,
 		&a.UpdatedAt,
@@ -406,6 +417,7 @@ func (r *EntityRepository) GetAppBySlug(ctx context.Context, projectID uuid.UUID
 		}
 		return nil, fmt.Errorf("postgres.GetAppBySlug: %w", err)
 	}
+	a.MonitoringLinks = decodeMonitoringLinks(linksJSON)
 	return &a, nil
 }
 
@@ -417,7 +429,7 @@ func (r *EntityRepository) ListAppsByProject(ctx context.Context, projectID uuid
 	if includeDeleted {
 		deletedFilter = ""
 	}
-	q := `SELECT a.id, a.project_id, a.name, a.slug, COALESCE(a.description, ''), COALESCE(a.repo_url, ''), a.created_by, a.created_at, a.updated_at, a.deleted_at
+	q := `SELECT a.id, a.project_id, a.name, a.slug, COALESCE(a.description, ''), COALESCE(a.repo_url, ''), a.monitoring_links, a.created_by, a.created_at, a.updated_at, a.deleted_at
 		FROM applications a
 		WHERE a.project_id = $1` + deletedFilter + `
 		AND (
@@ -455,6 +467,7 @@ func (r *EntityRepository) ListAppsByProject(ctx context.Context, projectID uuid
 	result := make([]*models.Application, 0)
 	for rows.Next() {
 		var a models.Application
+		var linksJSON []byte
 		if err := rows.Scan(
 			&a.ID,
 			&a.ProjectID,
@@ -462,6 +475,7 @@ func (r *EntityRepository) ListAppsByProject(ctx context.Context, projectID uuid
 			&a.Slug,
 			&a.Description,
 			&a.RepoURL,
+			&linksJSON,
 			&a.CreatedBy,
 			&a.CreatedAt,
 			&a.UpdatedAt,
@@ -469,6 +483,7 @@ func (r *EntityRepository) ListAppsByProject(ctx context.Context, projectID uuid
 		); err != nil {
 			return nil, fmt.Errorf("postgres.ListAppsByProject: %w", err)
 		}
+		a.MonitoringLinks = decodeMonitoringLinks(linksJSON)
 		result = append(result, &a)
 	}
 	if err := rows.Err(); err != nil {
@@ -492,6 +507,48 @@ func (r *EntityRepository) UpdateApp(ctx context.Context, app *models.Applicatio
 		return ErrNotFound
 	}
 	return nil
+}
+
+// UpdateAppMonitoringLinks replaces the monitoring_links JSONB column for
+// the given application and bumps updated_at. The caller is responsible
+// for validating the links before invoking this.
+func (r *EntityRepository) UpdateAppMonitoringLinks(ctx context.Context, appID uuid.UUID, links []models.MonitoringLink) error {
+	linksJSON, err := json.Marshal(appMonitoringLinksOrEmpty(links))
+	if err != nil {
+		return fmt.Errorf("postgres.UpdateAppMonitoringLinks marshal: %w", err)
+	}
+	const q = `UPDATE applications SET monitoring_links = $1, updated_at = now() WHERE id = $2`
+	tag, err := r.pool.Exec(ctx, q, linksJSON, appID)
+	if err != nil {
+		return fmt.Errorf("postgres.UpdateAppMonitoringLinks: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// appMonitoringLinksOrEmpty normalizes a nil slice to [] so the JSON
+// column always holds a JSON array (not null) on the wire.
+func appMonitoringLinksOrEmpty(links []models.MonitoringLink) []models.MonitoringLink {
+	if links == nil {
+		return []models.MonitoringLink{}
+	}
+	return links
+}
+
+// decodeMonitoringLinks parses the stored JSONB into the typed slice.
+// Empty / unparseable input produces an empty (non-nil) slice so callers
+// can iterate without nil-checking.
+func decodeMonitoringLinks(raw []byte) []models.MonitoringLink {
+	if len(raw) == 0 {
+		return []models.MonitoringLink{}
+	}
+	var out []models.MonitoringLink
+	if err := json.Unmarshal(raw, &out); err != nil || out == nil {
+		return []models.MonitoringLink{}
+	}
+	return out
 }
 
 // ---------------------------------------------------------------------------

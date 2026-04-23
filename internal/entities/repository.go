@@ -30,6 +30,7 @@ type EntityRepository interface {
 	GetAppBySlug(ctx context.Context, projectID uuid.UUID, slug string) (*models.Application, error)
 	ListAppsByProject(ctx context.Context, projectID uuid.UUID, includeDeleted bool, userID uuid.UUID, orgRole string) ([]*models.Application, error)
 	UpdateApp(ctx context.Context, app *models.Application) error
+	UpdateAppMonitoringLinks(ctx context.Context, appID uuid.UUID, links []models.MonitoringLink) error
 	CountFlagsByApp(ctx context.Context, applicationID uuid.UUID) (int, error)
 	SoftDeleteApp(ctx context.Context, id uuid.UUID) error
 	HardDeleteApp(ctx context.Context, id uuid.UUID) error

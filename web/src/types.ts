@@ -94,6 +94,8 @@ export interface Deployment {
   artifact?: string;
   strategy: DeployStrategy;
   status: DeployStatus;
+  mode?: 'orchestrate' | 'record';
+  source?: string | null;
   traffic_percent: number;
   health_score: number;
   created_by: string;

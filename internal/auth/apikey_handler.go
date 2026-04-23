@@ -243,9 +243,22 @@ func resolveAPIKeyManageActor(c *gin.Context) (uuid.UUID, bool) {
 			})
 			return uuid.Nil, false
 		}
-		// created_by is optional for key-authored keys. Caller-facing rows
-		// show a null / system actor.
-		return uuid.Nil, true
+		// Stamp the ancestor user on the new row so the api_keys.created_by
+		// FK into users(id) stays valid. If the calling key itself is
+		// orphaned (no created_by), tell the caller plainly — dropping
+		// the FK is a separate data-model decision.
+		if cbRaw, ok := c.Get("api_key_created_by"); ok {
+			if cbStr, ok := cbRaw.(string); ok && cbStr != "" {
+				if cb, err := uuid.Parse(cbStr); err == nil {
+					return cb, true
+				}
+			}
+		}
+		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, gin.H{
+			"error": "the calling api key has no associated user on record (created_by is null); " +
+				"mint a key from the dashboard (which stamps the creating user) and retry",
+		})
+		return uuid.Nil, false
 
 	case "jwt", "":
 		// Session auth must also hold the RBAC permission.

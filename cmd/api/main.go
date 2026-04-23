@@ -840,14 +840,19 @@ func (a *apiKeyValidatorAdapter) ValidateAPIKey(ctx context.Context, key string)
 	}
 
 	orgID := apiKey.OrgID
-	return &auth.APIKeyInfo{
+	info := &auth.APIKeyInfo{
 		OrgID:          &orgID,
 		ProjectID:      apiKey.ProjectID,
 		ApplicationID:  apiKey.ApplicationID,
 		EnvironmentIDs: apiKey.EnvironmentIDs,
 		Scopes:         scopes,
 		AllowedCIDRs:   apiKey.AllowedCIDRs,
-	}, nil
+	}
+	if apiKey.CreatedBy != uuid.Nil {
+		cb := apiKey.CreatedBy
+		info.CreatedBy = &cb
+	}
+	return info, nil
 }
 
 // ---------------------------------------------------------------------------

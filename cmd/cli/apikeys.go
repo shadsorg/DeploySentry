@@ -186,11 +186,33 @@ func runAPIKeysCreate(cmd *cobra.Command, args []string) error {
 	scopesRaw, _ := cmd.Flags().GetString("scopes")
 
 	scopes := splitAndTrim(scopesRaw, ",")
-	envIDs, _ := cmd.Flags().GetStringSlice("env")
-	projectID, _ := cmd.Flags().GetString("project")
-	appID, _ := cmd.Flags().GetString("app")
+	envInputs, _ := cmd.Flags().GetStringSlice("env")
+	projectInput, _ := cmd.Flags().GetString("project")
+	appInput, _ := cmd.Flags().GetString("app")
 
 	client, err := clientFromConfig()
+	if err != nil {
+		return err
+	}
+
+	// --project / --app / --env accept either slug or UUID. Resolve
+	// slugs client-side so the server only ever sees UUIDs (which is
+	// what the POST /api-keys endpoint currently requires).
+	projectID, projectSlug, err := resolveProjectInput(client, projectInput)
+	if err != nil {
+		return err
+	}
+	var appID string
+	if appInput != "" {
+		if projectID == "" {
+			return fmt.Errorf("--app requires --project to resolve the application (pass a project slug or UUID)")
+		}
+		appID, err = resolveAppInput(client, projectSlug, appInput)
+		if err != nil {
+			return err
+		}
+	}
+	envIDs, err := resolveEnvInputs(client, envInputs)
 	if err != nil {
 		return err
 	}

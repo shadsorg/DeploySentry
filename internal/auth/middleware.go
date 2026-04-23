@@ -78,6 +78,12 @@ type APIKeyInfo struct {
 	EnvironmentIDs []uuid.UUID `json:"environment_ids,omitempty"`
 	Scopes         []string    `json:"scopes"`
 	AllowedCIDRs   []string    `json:"allowed_cidrs,omitempty"`
+	// CreatedBy is the user who minted this key. Write endpoints that
+	// need a users(id) FK (e.g. POST /api-keys → api_keys.created_by)
+	// fall back to this when the request is authenticated via API key
+	// rather than a session. Nil only for orphaned keys created before
+	// the users table tracked the relationship.
+	CreatedBy *uuid.UUID `json:"-"`
 }
 
 // EnvironmentSlugResolver resolves an environment slug to its UUID within an org.
@@ -243,6 +249,9 @@ func (m *AuthMiddleware) authenticateAPIKey(c *gin.Context, key string) bool {
 		c.Set("api_key_environment_ids", envStrs)
 	}
 	c.Set("api_key_scopes", info.Scopes)
+	if info.CreatedBy != nil {
+		c.Set("api_key_created_by", info.CreatedBy.String())
+	}
 	c.Set("auth_method", "api_key")
 
 	// Enforce environment restriction: if the key is scoped to specific

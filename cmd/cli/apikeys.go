@@ -53,12 +53,28 @@ var apikeysCreateCmd = &cobra.Command{
 The full token is displayed only once immediately after creation.
 Make sure to copy it to a secure location before closing the terminal.
 
-Examples:
-  # Create a key with multiple scopes
-  deploysentry apikeys create --name "CI Pipeline" \
-    --scopes "deploy:write,flags:read,releases:read"
+Available scopes:
+  flags:read, flags:write             — feature flag API access
+  deploys:read, deploys:write         — deployment API access
+  releases:read, releases:write       — release API access
+  status:write                        — POST /applications/:id/status (SDK reporter, agentless reporting)
+  apikey:manage                       — create / rotate / revoke other API keys
+  admin                               — superset; grants every scope above
 
-  # Create a read-only key
+Requires the caller to hold apikey:manage (or admin) — see Getting_Started.md
+for how to bootstrap the first manage-capable key from the dashboard.
+
+Examples:
+  # CI pipeline key
+  deploysentry apikeys create --name "CI Pipeline" \
+    --scopes "deploys:write,flags:read,releases:read"
+
+  # SDK status reporter key (scoped to one app + env)
+  deploysentry apikeys create --name "api-server prod reporter" \
+    --scopes "flags:read,status:write" \
+    --app <app-uuid> --env <env-uuid>
+
+  # Read-only monitoring key
   deploysentry apikeys create --name "Monitoring" --scopes "flags:read,releases:read"`,
 	RunE: runAPIKeysCreate,
 }
@@ -81,6 +97,8 @@ func init() {
 	apikeysCreateCmd.Flags().String("name", "", "human-readable name for the API key (required)")
 	apikeysCreateCmd.Flags().String("scopes", "", "comma-separated list of permission scopes (required)")
 	apikeysCreateCmd.Flags().StringSlice("env", nil, "environment ID(s) to restrict key to (repeatable, omit for unrestricted)")
+	apikeysCreateCmd.Flags().String("project", "", "project UUID to restrict key to (optional)")
+	apikeysCreateCmd.Flags().String("app", "", "application UUID to restrict key to (optional; used with SDK reporter + /status calls)")
 	_ = apikeysCreateCmd.MarkFlagRequired("name")
 	_ = apikeysCreateCmd.MarkFlagRequired("scopes")
 
@@ -169,6 +187,8 @@ func runAPIKeysCreate(cmd *cobra.Command, args []string) error {
 
 	scopes := splitAndTrim(scopesRaw, ",")
 	envIDs, _ := cmd.Flags().GetStringSlice("env")
+	projectID, _ := cmd.Flags().GetString("project")
+	appID, _ := cmd.Flags().GetString("app")
 
 	client, err := clientFromConfig()
 	if err != nil {
@@ -181,6 +201,12 @@ func runAPIKeysCreate(cmd *cobra.Command, args []string) error {
 	}
 	if len(envIDs) > 0 {
 		body["environment_ids"] = envIDs
+	}
+	if projectID != "" {
+		body["project_id"] = projectID
+	}
+	if appID != "" {
+		body["application_id"] = appID
 	}
 
 	resp, err := client.post("/api/v1/api-keys", body)

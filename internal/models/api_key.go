@@ -23,9 +23,29 @@ const (
 	APIKeyScopeReadReleases APIKeyScope = "releases:read"
 	// APIKeyScopeWriteReleases allows creating and managing releases.
 	APIKeyScopeWriteReleases APIKeyScope = "releases:write"
-	// APIKeyScopeAdmin grants full administrative access.
+	// APIKeyScopeStatusWrite allows apps to push self-reported status
+	// (version + health) via POST /applications/:id/status.
+	APIKeyScopeStatusWrite APIKeyScope = "status:write"
+	// APIKeyScopeAPIKeyManage allows creating, rotating, and revoking
+	// other API keys. Distinct from the `admin` superset below so ops
+	// keys can be scoped to key-management only.
+	APIKeyScopeAPIKeyManage APIKeyScope = "apikey:manage"
+	// APIKeyScopeAdmin grants full administrative access. Implies every
+	// other scope via HasScope's superset check.
 	APIKeyScopeAdmin APIKeyScope = "admin"
 )
+
+// AllAPIKeyScopes returns every defined scope. Used by the dashboard's
+// key-creation UI to enumerate available options and by validation.
+func AllAPIKeyScopes() []APIKeyScope {
+	return []APIKeyScope{
+		APIKeyScopeReadFlags, APIKeyScopeWriteFlags,
+		APIKeyScopeReadDeploys, APIKeyScopeWriteDeploys,
+		APIKeyScopeReadReleases, APIKeyScopeWriteReleases,
+		APIKeyScopeStatusWrite, APIKeyScopeAPIKeyManage,
+		APIKeyScopeAdmin,
+	}
+}
 
 // APIKey represents a machine-to-machine API key that grants scoped access
 // to the platform without user authentication.
@@ -96,6 +116,7 @@ func validScope(s APIKeyScope) bool {
 	case APIKeyScopeReadFlags, APIKeyScopeWriteFlags,
 		APIKeyScopeReadDeploys, APIKeyScopeWriteDeploys,
 		APIKeyScopeReadReleases, APIKeyScopeWriteReleases,
+		APIKeyScopeStatusWrite, APIKeyScopeAPIKeyManage,
 		APIKeyScopeAdmin:
 		return true
 	}

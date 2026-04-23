@@ -42,7 +42,18 @@ deploysentry --version
 
 Create an API key in the dashboard and hand it to the CLI once per machine.
 
-**Step A — create the key.** Sign in to the dashboard, open **Org → API Keys**, click **Create key**. Pick scopes that match what you'll do from this machine: `deploys:read`, `deploys:write`, `flags:read`, `flags:write`, `status:write`, `apikey:manage` are common for a developer laptop. Save the key somewhere safe — the dashboard only shows it once.
+**Step A — create the key.** Sign in to the dashboard, open **Org → API Keys**, click **Create key**. Pick scopes that match what you'll do from this machine — full list:
+
+| Scope | Purpose |
+|---|---|
+| `flags:read` / `flags:write` | Feature-flag API access |
+| `deploys:read` / `deploys:write` | Deployment API access |
+| `releases:read` / `releases:write` | Release API access |
+| `status:write` | `POST /applications/:id/status` (SDK status reporter) |
+| `apikey:manage` | Create / rotate / revoke other API keys — needed when using the CLI or MCP to mint further keys |
+| `admin` | Superset of every scope above |
+
+A developer laptop bootstrapping the CLI + MCP typically needs `deploys:write`, `flags:read`, `status:write`, **and `apikey:manage`** so the MCP can mint per-app SDK keys on your behalf. Save the key somewhere safe — the dashboard only shows it once.
 
 **Step B — hand it to the CLI.** Three options — **pick one with the flag or env var**; don't run `deploysentry auth login` bare unless you specifically want the interactive stdin prompt (see the troubleshooting note below).
 

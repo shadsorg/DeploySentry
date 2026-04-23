@@ -55,9 +55,14 @@ The agent talks to the DeploySentry API with an API key. Use the narrowest scope
 ### CLI equivalent
 
 ```bash
+# Look up UUIDs first (the --project / --app / --env flags take UUIDs, not slugs).
+PROJECT_ID=$(deploysentry projects list -o json | jq -r '.projects[] | select(.slug=="my-project") | .id')
+APP_ID=$(deploysentry apps list --all -o json | jq -r '.applications[] | select(.slug=="api-server") | .id')
+ENV_ID=$(deploysentry environments list -o json | jq -r '.environments[] | select(.slug=="production") | .id')
+
 deploysentry apikeys create --name "agent-prod-api-server" \
-  --scopes "flags:read,deploys:read,deploys:write" \
-  --project my-project --app api-server --env production
+  --scopes "flags:read,deploys:read,deploys:write,status:write" \
+  --project "$PROJECT_ID" --app "$APP_ID" --env "$ENV_ID"
 ```
 
 ### Why app- and env-scoped keys matter

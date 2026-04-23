@@ -50,15 +50,8 @@ func (h *APIKeyHandler) createAPIKey(c *gin.Context) {
 		return
 	}
 
-	userID, ok := c.Get("user_id")
+	createdBy, ok := resolveAPIKeyManageActor(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
-		return
-	}
-
-	createdBy, ok := userID.(uuid.UUID)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user identity"})
 		return
 	}
 
@@ -206,15 +199,8 @@ func (h *APIKeyHandler) rotateAPIKey(c *gin.Context) {
 		return
 	}
 
-	userID, ok := c.Get("user_id")
+	createdBy, ok := resolveAPIKeyManageActor(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
-		return
-	}
-
-	createdBy, ok := userID.(uuid.UUID)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user identity"})
 		return
 	}
 
@@ -228,4 +214,80 @@ func (h *APIKeyHandler) rotateAPIKey(c *gin.Context) {
 		"api_key":       result.APIKey,
 		"plaintext_key": result.PlaintextKey,
 	})
+}
+
+// resolveAPIKeyManageActor confirms the caller is allowed to mutate API
+// keys in the current org and returns the user UUID to stamp on new rows.
+//
+// Two valid shapes:
+//   - Session/JWT auth: caller has PermAPIKeyManage on their RBAC role.
+//     created_by = user_id from the token.
+//   - API-key auth: the calling key carries the `apikey:manage` scope.
+//     created_by = uuid.Nil (there is no human user). We still require an
+//     org-scoped key so the new row inherits the right org context.
+//
+// On failure writes an actionable JSON body and returns ok=false so the
+// caller just returns. 403 with a specific "requires apikey:manage" body
+// instead of the legacy 401 "authentication required".
+func resolveAPIKeyManageActor(c *gin.Context) (uuid.UUID, bool) {
+	method, _ := c.Get("auth_method")
+	switch method {
+	case "api_key":
+		scopesVal, _ := c.Get("api_key_scopes")
+		scopes, _ := scopesVal.([]string)
+		if !hasScope(scopes, "apikey:manage") && !hasScope(scopes, "admin") {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"error":          "insufficient scope",
+				"required_scope": "apikey:manage",
+				"scopes_on_key":  scopes,
+			})
+			return uuid.Nil, false
+		}
+		// created_by is optional for key-authored keys. Caller-facing rows
+		// show a null / system actor.
+		return uuid.Nil, true
+
+	case "jwt", "":
+		// Session auth must also hold the RBAC permission.
+		roleVal, _ := c.Get("role")
+		var role Role
+		switch r := roleVal.(type) {
+		case Role:
+			role = r
+		case string:
+			role = Role(r)
+		}
+		rbac := NewRBACChecker()
+		if !rbac.HasPermission(role, PermAPIKeyManage) {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"error":               "insufficient permissions",
+				"required_permission": string(PermAPIKeyManage),
+				"role":                string(role),
+			})
+			return uuid.Nil, false
+		}
+		userIDVal, ok := c.Get("user_id")
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+			return uuid.Nil, false
+		}
+		userID, ok := userIDVal.(uuid.UUID)
+		if !ok {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid user identity"})
+			return uuid.Nil, false
+		}
+		return userID, true
+	}
+
+	c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+	return uuid.Nil, false
+}
+
+func hasScope(scopes []string, want string) bool {
+	for _, s := range scopes {
+		if s == want {
+			return true
+		}
+	}
+	return false
 }

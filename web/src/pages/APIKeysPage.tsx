@@ -4,12 +4,26 @@ import type { ApiKey } from '@/types';
 import { apiKeysApi } from '@/api';
 import { useEnvironments, useProjects, useApps } from '../hooks/useEntities';
 
-const AVAILABLE_SCOPES = ['flags:read', 'flags:write', 'deploys:read', 'deploys:write', 'admin'];
+// Must stay in sync with internal/models/api_key.go AllAPIKeyScopes().
+const AVAILABLE_SCOPES = [
+  'flags:read',
+  'flags:write',
+  'deploys:read',
+  'deploys:write',
+  'releases:read',
+  'releases:write',
+  'status:write',
+  'apikey:manage',
+  'admin',
+];
 
 function scopeBadgeClass(scope: string): string {
   if (scope === 'admin') return 'badge badge-experiment';
+  if (scope === 'apikey:manage') return 'badge badge-permission';
+  if (scope === 'status:write') return 'badge badge-ops';
   if (scope.startsWith('flags')) return 'badge badge-feature';
   if (scope.startsWith('deploys')) return 'badge badge-release';
+  if (scope.startsWith('releases')) return 'badge badge-release';
   return 'badge badge-ops';
 }
 

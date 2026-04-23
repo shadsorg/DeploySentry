@@ -64,7 +64,7 @@ migrate-down:
 
 ## run-api: Run the API server locally (dev mode — uses built-in encryption key)
 run-api:
-	DS_ENV=development go run $(LDFLAGS) ./cmd/api/main.go
+	DS_ENVIRONMENT=development go run $(LDFLAGS) ./cmd/api/main.go
 
 ## run-web: Run the web frontend dev server
 run-web:

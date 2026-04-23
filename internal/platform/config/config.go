@@ -267,8 +267,14 @@ func validateEncryptionKey(cfg *Config) error {
 // into a production artifact is trivially greppable.
 const devEncryptionKey = "ds-dev-only-encryption-key-32byt"
 
+// isDevEnvironment inspects DS_ENVIRONMENT (canonical) with a DS_ENV
+// fallback for historical CLI usage. Empty or any dev-ish value counts
+// as development.
 func isDevEnvironment() bool {
-	env := strings.ToLower(os.Getenv("DS_ENV"))
+	env := strings.ToLower(os.Getenv("DS_ENVIRONMENT"))
+	if env == "" {
+		env = strings.ToLower(os.Getenv("DS_ENV"))
+	}
 	return env == "" || env == "dev" || env == "development" || env == "local"
 }
 

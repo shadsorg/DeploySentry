@@ -750,12 +750,16 @@ func clientFromConfig() (*apiClient, error) {
 	}
 	client := newAPIClient(apiURL)
 
-	// Try loading credentials with automatic token refresh on expiry.
+	// Prefer credentials written by `deploysentry auth login`.
 	creds, err := ensureValidToken()
 	if err == nil {
-		client.setToken(creds.AccessToken)
+		if creds.TokenType == tokenTypeAPIKey {
+			client.setAPIKey(creds.AccessToken)
+		} else {
+			client.setToken(creds.AccessToken)
+		}
 	} else {
-		// Check for API key in config or environment.
+		// Fall back to an ambient API key in config/env.
 		apiKey := viper.GetString("api_key")
 		if apiKey != "" {
 			client.setAPIKey(apiKey)

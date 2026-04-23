@@ -22,8 +22,18 @@ If you use Claude Code, you can also install the DeploySentry MCP server for ric
 **Install the CLI** (if not already installed):
 ```bash
 curl -fsSL https://api.dr-sentry.com/install.sh | sh
+```
+
+**Authenticate the CLI** — create an API key in the dashboard (**Org → API Keys**), then paste it:
+```bash
+deploysentry auth login            # interactive stdin prompt
+# — or —
+deploysentry auth login --token ds_live_xxxxxxxxxxxx
+# — or —
+export DEPLOYSENTRY_API_KEY=ds_live_xxxxxxxxxxxx
 deploysentry auth login
 ```
+The key is validated against the server before it's saved. Credentials land in `~/.config/deploysentry/credentials.json` and are reused by both the CLI and the MCP server below.
 
 **Add the MCP server**:
 ```bash
@@ -447,8 +457,11 @@ Work through the steps below, pausing to verify anything that looks off. Ask me 
      ! curl -fsSL https://api.dr-sentry.com/install.sh | sh
      ```
 
-2. Check if it's authenticated: `deploysentry config get api_key` or check for `~/.config/deploysentry/credentials.json`
-   - If not authenticated, tell me to run `! deploysentry auth login` and wait for me to complete it
+2. Check if it's authenticated: look for `~/.config/deploysentry/credentials.json`.
+   - If not authenticated, tell me to:
+     1. Create an API key in the dashboard (**Org → API Keys**, any scopes matching what I'll do from this machine — commonly `deploys:write`, `flags:read`, `status:write`, `apikey:manage`).
+     2. Run `! deploysentry auth login` and paste the key into the prompt (or pass it via `--token` / `DEPLOYSENTRY_API_KEY`).
+   - Do **not** expect a browser-based OAuth flow — the CLI uses API keys.
 
 3. Add the DeploySentry MCP server to Claude Code. Tell me to run:
    ```

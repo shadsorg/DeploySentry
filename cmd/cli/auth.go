@@ -1,17 +1,13 @@
 package main
 
 import (
-	"context"
-	"crypto/rand"
-	"encoding/hex"
+	"bufio"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -24,15 +20,20 @@ var authCmd = &cobra.Command{
 	Short: "Manage authentication with the DeploySentry platform",
 	Long: `Manage authentication credentials for the DeploySentry CLI.
 
-The auth command group allows you to log in via browser-based OAuth,
-view your current authentication status, and log out by clearing
-stored credentials.
-
-Credentials are stored in $HOME/.config/deploysentry/credentials.json.
+The CLI authenticates using an API key created in the DeploySentry
+dashboard. Use 'deploysentry auth login' once per machine to paste the
+key; credentials are stored in $HOME/.config/deploysentry/credentials.json
+and reused by subsequent commands and by the MCP server.
 
 Examples:
-  # Log in via browser
+  # Log in (interactive prompt)
   deploysentry auth login
+
+  # Log in non-interactively
+  deploysentry auth login --token ds_live_xxx
+
+  # Pick up a key from the environment
+  DEPLOYSENTRY_API_KEY=ds_live_xxx deploysentry auth login
 
   # Check current auth status
   deploysentry auth status
@@ -43,56 +44,50 @@ Examples:
 
 var authLoginCmd = &cobra.Command{
 	Use:   "login",
-	Short: "Authenticate with DeploySentry via browser-based OAuth",
-	Long: `Open a browser window to authenticate with DeploySentry using OAuth 2.0.
+	Short: "Authenticate with DeploySentry using an API key",
+	Long: `Save a DeploySentry API key so the CLI (and MCP server) can
+authenticate against the API.
 
-A local HTTP server is started on a random port to receive the OAuth
-callback. The browser is opened automatically; if it cannot be opened,
-the URL is printed so you can navigate to it manually.
+Create a key in the dashboard at:
+  <your-dashboard-url>/orgs/<org-slug>/api-keys
 
-After successful authentication, credentials are saved locally for
-subsequent CLI operations.
+The key can be supplied in three ways (in priority order):
+  1. --token flag
+  2. DEPLOYSENTRY_API_KEY environment variable
+  3. Interactive stdin prompt (default when no flag/env is set)
+
+The key is validated by calling an authenticated API endpoint before
+being persisted, so bad keys are rejected immediately.
 
 Examples:
-  # Log in with default settings
   deploysentry auth login
-
-  # Log in to a specific API host
-  deploysentry auth login --api-url https://api.dr-sentry.com`,
+  deploysentry auth login --token ds_live_xxx
+  DEPLOYSENTRY_API_KEY=ds_live_xxx deploysentry auth login`,
 	RunE: runAuthLogin,
 }
 
 var authLogoutCmd = &cobra.Command{
 	Use:   "logout",
 	Short: "Clear stored authentication credentials",
-	Long: `Remove locally stored authentication credentials.
-
-This command deletes the credentials file from the local filesystem.
-You will need to log in again to perform authenticated operations.
-
-Examples:
-  # Log out
-  deploysentry auth logout`,
+	Long: `Remove the locally stored API key. The next CLI command will
+prompt you to run 'deploysentry auth login' again.`,
 	RunE: runAuthLogout,
 }
 
 var authStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Display current authentication status",
-	Long: `Show the current authentication state, including the authenticated user
-and token expiry information.
+	Long: `Show the current authentication state.
 
 Examples:
-  # Show auth status
   deploysentry auth status
-
-  # Show auth status in JSON format
   deploysentry auth status -o json`,
 	RunE: runAuthStatus,
 }
 
 func init() {
 	authLoginCmd.Flags().String("api-url", "", "override the API base URL for authentication")
+	authLoginCmd.Flags().String("token", "", "API key (skips the interactive prompt)")
 
 	authCmd.AddCommand(authLoginCmd)
 	authCmd.AddCommand(authLogoutCmd)
@@ -101,15 +96,23 @@ func init() {
 	rootCmd.AddCommand(authCmd)
 }
 
-// credentialsFile holds the OAuth tokens persisted to disk.
+// credentialsFile is the on-disk shape persisted by `auth login`.
+//
+// Historically this file held OAuth tokens; today it holds an API key.
+// The shape is kept wide so older files from experimental builds can
+// still be read without breaking. `TokenType` drives the auth scheme:
+// "api_key" → Authorization: ApiKey <AccessToken>, anything else →
+// Authorization: Bearer <AccessToken>.
 type credentialsFile struct {
 	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token"`
+	RefreshToken string    `json:"refresh_token,omitempty"`
 	TokenType    string    `json:"token_type"`
-	ExpiresAt    time.Time `json:"expires_at"`
-	User         string    `json:"user"`
-	Email        string    `json:"email"`
+	ExpiresAt    time.Time `json:"expires_at,omitempty"`
+	User         string    `json:"user,omitempty"`
+	Email        string    `json:"email,omitempty"`
 }
+
+const tokenTypeAPIKey = "api_key"
 
 // credentialsPath returns the path to the credentials file.
 func credentialsPath() (string, error) {
@@ -159,129 +162,21 @@ func loadCredentials() (*credentialsFile, error) {
 	return &creds, nil
 }
 
-// tokenExpiryGracePeriod is the amount of time before actual expiry at which
-// we proactively refresh the token. This avoids requests failing due to
-// clock skew or network latency.
-const tokenExpiryGracePeriod = 30 * time.Second
-
-// refreshToken attempts to obtain a new access token using the stored refresh
-// token. On success the updated credentials are persisted to disk and the
-// refreshed credentialsFile is returned.
-func refreshToken(creds *credentialsFile) (*credentialsFile, error) {
-	if creds.RefreshToken == "" {
-		return nil, fmt.Errorf("no refresh token available; run 'deploysentry auth login' to re-authenticate")
-	}
-
-	apiURL := viper.GetString("api_url")
-	if apiURL == "" {
-		apiURL = "https://api.dr-sentry.com"
-	}
-
-	client := newAPIClient(apiURL)
-
-	body := map[string]string{
-		"grant_type":    "refresh_token",
-		"refresh_token": creds.RefreshToken,
-		"client_id":     "cli",
-	}
-
-	req, err := client.newRequest(http.MethodPost, "/oauth/token", body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create refresh request: %w", err)
-	}
-
-	resp, err := client.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("token refresh request failed: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("token refresh failed (status %d); run 'deploysentry auth login' to re-authenticate", resp.StatusCode)
-	}
-
-	var tokenResp struct {
-		AccessToken  string `json:"access_token"`
-		RefreshToken string `json:"refresh_token"`
-		TokenType    string `json:"token_type"`
-		ExpiresIn    int    `json:"expires_in"`
-		User         string `json:"user"`
-		Email        string `json:"email"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
-		return nil, fmt.Errorf("failed to decode refresh token response: %w", err)
-	}
-
-	if tokenResp.AccessToken == "" {
-		return nil, fmt.Errorf("no access token in refresh response; run 'deploysentry auth login' to re-authenticate")
-	}
-
-	// Preserve user/email from the previous credentials if the refresh
-	// response does not include them.
-	user := tokenResp.User
-	if user == "" {
-		user = creds.User
-	}
-	email := tokenResp.Email
-	if email == "" {
-		email = creds.Email
-	}
-
-	// If the server did not rotate the refresh token, keep the old one.
-	refreshTok := tokenResp.RefreshToken
-	if refreshTok == "" {
-		refreshTok = creds.RefreshToken
-	}
-
-	newCreds := &credentialsFile{
-		AccessToken:  tokenResp.AccessToken,
-		RefreshToken: refreshTok,
-		TokenType:    tokenResp.TokenType,
-		ExpiresAt:    time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second),
-		User:         user,
-		Email:        email,
-	}
-
-	if err := saveCredentials(newCreds); err != nil {
-		return nil, fmt.Errorf("refreshed token but failed to save credentials: %w", err)
-	}
-
-	return newCreds, nil
-}
-
-// ensureValidToken loads credentials and, if the access token is expired (or
-// about to expire), automatically refreshes it. It returns the
-// credentialsFile with a valid access token or an error.
+// ensureValidToken loads credentials and returns them. API-key creds never
+// expire; legacy bearer-token files are returned as-is (no refresh flow —
+// the server-side OAuth endpoints are not implemented).
 func ensureValidToken() (*credentialsFile, error) {
 	creds, err := loadCredentials()
 	if err != nil {
 		return nil, err
 	}
-
-	// If the token is still valid (with a grace period), return as-is.
-	if time.Now().Before(creds.ExpiresAt.Add(-tokenExpiryGracePeriod)) {
-		return creds, nil
+	if creds.AccessToken == "" {
+		return nil, fmt.Errorf("credentials file is missing an access token; run 'deploysentry auth login' to re-authenticate")
 	}
-
-	// Token is expired or about to expire; attempt refresh.
-	if isVerbose() {
-		_, _ = fmt.Fprintln(os.Stderr, "Access token expired or expiring soon; refreshing...")
-	}
-
-	refreshed, err := refreshToken(creds)
-	if err != nil {
-		return nil, err
-	}
-
-	if isVerbose() {
-		_, _ = fmt.Fprintln(os.Stderr, "Token refreshed successfully.")
-	}
-
-	return refreshed, nil
+	return creds, nil
 }
 
-// runAuthLogin performs the browser-based OAuth login flow.
+// runAuthLogin persists a DeploySentry API key to the credentials file.
 func runAuthLogin(cmd *cobra.Command, args []string) error {
 	apiURL, _ := cmd.Flags().GetString("api-url")
 	if apiURL == "" {
@@ -291,108 +186,80 @@ func runAuthLogin(cmd *cobra.Command, args []string) error {
 		apiURL = "https://api.dr-sentry.com"
 	}
 
-	// Generate a random state parameter for CSRF protection.
-	stateBytes := make([]byte, 16)
-	if _, err := rand.Read(stateBytes); err != nil {
-		return fmt.Errorf("failed to generate state parameter: %w", err)
+	token, _ := cmd.Flags().GetString("token")
+	if token == "" {
+		token = os.Getenv("DEPLOYSENTRY_API_KEY")
 	}
-	state := hex.EncodeToString(stateBytes)
-
-	// Start a local HTTP server to receive the OAuth callback.
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return fmt.Errorf("failed to start local callback server: %w", err)
-	}
-	port := listener.Addr().(*net.TCPAddr).Port
-	callbackURL := fmt.Sprintf("http://127.0.0.1:%d/callback", port)
-
-	resultCh := make(chan *credentialsFile, 1)
-	errCh := make(chan error, 1)
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		// Validate state parameter.
-		if r.URL.Query().Get("state") != state {
-			http.Error(w, "Invalid state parameter", http.StatusBadRequest)
-			errCh <- fmt.Errorf("OAuth state mismatch; possible CSRF attack")
-			return
-		}
-
-		code := r.URL.Query().Get("code")
-		if code == "" {
-			errMsg := r.URL.Query().Get("error")
-			if errMsg == "" {
-				errMsg = "no authorization code received"
-			}
-			http.Error(w, "Authentication failed", http.StatusBadRequest)
-			errCh <- fmt.Errorf("authentication failed: %s", errMsg)
-			return
-		}
-
-		// Exchange the authorization code for tokens.
-		client := newAPIClient(apiURL)
-		tokenResp, err := client.exchangeAuthCode(code, callbackURL)
+	if token == "" {
+		prompted, err := promptForToken(cmd)
 		if err != nil {
-			http.Error(w, "Token exchange failed", http.StatusInternalServerError)
-			errCh <- fmt.Errorf("token exchange failed: %w", err)
-			return
+			return err
 		}
-
-		// Display a success page in the browser.
-		w.Header().Set("Content-Type", "text/html")
-		_, _ = fmt.Fprint(w, `<!DOCTYPE html><html><body>
-			<h2>Authentication successful!</h2>
-			<p>You can close this window and return to the terminal.</p>
-			<script>window.close();</script>
-		</body></html>`)
-
-		resultCh <- tokenResp
-	})
-
-	server := &http.Server{Handler: mux}
-	go func() {
-		if err := server.Serve(listener); err != nil && err != http.ErrServerClosed {
-			errCh <- fmt.Errorf("callback server error: %w", err)
-		}
-	}()
-
-	// Build the authorization URL.
-	authURL := fmt.Sprintf(
-		"%s/oauth/authorize?response_type=code&client_id=cli&redirect_uri=%s&state=%s&scope=read+write",
-		apiURL, callbackURL, state,
-	)
-
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Opening browser for authentication...\n")
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "If the browser does not open, visit:\n  %s\n\n", authURL)
-
-	// Attempt to open the browser.
-	if err := openBrowser(authURL); err != nil {
-		if isVerbose() {
-			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "Could not open browser: %v\n", err)
-		}
+		token = prompted
+	}
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return fmt.Errorf("no API key provided")
 	}
 
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Waiting for authentication...\n")
+	if err := validateAPIKey(apiURL, token); err != nil {
+		return fmt.Errorf("api key validation failed: %w", err)
+	}
 
-	// Wait for the callback or timeout.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
+	creds := &credentialsFile{
+		AccessToken: token,
+		TokenType:   tokenTypeAPIKey,
+	}
+	if err := saveCredentials(creds); err != nil {
+		return fmt.Errorf("validated key but failed to save credentials: %w", err)
+	}
 
-	select {
-	case creds := <-resultCh:
-		_ = server.Shutdown(context.Background())
-		if err := saveCredentials(creds); err != nil {
-			return fmt.Errorf("authenticated successfully but failed to save credentials: %w", err)
-		}
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Authenticated as %s (%s)\n", creds.User, creds.Email)
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Credentials saved to %s\n", mustCredentialsPath())
-		return nil
-	case err := <-errCh:
-		_ = server.Shutdown(context.Background())
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Authenticated.")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Credentials saved to %s\n", mustCredentialsPath())
+	return nil
+}
+
+// promptForToken reads a key from stdin.
+func promptForToken(cmd *cobra.Command) (string, error) {
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Create an API key in the dashboard (Org → API Keys),")
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "then paste it below. You can also skip this prompt with")
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  --token <value>    or")
+	_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  DEPLOYSENTRY_API_KEY=<value> deploysentry auth login")
+	_, _ = fmt.Fprint(cmd.OutOrStdout(), "\nAPI key: ")
+
+	reader := bufio.NewReader(os.Stdin)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return "", fmt.Errorf("failed to read API key from stdin: %w", err)
+	}
+	return strings.TrimSpace(line), nil
+}
+
+// validateAPIKey calls an authenticated endpoint to confirm the key works.
+// Uses GET /api/v1/orgs because every authenticated key has visibility
+// to at least one org list operation and the server never 500s on empty
+// results.
+func validateAPIKey(apiURL, token string) error {
+	client := newAPIClient(apiURL)
+	client.setAPIKey(token)
+
+	req, err := client.newRequest(http.MethodGet, "/api/v1/orgs", nil)
+	if err != nil {
 		return err
-	case <-ctx.Done():
-		_ = server.Shutdown(context.Background())
-		return fmt.Errorf("authentication timed out after 5 minutes")
+	}
+	resp, err := client.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("reach %s: %w", apiURL, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return nil
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return fmt.Errorf("the API rejected this key (HTTP %d)", resp.StatusCode)
+	default:
+		return fmt.Errorf("unexpected HTTP %d while validating the key", resp.StatusCode)
 	}
 }
 
@@ -422,16 +289,12 @@ func runAuthStatus(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	expired := time.Now().After(creds.ExpiresAt)
-
 	if getOutputFormat() == "json" {
 		status := map[string]interface{}{
 			"authenticated": true,
 			"user":          creds.User,
 			"email":         creds.Email,
 			"token_type":    creds.TokenType,
-			"expires_at":    creds.ExpiresAt.Format(time.RFC3339),
-			"expired":       expired,
 		}
 		data, _ := json.MarshalIndent(status, "", "  ")
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
@@ -439,30 +302,18 @@ func runAuthStatus(cmd *cobra.Command, args []string) error {
 	}
 
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Status:     Authenticated\n")
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "User:       %s\n", creds.User)
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Email:      %s\n", creds.Email)
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Token Type: %s\n", creds.TokenType)
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Expires At: %s\n", creds.ExpiresAt.Format(time.RFC3339))
-	if expired {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "WARNING:    Token has expired. Run 'deploysentry auth login' to re-authenticate.\n")
+	if creds.User != "" {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "User:       %s\n", creds.User)
 	}
+	if creds.Email != "" {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Email:      %s\n", creds.Email)
+	}
+	tokenType := creds.TokenType
+	if tokenType == "" {
+		tokenType = "unknown"
+	}
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Token Type: %s\n", tokenType)
 	return nil
-}
-
-// openBrowser attempts to open a URL in the default browser.
-func openBrowser(url string) error {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "linux":
-		cmd = exec.Command("xdg-open", url)
-	case "darwin":
-		cmd = exec.Command("open", url)
-	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
-	default:
-		return fmt.Errorf("unsupported platform %s", runtime.GOOS)
-	}
-	return cmd.Start()
 }
 
 // mustCredentialsPath returns the credentials path or a placeholder on error.

@@ -271,16 +271,25 @@ Think of it as a deployment control plane sitting alongside your existing CI/CD.
 
 If you're using Claude Code or another LLM tool with MCP support, you can set up deployment tracking in one conversation instead of following the manual steps below.
 
-### One-time: Install CLI and add the MCP server
+### One-time: Install CLI, authenticate, add the MCP server
 
 ```bash
-# Install the CLI (skip if already installed)
+# 1. Install the CLI (skip if already installed)
 curl -fsSL https://api.dr-sentry.com/install.sh | sh
+
+# 2. Authenticate — create an API key in the dashboard (Org → API Keys),
+#    then paste it here. Add `--token <key>` or set DEPLOYSENTRY_API_KEY
+#    to skip the interactive prompt.
 deploysentry auth login
 
-# Add the MCP server to Claude Code
+# 3. Add the MCP server to Claude Code. It reads the same credentials
+#    file the CLI just wrote, so no separate auth ceremony is needed.
 claude mcp add deploysentry -- deploysentry mcp serve
 ```
+
+> The CLI uses API keys, not browser OAuth. If you see docs that suggest
+> `auth login` opens a browser, they're out of date — `docs/Getting_Started.md`
+> is canonical.
 
 ### Then just ask
 

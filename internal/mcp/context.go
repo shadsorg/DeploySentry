@@ -61,7 +61,7 @@ func checkReady() (*apiClient, error) {
 		return c, nil
 	}
 
-	// Fall back to OAuth credentials file.
+	// Fall back to the credentials file written by `deploysentry auth login`.
 	creds, err := loadCredentials()
 	if err != nil {
 		return nil, fmt.Errorf("not authenticated: %w\nRun 'deploysentry auth login' or set DEPLOYSENTRY_API_KEY", err)
@@ -69,7 +69,11 @@ func checkReady() (*apiClient, error) {
 	if creds.AccessToken == "" {
 		return nil, fmt.Errorf("credentials file has no access token; run 'deploysentry auth login'")
 	}
-	c.token = creds.AccessToken
+	if creds.TokenType == "api_key" {
+		c.apiKey = creds.AccessToken
+	} else {
+		c.token = creds.AccessToken
+	}
 	return c, nil
 }
 

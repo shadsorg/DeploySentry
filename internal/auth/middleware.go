@@ -117,11 +117,19 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		authHeader := c.GetHeader("Authorization")
 
 		// Fallback: browser EventSource cannot set custom headers, so
-		// browser-based SDKs pass the API key as a ?token= query param
-		// on SSE connections. Accept it as an ApiKey credential.
+		// browser-based SDKs pass the credential as a ?token= query param
+		// on SSE connections. Detect whether it's an API key (prefix
+		// `ds_`) or a JWT session token and wrap it as the matching auth
+		// scheme. Previously this always wrapped as ApiKey, which meant
+		// SSE requests from a logged-in browser (JWT) 401'd because the
+		// JWT failed API-key validation.
 		if authHeader == "" {
 			if token := c.Query("token"); token != "" {
-				authHeader = "ApiKey " + token
+				if strings.HasPrefix(token, "ds_") {
+					authHeader = "ApiKey " + token
+				} else {
+					authHeader = "Bearer " + token
+				}
 			}
 		}
 

@@ -24,7 +24,9 @@ export default function RolloutDetailPage() {
         rolloutsApi.events(orgSlug, id, 100),
       ]);
       setRollout(r);
-      setEvents(e.items);
+      // Server emits a nil slice as JSON `null` when no events exist yet;
+      // default to [] so render-time .length doesn't crash.
+      setEvents(e.items ?? []);
       setError(null);
     } catch (err) {
       setError(String(err));
@@ -92,8 +94,28 @@ export default function RolloutDetailPage() {
 
       <section className="card">
         <h3>Strategy: {rollout.strategy_snapshot.name}</h3>
-        <p>Target type: {rollout.target_type}</p>
-        <p>Phase: {rollout.current_phase_index + 1} / {rollout.strategy_snapshot.steps.length}</p>
+        <dl className="rollout-detail-grid">
+          <dt>Target</dt>
+          <dd>
+            {rollout.target_type === 'deploy'
+              ? `Deployment · ${rollout.target_ref.deployment_id?.slice(0, 8) ?? 'unknown'}`
+              : `Config · flag ${rollout.target_ref.flag_key ?? rollout.target_ref.rule_id?.slice(0, 8) ?? 'unknown'}${
+                  rollout.target_ref.env ? ` · env ${rollout.target_ref.env}` : ''
+                }`}
+          </dd>
+          <dt>Phase</dt>
+          <dd>
+            {rollout.current_phase_index + 1} / {(rollout.strategy_snapshot.steps ?? []).length || '—'}
+          </dd>
+          <dt>Created</dt>
+          <dd>{new Date(rollout.created_at).toLocaleString()}</dd>
+          {rollout.completed_at && (
+            <>
+              <dt>Completed</dt>
+              <dd>{new Date(rollout.completed_at).toLocaleString()}</dd>
+            </>
+          )}
+        </dl>
         {rollout.rollback_reason && <p className="error">Rollback reason: {rollout.rollback_reason}</p>}
         <PhaseTimeline rollout={rollout} />
       </section>
@@ -146,11 +168,11 @@ export default function RolloutDetailPage() {
 
       <section className="card">
         <h3>Event Log</h3>
-        {events.length === 0 ? (
+        {(events ?? []).length === 0 ? (
           <p className="empty-state">No events yet.</p>
         ) : (
           <ul className="event-list">
-            {events.map((ev) => (
+            {(events ?? []).map((ev) => (
               <li key={ev.id}>
                 <span className="event-time">{new Date(ev.occurred_at).toLocaleString()}</span>
                 <span className="event-type">{ev.event_type}</span>

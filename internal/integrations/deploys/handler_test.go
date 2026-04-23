@@ -61,6 +61,72 @@ func TestHandler_RailwayWebhook_HappyPath(t *testing.T) {
 	assert.Equal(t, "dep-abc", deploys.created[0].Version)
 }
 
+// TestHandler_RailwayWebhook_BearerMode verifies the auth-mode=bearer
+// escape hatch added when Railway removed its signed-webhook surface in
+// favor of unsigned notification rules (Task 11 findings): users set
+// auth_mode=bearer on the integration and put Authorization: Bearer
+// <secret> into the Railway notification-rule header config.
+func TestHandler_RailwayWebhook_BearerMode(t *testing.T) {
+	router, _, repo, deploys, key := setupRouter(t)
+	envID := uuid.New()
+	bearer := "rail-bearer-abc"
+	enc, _ := crypto.Encrypt([]byte(bearer), key)
+	integration := &models.DeployIntegration{
+		ID:               uuid.New(),
+		ApplicationID:    uuid.New(),
+		Provider:         models.DeployProviderRailway,
+		AuthMode:         models.DeployIntegrationAuthBearer,
+		WebhookSecretEnc: enc,
+		ProviderConfig:   map[string]any{"service_id": "svc-123"},
+		EnvMapping:       map[string]uuid.UUID{"production": envID},
+		Enabled:          true,
+	}
+	repo.integrations[integration.ID] = integration
+
+	payload := []byte(`{
+		"type":"DEPLOY","status":"SUCCESS",
+		"meta":{"deploymentId":"dep-bearer"},
+		"commit":{"sha":"sha-bearer"},
+		"environment":{"name":"production"},
+		"service":{"id":"svc-123"}
+	}`)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/integrations/railway/webhook", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+bearer)
+	// Deliberately NO X-Railway-Signature — this is the unsigned-delivery case.
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code, w.Body.String())
+	assert.Equal(t, 1, len(deploys.created))
+	assert.Equal(t, "dep-bearer", deploys.created[0].Version)
+}
+
+func TestHandler_RailwayWebhook_BearerMode_WrongToken(t *testing.T) {
+	router, _, repo, _, key := setupRouter(t)
+	enc, _ := crypto.Encrypt([]byte("right"), key)
+	integration := &models.DeployIntegration{
+		ID:               uuid.New(),
+		ApplicationID:    uuid.New(),
+		Provider:         models.DeployProviderRailway,
+		AuthMode:         models.DeployIntegrationAuthBearer,
+		WebhookSecretEnc: enc,
+		ProviderConfig:   map[string]any{"service_id": "svc-x"},
+		EnvMapping:       map[string]uuid.UUID{"production": uuid.New()},
+		Enabled:          true,
+	}
+	repo.integrations[integration.ID] = integration
+
+	payload := []byte(`{"type":"DEPLOY","status":"SUCCESS","service":{"id":"svc-x"}}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/integrations/railway/webhook", bytes.NewReader(payload))
+	req.Header.Set("Authorization", "Bearer wrong")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
 func TestHandler_RailwayWebhook_BadSignature(t *testing.T) {
 	router, _, repo, _, key := setupRouter(t)
 	enc, _ := crypto.Encrypt([]byte("rail-s3cret"), key)

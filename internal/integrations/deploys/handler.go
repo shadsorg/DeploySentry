@@ -3,18 +3,24 @@ package deploys
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/deploysentry/deploysentry/internal/auth"
 	"github.com/deploysentry/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
+
+func constantTimeStringEqual(a, b string) bool {
+	return hmac.Equal([]byte(a), []byte(b))
+}
 
 // Handler wires the HTTP routes for integrations and inbound webhooks.
 type Handler struct {
@@ -175,8 +181,8 @@ func (h *Handler) providerWebhook(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not resolve integration secret"})
 		return
 	}
-	if err := adapter.VerifySignature(c.Request, body, secret); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid signature"})
+	if err := verifyInboundAuth(c.Request, body, integration, secret, adapter); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 	event, err := adapter.ParsePayload(body, integration)
@@ -186,6 +192,33 @@ func (h *Handler) providerWebhook(c *gin.Context) {
 	}
 
 	h.performIngest(c, integration, event, body)
+}
+
+// verifyInboundAuth short-circuits on auth_mode=bearer (every provider
+// gets a uniform Authorization: Bearer check) and falls through to the
+// adapter's native signature check otherwise. Lets providers that no
+// longer offer HMAC signing in their public API — like Railway's
+// notification-rules surface — still deliver authenticated webhooks by
+// configuring a custom header in the provider's dashboard.
+func verifyInboundAuth(r *http.Request, body []byte, integration *models.DeployIntegration, secret string, adapter DeployEventAdapter) error {
+	if integration.AuthMode == models.DeployIntegrationAuthBearer {
+		return verifyBearerHeader(r, secret)
+	}
+	return adapter.VerifySignature(r, body, secret)
+}
+
+// verifyBearerHeader accepts Authorization: Bearer <secret> on any
+// provider endpoint. Constant-time compare to avoid timing oracles.
+func verifyBearerHeader(r *http.Request, secret string) error {
+	got := r.Header.Get("Authorization")
+	if !strings.HasPrefix(got, "Bearer ") {
+		return ErrInvalidSignature
+	}
+	token := strings.TrimPrefix(got, "Bearer ")
+	if !constantTimeStringEqual(token, secret) {
+		return ErrInvalidSignature
+	}
+	return nil
 }
 
 // dispatch runs the generic adapter end-to-end for a pre-resolved integration.
@@ -205,8 +238,8 @@ func (h *Handler) dispatch(c *gin.Context, integration *models.DeployIntegration
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "generic adapter not registered"})
 		return
 	}
-	if err := adapter.VerifySignature(c.Request, body, secret); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid signature"})
+	if err := verifyInboundAuth(c.Request, body, integration, secret, adapter); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 	event, err := adapter.ParsePayload(body, integration)

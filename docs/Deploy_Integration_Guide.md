@@ -100,7 +100,14 @@ curl -sS -X POST "$DS_API/api/v1/applications/$APP_ID/status" \
 
 ### Wiring a PaaS deploy webhook
 
-Every supported provider + the generic canonical endpoint funnel into the same internal `mode=record` plumbing — deploy rows are created idempotently from signed webhook deliveries.
+Every supported provider + the generic canonical endpoint funnel into the same internal `mode=record` plumbing — deploy rows are created idempotently from authenticated webhook deliveries.
+
+**Two auth modes.** Every provider adapter accepts either:
+
+- `auth_mode=hmac` (default) — provider's native signing header (`X-Railway-Signature`, `Render-Webhook-Signature`, `x-vercel-signature`, etc.) validated with a shared secret.
+- `auth_mode=bearer` — `Authorization: Bearer <secret>` header on the inbound request. Use this when the provider no longer offers HMAC-signed webhooks in their public API but lets you set custom headers on the delivery (Railway's notification rules, for example).
+
+Both modes are equivalent in security terms (both rely on a shared secret over TLS); pick whichever the provider's outbound webhook configuration supports.
 
 **1. Create a deploy integration**
 
@@ -145,7 +152,17 @@ The `webhook_secret` is AES-256-encrypted at rest using `DS_SECURITY_ENCRYPTION_
 
 **2. Wire the provider webhook**
 
-- **Railway**: set the webhook URL in the service settings to `https://api.deploysentry.com/api/v1/integrations/railway/webhook`. Signing header: `X-Railway-Signature: sha256=<hex>`. Match key: `provider_config.service_id`.
+- **Railway**: Railway has retired the service-level HMAC-signed webhook API and replaced it with **workspace-level notification rules** that deliver *unsigned* POSTs but let you set custom HTTP headers on the rule. Use `auth_mode=bearer` when creating the integration:
+  ```bash
+  deploysentry integrations deploy create --app api-server --provider railway \
+    --auth-mode bearer \
+    --webhook-secret "$(openssl rand -hex 32)" \
+    --provider-config '{"service_id":"<RAILWAY_SERVICE_ID>"}' \
+    --env-mapping production=prod,staging=stg
+  ```
+  Then in Railway: Project Settings → Notification Rules → add a rule on "Deployment Succeeded/Failed/Crashed" events, target URL = `https://api.deploysentry.com/api/v1/integrations/railway/webhook`, add a custom header `Authorization: Bearer <the webhook_secret you generated>`. Match key: `provider_config.service_id`.
+
+  Legacy HMAC path (only if you still have a working service-level webhook from before Railway's deprecation): `auth_mode=hmac` with signing header `X-Railway-Signature: sha256=<hex>`. This path is kept for compatibility but Railway no longer lets you create new HMAC-signed webhooks via their GraphQL or dashboard.
 - **Render**: service → Settings → Webhooks. Signing header: `Render-Webhook-Signature: t=<ts>,v1=<hex>` (HMAC over `ts + "." + body`). Match key: `provider_config.service_id`.
 - **Fly.io**: POST the Fly-shaped payload from your deploy pipeline. Signing header: `X-Fly-Signature: sha256=<hex>`. Match key: `provider_config.app_name`.
 - **Heroku**: `heroku webhooks:add -u <URL> -i api:release --secret <secret>`. Signing header: `Heroku-Webhook-Hmac-SHA256: <base64>`. Match key: `provider_config.app_name`.

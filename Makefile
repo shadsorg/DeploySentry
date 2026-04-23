@@ -62,9 +62,9 @@ migrate-up:
 migrate-down:
 	migrate -database "$(MIGRATE_DSN)" -path $(MIGRATE_DIR) down 1
 
-## run-api: Run the API server locally
+## run-api: Run the API server locally (dev mode — uses built-in encryption key)
 run-api:
-	go run $(LDFLAGS) ./cmd/api/main.go
+	DS_ENV=development go run $(LDFLAGS) ./cmd/api/main.go
 
 ## run-web: Run the web frontend dev server
 run-web:

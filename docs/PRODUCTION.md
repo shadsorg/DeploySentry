@@ -25,6 +25,12 @@ export DS_ENVIRONMENT=production
 # Authentication (CRITICAL - change these)
 export DS_AUTH_JWT_SECRET="$(openssl rand -base64 64)"
 
+# Symmetric encryption key for at-rest secrets (API keys, webhook secrets,
+# deploy-integration secrets, …). MUST be exactly 32 bytes; the server
+# refuses to start otherwise. Generate once, store in your secrets
+# manager, inject as env var on every instance.
+export DS_SECURITY_ENCRYPTION_KEY="$(openssl rand -hex 16 | head -c 32)"
+
 # Database (enable SSL)
 export DS_DATABASE_SSL_MODE=require
 export DS_DATABASE_PASSWORD="strong-database-password"

@@ -4,6 +4,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -217,7 +218,58 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("unmarshaling config: %w", err)
 	}
 
+	// Validate the encryption key length now instead of at first write.
+	// Writes through crypto.Encrypt require len(key) == 32 — an empty or
+	// wrong-length key would produce cryptic "key must be 32 bytes, got N"
+	// errors deep in handler paths (webhooks, deploy integrations, etc.)
+	// and leave users without a clear remediation.
+	if err := validateEncryptionKey(cfg); err != nil {
+		return nil, err
+	}
+
 	return cfg, nil
+}
+
+// validateEncryptionKey enforces a 32-byte DS_SECURITY_ENCRYPTION_KEY.
+// When the key is empty and the environment is "development", generate a
+// deterministic dev-only key (with a loud warning) so local contributors
+// don't need to configure it to try the stack.
+func validateEncryptionKey(cfg *Config) error {
+	key := cfg.Security.EncryptionKey
+	if len(key) == 32 {
+		return nil
+	}
+	if key == "" {
+		if isDevEnvironment() {
+			cfg.Security.EncryptionKey = devEncryptionKey
+			fmt.Fprintln(os.Stderr,
+				"WARNING: DS_SECURITY_ENCRYPTION_KEY is not set; using a built-in development key. "+
+					"This is insecure and MUST NOT be used in production. "+
+					"Set DS_SECURITY_ENCRYPTION_KEY to a 32-byte secret in any non-dev deployment.",
+			)
+			return nil
+		}
+		return fmt.Errorf(
+			"DS_SECURITY_ENCRYPTION_KEY is required (32 bytes). Generate one with:\n" +
+				"  openssl rand -hex 16 | head -c 32   # 32 ASCII bytes, safe in env vars\n" +
+				"If you only need a local dev stack, set DS_ENV=development to use a built-in key.",
+		)
+	}
+	return fmt.Errorf(
+		"DS_SECURITY_ENCRYPTION_KEY must be exactly 32 bytes (got %d). "+
+			"Generate one with `openssl rand -hex 16 | head -c 32`.",
+		len(key),
+	)
+}
+
+// devEncryptionKey is a fixed 32-byte string used ONLY when DS_ENV=development
+// and no explicit key is supplied. It is intentionally obvious so any leak
+// into a production artifact is trivially greppable.
+const devEncryptionKey = "ds-dev-only-encryption-key-32byt"
+
+func isDevEnvironment() bool {
+	env := strings.ToLower(os.Getenv("DS_ENV"))
+	return env == "" || env == "dev" || env == "development" || env == "local"
 }
 
 // ValidateProduction checks that all required settings for production

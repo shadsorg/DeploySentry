@@ -136,7 +136,20 @@ public final class StatusReporter {
             backoffMs = 0;
         } catch (Exception err) {
             LOG.log(Level.WARNING, "deploysentry: status report error", err);
-            backoffMs = backoffMs == 0 ? MIN_BACKOFF_MS : Math.min(backoffMs * 2, MAX_BACKOFF_MS);
+            if (backoffMs >= MAX_BACKOFF_MS) {
+                // Clamped at max — reset so the next schedule falls back to
+                // intervalMs instead of another 5 min. Otherwise a server
+                // that recovers mid-outage is noticed up to MAX_BACKOFF_MS
+                // late regardless of how tight intervalMs is configured. On
+                // the next failure the 1s ladder restarts.
+                backoffMs = 0;
+                long intervalForLog = options.getReportStatusInterval().toMillis();
+                LOG.log(Level.WARNING,
+                        "deploysentry: status reporter backoff reset; probing every {0}ms",
+                        intervalForLog);
+            } else {
+                backoffMs = backoffMs == 0 ? MIN_BACKOFF_MS : Math.min(backoffMs * 2, MAX_BACKOFF_MS);
+            }
         }
         if (stopped) return;
         long intervalMs = options.getReportStatusInterval().toMillis();

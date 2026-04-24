@@ -91,15 +91,27 @@ func (r *statusReporter) run(ctx context.Context) {
 		case <-timer.C:
 			if err := r.reportOnce(ctx); err != nil {
 				r.client.logger.Printf("deploysentry: status report error: %v", err)
-				if backoff == 0 {
+				if backoff >= statusMaxBackoff {
+					// Clamped at max — reset so the next scheduled probe is
+					// intervalMs, not another 5 min. Otherwise a server that
+					// recovers mid-outage is noticed up to statusMaxBackoff
+					// late regardless of how tight interval is configured.
+					backoff = 0
+					r.client.logger.Printf(
+						"deploysentry: status reporter backoff reset; probing every %s",
+						interval,
+					)
+					timer.Reset(interval)
+				} else if backoff == 0 {
 					backoff = statusMinBackoff
+					timer.Reset(backoff)
 				} else {
 					backoff *= 2
 					if backoff > statusMaxBackoff {
 						backoff = statusMaxBackoff
 					}
+					timer.Reset(backoff)
 				}
-				timer.Reset(backoff)
 			} else {
 				backoff = 0
 				timer.Reset(interval)

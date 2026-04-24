@@ -152,3 +152,142 @@ describe('StatusReporter', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Backoff ladder: ensure a stuck-at-max reporter doesn't miss server recovery
+// by more than one normal interval.
+// ---------------------------------------------------------------------------
+
+describe('StatusReporter backoff ladder', () => {
+  // The ladder doubles from MIN_BACKOFF_MS (1s) up to MAX_BACKOFF_MS (5m).
+  const EXPECTED_LADDER_MS = [
+    1_000,
+    2_000,
+    4_000,
+    8_000,
+    16_000,
+    32_000,
+    64_000,
+    128_000,
+    256_000,
+    300_000, // clamps at MAX_BACKOFF_MS
+    300_000, // still clamped
+  ];
+
+  // Drive the reporter manually by repeatedly calling its internal tick via
+  // start()+stop(). We capture the delay the reporter *would have* scheduled
+  // by spying on setTimeout instead of letting real timers fire.
+  async function runOneTick(reporter: StatusReporter, setTimeoutSpy: jest.SpyInstance) {
+    setTimeoutSpy.mockClear();
+    reporter.start();
+    // Let reportOnce() and the follow-up backoff math resolve.
+    await new Promise((r) => setImmediate(r));
+    reporter.stop();
+    // Prior start() schedules exactly one setTimeout after the tick resolves.
+    // Record its delay, then return it for the assertion.
+    const delays = setTimeoutSpy.mock.calls
+      .map((c) => c[1] as number)
+      .filter((ms) => typeof ms === 'number');
+    return delays[delays.length - 1];
+  }
+
+  function makeReporter(
+    fetchImpl: jest.Mock,
+    warn: jest.Mock,
+    intervalMs = 30_000,
+  ): StatusReporter {
+    return new StatusReporter({
+      baseURL: 'http://x',
+      apiKey: 'k',
+      applicationId: 'a',
+      intervalMs,
+      version: '1',
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      warn,
+    });
+  }
+
+  it('climbs 1s, 2s, 4s, …, 300s on consecutive failures', async () => {
+    const fetchImpl = jest
+      .fn()
+      .mockResolvedValue({ ok: false, status: 422, statusText: 'FK violation' });
+    const warn = jest.fn();
+    const reporter = makeReporter(fetchImpl, warn);
+    const spy = jest.spyOn(global, 'setTimeout');
+    try {
+      for (let i = 0; i < 9; i++) {
+        const delay = await runOneTick(reporter, spy);
+        expect(delay).toBe(EXPECTED_LADDER_MS[i]);
+      }
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('resets to intervalMs on the tick after reaching MAX_BACKOFF_MS', async () => {
+    const fetchImpl = jest
+      .fn()
+      .mockResolvedValue({ ok: false, status: 422, statusText: 'FK violation' });
+    const warn = jest.fn();
+    const reporter = makeReporter(fetchImpl, warn, 30_000);
+    const spy = jest.spyOn(global, 'setTimeout');
+    try {
+      // Walk to MAX_BACKOFF_MS. Ladder is 1,2,4,8,16,32,64,128,256,300 →
+      // 10 failed ticks lands the backoff at 300_000.
+      let lastDelay = 0;
+      for (let i = 0; i < 10; i++) {
+        lastDelay = await runOneTick(reporter, spy);
+      }
+      expect(lastDelay).toBe(300_000);
+      // The next failed tick should *not* stay at 300_000; it should fall
+      // back to intervalMs so the SDK discovers recovery within one cycle.
+      const nextDelay = await runOneTick(reporter, spy);
+      expect(nextDelay).toBe(30_000);
+      // Operators should see a log indicating the reporter is re-probing.
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('backoff reset; probing every 30000ms'),
+      );
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('clears backoff to zero on success and uses intervalMs thereafter', async () => {
+    const warn = jest.fn();
+    const failing = { ok: false, status: 422, statusText: 'FK' };
+    const success = { ok: true, status: 201, statusText: 'Created' };
+    const fetchImpl = jest
+      .fn()
+      .mockResolvedValueOnce(failing)
+      .mockResolvedValueOnce(failing)
+      .mockResolvedValueOnce(success);
+    const reporter = makeReporter(fetchImpl, warn, 30_000);
+    const spy = jest.spyOn(global, 'setTimeout');
+    try {
+      expect(await runOneTick(reporter, spy)).toBe(1_000); // fail 1
+      expect(await runOneTick(reporter, spy)).toBe(2_000); // fail 2
+      expect(await runOneTick(reporter, spy)).toBe(30_000); // success → intervalMs
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('restarts the ladder from MIN_BACKOFF_MS on the next failure after a reset', async () => {
+    const warn = jest.fn();
+    const failing = { ok: false, status: 422, statusText: 'FK' };
+    const fetchImpl = jest.fn().mockResolvedValue(failing);
+    const reporter = makeReporter(fetchImpl, warn, 30_000);
+    const spy = jest.spyOn(global, 'setTimeout');
+    try {
+      // Drive to MAX, then let the reset fire once.
+      for (let i = 0; i < 10; i++) await runOneTick(reporter, spy); // reaches 300_000
+      const afterReset = await runOneTick(reporter, spy);
+      expect(afterReset).toBe(30_000);
+      // The very next failure restarts at 1s, not jumps back to 300s.
+      const nextFailure = await runOneTick(reporter, spy);
+      expect(nextFailure).toBe(1_000);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});

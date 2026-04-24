@@ -130,7 +130,19 @@ module DeploySentry
           @backoff = 0.0
         rescue StandardError => e
           @logger&.warn("deploysentry: status report error: #{e.message}")
-          @backoff = [@backoff.zero? ? MIN_BACKOFF_S : @backoff * 2, MAX_BACKOFF_S].min
+          if @backoff >= MAX_BACKOFF_S
+            # Clamped at max — reset so the next scheduled probe is
+            # interval_s, not another 5 min. Keeps the fast-discovery win
+            # of exponential backoff during a short outage while bounding
+            # worst-case recovery-detection latency to one interval. On
+            # the next failure the 1s ladder restarts.
+            @backoff = 0.0
+            @logger&.warn(
+              "deploysentry: status reporter backoff reset; probing every #{@interval_s}s"
+            )
+          else
+            @backoff = [@backoff.zero? ? MIN_BACKOFF_S : @backoff * 2, MAX_BACKOFF_S].min
+          end
         end
         return if @stopped
         return if @interval_s.zero?

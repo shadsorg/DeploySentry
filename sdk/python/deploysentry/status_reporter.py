@@ -156,7 +156,22 @@ class StatusReporter:
             self._backoff = 0.0
         except Exception as err:
             logger.warning("status report error: %s", err)
-            self._backoff = max(_MIN_BACKOFF_S, min(self._backoff * 2 or _MIN_BACKOFF_S, _MAX_BACKOFF_S))
+            if self._backoff >= _MAX_BACKOFF_S:
+                # Clamped at max — reset so the next scheduled probe is
+                # interval_s, not another 5 min. Otherwise a server that
+                # recovers mid-outage is noticed up to _MAX_BACKOFF_S late
+                # regardless of how tight interval_s is configured. On the
+                # next failure the 1s ladder restarts.
+                self._backoff = 0.0
+                logger.warning(
+                    "status reporter backoff reset; probing every %ss",
+                    self.interval_s,
+                )
+            else:
+                self._backoff = max(
+                    _MIN_BACKOFF_S,
+                    min(self._backoff * 2 or _MIN_BACKOFF_S, _MAX_BACKOFF_S),
+                )
         if self._stopped.is_set() or self.interval_s == 0:
             return
         delay = self._backoff or self.interval_s

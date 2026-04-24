@@ -141,7 +141,20 @@ export class StatusReporter {
       this.backoff = 0; // success — clear backoff
     } catch (err) {
       this.opts.warn(`status report error: ${(err as Error).message}`);
-      this.backoff = this.backoff === 0 ? MIN_BACKOFF_MS : Math.min(this.backoff * 2, MAX_BACKOFF_MS);
+      if (this.backoff >= MAX_BACKOFF_MS) {
+        // Already at the ceiling. Reset so the next schedule falls back to
+        // intervalMs — otherwise a server that recovers mid-outage takes up
+        // to MAX_BACKOFF_MS (5m) to be noticed, regardless of how tight the
+        // operator configured intervalMs. On the next failure the 1s ladder
+        // restarts, so the short-outage behavior (quickly re-probe while
+        // the server is still down) is preserved.
+        this.backoff = 0;
+        this.opts.warn(
+          `status reporter backoff reset; probing every ${this.opts.intervalMs}ms`,
+        );
+      } else {
+        this.backoff = this.backoff === 0 ? MIN_BACKOFF_MS : Math.min(this.backoff * 2, MAX_BACKOFF_MS);
+      }
     }
     if (this.stopped) return;
     if (this.opts.intervalMs === 0) return; // startup-only

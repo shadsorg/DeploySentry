@@ -114,6 +114,14 @@ func (m *mockDeployService) SetTrafficPercent(ctx context.Context, deploymentID 
 	return nil
 }
 
+func (m *mockDeployService) ListArtifacts(_ context.Context, _ uuid.UUID, _ int) ([]ArtifactSuggestion, error) {
+	return nil, nil
+}
+
+func (m *mockDeployService) ListVersions(_ context.Context, _ uuid.UUID, _ *uuid.UUID, _ int) ([]VersionSuggestion, error) {
+	return nil, nil
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

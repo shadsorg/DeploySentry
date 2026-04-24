@@ -4,6 +4,7 @@ package deploy
 
 import (
 	"context"
+	"time"
 
 	"github.com/deploysentry/deploysentry/internal/models"
 	"github.com/google/uuid"
@@ -47,6 +48,58 @@ type DeployRepository interface {
 
 	// ListRollbackRecords returns rollback history for a deployment.
 	ListRollbackRecords(ctx context.Context, deploymentID uuid.UUID) ([]*models.RollbackRecord, error)
+
+	// ListDistinctArtifacts returns the most-recently-used distinct artifact
+	// strings for an application, newest-first, capped at limit. Powers the
+	// artifact autocomplete on the Deployment Create form.
+	ListDistinctArtifacts(ctx context.Context, applicationID uuid.UUID, limit int) ([]ArtifactSuggestion, error)
+
+	// ListDistinctVersions returns the most-recently-used distinct versions
+	// for an application, optionally filtered to a single environment.
+	// Each suggestion carries the commit_sha seen with that version and
+	// the environment IDs it has run in. Newest-first, capped at limit.
+	ListDistinctVersions(ctx context.Context, applicationID uuid.UUID, environmentID *uuid.UUID, limit int) ([]VersionSuggestion, error)
+
+	// UpsertBuildDeployment inserts or updates a record-mode deployment row
+	// identified by (application_id, environment_id, commit_sha,
+	// workflow_name). Returns the row's ID and whether it was newly created.
+	// Powers the GitHub workflow_run webhook ingestion path.
+	UpsertBuildDeployment(ctx context.Context, in BuildDeploymentUpsert) (id uuid.UUID, created bool, err error)
+}
+
+// ArtifactSuggestion is a single artifact dropdown entry.
+type ArtifactSuggestion struct {
+	Value       string `json:"value"`
+	LastSeenAt  string `json:"last_seen_at"`
+}
+
+// VersionSuggestion is a single version dropdown entry. EnvironmentIDs
+// lists every environment the version has shipped to (empty when the
+// caller filtered by a specific env).
+type VersionSuggestion struct {
+	Version        string      `json:"version"`
+	CommitSHA      string      `json:"commit_sha,omitempty"`
+	LastSeenAt     string      `json:"last_seen_at"`
+	EnvironmentIDs []uuid.UUID `json:"environment_ids,omitempty"`
+}
+
+// BuildDeploymentUpsert captures the fields the GitHub webhook adapter
+// needs to write a record-mode deployment row. WorkflowName is carried
+// via the existing `source` column using the form "github-actions:<name>"
+// so the (app, env, commit_sha, source) key remains unique per workflow
+// without a schema change.
+type BuildDeploymentUpsert struct {
+	ApplicationID uuid.UUID
+	EnvironmentID uuid.UUID
+	CommitSHA     string
+	WorkflowName  string
+	Version       string
+	Artifact      string
+	Status        models.DeployStatus
+	HTMLURL       string
+	CreatedBy     uuid.UUID
+	StartedAt     *time.Time
+	CompletedAt   *time.Time
 }
 
 // ListOptions controls pagination and filtering for list queries.

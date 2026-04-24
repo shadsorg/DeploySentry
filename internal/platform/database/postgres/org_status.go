@@ -73,6 +73,51 @@ func (r *OrgStatusRepository) ListLatestDeploymentsForApps(ctx context.Context, 
 	return out, rows.Err()
 }
 
+// ListLatestBuildsForApps returns the most recent deployment row per
+// (application, environment) whose `source` begins with "github-actions".
+// Cells with no matching row are omitted. Used by the Org Status service to
+// populate the per-cell "build in progress / build failed" pill without a
+// second round-trip.
+func (r *OrgStatusRepository) ListLatestBuildsForApps(ctx context.Context, appIDs []uuid.UUID) (map[LatestDeploymentKey]*models.Deployment, error) {
+	if len(appIDs) == 0 {
+		return map[LatestDeploymentKey]*models.Deployment{}, nil
+	}
+	const q = `
+		SELECT DISTINCT ON (application_id, environment_id)
+			id, application_id, environment_id, strategy, status,
+			artifact, version, COALESCE(commit_sha, ''),
+			traffic_percent, previous_deployment_id, flag_test_key, created_by,
+			mode, source,
+			started_at, completed_at,
+			created_at, updated_at
+		FROM deployments
+		WHERE application_id = ANY($1)
+		  AND source IS NOT NULL
+		  AND source LIKE 'github-actions%'
+		ORDER BY application_id, environment_id, created_at DESC`
+	rows, err := r.pool.Query(ctx, q, appIDs)
+	if err != nil {
+		return nil, fmt.Errorf("postgres.ListLatestBuildsForApps: %w", err)
+	}
+	defer rows.Close()
+	out := make(map[LatestDeploymentKey]*models.Deployment)
+	for rows.Next() {
+		var d models.Deployment
+		if err := rows.Scan(
+			&d.ID, &d.ApplicationID, &d.EnvironmentID, &d.Strategy, &d.Status,
+			&d.Artifact, &d.Version, &d.CommitSHA,
+			&d.TrafficPercent, &d.PreviousDeploymentID, &d.FlagTestKey, &d.CreatedBy,
+			&d.Mode, &d.Source,
+			&d.StartedAt, &d.CompletedAt,
+			&d.CreatedAt, &d.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("postgres.ListLatestBuildsForApps scan: %w", err)
+		}
+		out[LatestDeploymentKey{ApplicationID: d.ApplicationID, EnvironmentID: d.EnvironmentID}] = &d
+	}
+	return out, rows.Err()
+}
+
 // ListAppStatusesForApps returns every app_status row for the supplied apps,
 // keyed on (application_id, environment_id).
 func (r *OrgStatusRepository) ListAppStatusesForApps(ctx context.Context, appIDs []uuid.UUID) (map[LatestDeploymentKey]*models.AppStatus, error) {

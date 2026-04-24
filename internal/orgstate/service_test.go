@@ -45,6 +45,7 @@ func (f *fakeEnvs) ListByOrg(_ context.Context, _ uuid.UUID) ([]entities.OrgEnvi
 type fakeBatch struct {
 	deploys  map[postgres.LatestDeploymentKey]*models.Deployment
 	statuses map[postgres.LatestDeploymentKey]*models.AppStatus
+	builds   map[postgres.LatestDeploymentKey]*models.Deployment
 	page     *postgres.DeploymentsByOrgPage
 }
 
@@ -54,6 +55,10 @@ func (f *fakeBatch) ListLatestDeploymentsForApps(_ context.Context, _ []uuid.UUI
 
 func (f *fakeBatch) ListAppStatusesForApps(_ context.Context, _ []uuid.UUID) (map[postgres.LatestDeploymentKey]*models.AppStatus, error) {
 	return f.statuses, nil
+}
+
+func (f *fakeBatch) ListLatestBuildsForApps(_ context.Context, _ []uuid.UUID) (map[postgres.LatestDeploymentKey]*models.Deployment, error) {
+	return f.builds, nil
 }
 
 func (f *fakeBatch) ListDeploymentsByOrg(_ context.Context, _ uuid.UUID, _ postgres.DeploymentsByOrgFilters, _ string, _ int) (*postgres.DeploymentsByOrgPage, error) {

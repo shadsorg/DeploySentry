@@ -56,8 +56,28 @@ type ApplicationSummary struct {
 type OrgStatusEnvironmentCell struct {
 	Environment       EnvironmentSummary       `json:"environment"`
 	CurrentDeployment *OrgStatusDeploymentMini `json:"current_deployment,omitempty"`
-	Health            HealthBlock              `json:"health"`
-	NeverDeployed     bool                     `json:"never_deployed"`
+	// LatestBuild is the most-recent record-mode deployment row whose source
+	// starts with "github-actions" — i.e. a build/test lane. Nil when no such
+	// row exists. The UI renders it as a separate pill so "build in progress"
+	// and "currently running version" don't fight for the same visual slot.
+	LatestBuild   *OrgStatusBuildMini `json:"latest_build,omitempty"`
+	Health        HealthBlock         `json:"health"`
+	NeverDeployed bool                `json:"never_deployed"`
+}
+
+// OrgStatusBuildMini summarizes a CI build/test lane for a given app+env.
+// Source carries the full "github-actions:<workflow-name>" tag so the UI
+// can label the pill. HTMLURL, when present, is the html_url captured from
+// the workflow_run payload so the pill can link out.
+type OrgStatusBuildMini struct {
+	ID           uuid.UUID    `json:"id"`
+	WorkflowName string       `json:"workflow_name"`
+	Status       DeployStatus `json:"status"`
+	Version      string       `json:"version"`
+	CommitSHA    string       `json:"commit_sha,omitempty"`
+	HTMLURL      string       `json:"html_url,omitempty"`
+	StartedAt    *time.Time   `json:"started_at,omitempty"`
+	CompletedAt  *time.Time   `json:"completed_at,omitempty"`
 }
 
 // OrgStatusDeploymentMini is the subset of Deployment the status page needs.

@@ -164,6 +164,18 @@ func (r *mockEngineRepo) ListRollbackRecords(_ context.Context, _ uuid.UUID) ([]
 	return nil, nil
 }
 
+func (r *mockEngineRepo) ListDistinctArtifacts(_ context.Context, _ uuid.UUID, _ int) ([]deploy.ArtifactSuggestion, error) {
+	return nil, nil
+}
+
+func (r *mockEngineRepo) ListDistinctVersions(_ context.Context, _ uuid.UUID, _ *uuid.UUID, _ int) ([]deploy.VersionSuggestion, error) {
+	return nil, nil
+}
+
+func (r *mockEngineRepo) UpsertBuildDeployment(_ context.Context, _ deploy.BuildDeploymentUpsert) (uuid.UUID, bool, error) {
+	return uuid.Nil, false, nil
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------

@@ -41,6 +41,10 @@ type OrgStatusBatcher interface {
 	ListLatestDeploymentsForApps(ctx context.Context, appIDs []uuid.UUID) (map[postgres.LatestDeploymentKey]*models.Deployment, error)
 	ListAppStatusesForApps(ctx context.Context, appIDs []uuid.UUID) (map[postgres.LatestDeploymentKey]*models.AppStatus, error)
 	ListDeploymentsByOrg(ctx context.Context, orgID uuid.UUID, f postgres.DeploymentsByOrgFilters, cursor string, limit int) (*postgres.DeploymentsByOrgPage, error)
+	// ListLatestBuildsForApps returns the most recent deployment row per
+	// (application, environment) where source starts with "github-actions".
+	// Missing cells are omitted from the map.
+	ListLatestBuildsForApps(ctx context.Context, appIDs []uuid.UUID) (map[postgres.LatestDeploymentKey]*models.Deployment, error)
 }
 
 // StatusService assembles /orgs/:slug/status responses.
@@ -97,6 +101,10 @@ func (s *StatusService) Resolve(ctx context.Context, orgSlug string, userID uuid
 	if err != nil {
 		return nil, fmt.Errorf("app statuses: %w", err)
 	}
+	latestBuilds, err := s.batch.ListLatestBuildsForApps(ctx, allAppIDs)
+	if err != nil {
+		return nil, fmt.Errorf("latest builds: %w", err)
+	}
 
 	now := s.now()
 	resp := &models.OrgStatusResponse{
@@ -144,6 +152,9 @@ func (s *StatusService) Resolve(ctx context.Context, orgSlug string, userID uuid
 				} else {
 					cell.NeverDeployed = true
 				}
+				if build := latestBuilds[key]; build != nil {
+					cell.LatestBuild = buildMiniFrom(build)
+				}
 				if status := statuses[key]; status != nil {
 					reported := status.ReportedAt
 					cell.Health = models.HealthBlock{
@@ -171,6 +182,37 @@ func (s *StatusService) Resolve(ctx context.Context, orgSlug string, userID uuid
 	}
 
 	return resp, nil
+}
+
+// buildMiniFrom unpacks a record-mode deployment whose source tag starts
+// with "github-actions" into the slim `OrgStatusBuildMini` the UI renders
+// as a build lane. The workflow name is stored after the "github-actions:"
+// prefix (per internal/platform/database/postgres/deploy.go's
+// UpsertBuildDeployment contract); when the prefix is missing (older rows
+// or non-GH sources that happen to share the "github-actions" source),
+// workflow_name is left empty and the UI falls back to a generic label.
+// FlagTestKey is the column the ingester stashes html_url in for v1
+// without a schema change.
+func buildMiniFrom(d *models.Deployment) *models.OrgStatusBuildMini {
+	out := &models.OrgStatusBuildMini{
+		ID:          d.ID,
+		Status:      d.Status,
+		Version:     d.Version,
+		CommitSHA:   d.CommitSHA,
+		StartedAt:   d.StartedAt,
+		CompletedAt: d.CompletedAt,
+	}
+	if d.Source != nil {
+		s := *d.Source
+		const prefix = "github-actions:"
+		if len(s) > len(prefix) && s[:len(prefix)] == prefix {
+			out.WorkflowName = s[len(prefix):]
+		}
+	}
+	if d.FlagTestKey != nil {
+		out.HTMLURL = *d.FlagTestKey
+	}
+	return out
 }
 
 // classifyStaleness mirrors the rules used by internal/currentstate so the

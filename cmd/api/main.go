@@ -492,6 +492,11 @@ func run() error {
 	appStatusService := appstatus.NewService(appStatusRepo, deployService)
 	appstatus.NewHandler(appStatusService).RegisterRoutes(api, rbacChecker)
 
+	// GitHub Actions workflow_run ingester — surfaces build/test status as
+	// record-mode deploy rows on the Org Status board. API-key-authed;
+	// env is resolved from the key's environment scope.
+	githubint.NewWorkflowRunHandler(deployRepo).RegisterRoutes(api, rbacChecker)
+
 	// Per-environment current-state assembly (read-side for dashboards).
 	currentStateSvc := currentstate.NewService(deployService, appStatusRepo, envRepo)
 	currentstate.NewHandler(currentStateSvc).RegisterRoutes(api, rbacChecker)

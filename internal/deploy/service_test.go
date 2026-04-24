@@ -109,6 +109,18 @@ func (m *mockDeployRepo) ListRollbackRecords(_ context.Context, _ uuid.UUID) ([]
 	return nil, nil
 }
 
+func (m *mockDeployRepo) ListDistinctArtifacts(_ context.Context, _ uuid.UUID, _ int) ([]ArtifactSuggestion, error) {
+	return nil, nil
+}
+
+func (m *mockDeployRepo) ListDistinctVersions(_ context.Context, _ uuid.UUID, _ *uuid.UUID, _ int) ([]VersionSuggestion, error) {
+	return nil, nil
+}
+
+func (m *mockDeployRepo) UpsertBuildDeployment(_ context.Context, _ BuildDeploymentUpsert) (uuid.UUID, bool, error) {
+	return uuid.Nil, false, nil
+}
+
 // mockPublisher implements MessagePublisher and records every call.
 type mockPublisher struct {
 	mu        sync.Mutex

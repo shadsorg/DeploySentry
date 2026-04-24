@@ -103,6 +103,8 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup, rbac *auth.RBACChecker) {
 	{
 		applications.GET("/:app_id/deployments/active", mw(rbac, auth.PermDeployRead), h.getActiveDeployments)
 		applications.GET("/:app_id/desired-state", mw(rbac, auth.PermDeployRead), h.getAppDesiredState)
+		applications.GET("/:app_id/artifacts", mw(rbac, auth.PermDeployRead), h.listArtifacts)
+		applications.GET("/:app_id/versions", mw(rbac, auth.PermDeployRead), h.listVersions)
 	}
 }
 
@@ -640,4 +642,61 @@ func (h *Handler) listPhases(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"phases": phases})
+}
+
+// listArtifacts handles GET /applications/:app_id/artifacts.
+func (h *Handler) listArtifacts(c *gin.Context) {
+	appID, err := uuid.Parse(c.Param("app_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid application id"})
+		return
+	}
+	limit := parseLimit(c.Query("limit"), 50)
+	items, err := h.service.ListArtifacts(c.Request.Context(), appID, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"artifacts": items})
+}
+
+// listVersions handles GET /applications/:app_id/versions?environment_id=&limit=.
+func (h *Handler) listVersions(c *gin.Context) {
+	appID, err := uuid.Parse(c.Param("app_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid application id"})
+		return
+	}
+	var envID *uuid.UUID
+	if s := c.Query("environment_id"); s != "" {
+		id, err := uuid.Parse(s)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid environment_id"})
+			return
+		}
+		envID = &id
+	}
+	limit := parseLimit(c.Query("limit"), 50)
+	items, err := h.service.ListVersions(c.Request.Context(), appID, envID, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"versions": items})
+}
+
+// parseLimit returns a positive int from the query string, clamped to 1..100,
+// defaulting to def.
+func parseLimit(s string, def int) int {
+	if s == "" {
+		return def
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil || n <= 0 {
+		return def
+	}
+	if n > 100 {
+		return 100
+	}
+	return n
 }

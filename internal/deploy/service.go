@@ -55,6 +55,12 @@ type DeployService interface {
 	// SetTrafficPercent updates the traffic_percent field on a deployment row.
 	// Used by the rollout applicator to advance canary traffic during phase execution.
 	SetTrafficPercent(ctx context.Context, deploymentID uuid.UUID, pct int) error
+
+	// ListArtifacts powers the Deployment Create artifact autocomplete.
+	ListArtifacts(ctx context.Context, applicationID uuid.UUID, limit int) ([]ArtifactSuggestion, error)
+
+	// ListVersions powers the Deployment Create version autocomplete.
+	ListVersions(ctx context.Context, applicationID uuid.UUID, environmentID *uuid.UUID, limit int) ([]VersionSuggestion, error)
 }
 
 // deployService is the concrete implementation of DeployService.
@@ -303,6 +309,17 @@ func (s *deployService) SetTrafficPercent(ctx context.Context, deploymentID uuid
 		return fmt.Errorf("updating deployment traffic: %w", err)
 	}
 	return nil
+}
+
+// ListArtifacts returns recent distinct artifacts for autocomplete.
+func (s *deployService) ListArtifacts(ctx context.Context, applicationID uuid.UUID, limit int) ([]ArtifactSuggestion, error) {
+	return s.repo.ListDistinctArtifacts(ctx, applicationID, limit)
+}
+
+// ListVersions returns recent distinct versions for autocomplete, optionally
+// filtered to a specific environment.
+func (s *deployService) ListVersions(ctx context.Context, applicationID uuid.UUID, environmentID *uuid.UUID, limit int) ([]VersionSuggestion, error) {
+	return s.repo.ListDistinctVersions(ctx, applicationID, environmentID, limit)
 }
 
 // publishEvent is a fire-and-forget helper that publishes a domain event.

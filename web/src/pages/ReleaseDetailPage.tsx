@@ -67,48 +67,96 @@ export default function ReleaseDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return (
-    <div className="empty-state" style={{ padding: '40px 0' }}>
-      <span className="ms" style={{ fontSize: 32, color: 'var(--color-primary)', marginBottom: 12, display: 'block' }}>sync</span>
-      Loading release…
-    </div>
-  );
-  if (error) return <div className="page-error">Error: {error}</div>;
-  if (!release) return <div className="page-error">Release not found.</div>;
+  if (loading) {
+    return (
+      <div className="empty-state" style={{ padding: '40px 0' }}>
+        <span className="ms" style={{ fontSize: 32, color: 'var(--color-text-muted)', animation: 'spin 1s linear infinite' }}>sync</span>
+        <p style={{ color: 'var(--color-text-muted)', marginTop: 8 }}>Loading release…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="empty-state card" style={{ padding: '48px 24px' }}>
+        <span className="ms" style={{ fontSize: 36, color: 'var(--color-danger)' }}>error</span>
+        <h3>Failed to load</h3>
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  if (!release) {
+    return (
+      <div className="empty-state card" style={{ padding: '48px 24px' }}>
+        <span className="ms" style={{ fontSize: 36, color: 'var(--color-text-muted)' }}>local_shipping</span>
+        <h3>Release not found</h3>
+        <p>This release may have been deleted.</p>
+        <Link to={backPath} className="btn btn-secondary btn-sm" style={{ marginTop: 12 }}>Back to Releases</Link>
+      </div>
+    );
+  }
 
   const actions = getReleaseActions(release.status);
 
   return (
     <div className="page">
-      <div className="detail-header">
-        <Link to={backPath} className="back-link">
-          &larr; Releases
-        </Link>
-        <div className="detail-header-top">
-          <div>
-            <h1 className="detail-header-title">{release.name}</h1>
-            {release.description && <p className="detail-description">{release.description}</p>}
-            <div className="detail-header-badges">
-              <span className={statusBadgeClass(release.status)}>
-                {release.status.replace('_', ' ')}
-              </span>
-              <span>{release.traffic_percent}% traffic</span>
-              {release.session_sticky && (
-                <span className="sticky-badge">
-                  &#128274; Session sticky: {release.sticky_header}
-                </span>
-              )}
+      <div className="page-header-row">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <Link
+            to={backPath}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, color: 'var(--color-text-muted)', textDecoration: 'none' }}
+          >
+            <span className="ms" style={{ fontSize: 14 }}>arrow_back</span>
+            Releases
+          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 10,
+              background: 'var(--color-primary-bg)', border: '1px solid rgba(99,102,241,0.25)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <span className="ms" style={{ fontSize: 20, color: 'var(--color-primary)' }}>local_shipping</span>
+            </div>
+            <div className="page-header" style={{ marginBottom: 0 }}>
+              <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, letterSpacing: '-0.02em' }}>{release.name}</h1>
+              {release.description && <p>{release.description}</p>}
             </div>
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingLeft: 48 }}>
+            <span className={statusBadgeClass(release.status)}>
+              {release.status.replace(/_/g, ' ')}
+            </span>
+            <span className="badge" style={{ background: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)' }}>
+              {release.traffic_percent}% traffic
+            </span>
+            {release.session_sticky && (
+              <span className="badge" style={{ background: 'var(--color-warning-bg)', color: 'var(--color-warning)', gap: 4 }}>
+                <span className="ms" style={{ fontSize: 13 }}>lock</span>
+                Session sticky: {release.sticky_header}
+              </span>
+            )}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <ActionBar {...actions} />
         </div>
       </div>
 
-      <div className="table-section">
-        <h2>Flag Changes</h2>
-        <p style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--color-text-muted)' }}>
-          No flag changes data available
-        </p>
+      {/* Flag Changes */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{
+          padding: '12px 20px', borderBottom: '1px solid var(--color-border)',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>toggle_on</span>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>Flag Changes</span>
+        </div>
+        <div className="empty-state" style={{ padding: '48px 24px' }}>
+          <span className="ms" style={{ fontSize: 36, color: 'var(--color-text-muted)' }}>toggle_off</span>
+          <h3>No flag changes</h3>
+          <p>Flag changes associated with this release will appear here.</p>
+        </div>
       </div>
     </div>
   );

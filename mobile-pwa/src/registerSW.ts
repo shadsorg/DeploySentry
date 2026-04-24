@@ -7,12 +7,10 @@ export function initServiceWorker() {
   const update = registerSW({
     immediate: true,
     onNeedRefresh() {
-      // eslint-disable-next-line no-console
       console.info('[pwa] update available — reloading');
       void update(true);
     },
     onOfflineReady() {
-      // eslint-disable-next-line no-console
       console.info('[pwa] offline-ready');
     },
   });

@@ -40,6 +40,16 @@ func (h *LoginHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	}
 }
 
+// RegisterAuthenticatedRoutes mounts auth endpoints that require a valid
+// (not-yet-expired) access token on the caller. /auth/extend issues a fresh
+// access token so the caller can stay signed in without re-entering credentials.
+func (h *LoginHandler) RegisterAuthenticatedRoutes(rg *gin.RouterGroup) {
+	auth := rg.Group("/auth")
+	{
+		auth.POST("/extend", h.extend)
+	}
+}
+
 // registerRequest is the JSON body for the registration endpoint.
 type registerRequest struct {
 	Email    string `json:"email"    binding:"required,email"`
@@ -151,6 +161,42 @@ func (h *LoginHandler) login(c *gin.Context) {
 		"token": token,
 		"user":  user,
 	})
+}
+
+// extend issues a fresh access token with a new expiration, without requiring
+// re-authentication. The request must carry a valid (not-yet-expired) Bearer
+// token — the auth middleware has already validated it and populated
+// user_id/email in the gin context before this handler runs.
+func (h *LoginHandler) extend(c *gin.Context) {
+	userIDValue, ok := c.Get("user_id")
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+		return
+	}
+	userID, ok := userIDValue.(uuid.UUID)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid user identity"})
+		return
+	}
+
+	email := ""
+	if v, exists := c.Get("email"); exists {
+		if s, ok := v.(string); ok {
+			email = s
+		}
+	}
+
+	expiry := h.config.JWTExpiration
+	if expiry == 0 {
+		expiry = 24 * time.Hour
+	}
+	token, err := GenerateJWT([]byte(h.config.JWTSecret), expiry, userID, email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"token": token})
 }
 
 // hashPassword hashes a plaintext password using argon2id with a random salt.

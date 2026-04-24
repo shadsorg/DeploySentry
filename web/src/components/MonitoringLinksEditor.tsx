@@ -167,7 +167,7 @@ export default function MonitoringLinksEditor({
               type="button"
               onClick={() => remove(i)}
               title="Remove"
-              style={{ color: '#b00' }}
+              style={{ color: 'var(--color-danger)' }}
             >
               ✕
             </button>
@@ -187,8 +187,8 @@ export default function MonitoringLinksEditor({
         <button className="btn btn-primary" type="button" onClick={save} disabled={saving}>
           {saving ? 'Saving…' : 'Save'}
         </button>
-        {saved && <span style={{ fontSize: 13, color: '#0a0' }}>Saved.</span>}
-        {error && <span style={{ fontSize: 13, color: '#b00' }}>{error}</span>}
+        {saved && <span style={{ fontSize: 13, color: 'var(--color-success)' }}>Saved.</span>}
+        {error && <span style={{ fontSize: 13, color: 'var(--color-danger)' }}>{error}</span>}
       </div>
     </div>
   );

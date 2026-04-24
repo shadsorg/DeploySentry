@@ -18,7 +18,7 @@ export default function DocsPage() {
 
   return (
     <div className="docs-shell">
-      <SiteHeader variant="app" />
+      <SiteHeader variant="app" size="large" />
       <div className="docs-layout">
         <DocsSidebar />
         <main className="docs-content">

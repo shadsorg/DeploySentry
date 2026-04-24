@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { AuthProvider, RequireAuth, RedirectIfAuth } from './auth';
+import SessionExpiryWarning from './components/SessionExpiryWarning';
 import HierarchyLayout from './components/HierarchyLayout';
 import DefaultRedirect from './components/DefaultRedirect';
 import LegacyRedirect from './components/LegacyRedirect';
@@ -37,6 +38,7 @@ const DocsPage = lazy(() => import('./pages/DocsPage'));
 export default function App() {
   return (
     <AuthProvider>
+      <SessionExpiryWarning />
       <Suspense fallback={<div className="page-loading">Loading...</div>}>
       <Routes>
         {/* Public routes */}

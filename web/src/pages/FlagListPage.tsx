@@ -28,11 +28,11 @@ function relativeTime(iso: string): string {
 
 function categoryBadgeStyle(cat: string): React.CSSProperties {
   switch (cat) {
-    case 'release': return { background: 'rgba(217,119,33,0.15)', color: '#fb923c' };
-    case 'feature': return { background: 'rgba(99,102,241,0.15)', color: 'var(--color-primary)' };
-    case 'experiment': return { background: 'rgba(168,85,247,0.15)', color: '#c084fc' };
-    case 'ops': return { background: 'rgba(16,185,129,0.15)', color: 'var(--color-success)' };
-    case 'permission': return { background: 'rgba(239,68,68,0.15)', color: '#f87171' };
+    case 'release': return { background: 'var(--color-warning-bg)', color: 'var(--color-warning)' };
+    case 'feature': return { background: 'var(--color-primary-bg)', color: 'var(--color-primary)' };
+    case 'experiment': return { background: 'var(--color-purple-bg)', color: 'var(--color-purple)' };
+    case 'ops': return { background: 'var(--color-success-bg)', color: 'var(--color-success)' };
+    case 'permission': return { background: 'var(--color-danger-bg)', color: 'var(--color-danger)' };
     default: return { background: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)' };
   }
 }

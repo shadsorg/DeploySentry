@@ -93,7 +93,7 @@ func (r *WebhookRepository) GetWebhook(ctx context.Context, id uuid.UUID) (*mode
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("webhook not found")
+			return nil, models.ErrWebhookNotFound
 		}
 		return nil, err
 	}

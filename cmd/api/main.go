@@ -424,6 +424,7 @@ func run() error {
 	webhooks.NewHandler(webhookService).RegisterRoutes(api)
 	ratings.NewHandler(ratingService, rbacChecker).RegisterRoutes(api)
 	auth.NewUserHandler(userRepo).RegisterRoutes(api)
+	auth.NewLoginHandler(userRepo, cfg.Auth).RegisterAuthenticatedRoutes(api)
 	auth.NewAPIKeyHandler(apiKeyService).RegisterRoutes(api)
 	auth.NewAuditHandler(auditRepo).RegisterRoutes(api)
 	entities.NewHandler(entityService, rbacChecker, grantService).RegisterRoutes(api)

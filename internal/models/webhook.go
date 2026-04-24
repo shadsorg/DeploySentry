@@ -8,6 +8,10 @@ import (
 	"github.com/lib/pq"
 )
 
+// ErrWebhookNotFound is returned by the webhook repository when a lookup
+// does not match any row. Handlers translate this to HTTP 404.
+var ErrWebhookNotFound = errors.New("webhook not found")
+
 // Webhook represents a webhook endpoint configuration.
 type Webhook struct {
 	ID              uuid.UUID      `json:"id" db:"id"`

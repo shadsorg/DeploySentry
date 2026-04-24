@@ -386,7 +386,8 @@ export default function DeploymentDetailPage() {
 
       {latestHeartbeat && (() => {
         const connectedAgent = agents.find(a => a.status === 'connected');
-        const upstreamColors: Record<string, string> = { blue: '#69f0ae', green: '#b388ff' };
+        const upstreamColors: Record<string, string> = { blue: '#3b82f6', green: '#10b981' };
+        const upstreamFallback = '#6366f1';
         const upstreamNames = Object.keys(latestHeartbeat.upstreams);
 
         return (
@@ -396,7 +397,7 @@ export default function DeploymentDetailPage() {
               <div className="info-cards" style={{ marginTop: '1.5rem' }}>
                 <div className="info-card">
                   <div className="info-card-label">Agent Status</div>
-                  <div className="info-card-value" style={{ color: connectedAgent.status === 'connected' ? '#69f0ae' : connectedAgent.status === 'stale' ? '#ffd740' : '#ff5252' }}>
+                  <div className="info-card-value" style={{ color: connectedAgent.status === 'connected' ? 'var(--color-success)' : connectedAgent.status === 'stale' ? 'var(--color-warning)' : 'var(--color-danger)' }}>
                     {connectedAgent.status}
                   </div>
                 </div>
@@ -408,7 +409,7 @@ export default function DeploymentDetailPage() {
                 </div>
                 <div className="info-card">
                   <div className="info-card-label">Envoy Health</div>
-                  <div className="info-card-value" style={{ color: latestHeartbeat.envoy_healthy ? '#69f0ae' : '#ff5252' }}>
+                  <div className="info-card-value" style={{ color: latestHeartbeat.envoy_healthy ? 'var(--color-success)' : 'var(--color-danger)' }}>
                     {latestHeartbeat.envoy_healthy ? 'Healthy' : 'Unhealthy'}
                   </div>
                 </div>
@@ -426,7 +427,7 @@ export default function DeploymentDetailPage() {
                 {upstreamNames.map(name => {
                   const desired = latestHeartbeat.active_rules.weights[name] ?? 0;
                   const actual = latestHeartbeat.actual_traffic[name] ?? 0;
-                  const color = upstreamColors[name] || '#64b5f6';
+                  const color = upstreamColors[name] || upstreamFallback;
                   return (
                     <div key={name} style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
@@ -451,8 +452,8 @@ export default function DeploymentDetailPage() {
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(upstreamNames.length, 3)}, 1fr)`, gap: '1rem' }}>
                 {upstreamNames.map(name => {
                   const m = latestHeartbeat.upstreams[name];
-                  const color = upstreamColors[name] || '#64b5f6';
-                  const errColor = m.error_rate < 1 ? '#69f0ae' : '#ff5252';
+                  const color = upstreamColors[name] || upstreamFallback;
+                  const errColor = m.error_rate < 1 ? 'var(--color-success)' : 'var(--color-danger)';
                   return (
                     <div key={name} style={{ background: 'var(--color-bg-secondary)', borderRadius: '8px', padding: '1rem', borderLeft: `3px solid ${color}` }}>
                       <div style={{ fontWeight: 600, color, marginBottom: '0.75rem' }}>{name}</div>
@@ -488,7 +489,7 @@ export default function DeploymentDetailPage() {
                   <span style={{ color: 'var(--color-text-muted)' }}>Weights: </span>
                   {Object.entries(latestHeartbeat.active_rules.weights).map(([k, v]) => (
                     <span key={k} style={{ marginRight: '0.75rem' }}>
-                      <span style={{ color: upstreamColors[k] || '#64b5f6', fontWeight: 600 }}>{k}</span> {v}%
+                      <span style={{ color: upstreamColors[k] || upstreamFallback, fontWeight: 600 }}>{k}</span> {v}%
                     </span>
                   ))}
                 </div>
@@ -526,29 +527,75 @@ export default function DeploymentDetailPage() {
       })()}
 
       {dep.flag_test_key && (
-        <div className="mt-4 rounded-lg border border-amber-800/50 bg-amber-900/20 p-4">
-          <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-amber-400">
+        <div
+          style={{
+            marginTop: 16,
+            padding: 16,
+            border: '1px solid rgba(245, 158, 11, 0.35)',
+            background: 'var(--color-warning-bg)',
+            borderRadius: 'var(--radius-lg)',
+          }}
+        >
+          <h3
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: 'var(--color-warning)',
+              marginBottom: 8,
+            }}
+          >
             Flag Under Test
           </h3>
-          <div className="flex items-center gap-2">
-            <span className="rounded bg-amber-800/30 px-2 py-0.5 text-sm font-mono text-amber-300">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span
+              className="badge"
+              style={{
+                background: 'rgba(245, 158, 11, 0.25)',
+                color: 'var(--color-warning)',
+                fontFamily: 'var(--font-mono)',
+              }}
+            >
               {dep.flag_test_key}
             </span>
-            <span className="text-xs text-gray-400">
+            <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
               Canary testing via SERVICE_COLOR targeting
             </span>
           </div>
-          <div className="mt-2 text-xs text-gray-500">
+          <div style={{ marginTop: 8, fontSize: 12, color: 'var(--color-text-muted)' }}>
             Blue (stable) receives the flag's default value. Green (canary) receives the flag with{' '}
-            <code className="text-amber-400">service_color eq green</code> targeting rule.
+            <code style={{ color: 'var(--color-warning)' }}>service_color eq green</code> targeting rule.
           </div>
           {latestHeartbeat && (
-            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-              <div className="rounded bg-gray-800 p-2">
-                <span style={{ color: '#69f0ae' }}>blue</span>: flag off (baseline)
+            <div
+              style={{
+                marginTop: 8,
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 8,
+                fontSize: 12,
+              }}
+            >
+              <div
+                style={{
+                  padding: 8,
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-bg-elevated)',
+                  border: '1px solid var(--color-border)',
+                }}
+              >
+                <span style={{ color: 'var(--color-info)', fontWeight: 600 }}>blue</span>: flag off (baseline)
               </div>
-              <div className="rounded bg-gray-800 p-2">
-                <span style={{ color: '#b388ff' }}>green</span>: flag on (testing)
+              <div
+                style={{
+                  padding: 8,
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-bg-elevated)',
+                  border: '1px solid var(--color-border)',
+                }}
+              >
+                <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>green</span>: flag on (testing)
               </div>
             </div>
           )}

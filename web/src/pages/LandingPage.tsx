@@ -10,7 +10,7 @@ import Footer from '@/components/landing/Footer';
 export default function LandingPage() {
   return (
     <div className="landing">
-      <SiteHeader variant="landing" />
+      <SiteHeader variant="landing" size="large" />
       <main className="landing-main">
         <Hero />
         <DeployReleaseFlow />

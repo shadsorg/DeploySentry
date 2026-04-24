@@ -1,0 +1,164 @@
+@import './tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--color-bg, #0b1326);
+  color: var(--color-text, #e2e8f0);
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+/* Screen shell: full-height flex column with room for top+tab bars. */
+.m-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.m-screen-body {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 16px;
+}
+
+.m-top-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border, #1e293b);
+  background: var(--color-bg-surface, #131b2e);
+  min-height: 52px;
+}
+
+.m-top-bar .m-org-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--color-bg-elevated, #1b2339);
+  border: 1px solid var(--color-border, #1e293b);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.m-tab-bar {
+  display: flex;
+  border-top: 1px solid var(--color-border, #1e293b);
+  background: var(--color-bg-surface, #131b2e);
+}
+
+.m-tab-bar button {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 10px 8px 8px;
+  min-height: 52px;
+  color: var(--color-text-secondary, #94a3b8);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.m-tab-bar button[aria-current='page'] {
+  color: var(--color-primary, #6366f1);
+  border-top: 2px solid var(--color-primary, #6366f1);
+  padding-top: 8px;
+}
+
+.m-tab-bar button .m-tab-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.m-tab-bar button .m-tab-label {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.m-card {
+  background: var(--color-bg-elevated, #1b2339);
+  border: 1px solid var(--color-border, #1e293b);
+  border-radius: var(--radius-lg, 10px);
+  padding: 14px;
+}
+
+.m-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border, #1e293b);
+  min-height: 44px;
+}
+
+.m-list-row:last-child {
+  border-bottom: none;
+}
+
+.m-button {
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: var(--radius-lg, 8px);
+  border: 1px solid var(--color-border, #1e293b);
+  background: var(--color-bg-elevated, #1b2339);
+  color: var(--color-text, #e2e8f0);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.m-button-primary {
+  background: var(--color-primary, #6366f1);
+  border-color: var(--color-primary, #6366f1);
+  color: #fff;
+}
+
+.m-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg, 8px);
+  border: 1px solid var(--color-border, #1e293b);
+  background: var(--color-bg-surface, #131b2e);
+  color: var(--color-text, #e2e8f0);
+  font-size: 16px; /* 16px prevents iOS zoom on focus */
+}
+
+.m-page-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100dvh;
+  color: var(--color-text-muted, #64748b);
+  font-size: 14px;
+}

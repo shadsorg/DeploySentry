@@ -5,11 +5,8 @@ const BASE = '/api/v1';
 type FetchFn = typeof fetch;
 let fetchImpl: FetchFn = (...args) => globalThis.fetch(...args);
 
-// Test seam. Accepts `unknown` because vitest's bare `vi.fn()` returns a
-// `Mock<Procedure | Constructable>` whose only guaranteed signature is a
-// constructor, so it isn't structurally assignable to a strict fetch type.
-export function setFetch(impl: unknown) {
-  fetchImpl = impl as FetchFn;
+export function setFetch(impl: FetchFn) {
+  fetchImpl = impl;
 }
 
 function handleUnauthorized() {

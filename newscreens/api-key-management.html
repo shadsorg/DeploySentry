@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #020617; /* Deepest black Tier 0 */
+        }
+        .glass-panel {
+            background: rgba(11, 19, 38, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(70, 69, 84, 0.5);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "primary-fixed": "#e1e0ff",
+                      "surface-bright": "#31394d",
+                      "on-surface": "#dae2fd",
+                      "outline-variant": "#464554",
+                      "background": "#0b1326",
+                      "on-error-container": "#ffdad6",
+                      "surface-container-lowest": "#060e20",
+                      "on-secondary-fixed-variant": "#6900b3",
+                      "on-primary-fixed-variant": "#2f2ebe",
+                      "on-secondary-container": "#d6a9ff",
+                      "error": "#ffb4ab",
+                      "tertiary": "#ffb783",
+                      "on-secondary": "#490080",
+                      "on-primary-fixed": "#07006c",
+                      "on-error": "#690005",
+                      "surface-container-low": "#131b2e",
+                      "on-primary-container": "#0d0096",
+                      "inverse-primary": "#494bd6",
+                      "tertiary-fixed-dim": "#ffb783",
+                      "surface-container": "#171f33",
+                      "surface-tint": "#c0c1ff",
+                      "secondary-container": "#6f00be",
+                      "on-secondary-fixed": "#2c0051",
+                      "outline": "#908fa0",
+                      "on-tertiary-fixed-variant": "#703700",
+                      "secondary": "#ddb7ff",
+                      "on-tertiary": "#4f2500",
+                      "secondary-fixed": "#f0dbff",
+                      "surface-variant": "#2d3449",
+                      "primary-container": "#8083ff",
+                      "inverse-surface": "#dae2fd",
+                      "tertiary-container": "#d97721",
+                      "surface-dim": "#0b1326",
+                      "surface": "#0b1326",
+                      "secondary-fixed-dim": "#ddb7ff",
+                      "error-container": "#93000a",
+                      "primary": "#c0c1ff",
+                      "on-tertiary-container": "#452000",
+                      "on-background": "#dae2fd",
+                      "on-primary": "#1000a9",
+                      "surface-container-highest": "#2d3449",
+                      "on-surface-variant": "#c7c4d7",
+                      "inverse-on-surface": "#283044",
+                      "surface-container-high": "#222a3d",
+                      "tertiary-fixed": "#ffdcc5",
+                      "on-tertiary-fixed": "#301400",
+                      "primary-fixed-dim": "#c0c1ff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "md": "16px",
+                      "margin-page": "32px",
+                      "gutter": "20px",
+                      "xl": "40px",
+                      "sm": "8px",
+                      "unit": "4px",
+                      "xs": "4px",
+                      "lg": "24px"
+              },
+              "fontFamily": {
+                      "headline-md": ["Manrope"],
+                      "label-md": ["Inter"],
+                      "body-md": ["Inter"],
+                      "headline-lg": ["Manrope"],
+                      "body-sm": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "headline-xl": ["Manrope"],
+                      "code": ["monospace"]
+              },
+              "fontSize": {
+                      "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                      "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                      "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "headline-xl": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                      "code": ["14px", {"lineHeight": "1.4", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-x-hidden">
+<!-- SideNavBar (Shared Component) -->
+<aside class="fixed left-0 top-0 bottom-0 flex flex-col p-4 w-[240px] h-screen border-r border-slate-800 bg-slate-950/60 backdrop-blur-xl shadow-[4px_0_24px_rgba(0,0,0,0.5)] z-50">
+<div class="flex items-center gap-3 mb-8 px-2">
+<div class="w-8 h-8 rounded bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container text-lg" style="font-variation-settings: 'FILL' 1;">terminal</span>
+</div>
+<div>
+<h1 class="text-xl font-bold tracking-tighter text-white font-headline-md">InfraCommand</h1>
+<p class="text-[10px] text-slate-500 uppercase tracking-widest font-label-md">Infrastructure Control</p>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 transition-all duration-200 active:scale-[0.98] font-manrope text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 transition-all duration-200 active:scale-[0.98] font-manrope text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl">group</span>
+<span>Members</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 transition-all duration-200 active:scale-[0.98] font-manrope text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl">security</span>
+<span>Permissions</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-indigo-400 bg-indigo-500/10 border-l-2 border-indigo-500 transition-all duration-200 active:scale-[0.98] font-manrope text-sm font-medium" href="#">
+<span class="material-symbols-outlined text-xl">vpn_key</span>
+<span>API Keys</span>
+</a>
+</nav>
+<div class="mt-auto space-y-4 pt-4 border-t border-slate-800/50">
+<button class="w-full flex items-center justify-center gap-2 py-2 bg-gradient-to-br from-primary-container to-secondary-container text-white rounded-lg font-bold shadow-lg shadow-primary-container/20 hover:brightness-110 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined text-sm">add</span>
+<span class="text-xs">New Deployment</span>
+</button>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 transition-all font-manrope text-sm" href="#">
+<span class="material-symbols-outlined text-lg">description</span>
+<span>Documentation</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 transition-all font-manrope text-sm" href="#">
+<span class="material-symbols-outlined text-lg">settings</span>
+<span>Settings</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- TopNavBar (Shared Component) -->
+<header class="sticky top-0 z-40 flex items-center justify-between px-6 ml-[240px] w-[calc(100%-240px)] h-16 border-b border-slate-800/50 bg-slate-950/60 backdrop-blur-xl">
+<div class="flex items-center flex-1 max-w-xl">
+<div class="relative w-full group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">search</span>
+<input class="w-full bg-slate-900/50 border border-slate-800 rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-1 focus:ring-indigo-500/50 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-600" placeholder="Search API keys, logs, or metrics..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6 ml-6">
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-slate-400 hover:text-indigo-400 transition-colors font-manrope text-sm" href="#">Cluster Status</a>
+<a class="text-slate-400 hover:text-indigo-400 transition-colors font-manrope text-sm" href="#">Logs</a>
+<a class="text-slate-400 hover:text-indigo-400 transition-colors font-manrope text-sm" href="#">Incidents</a>
+</nav>
+<div class="h-4 w-[1px] bg-slate-800"></div>
+<div class="flex items-center gap-3">
+<button class="p-2 text-slate-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 overflow-hidden">
+<img alt="User Profile" data-alt="close up headshot of professional developer with glasses and neutral background soft studio lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBbJP-kJlew84Po7UIvJlZGhzBDvg1yyAylLvXiO_Li-sqPvHgQD-gmV0yz6Bi-1dZDZJK831ttLI8C156uqz7Nokymvkt31S015GOBOc-6IhC37H7mTDHEeA8JRq7lFWV6WCej2nMl6KksmB9NQn61NsIrRuYq5TR-HvlfX-tqTLt1jmAAFhoV37P97TGeLtxGVkrU6y9-UpXNDNKXBRK02CyWjj0J9AHvGm6KCVpGK_HpFoq3rWdKcqxb5UAt0RMbz_I5po5739zf"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-[240px] p-margin-page min-h-[calc(100vh-64px)]">
+<!-- Header Section -->
+<div class="flex items-center justify-between mb-8">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-white mb-1">API Key Management</h2>
+<p class="text-on-surface-variant font-body-sm">Securely manage and monitor authentication tokens for your microservices.</p>
+</div>
+<button class="flex items-center gap-2 px-6 py-3 bg-primary-container text-on-primary-container rounded-lg font-bold shadow-lg shadow-indigo-500/20 hover:brightness-110 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined">key</span>
+<span>Create New API Key</span>
+</button>
+</div>
+<!-- Bento Grid Stats -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+<div class="glass-panel rounded-xl p-lg relative overflow-hidden">
+<div class="absolute top-0 right-0 p-4 opacity-10">
+<span class="material-symbols-outlined text-6xl" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</div>
+<p class="text-slate-400 text-xs font-label-md uppercase tracking-wider mb-2">Total Requests (24h)</p>
+<h3 class="text-white font-headline-md text-headline-md">1.28M</h3>
+<div class="mt-4 flex items-center gap-2 text-green-400 text-xs">
+<span class="material-symbols-outlined text-sm">trending_up</span>
+<span>12% from yesterday</span>
+</div>
+</div>
+<div class="glass-panel rounded-xl p-lg relative overflow-hidden">
+<div class="absolute top-0 right-0 p-4 opacity-10">
+<span class="material-symbols-outlined text-6xl" style="font-variation-settings: 'FILL' 1;">shield</span>
+</div>
+<p class="text-slate-400 text-xs font-label-md uppercase tracking-wider mb-2">Active Keys</p>
+<h3 class="text-white font-headline-md text-headline-md">14</h3>
+<div class="mt-4 flex items-center gap-2 text-slate-400 text-xs">
+<span class="material-symbols-outlined text-sm">info</span>
+<span>2 unused keys detected</span>
+</div>
+</div>
+<div class="glass-panel rounded-xl p-lg relative overflow-hidden">
+<div class="absolute top-0 right-0 p-4 opacity-10">
+<span class="material-symbols-outlined text-6xl" style="font-variation-settings: 'FILL' 1;">timer</span>
+</div>
+<p class="text-slate-400 text-xs font-label-md uppercase tracking-wider mb-2">Avg. Latency</p>
+<h3 class="text-white font-headline-md text-headline-md">42ms</h3>
+<div class="mt-4 flex items-center gap-2 text-indigo-400 text-xs">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+<span>Within SLA (50ms)</span>
+</div>
+</div>
+</div>
+<!-- API Keys Table Container -->
+<div class="glass-panel rounded-xl overflow-hidden border border-slate-800">
+<div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+<h4 class="font-headline-md text-lg text-white">Active Access Tokens</h4>
+<div class="flex items-center gap-4">
+<div class="flex bg-slate-900 rounded-lg p-1 border border-slate-800">
+<button class="px-3 py-1 text-xs font-medium text-white bg-slate-800 rounded-md">All</button>
+<button class="px-3 py-1 text-xs font-medium text-slate-400 hover:text-slate-200">Production</button>
+<button class="px-3 py-1 text-xs font-medium text-slate-400 hover:text-slate-200">Staging</button>
+</div>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-900/50">
+<th class="px-6 py-4 text-xs font-label-md text-slate-400 uppercase tracking-widest">Key Name</th>
+<th class="px-6 py-4 text-xs font-label-md text-slate-400 uppercase tracking-widest">Environment</th>
+<th class="px-6 py-4 text-xs font-label-md text-slate-400 uppercase tracking-widest">Prefix</th>
+<th class="px-6 py-4 text-xs font-label-md text-slate-400 uppercase tracking-widest">Created</th>
+<th class="px-6 py-4 text-xs font-label-md text-slate-400 uppercase tracking-widest">Activity</th>
+<th class="px-6 py-4 text-xs font-label-md text-slate-400 uppercase tracking-widest">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-800/50">
+<!-- Key Row 1 -->
+<tr class="hover:bg-slate-800/20 transition-colors group">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+<span class="material-symbols-outlined text-lg">vpn_key</span>
+</div>
+<span class="text-white font-medium">main-api-gateway</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="px-2 py-1 rounded bg-indigo-500/10 text-indigo-400 text-[10px] font-bold uppercase border border-indigo-500/20">Production</span>
+</td>
+<td class="px-6 py-5">
+<code class="font-code text-slate-400 bg-slate-900 px-2 py-1 rounded">sk_live_283f...</code>
+</td>
+<td class="px-6 py-5 text-sm text-slate-500">Oct 12, 2023</td>
+<td class="px-6 py-5">
+<div class="flex items-end gap-[2px] h-8 w-24">
+<div class="bg-indigo-500 w-full h-[40%] rounded-t-sm"></div>
+<div class="bg-indigo-500 w-full h-[60%] rounded-t-sm"></div>
+<div class="bg-indigo-500 w-full h-[30%] rounded-t-sm"></div>
+<div class="bg-indigo-500 w-full h-[80%] rounded-t-sm"></div>
+<div class="bg-indigo-500 w-full h-[100%] rounded-t-sm"></div>
+<div class="bg-indigo-500 w-full h-[70%] rounded-t-sm"></div>
+<div class="bg-indigo-500 w-full h-[90%] rounded-t-sm"></div>
+</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<button class="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-all" title="Roll Key">
+<span class="material-symbols-outlined text-lg">refresh</span>
+</button>
+<button class="p-2 text-slate-500 hover:text-error hover:bg-error-container/20 rounded-lg transition-all" title="Revoke Key">
+<span class="material-symbols-outlined text-lg">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Key Row 2 -->
+<tr class="hover:bg-slate-800/20 transition-colors group">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-slate-500/10 flex items-center justify-center text-slate-400">
+<span class="material-symbols-outlined text-lg">vpn_key</span>
+</div>
+<span class="text-white font-medium">ci-test-runner</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="px-2 py-1 rounded bg-slate-500/10 text-slate-400 text-[10px] font-bold uppercase border border-slate-500/20">Staging</span>
+</td>
+<td class="px-6 py-5">
+<code class="font-code text-slate-400 bg-slate-900 px-2 py-1 rounded">sk_test_991b...</code>
+</td>
+<td class="px-6 py-5 text-sm text-slate-500">Jan 05, 2024</td>
+<td class="px-6 py-5">
+<div class="flex items-end gap-[2px] h-8 w-24">
+<div class="bg-slate-600 w-full h-[10%] rounded-t-sm"></div>
+<div class="bg-slate-600 w-full h-[20%] rounded-t-sm"></div>
+<div class="bg-slate-600 w-full h-[10%] rounded-t-sm"></div>
+<div class="bg-slate-600 w-full h-[15%] rounded-t-sm"></div>
+<div class="bg-slate-600 w-full h-[10%] rounded-t-sm"></div>
+<div class="bg-slate-600 w-full h-[25%] rounded-t-sm"></div>
+<div class="bg-slate-600 w-full h-[12%] rounded-t-sm"></div>
+</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<button class="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-all">
+<span class="material-symbols-outlined text-lg">refresh</span>
+</button>
+<button class="p-2 text-slate-500 hover:text-error hover:bg-error-container/20 rounded-lg transition-all">
+<span class="material-symbols-outlined text-lg">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Key Row 3 -->
+<tr class="hover:bg-slate-800/20 transition-colors group">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+<span class="material-symbols-outlined text-lg">vpn_key</span>
+</div>
+<span class="text-white font-medium">mobile-app-sync</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="px-2 py-1 rounded bg-indigo-500/10 text-indigo-400 text-[10px] font-bold uppercase border border-indigo-500/20">Production</span>
+</td>
+<td class="px-6 py-5">
+<code class="font-code text-slate-400 bg-slate-900 px-2 py-1 rounded">sk_live_002x...</code>
+</td>
+<td class="px-6 py-5 text-sm text-slate-500">Mar 18, 2024</td>
+<td class="px-6 py-5">
+<div class="flex items-end gap-[2px] h-8 w-24">
+<div class="bg-indigo-500 w-full h-[90%] rounded-t-sm"></div>
+<div class="bg-indigo-500 w-full h-[85%] rounded-t-sm"></div>
+<div class="bg-indigo-500 w-full h-[95%] rounded-t-sm"></div>
+<div class="bg-indigo-500 w-full h-[80%] rounded-t-sm"></div>
+<div class="bg-indigo-500 w-full h-[100%] rounded-t-sm"></div>
+<div class="bg-indigo-500 w-full h-[90%] rounded-t-sm"></div>
+<div class="bg-indigo-500 w-full h-[85%] rounded-t-sm"></div>
+</div>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<button class="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-all">
+<span class="material-symbols-outlined text-lg">refresh</span>
+</button>
+<button class="p-2 text-slate-500 hover:text-error hover:bg-error-container/20 rounded-lg transition-all">
+<span class="material-symbols-outlined text-lg">delete</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-6 py-4 bg-slate-900/30 border-t border-slate-800 flex items-center justify-between">
+<span class="text-sm text-slate-500">Showing 3 of 14 API keys</span>
+<div class="flex gap-2">
+<button class="px-3 py-1 bg-slate-800 text-slate-400 rounded hover:text-white transition-colors text-xs font-medium border border-slate-700">Previous</button>
+<button class="px-3 py-1 bg-slate-800 text-slate-400 rounded hover:text-white transition-colors text-xs font-medium border border-slate-700">Next</button>
+</div>
+</div>
+</div>
+<!-- Documentation Hint -->
+<div class="mt-8 flex gap-6">
+<div class="flex-1 glass-panel rounded-xl p-lg flex items-start gap-4">
+<div class="p-3 rounded-lg bg-tertiary-container/10 text-tertiary">
+<span class="material-symbols-outlined">lightbulb</span>
+</div>
+<div>
+<h5 class="text-white font-medium mb-1">Security Best Practice</h5>
+<p class="text-slate-400 text-sm">We recommend rotating your production keys every 90 days. Enable "Auto-Rotation" in key settings to automate this process with Zero-Downtime.</p>
+</div>
+</div>
+<div class="flex-1 glass-panel rounded-xl p-lg flex items-start gap-4">
+<div class="p-3 rounded-lg bg-primary-container/10 text-indigo-400">
+<span class="material-symbols-outlined">code</span>
+</div>
+<div>
+<h5 class="text-white font-medium mb-1">Integration Snippet</h5>
+<p class="text-slate-400 text-sm">Use our official CLI to manage keys from your local terminal: <code class="bg-slate-900 text-indigo-300 px-1.5 py-0.5 rounded ml-1">infracommand keys:list</code></p>
+</div>
+</div>
+</div>
+</main>
+<!-- Modal Backdrop (Hidden by default, shown for "Create New API Key") -->
+<div class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[60] flex items-center justify-center p-6 hidden">
+<!-- New API Key Modal -->
+<div class="glass-panel w-full max-w-lg rounded-2xl shadow-2xl shadow-black overflow-hidden border border-indigo-500/30">
+<div class="px-8 py-6 border-b border-slate-800">
+<h3 class="text-white text-xl font-headline-md">Create New API Key</h3>
+<p class="text-slate-400 text-sm">Generate a unique credential for your application.</p>
+</div>
+<div class="p-8 space-y-6">
+<div>
+<label class="block text-slate-400 text-xs font-label-md uppercase mb-2">Key Label</label>
+<input class="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all" placeholder="e.g. staging-logger-service" type="text"/>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<label class="block text-slate-400 text-xs font-label-md uppercase mb-2">Environment</label>
+<select class="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all appearance-none">
+<option>Production</option>
+<option>Staging</option>
+<option>Development</option>
+</select>
+</div>
+<div>
+<label class="block text-slate-400 text-xs font-label-md uppercase mb-2">Expiration</label>
+<select class="w-full bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 text-white focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all appearance-none">
+<option>90 Days</option>
+<option>180 Days</option>
+<option>Never</option>
+</select>
+</div>
+</div>
+<div class="flex items-center gap-3 p-4 bg-indigo-500/5 rounded-xl border border-indigo-500/20">
+<span class="material-symbols-outlined text-indigo-400">info</span>
+<p class="text-indigo-200/70 text-xs">A new secret key will be generated. You must copy it immediately as it will not be shown again.</p>
+</div>
+</div>
+<div class="px-8 py-6 bg-slate-900/50 border-t border-slate-800 flex justify-end gap-4">
+<button class="px-6 py-2 text-slate-400 font-medium hover:text-white transition-colors">Cancel</button>
+<button class="px-8 py-2 bg-primary-container text-on-primary-container font-bold rounded-lg hover:brightness-110 active:scale-[0.98] transition-all">Generate Key</button>
+</div>
+</div>
+</div>
+</body></html>

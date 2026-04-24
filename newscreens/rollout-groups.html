@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>InfraControl - Rollout Groups</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-error-container": "#ffdad6",
+                    "surface-container-low": "#131b2e",
+                    "on-surface-variant": "#c7c4d7",
+                    "tertiary": "#ffb783",
+                    "on-primary-fixed-variant": "#2f2ebe",
+                    "surface-bright": "#31394d",
+                    "secondary-fixed": "#f0dbff",
+                    "surface-container-highest": "#2d3449",
+                    "on-surface": "#dae2fd",
+                    "outline-variant": "#464554",
+                    "error-container": "#93000a",
+                    "primary": "#c0c1ff",
+                    "background": "#0b1326",
+                    "on-primary": "#1000a9",
+                    "surface-container": "#171f33",
+                    "on-tertiary-container": "#452000",
+                    "outline": "#908fa0",
+                    "on-secondary-fixed": "#2c0051",
+                    "error": "#ffb4ab",
+                    "primary-fixed": "#e1e0ff",
+                    "surface-container-high": "#222a3d",
+                    "secondary-container": "#6f00be",
+                    "surface-dim": "#0b1326",
+                    "surface-variant": "#2d3449",
+                    "on-background": "#dae2fd",
+                    "primary-container": "#8083ff",
+                    "on-secondary-container": "#d6a9ff",
+                    "on-tertiary-fixed": "#301400",
+                    "surface-container-lowest": "#060e20",
+                    "on-secondary": "#490080",
+                    "primary-fixed-dim": "#c0c1ff",
+                    "on-tertiary": "#4f2500",
+                    "surface-tint": "#c0c1ff",
+                    "inverse-surface": "#dae2fd",
+                    "surface": "#0b1326",
+                    "tertiary-fixed-dim": "#ffb783",
+                    "on-tertiary-fixed-variant": "#703700",
+                    "on-secondary-fixed-variant": "#6900b3",
+                    "on-primary-fixed": "#07006c",
+                    "on-error": "#690005",
+                    "inverse-on-surface": "#283044",
+                    "secondary-fixed-dim": "#ddb7ff",
+                    "inverse-primary": "#494bd6",
+                    "on-primary-container": "#0d0096",
+                    "tertiary-fixed": "#ffdcc5",
+                    "secondary": "#ddb7ff",
+                    "tertiary-container": "#d97721"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xs": "4px",
+                    "md": "16px",
+                    "xl": "40px",
+                    "unit": "4px",
+                    "sm": "8px",
+                    "margin-page": "32px",
+                    "lg": "24px",
+                    "gutter": "20px"
+            },
+            "fontFamily": {
+                    "code": ["monospace"],
+                    "body-md": ["Inter"],
+                    "headline-md": ["Manrope"],
+                    "headline-lg": ["Manrope"],
+                    "label-md": ["Inter"],
+                    "headline-xl": ["Manrope"],
+                    "body-sm": ["Inter"],
+                    "body-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "code": ["14px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                    "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "headline-xl": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #020617;
+            color: #dae2fd;
+        }
+        .glass-panel {
+            background: rgba(11, 19, 38, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(70, 69, 84, 0.3);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md overflow-x-hidden">
+<!-- SideNavBar Shell -->
+<aside class="w-[240px] h-screen fixed left-0 top-0 border-r border-slate-800/50 bg-[#020617]/60 backdrop-blur-xl flex flex-col p-2 space-y-1 z-50">
+<div class="px-4 py-6 flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-indigo-500 flex items-center justify-center">
+<span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">architecture</span>
+</div>
+<div>
+<h1 class="text-indigo-400 font-black tracking-tighter text-xl leading-none">InfraControl</h1>
+<p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Production Cluster</p>
+</div>
+</div>
+<nav class="flex-1 space-y-1 mt-4">
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200 font-manrope text-sm tracking-tight active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">architecture</span>
+<span>Strategies</span>
+</a>
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200 font-manrope text-sm tracking-tight active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">dynamic_feed</span>
+<span>Active Rollouts</span>
+</a>
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200 font-manrope text-sm tracking-tight active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">vpn_key</span>
+<span>API Keys</span>
+</a>
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200 font-manrope text-sm tracking-tight active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">groups</span>
+<span>Team</span>
+</a>
+<!-- Active State: Segments / Rollout Groups -->
+<a class="bg-indigo-500/10 text-indigo-400 border-l-2 border-indigo-500 py-3 px-4 flex items-center gap-3 font-manrope text-sm tracking-tight active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">segment</span>
+<span>Segments</span>
+</a>
+</nav>
+<div class="mt-auto pt-4 border-t border-slate-800/50">
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200 font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200 font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined">contact_support</span>
+<span>Support</span>
+</a>
+</div>
+</aside>
+<!-- TopAppBar Shell -->
+<header class="h-16 w-[calc(100%-240px)] fixed top-0 right-0 z-40 border-b border-slate-800/50 bg-[#020617]/40 backdrop-blur-md flex items-center justify-between px-8 shadow-2xl shadow-indigo-900/5">
+<div class="flex items-center gap-6 flex-1">
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">search</span>
+<input class="w-full bg-slate-900/50 border-slate-800 rounded-lg py-2 pl-10 pr-4 text-sm focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all placeholder:text-slate-600" placeholder="Search rollout groups..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-slate-400 hover:text-indigo-300 transition-colors p-2 rounded-lg">
+<span class="material-symbols-outlined">notifications_active</span>
+</button>
+<button class="text-slate-400 hover:text-indigo-300 transition-colors p-2 rounded-lg">
+<span class="material-symbols-outlined">terminal</span>
+</button>
+<div class="h-6 w-[1px] bg-slate-800 mx-2"></div>
+<button class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg font-manrope text-sm font-bold flex items-center gap-2 transition-all active:scale-95">
+<span class="material-symbols-outlined text-sm">add</span>
+                New Deployment
+            </button>
+<img alt="User Profile" class="w-8 h-8 rounded-full border border-slate-700 ml-2" data-alt="professional portrait of a tech professional with neutral expression and dark clothing against a minimalist studio background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyavaF1kmhTaRw9-LO8Us8YuDdAt1qab1OLbcngmYQkaaYp7RFjxhYan6zbvcdvLSMMla7a4I0XWK8EDht_0vqUCVLk0KeEn2uygeWwkbmuTgbl5LYdcBOgTeel6T6CAi0TzP08oDvjiPU3Hx9pmQwHxQm7l_cTkpL590DURBC6RsRZHw0w7yvqA_Ftp_tY7FsvNYwRDRvIvHAKj29TMWcGCa57NXkXHSU9RmcTj0LNCIK7sIgfkfNK-GBoJoGLtBEdHs1OLxCyCQL"/>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-[240px] mt-16 p-8 min-h-[calc(100vh-64px)]">
+<!-- Header Section -->
+<div class="flex items-end justify-between mb-10">
+<div class="space-y-1">
+<div class="flex items-center gap-2 text-indigo-400 mb-2">
+<span class="material-symbols-outlined text-sm">segment</span>
+<span class="text-label-md font-label-md uppercase tracking-widest">Segments &amp; Targeting</span>
+</div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Rollout Groups</h2>
+<p class="text-on-surface-variant max-w-xl">Define custom user segments and targeting rules to control the blast radius of new features across your production environments.</p>
+</div>
+<button class="bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 px-6 py-3 rounded-xl font-headline-md text-sm hover:bg-indigo-500/20 transition-all flex items-center gap-3 active:scale-95">
+<span class="material-symbols-outlined">group_add</span>
+                New Group
+            </button>
+</div>
+<!-- Dashboard Grid / Content Area -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Empty State Section (Highlighted Requirement) -->
+<div class="col-span-12 lg:col-span-12 py-20 glass-panel rounded-2xl flex flex-col items-center justify-center text-center space-y-6 relative overflow-hidden">
+<!-- Background Abstract -->
+<div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 blur-[100px] rounded-full -mr-20 -mt-20"></div>
+<div class="absolute bottom-0 left-0 w-64 h-64 bg-indigo-900/10 blur-[100px] rounded-full -ml-20 -mb-20"></div>
+<div class="relative">
+<div class="w-24 h-24 bg-surface-container-high rounded-3xl flex items-center justify-center mb-4 border border-slate-700/50 relative">
+<span class="material-symbols-outlined text-5xl text-indigo-500/40">groups_2</span>
+<div class="absolute -right-2 -bottom-2 w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center shadow-lg">
+<span class="material-symbols-outlined text-white text-sm">question_mark</span>
+</div>
+</div>
+</div>
+<div class="max-w-sm space-y-3 px-6">
+<h3 class="font-headline-md text-headline-md text-on-surface">No rollout groups yet</h3>
+<p class="text-on-surface-variant font-body-sm text-body-sm">
+                        Connect your user identifiers to create dynamic segments like "Beta Testers," "Internal QA," or "Enterprise Tier" for gradual feature releases.
+                    </p>
+</div>
+<div class="flex gap-4 pt-4">
+<button class="bg-indigo-500 text-white px-8 py-3 rounded-xl font-headline-md text-sm shadow-xl shadow-indigo-500/20 hover:shadow-indigo-500/40 transition-all flex items-center gap-3">
+<span class="material-symbols-outlined text-lg">add_circle</span>
+                        Create First Group
+                    </button>
+<button class="px-8 py-3 rounded-xl font-headline-md text-sm border border-slate-700 hover:bg-slate-800/50 transition-all text-on-surface-variant">
+                        Import Segments
+                    </button>
+</div>
+</div>
+<!-- Informational Bento Section -->
+<div class="col-span-12 md:col-span-4 glass-panel p-6 rounded-2xl flex flex-col gap-4">
+<div class="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-indigo-400">psychology</span>
+</div>
+<div>
+<h4 class="font-headline-md text-[18px] text-on-surface mb-2">Smart Targeting</h4>
+<p class="text-body-sm text-on-surface-variant leading-relaxed">
+                        Use attribute-based access control (ABAC) to target users by region, device type, or any custom metadata.
+                    </p>
+</div>
+</div>
+<div class="col-span-12 md:col-span-4 glass-panel p-6 rounded-2xl flex flex-col gap-4">
+<div class="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-indigo-400">speed</span>
+</div>
+<div>
+<h4 class="font-headline-md text-[18px] text-on-surface mb-2">Canary Releases</h4>
+<p class="text-body-sm text-on-surface-variant leading-relaxed">
+                        Safely rollout features to 1%, 5%, or 10% of specific segments before full deployment to the general public.
+                    </p>
+</div>
+</div>
+<div class="col-span-12 md:col-span-4 glass-panel p-6 rounded-2xl flex flex-col gap-4 border-dashed border-indigo-500/20">
+<div class="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-indigo-400">integration_instructions</span>
+</div>
+<div>
+<h4 class="font-headline-md text-[18px] text-on-surface mb-2">SDK Integration</h4>
+<p class="text-body-sm text-on-surface-variant leading-relaxed">
+                        Fetch segment definitions via the edge-API with &lt;10ms latency globally using our optimized SDKs.
+                    </p>
+</div>
+</div>
+<!-- Secondary List (Placeholder for what content would look like) -->
+<div class="col-span-12 mt-8">
+<h3 class="font-headline-md text-on-surface mb-6 flex items-center gap-3">
+                    Recent Activity
+                    <span class="text-xs bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded uppercase font-bold tracking-tighter">Live</span>
+</h3>
+<div class="space-y-3">
+<div class="flex items-center justify-between p-4 glass-panel rounded-xl border-l-4 border-l-indigo-500/50">
+<div class="flex items-center gap-4">
+<div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center">
+<span class="material-symbols-outlined text-sm text-slate-400">history</span>
+</div>
+<div>
+<p class="text-on-surface font-medium">New deployment strategy "Blue-Green Core" initialized</p>
+<p class="text-xs text-slate-500">2 minutes ago • Automated Process</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-600">chevron_right</span>
+</div>
+<div class="flex items-center justify-between p-4 glass-panel rounded-xl border-l-4 border-l-transparent">
+<div class="flex items-center gap-4">
+<div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center">
+<span class="material-symbols-outlined text-sm text-slate-400">person_edit</span>
+</div>
+<div>
+<p class="text-on-surface font-medium">Team permissions updated for "Engineering Alpha"</p>
+<p class="text-xs text-slate-500">1 hour ago • Admin User</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-slate-600">chevron_right</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- FAB Suppression Logic: Not rendering FAB on a management/details page per mandate -->
+</body></html>

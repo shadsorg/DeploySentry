@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>InfraCore - Flag Details</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Manrope:wght@600;700;800&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "tertiary": "#ffb783",
+                "background": "#020617",
+                "primary-fixed-dim": "#c0c1ff",
+                "on-secondary": "#490080",
+                "outline-variant": "#464554",
+                "error-container": "#93000a",
+                "on-tertiary-fixed": "#301400",
+                "primary-fixed": "#e1e0ff",
+                "on-secondary-container": "#d6a9ff",
+                "on-tertiary-container": "#452000",
+                "surface-dim": "#0b1326",
+                "secondary": "#ddb7ff",
+                "tertiary-fixed-dim": "#ffb783",
+                "on-error": "#690005",
+                "inverse-on-surface": "#283044",
+                "surface": "#0b1326",
+                "on-primary-fixed": "#07006c",
+                "on-primary-container": "#0d0096",
+                "on-error-container": "#ffdad6",
+                "on-secondary-fixed": "#2c0051",
+                "on-background": "#dae2fd",
+                "surface-container": "#171f33",
+                "tertiary-container": "#d97721",
+                "secondary-fixed-dim": "#ddb7ff",
+                "error": "#ffb4ab",
+                "tertiary-fixed": "#ffdcc5",
+                "outline": "#908fa0",
+                "inverse-surface": "#dae2fd",
+                "on-primary": "#1000a9",
+                "primary": "#c0c1ff",
+                "surface-tint": "#c0c1ff",
+                "on-tertiary-fixed-variant": "#703700",
+                "secondary-fixed": "#f0dbff",
+                "on-surface": "#dae2fd",
+                "inverse-primary": "#494bd6",
+                "surface-bright": "#31394d",
+                "surface-container-lowest": "#060e20",
+                "on-tertiary": "#4f2500",
+                "on-secondary-fixed-variant": "#6900b3",
+                "surface-container-low": "#131b2e",
+                "on-surface-variant": "#c7c4d7",
+                "surface-container-highest": "#2d3449",
+                "surface-variant": "#2d3449",
+                "secondary-container": "#6f00be",
+                "surface-container-high": "#222a3d",
+                "primary-container": "#8083ff",
+                "on-primary-fixed-variant": "#2f2ebe"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+            },
+            "spacing": {
+                "lg": "24px",
+                "unit": "4px",
+                "xl": "40px",
+                "md": "16px",
+                "sm": "8px",
+                "margin-page": "32px",
+                "gutter": "20px",
+                "xs": "4px"
+            },
+            "fontFamily": {
+                "body-md": ["Inter"],
+                "code": ["monospace"],
+                "headline-md": ["Manrope"],
+                "label-md": ["Inter"],
+                "body-lg": ["Inter"],
+                "headline-xl": ["Manrope"],
+                "headline-lg": ["Manrope"],
+                "body-sm": ["Inter"]
+            },
+            "fontSize": {
+                "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                "code": ["14px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                "headline-xl": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .glass-panel {
+            background: rgba(23, 31, 51, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(144, 143, 160, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-[240px] border-r border-slate-800/50 bg-slate-950/60 backdrop-blur-xl shadow-[4px_0_24px_rgba(0,0,0,0.4)] flex flex-col py-4 space-y-2 z-50">
+<div class="px-6 mb-8">
+<h1 class="text-xl font-black text-indigo-500 tracking-tighter font-headline-md">InfraCore</h1>
+<p class="text-[10px] text-slate-500 font-code tracking-widest uppercase">v2.4.0-stable</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 text-slate-400 hover:text-slate-200 px-6 py-2 transition-colors font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 text-slate-400 hover:text-slate-200 px-6 py-2 transition-colors font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="rocket_launch">rocket_launch</span>
+<span>Deployments</span>
+</a>
+<a class="flex items-center gap-3 bg-indigo-500/10 text-indigo-400 border-l-2 border-indigo-500 font-semibold px-6 py-2 transition-all font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="toggle_on" style="font-variation-settings: 'FILL' 1;">toggle_on</span>
+<span>Feature Flags</span>
+</a>
+<a class="flex items-center gap-3 text-slate-400 hover:text-slate-200 px-6 py-2 transition-colors font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="dns">dns</span>
+<span>Infrastructure</span>
+</a>
+<a class="flex items-center gap-3 text-slate-400 hover:text-slate-200 px-6 py-2 transition-colors font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>Settings</span>
+</a>
+<a class="flex items-center gap-3 text-slate-400 hover:text-slate-200 px-6 py-2 transition-colors font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+<span>Logs</span>
+</a>
+</nav>
+<div class="px-4 mb-4">
+<button class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-95">
+<span class="material-symbols-outlined text-sm">add</span>
+<span>New Deployment</span>
+</button>
+</div>
+<div class="border-t border-slate-800/50 pt-4 space-y-1">
+<a class="flex items-center gap-3 text-slate-400 hover:text-slate-200 px-6 py-2 transition-colors font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="contact_support">contact_support</span>
+<span>Support</span>
+</a>
+<a class="flex items-center gap-3 text-slate-400 hover:text-slate-200 px-6 py-2 transition-colors font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="menu_book">menu_book</span>
+<span>Documentation</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="pl-[240px]">
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-240px)] h-16 bg-slate-950/40 backdrop-blur-md border-b border-slate-800/50 flex items-center justify-between px-8 z-40">
+<div class="flex items-center gap-6">
+<h2 class="text-lg font-bold text-slate-100 font-headline-md">Environment Console</h2>
+<div class="flex items-center gap-4 border-l border-slate-800/50 pl-6">
+<a class="text-slate-400 hover:text-white transition-colors text-sm font-medium" href="#">Production</a>
+<a class="text-slate-400 hover:text-white transition-colors text-sm font-medium" href="#">Staging</a>
+<a class="text-indigo-400 border-b-2 border-indigo-500 pb-5 pt-5 text-sm font-medium" href="#">Development</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<input class="bg-slate-900/50 border border-slate-800 rounded-lg px-4 py-1.5 text-sm w-64 focus:ring-1 focus:ring-indigo-500/50 outline-none transition-all" placeholder="Search flags..." type="text"/>
+<span class="material-symbols-outlined absolute right-3 top-2 text-slate-500 text-sm">search</span>
+</div>
+<div class="flex items-center gap-2 border-l border-slate-800/50 ml-2 pl-4">
+<button class="p-2 text-slate-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined">account_tree</span>
+</button>
+<div class="w-8 h-8 rounded-full overflow-hidden ml-2 border border-indigo-500/30">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="close-up portrait of a tech professional in a dark studio setting with neon indigo backlighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCrowK5qWWBI2qHAALDItFOziA-2Vqdynnu03c-8Y8TtlgBYaBnQmKwfRC9wEkQ_T3xlIokbzUZ8vKHUFJEXRLD9sS8T-Pc2CxWKQnBk4kwuOyiZgZitk4NcCNc_Vlsp8Nz3HfuCIz4GtH2T_6ymTuRLjDvKnbh3iCgJaDwwVsZ4BANNahyWDuBg1hFQCJfEyGOZMmVVuWSeZbn5CD437DwN_x12S_lYJEzxKNs6VyzocrmFyuSlKDbBej1VRzFmifyfEsMQ0_PbLF9"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="pt-24 px-8 pb-12 max-w-7xl mx-auto">
+<!-- Flag Header / Metadata Section -->
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8 pb-8 border-b border-slate-800/50">
+<div>
+<div class="flex items-center gap-3 mb-2">
+<span class="bg-indigo-500/10 text-indigo-400 text-[10px] font-bold px-2 py-0.5 rounded border border-indigo-500/20 uppercase tracking-widest">Boolean Flag</span>
+<span class="flex items-center gap-1 text-slate-500 text-xs font-code">
+<span class="material-symbols-outlined text-xs">history</span>
+                            Updated 2h ago
+                        </span>
+</div>
+<h1 class="text-4xl font-extrabold text-white font-headline-xl tracking-tight mb-2">my-test-key</h1>
+<p class="text-slate-400 font-body-md max-w-2xl">Controls the new experimental checkout flow for premium subscribers. If disabled, users fall back to the legacy Stripe integration.</p>
+</div>
+<div class="flex flex-col gap-3">
+<div class="flex items-center gap-8 bg-slate-900/40 p-4 rounded-xl border border-slate-800/50 backdrop-blur-sm">
+<div class="flex flex-col">
+<span class="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">Owners</span>
+<div class="flex -space-x-2">
+<img alt="Owner" class="w-6 h-6 rounded-full border-2 border-slate-900" data-alt="minimalist profile icon for a software engineer" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAsb20xvpXSTfCvYO8GrWpzHYP-lXrBb-hW7MHAZR0_fi1xYcXnorXmHT4HJtJaW7gSrmF_jaDFtVqZp923QwsrtdQiluZQmku5bsszeJq9tZLkDswGkepwC7Onqj0ouu2kWOnkIXH29OHIixJixN7aMltpdPPBfUSbPUnMYx3ASJyh3A3yzlqMiW4drBno90ON3txqbTFTgchpiUO62iU-xM0DtP75JjWU5Q_sVFiiNrwK3JzNjNrljbM7_n8d6tgBrJOnAkFd1-_d"/>
+<img alt="Owner" class="w-6 h-6 rounded-full border-2 border-slate-900" data-alt="minimalist profile icon for a project manager" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZy9hekytGTXPakKLBC4L5cA0ByJy_-G_gPiYZUmho--tpz5ZNyEMUQg6oFI89G2Jl-ybaPBkYOzD0l1JR_WbrRp2Qs-Ti5YahQQH7JKi5uN_M9NWad7qTUnpv7fHGUgG9-TJ9bRA2VJmzo-KTxmifxO6JeB0ujkXWTZbKUFQFjhJLlGikoWYswH0TmkIruQgugDmSRrDsgOzln9V9bVLa6SkI4-gU45a3FG-wZ3tQCQxQiRhMnNyWLXbJsRh7uaaPM9kdBvg2vuYv"/>
+<div class="w-6 h-6 rounded-full border-2 border-slate-900 bg-indigo-600 flex items-center justify-center text-[8px] font-bold">+3</div>
+</div>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">Type</span>
+<span class="text-sm font-semibold text-slate-200">Release Flag</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">Expires</span>
+<span class="text-sm font-semibold text-tertiary">Oct 24, 2024</span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-2 px-4 rounded-lg transition-all text-sm">Clone</button>
+<button class="flex-[2] bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg transition-all text-sm flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm">publish</span>
+                            Push Changes
+                        </button>
+</div>
+</div>
+</div>
+<!-- Detail Tabs -->
+<div class="flex gap-8 mb-8 border-b border-slate-800/50 overflow-x-auto">
+<button class="text-indigo-400 border-b-2 border-indigo-500 pb-4 font-bold text-sm whitespace-nowrap">Environments</button>
+<button class="text-slate-500 hover:text-slate-300 pb-4 font-semibold text-sm whitespace-nowrap">Targeting Rules</button>
+<button class="text-slate-500 hover:text-slate-300 pb-4 font-semibold text-sm whitespace-nowrap">Variations (JSON)</button>
+<button class="text-slate-500 hover:text-slate-300 pb-4 font-semibold text-sm whitespace-nowrap">YAML Config</button>
+<button class="text-slate-500 hover:text-slate-300 pb-4 font-semibold text-sm whitespace-nowrap">Lifecycle</button>
+<button class="text-slate-500 hover:text-slate-300 pb-4 font-semibold text-sm whitespace-nowrap">History</button>
+<button class="text-slate-500 hover:text-slate-300 pb-4 font-semibold text-sm whitespace-nowrap flex items-center gap-1">
+                    Settings
+                    <span class="material-symbols-outlined text-xs">lock</span>
+</button>
+</div>
+<!-- Bento Grid Layout for Environment Details -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Environments Control Panel -->
+<div class="col-span-12 lg:col-span-8 space-y-6">
+<!-- Dev Environment (ON) -->
+<div class="glass-panel rounded-2xl p-6 relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
+<div class="flex items-center justify-between mb-6">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+<span class="material-symbols-outlined">developer_mode</span>
+</div>
+<div>
+<h3 class="font-headline-md text-white text-lg">Development</h3>
+<span class="text-xs text-slate-500 font-code">SDK Key: dev_4f2a...91bc</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-xs font-bold text-indigo-400 uppercase tracking-widest">Active</span>
+<div class="w-12 h-6 bg-indigo-500 rounded-full p-1 cursor-pointer flex items-center transition-colors shadow-[0_0_15px_rgba(99,102,241,0.4)]">
+<div class="w-4 h-4 bg-white rounded-full shadow-sm translate-x-6"></div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-4">
+<div class="bg-slate-900/50 rounded-lg p-3 border border-slate-800/50">
+<span class="text-[10px] text-slate-500 font-bold block mb-1">EVALUATIONS</span>
+<span class="text-lg font-bold text-white">42.8k</span>
+<span class="text-[10px] text-green-400 ml-1">↑ 12%</span>
+</div>
+<div class="bg-slate-900/50 rounded-lg p-3 border border-slate-800/50">
+<span class="text-[10px] text-slate-500 font-bold block mb-1">SERVED TRUE</span>
+<span class="text-lg font-bold text-white">88%</span>
+</div>
+<div class="bg-slate-900/50 rounded-lg p-3 border border-slate-800/50">
+<span class="text-[10px] text-slate-500 font-bold block mb-1">LATENCY</span>
+<span class="text-lg font-bold text-white">2.4ms</span>
+</div>
+</div>
+</div>
+<!-- Staging Environment (OFF) -->
+<div class="glass-panel rounded-2xl p-6 border-slate-800/30 opacity-80">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-500">
+<span class="material-symbols-outlined">layers</span>
+</div>
+<div>
+<h3 class="font-headline-md text-slate-300 text-lg">Staging</h3>
+<span class="text-xs text-slate-600 font-code">SDK Key: stg_1b9d...44ef</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-xs font-bold text-slate-600 uppercase tracking-widest">Inactive</span>
+<div class="w-12 h-6 bg-slate-800 rounded-full p-1 cursor-pointer flex items-center transition-colors">
+<div class="w-4 h-4 bg-slate-600 rounded-full shadow-sm"></div>
+</div>
+</div>
+</div>
+<p class="text-xs text-slate-500 italic">No traffic recorded in the last 24 hours.</p>
+</div>
+<!-- Production Environment (OFF - Danger Zone) -->
+<div class="glass-panel rounded-2xl p-6 border-red-900/20 bg-red-950/5">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-400">
+<span class="material-symbols-outlined">shield</span>
+</div>
+<div>
+<h3 class="font-headline-md text-white text-lg">Production</h3>
+<span class="text-xs text-slate-500 font-code">SDK Key: prd_9z8x...1234</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-xs font-bold text-red-500/70 uppercase tracking-widest">Disabled</span>
+<div class="w-12 h-6 bg-slate-800 rounded-full p-1 cursor-pointer flex items-center transition-colors border border-red-500/20">
+<div class="w-4 h-4 bg-slate-600 rounded-full shadow-sm"></div>
+</div>
+</div>
+</div>
+<div class="bg-red-500/5 border border-red-500/10 rounded-lg p-4 flex items-start gap-3">
+<span class="material-symbols-outlined text-red-400 text-sm mt-0.5">warning</span>
+<p class="text-xs text-red-400/80 leading-relaxed">Changes to this environment require a 2-person approval. This flag is currently serving the <b>Default Off</b> variation to 100% of production traffic.</p>
+</div>
+</div>
+</div>
+<!-- Insights & Sidebar Info -->
+<div class="col-span-12 lg:col-span-4 space-y-6">
+<!-- Stats Card -->
+<div class="glass-panel rounded-2xl p-6 overflow-hidden relative">
+<h4 class="font-bold text-slate-200 mb-4 text-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-indigo-400 text-lg">analytics</span>
+                            Real-time Usage (Global)
+                        </h4>
+<div class="h-32 w-full flex items-end gap-1 mb-4">
+<div class="flex-1 bg-indigo-500/20 h-[30%] rounded-t-sm"></div>
+<div class="flex-1 bg-indigo-500/20 h-[45%] rounded-t-sm"></div>
+<div class="flex-1 bg-indigo-500/30 h-[60%] rounded-t-sm"></div>
+<div class="flex-1 bg-indigo-500/40 h-[80%] rounded-t-sm"></div>
+<div class="flex-1 bg-indigo-500/20 h-[50%] rounded-t-sm"></div>
+<div class="flex-1 bg-indigo-500/60 h-[90%] rounded-t-sm"></div>
+<div class="flex-1 bg-indigo-500 h-full rounded-t-sm shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
+</div>
+<div class="space-y-4">
+<div class="flex justify-between items-center text-xs">
+<span class="text-slate-500">Peak RPS</span>
+<span class="text-slate-200 font-bold">1,240</span>
+</div>
+<div class="flex justify-between items-center text-xs">
+<span class="text-slate-500">Active SDKs</span>
+<span class="text-slate-200 font-bold">Node.js, React, Go</span>
+</div>
+</div>
+</div>
+<!-- Targeting Rules Summary -->
+<div class="glass-panel rounded-2xl p-6">
+<h4 class="font-bold text-slate-200 mb-4 text-sm">Targeting Summary</h4>
+<div class="space-y-3">
+<div class="flex items-start gap-3 p-3 bg-slate-900/30 rounded-lg border border-slate-800/50">
+<span class="text-indigo-400 font-bold text-xs mt-0.5">01</span>
+<div>
+<p class="text-xs font-bold text-slate-200 mb-1">Internal Users</p>
+<p class="text-[10px] text-slate-500">IF email ends with @infracore.io THEN serve TRUE</p>
+</div>
+</div>
+<div class="flex items-start gap-3 p-3 bg-slate-900/30 rounded-lg border border-slate-800/50">
+<span class="text-indigo-400 font-bold text-xs mt-0.5">02</span>
+<div>
+<p class="text-xs font-bold text-slate-200 mb-1">Beta Group</p>
+<p class="text-[10px] text-slate-500">IF segment IS beta-testers THEN serve TRUE</p>
+</div>
+</div>
+</div>
+<button class="w-full mt-4 text-[10px] font-bold text-indigo-400 uppercase tracking-widest hover:text-indigo-300 transition-colors">Manage Rules →</button>
+</div>
+<!-- Quick Docs -->
+<div class="p-6 bg-indigo-600/10 rounded-2xl border border-indigo-500/20">
+<span class="material-symbols-outlined text-indigo-400 mb-2">code</span>
+<h5 class="text-sm font-bold text-white mb-1">Implementation</h5>
+<p class="text-xs text-slate-400 mb-4 leading-relaxed">Copy this snippet to use this flag in your React application.</p>
+<div class="bg-slate-950 p-3 rounded-lg font-code text-[11px] text-indigo-300 border border-slate-800 relative group">
+<code>useFeature('my-test-key')</code>
+<button class="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-xs">content_copy</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

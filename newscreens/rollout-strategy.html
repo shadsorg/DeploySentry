@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+                  "on-error-container": "#ffdad6",
+                  "surface-container-low": "#131b2e",
+                  "on-surface-variant": "#c7c4d7",
+                  "tertiary": "#ffb783",
+                  "on-primary-fixed-variant": "#2f2ebe",
+                  "surface-bright": "#31394d",
+                  "secondary-fixed": "#f0dbff",
+                  "surface-container-highest": "#2d3449",
+                  "on-surface": "#dae2fd",
+                  "outline-variant": "#464554",
+                  "error-container": "#93000a",
+                  "primary": "#c0c1ff",
+                  "background": "#0b1326",
+                  "on-primary": "#1000a9",
+                  "surface-container": "#171f33",
+                  "on-tertiary-container": "#452000",
+                  "outline": "#908fa0",
+                  "on-secondary-fixed": "#2c0051",
+                  "error": "#ffb4ab",
+                  "primary-fixed": "#e1e0ff",
+                  "surface-container-high": "#222a3d",
+                  "secondary-container": "#6f00be",
+                  "surface-dim": "#0b1326",
+                  "surface-variant": "#2d3449",
+                  "on-background": "#dae2fd",
+                  "primary-container": "#8083ff",
+                  "on-secondary-container": "#d6a9ff",
+                  "on-tertiary-fixed": "#301400",
+                  "surface-container-lowest": "#060e20",
+                  "on-secondary": "#490080",
+                  "primary-fixed-dim": "#c0c1ff",
+                  "on-tertiary": "#4f2500",
+                  "surface-tint": "#c0c1ff",
+                  "inverse-surface": "#dae2fd",
+                  "surface": "#0b1326",
+                  "tertiary-fixed-dim": "#ffb783",
+                  "on-tertiary-fixed-variant": "#703700",
+                  "on-secondary-fixed-variant": "#6900b3",
+                  "on-primary-fixed": "#07006c",
+                  "on-error": "#690005",
+                  "inverse-on-surface": "#283044",
+                  "secondary-fixed-dim": "#ddb7ff",
+                  "inverse-primary": "#494bd6",
+                  "on-primary-container": "#0d0096",
+                  "tertiary-fixed": "#ffdcc5",
+                  "secondary": "#ddb7ff",
+                  "tertiary-container": "#d97721"
+          },
+          "borderRadius": {
+                  "DEFAULT": "0.25rem",
+                  "lg": "0.5rem",
+                  "xl": "0.75rem",
+                  "full": "9999px"
+          },
+          "spacing": {
+                  "xs": "4px",
+                  "md": "16px",
+                  "xl": "40px",
+                  "unit": "4px",
+                  "sm": "8px",
+                  "margin-page": "32px",
+                  "lg": "24px",
+                  "gutter": "20px"
+          },
+          "fontFamily": {
+                  "code": ["monospace"],
+                  "body-md": ["Inter"],
+                  "headline-md": ["Manrope"],
+                  "headline-lg": ["Manrope"],
+                  "label-md": ["Inter"],
+                  "headline-xl": ["Manrope"],
+                  "body-sm": ["Inter"],
+                  "body-lg": ["Inter"]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .glass-card {
+      background: rgba(23, 31, 51, 0.6);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(70, 69, 84, 0.3);
+    }
+    .indigo-glow {
+      box-shadow: 0 0 20px -5px rgba(128, 131, 255, 0.3);
+    }
+    .stepper-line {
+      background: linear-gradient(to bottom, transparent 0%, #464554 15%, #464554 85%, transparent 100%);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body-md selection:bg-primary-container/30">
+<!-- SideNavBar -->
+<aside class="w-[240px] h-screen fixed left-0 top-0 border-r border-slate-800/50 bg-[#020617]/60 backdrop-blur-xl flex flex-col p-2 space-y-1 z-50">
+<div class="px-4 py-6 flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-primary-container flex items-center justify-center indigo-glow">
+<span class="material-symbols-outlined text-on-primary-container text-[20px]" style="font-variation-settings: 'FILL' 1;">architecture</span>
+</div>
+<div>
+<h1 class="font-headline-md text-sm text-indigo-400 font-black tracking-tighter uppercase">InfraControl</h1>
+<p class="text-[10px] text-slate-500 font-medium">Production Cluster</p>
+</div>
+</div>
+<nav class="flex-1 space-y-1 mt-4">
+<!-- Active Tab: Strategies -->
+<a class="bg-indigo-500/10 text-indigo-400 border-l-2 border-indigo-500 py-3 px-4 flex items-center gap-3 active:scale-[0.98] transition-transform font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="architecture">architecture</span>
+<span>Strategies</span>
+</a>
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200 active:scale-[0.98] font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="dynamic_feed">dynamic_feed</span>
+<span>Active Rollouts</span>
+</a>
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200 active:scale-[0.98] font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="vpn_key">vpn_key</span>
+<span>API Keys</span>
+</a>
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200 active:scale-[0.98] font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="groups">groups</span>
+<span>Team</span>
+</a>
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200 active:scale-[0.98] font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="segment">segment</span>
+<span>Segments</span>
+</a>
+</nav>
+<div class="pt-4 border-t border-slate-800/50">
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200 font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>Settings</span>
+</a>
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200 font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="contact_support">contact_support</span>
+<span>Support</span>
+</a>
+</div>
+</aside>
+<!-- TopAppBar -->
+<header class="h-16 w-[calc(100%-240px)] fixed top-0 right-0 z-40 border-b border-slate-800/50 bg-[#020617]/40 backdrop-blur-md flex items-center justify-between px-8 shadow-2xl shadow-indigo-900/5">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2 text-slate-500">
+<span class="material-symbols-outlined text-sm">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm font-manrope w-64 placeholder-slate-600" placeholder="Search strategies..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="flex items-center gap-2 text-slate-400 hover:text-indigo-300 transition-colors font-manrope text-sm font-medium">
+<span class="material-symbols-outlined text-[18px]">terminal</span>
+<span>Docs</span>
+</button>
+<button class="relative p-2 text-slate-400 hover:text-indigo-300 transition-colors">
+<span class="material-symbols-outlined">notifications_active</span>
+<span class="absolute top-1 right-1 w-2 h-2 bg-indigo-500 rounded-full"></span>
+</button>
+<button class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-lg font-manrope text-sm font-semibold transition-all active:scale-[0.98] indigo-glow">
+        Deploy
+      </button>
+<div class="h-8 w-8 rounded-full bg-slate-800 border border-slate-700 overflow-hidden">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="professional headshot of a software engineer with glasses in a modern office setting with soft bokeh background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBI8hY2PsJcXNdPHH6k3GUO4vm56a-djAy0cih3OM3ZMx4NXjZPx64W7317ojykorvkxTNnkYiNVMGGJaBaZJYQ2Al36GFGHDBq4HLUn9xvkImju7u7RL9orBpHxJvvw4O-PejacrbNUyVYAjRNIXt-MMGdYYiCjLS5-vDQzWQzlrViAryE82qeM3MsssWGc-_KN71iMLq99MZCTf5oM7j1KUeTs9CYFECSieMHxCNOyfSlAW-3GKs61WIf93Mf1Uu4vH9ZvQtiMT2x"/>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="ml-[240px] pt-16 min-h-screen p-8">
+<!-- Page Header -->
+<div class="flex items-end justify-between mb-8">
+<div>
+<nav class="flex items-center gap-2 text-[10px] uppercase tracking-widest text-indigo-400 font-bold mb-2">
+<span>Infrastructure</span>
+<span class="material-symbols-outlined text-[10px]">chevron_right</span>
+<span class="text-slate-500">Rollout Strategies</span>
+</nav>
+<h2 class="font-headline-lg text-on-background">Strategies</h2>
+<p class="text-slate-400 font-body-sm max-w-lg">Design and manage deployment workflows for production clusters. Automate blue-green transitions and canary releases.</p>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 bg-surface-container-high hover:bg-surface-container-highest text-on-surface px-5 py-2.5 rounded-xl border border-outline-variant transition-all font-label-md">
+<span class="material-symbols-outlined text-[18px]">upload_file</span>
+          Import YAML
+        </button>
+<button class="flex items-center gap-2 bg-primary-container text-on-primary-container px-5 py-2.5 rounded-xl transition-all font-label-md indigo-glow hover:brightness-110">
+<span class="material-symbols-outlined text-[18px]">add</span>
+          New Strategy
+        </button>
+</div>
+</div>
+<!-- Layout Grid -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Strategy Selector List (Left Column) -->
+<div class="col-span-4 space-y-4">
+<div class="glass-card rounded-2xl p-4 indigo-glow border-l-4 border-l-indigo-500">
+<div class="flex justify-between items-start mb-3">
+<div>
+<span class="text-[10px] font-bold text-indigo-400 uppercase tracking-tighter">Production-Standard</span>
+<h3 class="font-headline-md text-lg mt-1">Canary Progressive</h3>
+</div>
+<span class="bg-indigo-500/10 text-indigo-400 text-[10px] px-2 py-1 rounded font-bold">ACTIVE</span>
+</div>
+<div class="flex items-center gap-4 text-slate-500 text-xs font-body-sm">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">steps</span> 4 Steps</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">timer</span> 2h Bake</span>
+</div>
+</div>
+<div class="glass-card rounded-2xl p-4 hover:bg-slate-800/40 transition-colors cursor-pointer">
+<div class="flex justify-between items-start mb-3">
+<div>
+<span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Availability-Critical</span>
+<h3 class="font-headline-md text-lg mt-1">Blue-Green Switch</h3>
+</div>
+</div>
+<div class="flex items-center gap-4 text-slate-500 text-xs font-body-sm">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">swap_horiz</span> 2 Groups</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">history</span> Instant</span>
+</div>
+</div>
+<div class="glass-card rounded-2xl p-4 hover:bg-slate-800/40 transition-colors cursor-pointer">
+<div class="flex justify-between items-start mb-3">
+<div>
+<span class="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Staging-Only</span>
+<h3 class="font-headline-md text-lg mt-1">Rolling Fast-Track</h3>
+</div>
+</div>
+<div class="flex items-center gap-4 text-slate-500 text-xs font-body-sm">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">refresh</span> Linear</span>
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">bolt</span> 15m Total</span>
+</div>
+</div>
+</div>
+<!-- Visual Builder (Main Content Column) -->
+<div class="col-span-8">
+<div class="glass-card rounded-2xl h-full flex flex-col overflow-hidden">
+<!-- Builder Header -->
+<div class="px-6 py-4 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/40">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-indigo-400">auto_awesome_motion</span>
+<h3 class="font-headline-md text-base">Strategy Builder: Canary Progressive</h3>
+</div>
+<div class="flex gap-2">
+<button class="p-2 hover:bg-slate-700/50 rounded-lg transition-colors text-slate-400">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+</button>
+<button class="p-2 hover:bg-slate-700/50 rounded-lg transition-colors text-slate-400">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Builder Canvas -->
+<div class="flex-1 p-8 overflow-y-auto bg-[radial-gradient(circle_at_center,_rgba(30,41,59,0.2)_0%,_transparent_70%)]">
+<div class="relative max-w-2xl mx-auto space-y-12">
+<!-- Connection Line Background -->
+<div class="absolute left-[24px] top-4 bottom-4 w-px stepper-line z-0"></div>
+<!-- Step 1 -->
+<div class="relative z-10 flex items-start gap-8">
+<div class="w-12 h-12 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold indigo-glow">1</div>
+<div class="flex-1 glass-card rounded-xl p-5 border-l-2 border-l-indigo-500">
+<div class="flex justify-between mb-4">
+<h4 class="font-headline-md text-sm text-indigo-100">Initial Probe</h4>
+<span class="text-[10px] font-bold text-indigo-400 bg-indigo-400/10 px-2 py-0.5 rounded">WEIGHT: 5%</span>
+</div>
+<div class="grid grid-cols-3 gap-4">
+<div class="bg-surface-container-low p-3 rounded-lg border border-outline-variant/30">
+<span class="block text-[10px] text-slate-500 uppercase font-bold mb-1">Wait Time</span>
+<span class="text-sm font-code text-indigo-300">00:05:00</span>
+</div>
+<div class="bg-surface-container-low p-3 rounded-lg border border-outline-variant/30">
+<span class="block text-[10px] text-slate-500 uppercase font-bold mb-1">Bake Time</span>
+<span class="text-sm font-code text-indigo-300">00:15:00</span>
+</div>
+<div class="bg-surface-container-low p-3 rounded-lg border border-outline-variant/30 flex items-center justify-center border-dashed border-slate-700">
+<span class="material-symbols-outlined text-slate-600">add_circle</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="relative z-10 flex items-start gap-8">
+<div class="w-12 h-12 rounded-full bg-slate-800 border-2 border-indigo-500 flex items-center justify-center text-indigo-400 font-bold">2</div>
+<div class="flex-1 glass-card rounded-xl p-5 border-l-2 border-l-indigo-500">
+<div class="flex justify-between mb-4">
+<h4 class="font-headline-md text-sm text-indigo-100">Regional Alpha</h4>
+<span class="text-[10px] font-bold text-indigo-400 bg-indigo-400/10 px-2 py-0.5 rounded">WEIGHT: 25%</span>
+</div>
+<div class="grid grid-cols-3 gap-4">
+<div class="bg-surface-container-low p-3 rounded-lg border border-outline-variant/30">
+<span class="block text-[10px] text-slate-500 uppercase font-bold mb-1">Wait Time</span>
+<span class="text-sm font-code text-indigo-300">00:10:00</span>
+</div>
+<div class="bg-surface-container-low p-3 rounded-lg border border-outline-variant/30">
+<span class="block text-[10px] text-slate-500 uppercase font-bold mb-1">Bake Time</span>
+<span class="text-sm font-code text-indigo-300">00:45:00</span>
+</div>
+<div class="bg-surface-container-low p-3 rounded-lg border border-outline-variant/30">
+<span class="block text-[10px] text-slate-500 uppercase font-bold mb-1">Metric Check</span>
+<span class="text-[10px] flex items-center gap-1 text-emerald-400"><span class="material-symbols-outlined text-[12px]">check_circle</span> p99 &lt; 200ms</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Step 3 (Visual Gap) -->
+<div class="relative z-10 flex items-start gap-8 opacity-60">
+<div class="w-12 h-12 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center text-slate-600 font-bold">3</div>
+<div class="flex-1 border border-dashed border-slate-800 rounded-xl p-5 flex items-center justify-center gap-3 group cursor-pointer">
+<span class="material-symbols-outlined text-slate-600 group-hover:text-indigo-400 transition-colors">add_circle</span>
+<span class="text-slate-600 font-bold text-sm tracking-tight group-hover:text-slate-400">Add Next Progression Step</span>
+</div>
+</div>
+<!-- Footer Final State -->
+<div class="relative z-10 flex items-start gap-8">
+<div class="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center text-emerald-400">
+<span class="material-symbols-outlined">flag</span>
+</div>
+<div class="flex-1 py-3">
+<span class="text-xs text-slate-500 font-bold uppercase tracking-widest">Target State</span>
+<p class="text-slate-400 text-sm">100% Traffic shift to New Version</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Builder Action Bar -->
+<div class="px-6 py-4 border-t border-slate-800/50 bg-slate-900/60 flex justify-between items-center">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2 text-slate-500 text-xs">
+<span class="material-symbols-outlined text-sm">save</span>
+<span>Last saved 2m ago</span>
+</div>
+</div>
+<div class="flex gap-3">
+<button class="text-slate-400 hover:text-white px-4 py-2 text-sm font-label-md transition-colors">Discard Changes</button>
+<button class="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-2 rounded-lg text-sm font-label-md transition-all indigo-glow active:scale-95">Save Strategy</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Secondary Insights Section (Bento Style) -->
+<div class="grid grid-cols-12 gap-6 mt-6">
+<div class="col-span-3 glass-card rounded-2xl p-6">
+<h4 class="font-label-md text-slate-500 mb-4">DEPLOYMENT SUCCESS</h4>
+<div class="flex items-end gap-2">
+<span class="text-3xl font-headline-lg text-emerald-400">99.8%</span>
+<span class="text-[10px] text-emerald-500/80 mb-1 font-bold">+1.2% ↑</span>
+</div>
+<div class="mt-4 h-1 bg-slate-800 rounded-full overflow-hidden">
+<div class="h-full bg-emerald-500" style="width: 99.8%"></div>
+</div>
+</div>
+<div class="col-span-6 glass-card rounded-2xl p-6 overflow-hidden relative">
+<div class="relative z-10">
+<h4 class="font-label-md text-slate-500 mb-4">GLOBAL TRAFFIC DISTRIBUTION</h4>
+<div class="flex gap-8">
+<div>
+<span class="text-2xl font-headline-lg">7.2k</span>
+<p class="text-[10px] text-slate-500 uppercase tracking-tighter mt-1">Active Canary Replicas</p>
+</div>
+<div class="border-l border-slate-800/50 pl-8">
+<span class="text-2xl font-headline-lg text-indigo-400">142</span>
+<p class="text-[10px] text-slate-500 uppercase tracking-tighter mt-1">Pending Transitions</p>
+</div>
+</div>
+</div>
+<!-- Decorative abstract element -->
+<div class="absolute right-0 bottom-0 opacity-10">
+<span class="material-symbols-outlined text-[120px] translate-y-8 translate-x-8">hub</span>
+</div>
+</div>
+<div class="col-span-3 glass-card rounded-2xl p-6 flex flex-col justify-between border-dashed">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-indigo-400">verified_user</span>
+<h4 class="font-label-md text-on-surface">Auto-Rollback Rules</h4>
+</div>
+<p class="text-[11px] text-slate-500 mt-2">3 rules configured to trigger automatic version revert based on Prometheus alerts.</p>
+<a class="text-indigo-400 text-[10px] font-bold mt-4 uppercase flex items-center gap-1 hover:underline" href="#">
+           Edit Rules <span class="material-symbols-outlined text-[12px]">open_in_new</span>
+</a>
+</div>
+</div>
+</main>
+<!-- Contextual FAB - Restricted to home/dashboard only - Not shown on management screen as per instructions -->
+</body></html>

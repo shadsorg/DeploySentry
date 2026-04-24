@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>InfraControl - Active Rollouts</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&amp;family=Manrope:wght@400;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #020617;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error-container": "#ffdad6",
+                        "surface-container-low": "#131b2e",
+                        "on-surface-variant": "#c7c4d7",
+                        "tertiary": "#ffb783",
+                        "on-primary-fixed-variant": "#2f2ebe",
+                        "surface-bright": "#31394d",
+                        "secondary-fixed": "#f0dbff",
+                        "surface-container-highest": "#2d3449",
+                        "on-surface": "#dae2fd",
+                        "outline-variant": "#464554",
+                        "error-container": "#93000a",
+                        "primary": "#c0c1ff",
+                        "background": "#0b1326",
+                        "on-primary": "#1000a9",
+                        "surface-container": "#171f33",
+                        "on-tertiary-container": "#452000",
+                        "outline": "#908fa0",
+                        "on-secondary-fixed": "#2c0051",
+                        "error": "#ffb4ab",
+                        "primary-fixed": "#e1e0ff",
+                        "surface-container-high": "#222a3d",
+                        "secondary-container": "#6f00be",
+                        "surface-dim": "#0b1326",
+                        "surface-variant": "#2d3449",
+                        "on-background": "#dae2fd",
+                        "primary-container": "#8083ff",
+                        "on-secondary-container": "#d6a9ff",
+                        "on-tertiary-fixed": "#301400",
+                        "surface-container-lowest": "#060e20",
+                        "on-secondary": "#490080",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "on-tertiary": "#4f2500",
+                        "surface-tint": "#c0c1ff",
+                        "inverse-surface": "#dae2fd",
+                        "surface": "#0b1326",
+                        "tertiary-fixed-dim": "#ffb783",
+                        "on-tertiary-fixed-variant": "#703700",
+                        "on-secondary-fixed-variant": "#6900b3",
+                        "on-primary-fixed": "#07006c",
+                        "on-error": "#690005",
+                        "inverse-on-surface": "#283044",
+                        "secondary-fixed-dim": "#ddb7ff",
+                        "inverse-primary": "#494bd6",
+                        "on-primary-container": "#0d0096",
+                        "tertiary-fixed": "#ffdcc5",
+                        "secondary": "#ddb7ff",
+                        "tertiary-container": "#d97721"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xs": "4px",
+                        "md": "16px",
+                        "xl": "40px",
+                        "unit": "4px",
+                        "sm": "8px",
+                        "margin-page": "32px",
+                        "lg": "24px",
+                        "gutter": "20px"
+                    },
+                    "fontFamily": {
+                        "code": ["monospace"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Manrope"],
+                        "headline-lg": ["Manrope"],
+                        "label-md": ["Inter"],
+                        "headline-xl": ["Manrope"],
+                        "body-sm": ["Inter"],
+                        "body-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "code": ["14px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                        "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-xl": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-surface-dim font-body-md text-on-background min-h-screen">
+<!-- SideNavBar Shell -->
+<aside class="w-[240px] h-screen fixed left-0 top-0 border-r border-slate-800/50 bg-[#020617]/60 backdrop-blur-xl flex flex-col p-2 space-y-1 z-50">
+<div class="px-4 py-6 mb-4 flex items-center gap-3">
+<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary text-xl">architecture</span>
+</div>
+<div>
+<h1 class="text-indigo-400 font-black tracking-tighter text-xl">InfraControl</h1>
+<p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Production Cluster</p>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200 active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">architecture</span>
+<span class="font-manrope text-sm tracking-tight">Strategies</span>
+</a>
+<a class="bg-indigo-500/10 text-indigo-400 border-l-2 border-indigo-500 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200 active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">dynamic_feed</span>
+<span class="font-manrope text-sm tracking-tight">Active Rollouts</span>
+</a>
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200 active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">vpn_key</span>
+<span class="font-manrope text-sm tracking-tight">API Keys</span>
+</a>
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200 active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">groups</span>
+<span class="font-manrope text-sm tracking-tight">Team</span>
+</a>
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200 active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined">segment</span>
+<span class="font-manrope text-sm tracking-tight">Segments</span>
+</a>
+</nav>
+<div class="mt-auto pt-4 border-t border-slate-800/50">
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-manrope text-sm tracking-tight">Settings</span>
+</a>
+<a class="text-slate-400 hover:text-slate-100 py-3 px-4 flex items-center gap-3 hover:bg-slate-800/40 transition-all duration-200" href="#">
+<span class="material-symbols-outlined">contact_support</span>
+<span class="font-manrope text-sm tracking-tight">Support</span>
+</a>
+</div>
+</aside>
+<!-- TopAppBar Shell -->
+<header class="h-16 w-[calc(100%-240px)] fixed top-0 right-0 z-40 border-b border-slate-800/50 bg-[#020617]/40 backdrop-blur-md flex items-center justify-between px-8 shadow-2xl shadow-indigo-900/5">
+<div class="flex items-center gap-6">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors">search</span>
+<input class="bg-surface-container-lowest border-none ring-1 ring-slate-800/50 focus:ring-indigo-500/50 rounded-lg pl-10 pr-4 py-1.5 text-sm w-64 transition-all" placeholder="Search rollouts..." type="text"/>
+</div>
+<nav class="flex gap-4">
+<a class="text-indigo-400 font-bold border-b-2 border-indigo-500 py-5 transition-colors" href="#">Rollouts</a>
+<a class="text-slate-400 hover:text-indigo-300 font-manrope text-sm font-medium py-5 transition-colors" href="#">Logs</a>
+<a class="text-slate-400 hover:text-indigo-300 font-manrope text-sm font-medium py-5 transition-colors" href="#">Metrics</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-slate-400 hover:text-indigo-300 transition-colors px-3 py-1.5 rounded-lg font-manrope text-sm font-medium">Docs</button>
+<button class="bg-indigo-500 text-white hover:bg-indigo-400 transition-all px-4 py-1.5 rounded-lg font-manrope text-sm font-bold flex items-center gap-2 active:scale-95 shadow-lg shadow-indigo-500/20">
+<span class="material-symbols-outlined text-sm">rocket_launch</span>
+                Deploy
+            </button>
+<div class="h-8 w-px bg-slate-800/50 mx-2"></div>
+<span class="material-symbols-outlined text-slate-400 hover:text-indigo-400 cursor-pointer">notifications_active</span>
+<span class="material-symbols-outlined text-slate-400 hover:text-indigo-400 cursor-pointer">terminal</span>
+<div class="w-8 h-8 rounded-full bg-surface-container-highest border border-slate-700 overflow-hidden ml-2">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="minimalist 3D avatar of a professional developer with glasses and dark hoodie on a tech blue background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDojhIs6gBd9cb6JFmNX_dsoNw0vjctJNh5a4PtOfgJDuUw_W7diN3AXTBSrGghZLOZBdTio93bjVM4lkJVMMahioFxuECvsWIYi6m-lLpcd7Kmi1nwqMkTInOF1nr8ocI__iMtME6J37MFV4-q9CLnHwNfLzNbu1-uHpAVQ1oeetgr4QKiBd-S6pW_99rqE_f7xkergVdWPFBeVbs6a0dj4IICM70Ds_NN5WkTyWPAMwb2cJmcHRGTYLBHA-t8_kTubC4oIIgceCpg"/>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-[240px] pt-24 p-8 min-h-screen">
+<!-- Environment Quick Status -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-gutter mb-xl">
+<div class="bg-surface-container-low border border-slate-800/50 p-lg rounded-xl backdrop-blur-sm relative overflow-hidden">
+<div class="flex justify-between items-start mb-sm">
+<span class="text-label-md font-label-md text-slate-500 uppercase">Production</span>
+<span class="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+</div>
+<div class="flex items-end gap-2">
+<span class="font-headline-lg text-headline-lg text-on-surface">v2.4.1</span>
+<span class="text-body-sm text-emerald-400 mb-1">Stable</span>
+</div>
+<div class="absolute -bottom-2 -right-2 opacity-5">
+<span class="material-symbols-outlined text-8xl">dns</span>
+</div>
+</div>
+<div class="bg-surface-container-low border border-indigo-500/30 p-lg rounded-xl backdrop-blur-sm relative overflow-hidden">
+<div class="flex justify-between items-start mb-sm">
+<span class="text-label-md font-label-md text-indigo-400 uppercase">Staging</span>
+<span class="flex h-2 w-2 rounded-full bg-indigo-500"></span>
+</div>
+<div class="flex items-end gap-2">
+<span class="font-headline-lg text-headline-lg text-on-surface">v2.5.0-rc</span>
+<span class="text-body-sm text-indigo-400 mb-1">Rolling Out</span>
+</div>
+<div class="absolute -bottom-2 -right-2 opacity-5">
+<span class="material-symbols-outlined text-8xl">experiment</span>
+</div>
+</div>
+<div class="bg-surface-container-low border border-slate-800/50 p-lg rounded-xl backdrop-blur-sm relative overflow-hidden">
+<div class="flex justify-between items-start mb-sm">
+<span class="text-label-md font-label-md text-slate-500 uppercase">Development</span>
+<span class="flex h-2 w-2 rounded-full bg-emerald-500"></span>
+</div>
+<div class="flex items-end gap-2">
+<span class="font-headline-lg text-headline-lg text-on-surface">v2.6.0-dev</span>
+<span class="text-body-sm text-slate-400 mb-1">7 Nodes</span>
+</div>
+</div>
+<div class="bg-surface-container-low border border-slate-800/50 p-lg rounded-xl backdrop-blur-sm relative overflow-hidden">
+<div class="flex justify-between items-start mb-sm">
+<span class="text-label-md font-label-md text-slate-500 uppercase">Rollout Success Rate</span>
+<span class="material-symbols-outlined text-emerald-400 text-sm">trending_up</span>
+</div>
+<div class="flex items-end gap-2">
+<span class="font-headline-lg text-headline-lg text-on-surface">99.8%</span>
+<span class="text-body-sm text-slate-400 mb-1">Last 24h</span>
+</div>
+</div>
+</div>
+<!-- Live Activity Section -->
+<div class="bg-surface-container-low border border-slate-800/50 rounded-xl overflow-hidden mb-xl">
+<div class="px-lg py-md border-b border-slate-800/50 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-indigo-400">monitoring</span>
+<h2 class="font-headline-md text-headline-md">Active Rollouts</h2>
+<span class="bg-indigo-500/20 text-indigo-300 text-[10px] px-2 py-0.5 rounded font-bold uppercase">Live Stream</span>
+</div>
+<div class="flex gap-2">
+<select class="bg-surface-container-lowest border border-slate-800 text-body-sm rounded-lg px-3 py-1.5 focus:ring-indigo-500/50">
+<option>All Environments</option>
+<option>Production</option>
+<option>Staging</option>
+</select>
+</div>
+</div>
+<!-- Rollout Table/List -->
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-high/50 border-b border-slate-800/50">
+<tr>
+<th class="px-lg py-md font-label-md text-label-md text-slate-500 uppercase tracking-wider">Deployment ID</th>
+<th class="px-lg py-md font-label-md text-label-md text-slate-500 uppercase tracking-wider">Environment / Target</th>
+<th class="px-lg py-md font-label-md text-label-md text-slate-500 uppercase tracking-wider">Strategy</th>
+<th class="px-lg py-md font-label-md text-label-md text-slate-500 uppercase tracking-wider">Phase</th>
+<th class="px-lg py-md font-label-md text-label-md text-slate-500 uppercase tracking-wider">Status</th>
+<th class="px-lg py-md font-label-md text-label-md text-slate-500 uppercase tracking-wider">Start Time</th>
+<th class="px-lg py-md font-label-md text-label-md text-slate-500 uppercase tracking-wider text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-800/50">
+<!-- Item 1: Pending/Active -->
+<tr class="hover:bg-slate-800/20 transition-colors group">
+<td class="px-lg py-lg">
+<div class="flex flex-col">
+<span class="font-code text-code text-on-surface">#DP-9021</span>
+<span class="text-body-sm text-slate-500">core-api:v2.5.0</span>
+</div>
+</td>
+<td class="px-lg py-lg">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+<span class="text-body-md text-on-surface">Staging (Cluster-A)</span>
+</div>
+</td>
+<td class="px-lg py-lg">
+<span class="bg-indigo-500/10 text-indigo-300 text-[11px] font-bold px-2 py-0.5 rounded border border-indigo-500/20">Canary (10%)</span>
+</td>
+<td class="px-lg py-lg">
+<div class="w-full max-w-[120px]">
+<div class="flex justify-between text-[10px] text-slate-500 mb-1">
+<span>Phase 1/2</span>
+<span>45%</span>
+</div>
+<div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+<div class="h-full bg-indigo-500 rounded-full w-[45%]"></div>
+</div>
+</div>
+</td>
+<td class="px-lg py-lg">
+<span class="flex items-center gap-1.5 text-indigo-400 text-body-sm">
+<span class="material-symbols-outlined animate-spin text-[16px]">sync</span>
+                                    In Progress
+                                </span>
+</td>
+<td class="px-lg py-lg text-body-sm text-slate-400">2 mins ago</td>
+<td class="px-lg py-lg text-right">
+<div class="flex justify-end gap-2">
+<button class="px-3 py-1 rounded text-body-sm font-semibold border border-error/30 text-error hover:bg-error/10 transition-colors">Rollback</button>
+<button class="px-3 py-1 rounded text-body-sm font-semibold bg-surface-container-high border border-slate-700 text-on-surface hover:border-indigo-400 transition-colors">Details</button>
+</div>
+</td>
+</tr>
+<!-- Item 2: Success -->
+<tr class="hover:bg-slate-800/20 transition-colors group">
+<td class="px-lg py-lg">
+<div class="flex flex-col">
+<span class="font-code text-code text-on-surface">#DP-9018</span>
+<span class="text-body-sm text-slate-500">auth-svc:v1.12.3</span>
+</div>
+</td>
+<td class="px-lg py-lg">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+<span class="text-body-md text-on-surface">Production (US-West)</span>
+</div>
+</td>
+<td class="px-lg py-lg">
+<span class="bg-slate-800 text-slate-300 text-[11px] font-bold px-2 py-0.5 rounded border border-slate-700">Blue-Green</span>
+</td>
+<td class="px-lg py-lg">
+<span class="text-body-sm text-slate-500">2/2 Completed</span>
+</td>
+<td class="px-lg py-lg">
+<span class="flex items-center gap-1.5 text-emerald-400 text-body-sm">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+                                    Success
+                                </span>
+</td>
+<td class="px-lg py-lg text-body-sm text-slate-400">14 mins ago</td>
+<td class="px-lg py-lg text-right">
+<div class="flex justify-end gap-2">
+<button class="px-3 py-1 rounded text-body-sm font-semibold bg-surface-container-high border border-slate-700 text-on-surface hover:border-indigo-400 transition-colors">Details</button>
+</div>
+</td>
+</tr>
+<!-- Item 3: Failed -->
+<tr class="hover:bg-slate-800/20 transition-colors group">
+<td class="px-lg py-lg">
+<div class="flex flex-col">
+<span class="font-code text-code text-on-surface">#DP-9015</span>
+<span class="text-body-sm text-slate-500">data-pipeline:v0.9.0</span>
+</div>
+</td>
+<td class="px-lg py-lg">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+<span class="text-body-md text-on-surface">Staging (Cluster-B)</span>
+</div>
+</td>
+<td class="px-lg py-lg">
+<span class="bg-slate-800 text-slate-300 text-[11px] font-bold px-2 py-0.5 rounded border border-slate-700">Linear</span>
+</td>
+<td class="px-lg py-lg">
+<span class="text-body-sm text-error">1/4 Terminated</span>
+</td>
+<td class="px-lg py-lg">
+<span class="flex items-center gap-1.5 text-error text-body-sm">
+<span class="material-symbols-outlined text-[16px]">error</span>
+                                    Failed
+                                </span>
+</td>
+<td class="px-lg py-lg text-body-sm text-slate-400">45 mins ago</td>
+<td class="px-lg py-lg text-right">
+<div class="flex justify-end gap-2">
+<button class="px-3 py-1 rounded text-body-sm font-semibold border border-error/50 bg-error/10 text-on-error-container">Auto-Rollbacked</button>
+<button class="px-3 py-1 rounded text-body-sm font-semibold bg-surface-container-high border border-slate-700 text-on-surface hover:border-indigo-400 transition-colors">Details</button>
+</div>
+</td>
+</tr>
+<!-- Item 4: Pending -->
+<tr class="hover:bg-slate-800/20 transition-colors group">
+<td class="px-lg py-lg">
+<div class="flex flex-col">
+<span class="font-code text-code text-on-surface">#DP-9025</span>
+<span class="text-body-sm text-slate-500">legacy-proxy:v1.0.4</span>
+</div>
+</td>
+<td class="px-lg py-lg">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-slate-600"></span>
+<span class="text-body-md text-on-surface">Development</span>
+</div>
+</td>
+<td class="px-lg py-lg">
+<span class="bg-slate-800 text-slate-300 text-[11px] font-bold px-2 py-0.5 rounded border border-slate-700">Recreate</span>
+</td>
+<td class="px-lg py-lg">
+<span class="text-body-sm text-slate-500">0/1 Scheduled</span>
+</td>
+<td class="px-lg py-lg">
+<span class="flex items-center gap-1.5 text-slate-400 text-body-sm">
+<span class="material-symbols-outlined text-[16px]">pending</span>
+                                    Pending
+                                </span>
+</td>
+<td class="px-lg py-lg text-body-sm text-slate-400">Just now</td>
+<td class="px-lg py-lg text-right">
+<div class="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="px-3 py-1 rounded text-body-sm font-semibold text-slate-400 hover:text-on-surface">Cancel</button>
+<button class="px-3 py-1 rounded text-body-sm font-semibold bg-surface-container-high border border-slate-700 text-on-surface hover:border-indigo-400 transition-colors">Details</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-lg py-md border-t border-slate-800/50 bg-surface-container-high/30 flex items-center justify-between">
+<span class="text-body-sm text-slate-500">Showing 4 of 12 active rollouts</span>
+<div class="flex gap-2">
+<button class="p-2 rounded hover:bg-slate-800 text-slate-400 transition-colors disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="p-2 rounded hover:bg-slate-800 text-slate-400 transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- System Visualizations (Asymmetric Layout) -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+<!-- Health Monitor -->
+<div class="lg:col-span-2 bg-surface-container-low border border-slate-800/50 rounded-xl p-lg">
+<div class="flex items-center justify-between mb-lg">
+<h3 class="font-headline-md text-body-lg text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-indigo-400">analytics</span>
+                        Infrastructure Load During Rollouts
+                    </h3>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+<span class="text-xs text-slate-500 uppercase">CPU</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span class="text-xs text-slate-500 uppercase">RAM</span>
+</div>
+</div>
+</div>
+<!-- Visual Placeholder for a graph -->
+<div class="h-48 w-full bg-[#020617] rounded-lg relative overflow-hidden flex items-end px-4 gap-1">
+<div class="w-full h-[30%] bg-indigo-500/20 border-t border-indigo-500/50 rounded-t-sm"></div>
+<div class="w-full h-[45%] bg-indigo-500/20 border-t border-indigo-500/50 rounded-t-sm"></div>
+<div class="w-full h-[40%] bg-indigo-500/20 border-t border-indigo-500/50 rounded-t-sm"></div>
+<div class="w-full h-[65%] bg-indigo-500/20 border-t border-indigo-500/50 rounded-t-sm"></div>
+<div class="w-full h-[55%] bg-indigo-500/30 border-t-2 border-indigo-500 rounded-t-sm relative">
+<div class="absolute -top-6 left-1/2 -translate-x-1/2 bg-indigo-500 text-[10px] px-1.5 rounded text-white font-bold">LIVE</div>
+</div>
+<div class="w-full h-[48%] bg-indigo-500/20 border-t border-indigo-500/50 rounded-t-sm"></div>
+<div class="w-full h-[35%] bg-indigo-500/20 border-t border-indigo-500/50 rounded-t-sm"></div>
+<div class="w-full h-[40%] bg-indigo-500/20 border-t border-indigo-500/50 rounded-t-sm"></div>
+<div class="w-full h-[25%] bg-indigo-500/20 border-t border-indigo-500/50 rounded-t-sm"></div>
+<div class="w-full h-[30%] bg-indigo-500/20 border-t border-indigo-500/50 rounded-t-sm"></div>
+<!-- Secondary data line simulation -->
+<div class="absolute bottom-0 left-0 w-full h-[20%] border-t border-tertiary/40 border-dashed"></div>
+</div>
+</div>
+<!-- Environment Insights -->
+<div class="bg-surface-container-low border border-slate-800/50 rounded-xl p-lg flex flex-col">
+<h3 class="font-headline-md text-body-lg text-on-surface mb-lg">Critical Events</h3>
+<div class="space-y-4 flex-1">
+<div class="flex gap-4">
+<div class="flex-shrink-0 w-8 h-8 rounded-full bg-error/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-error text-lg">warning</span>
+</div>
+<div>
+<p class="text-body-sm text-on-surface font-semibold">Node Termination Signal</p>
+<p class="text-[12px] text-slate-500">Cluster-B reported 3 nodes unstable after v0.9.0 rollout.</p>
+<span class="text-[10px] text-slate-600 mt-1 block uppercase font-bold">12:44 PM</span>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-emerald-400 text-lg">verified</span>
+</div>
+<div>
+<p class="text-body-sm text-on-surface font-semibold">Verification Passed</p>
+<p class="text-[12px] text-slate-500">End-to-end testing suite passed for Staging deployment #DP-9021.</p>
+<span class="text-[10px] text-slate-600 mt-1 block uppercase font-bold">1:02 PM</span>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-indigo-400 text-lg">info</span>
+</div>
+<div>
+<p class="text-body-sm text-on-surface font-semibold">New Policy Applied</p>
+<p class="text-[12px] text-slate-500">Rate limiting rules updated for production edge nodes.</p>
+<span class="text-[10px] text-slate-600 mt-1 block uppercase font-bold">1:15 PM</span>
+</div>
+</div>
+</div>
+<button class="w-full mt-lg py-2 rounded-lg bg-surface-container-high border border-slate-700 text-body-sm font-semibold hover:bg-slate-800 transition-colors">
+                    View Audit Log
+                </button>
+</div>
+</div>
+</main>
+<!-- FAB Component -->
+<button class="fixed bottom-lg right-lg bg-indigo-500 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl shadow-indigo-500/40 hover:scale-110 active:scale-95 transition-all z-50">
+<span class="material-symbols-outlined text-2xl">add</span>
+</button>
+</body></html>

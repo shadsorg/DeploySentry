@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Nexus Control - Environments</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-container": "#452000",
+                        "error-container": "#93000a",
+                        "tertiary-fixed": "#ffdcc5",
+                        "tertiary": "#ffb783",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "secondary-container": "#6f00be",
+                        "on-tertiary-fixed-variant": "#703700",
+                        "secondary-fixed": "#f0dbff",
+                        "on-primary-fixed": "#07006c",
+                        "on-primary-container": "#0d0096",
+                        "tertiary-container": "#d97721",
+                        "primary": "#c0c1ff",
+                        "primary-fixed": "#e1e0ff",
+                        "outline-variant": "#464554",
+                        "background": "#0b1326",
+                        "on-secondary-fixed-variant": "#6900b3",
+                        "surface-container-highest": "#2d3449",
+                        "error": "#ffb4ab",
+                        "on-error-container": "#ffdad6",
+                        "tertiary-fixed-dim": "#ffb783",
+                        "surface-tint": "#c0c1ff",
+                        "primary-container": "#8083ff",
+                        "on-background": "#dae2fd",
+                        "secondary": "#ddb7ff",
+                        "on-surface": "#dae2fd",
+                        "inverse-surface": "#dae2fd",
+                        "inverse-primary": "#494bd6",
+                        "surface-variant": "#2d3449",
+                        "surface-bright": "#31394d",
+                        "on-surface-variant": "#c7c4d7",
+                        "inverse-on-surface": "#283044",
+                        "on-tertiary-fixed": "#301400",
+                        "on-primary": "#1000a9",
+                        "surface-container-high": "#222a3d",
+                        "surface-dim": "#0b1326",
+                        "outline": "#908fa0",
+                        "surface-container-low": "#131b2e",
+                        "on-secondary": "#490080",
+                        "surface-container-lowest": "#060e20",
+                        "surface-container": "#171f33",
+                        "surface": "#0b1326",
+                        "secondary-fixed-dim": "#ddb7ff",
+                        "on-secondary-container": "#d6a9ff",
+                        "on-tertiary": "#4f2500",
+                        "on-primary-fixed-variant": "#2f2ebe",
+                        "on-secondary-fixed": "#2c0051",
+                        "on-error": "#690005"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-xl": ["Manrope"],
+                        "headline-lg": ["Manrope"],
+                        "code": ["monospace"],
+                        "body-sm": ["Inter"],
+                        "headline-md": ["Manrope"],
+                        "label-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-xl": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                        "code": ["14px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                        "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                        "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .glass-panel {
+            background: rgba(23, 31, 51, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(70, 69, 84, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md min-h-screen selection:bg-primary-container selection:text-on-primary-container">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-60 border-r border-slate-800/50 bg-slate-900/60 backdrop-blur-2xl z-40 flex flex-col py-4 gap-2 shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
+<div class="px-6 mb-8 flex flex-col gap-1">
+<div class="text-lg font-black text-white">Infrastructure</div>
+<div class="text-[10px] uppercase tracking-widest text-indigo-400/80 font-bold">Global Fleet</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-slate-200 hover:bg-slate-800/40 transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-manrope text-[13px] font-semibold">Dashboards</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-indigo-400 bg-indigo-500/10 border-l-2 border-indigo-500 rounded-r-sm transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="layers">layers</span>
+<span class="font-manrope text-[13px] font-semibold">Environments</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-slate-200 hover:bg-slate-800/40 transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span class="font-manrope text-[13px] font-semibold">Projects</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-slate-200 hover:bg-slate-800/40 transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="insights">insights</span>
+<span class="font-manrope text-[13px] font-semibold">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-slate-200 hover:bg-slate-800/40 transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="menu_book">menu_book</span>
+<span class="font-manrope text-[13px] font-semibold">Documentation</span>
+</a>
+</nav>
+<div class="mt-auto pt-4 border-t border-slate-800/50 space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-slate-200 hover:bg-slate-800/40 transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-manrope text-[13px] font-semibold">Settings</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-slate-200 hover:bg-slate-800/40 transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="contact_support">contact_support</span>
+<span class="font-manrope text-[13px] font-semibold">Support</span>
+</a>
+</div>
+</aside>
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 left-0 z-30 flex justify-between items-center w-full px-6 py-3 ml-60 bg-slate-950/60 backdrop-blur-xl border-b border-slate-800/50">
+<div class="flex items-center gap-8">
+<span class="text-xl font-bold tracking-tighter text-indigo-400 font-manrope">Nexus Control</span>
+<div class="relative group">
+<span class="absolute inset-y-0 left-3 flex items-center text-slate-500">
+<span class="material-symbols-outlined text-sm" data-icon="search">search</span>
+</span>
+<input class="bg-slate-900/50 border-none rounded-full pl-10 pr-4 py-1.5 text-xs text-on-surface-variant focus:ring-1 focus:ring-indigo-500 w-64 transition-all" placeholder="Search infrastructure..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-slate-400 hover:text-indigo-300 transition-colors duration-200 active:opacity-80">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="text-slate-400 hover:text-indigo-300 transition-colors duration-200 active:opacity-80">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+</button>
+<div class="h-8 w-8 rounded-full overflow-hidden border border-indigo-500/30">
+<img alt="Administrator Profile" class="h-full w-full object-cover" data-alt="Close-up portrait of a professional systems administrator in a dimly lit high-tech environment" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCSTFIPeiOoPaZRwoylDcDkGvNX5WsuB7UTj2_eOqbauDdgVEbQ8X-qTeopwtvWm1wh29ht6sJprnkWjR8E-XJdbe-iFpVWme3AZKJ-XPCFixahFI8Td9DAk7DbkgOE5slNI24dz5rbw8Kt9-mmV7axOLyA_OnqK9XX4xoKiN_ajL4qAw2ZITd0ZINXvNvDJwT4VUjp9nNSr5DzJnOMoO5_tc8pW_VOtdyTwxOsLuBSW6kwxSux6Bke6y3-qndbWXzhtM5W-2M-LiTD"/>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="ml-60 pt-20 px-8 pb-12">
+<div class="max-w-6xl mx-auto space-y-8">
+<!-- Page Header -->
+<section class="flex flex-col gap-1">
+<h1 class="font-headline-lg text-headline-lg text-on-background">Organization Settings</h1>
+<p class="font-body-md text-on-surface-variant">Manage your global infrastructure environments and deployment targets.</p>
+</section>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<!-- Add Environment Form (Left Side) -->
+<section class="lg:col-span-4">
+<div class="glass-panel rounded-xl p-6 space-y-6 sticky top-24">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-indigo-400" data-icon="add_circle">add_circle</span>
+<h2 class="font-headline-md text-body-lg font-bold">Add Environment</h2>
+</div>
+<form class="space-y-4">
+<div class="space-y-2">
+<label class="font-label-md text-label-md text-outline">ENVIRONMENT NAME</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-2.5 text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none" placeholder="e.g. Quality Assurance" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="font-label-md text-label-md text-outline">IDENTIFIER SLUG</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded-lg px-4 py-2.5 text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-all outline-none" placeholder="e.g. qa-v2" type="text"/>
+<span class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-indigo-400 font-code px-1.5 py-0.5 bg-indigo-500/10 rounded">AUTO</span>
+</div>
+</div>
+<div class="flex items-center gap-3 p-3 bg-surface-container-low rounded-lg border border-indigo-500/10">
+<input class="rounded border-outline-variant bg-surface-container text-primary focus:ring-offset-background" id="is_prod" type="checkbox"/>
+<label class="font-body-sm text-body-sm text-on-surface-variant cursor-pointer select-none" for="is_prod">Mark as Production environment</label>
+</div>
+<button class="w-full py-3 bg-gradient-to-r from-primary-container to-secondary-container text-on-primary font-headline-md text-sm font-bold rounded-lg hover:shadow-[0_0_20px_rgba(128,131,255,0.3)] transition-all active:scale-[0.98]" type="submit">
+                                Create Environment
+                            </button>
+</form>
+</div>
+</section>
+<!-- Environment Table (Right Side) -->
+<section class="lg:col-span-8">
+<div class="glass-panel rounded-xl overflow-hidden shadow-2xl">
+<div class="px-6 py-4 border-b border-slate-800/50 flex justify-between items-center bg-slate-900/40">
+<h2 class="font-headline-md text-body-lg font-bold">Active Fleet</h2>
+<span class="font-label-md text-label-md px-2 py-1 bg-surface-container-highest rounded-full text-outline-variant">3 TOTAL</span>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low/30">
+<th class="px-6 py-4 font-label-md text-label-md text-outline uppercase tracking-wider">Environment</th>
+<th class="px-6 py-4 font-label-md text-label-md text-outline uppercase tracking-wider">Slug</th>
+<th class="px-6 py-4 font-label-md text-label-md text-outline uppercase tracking-wider">Status</th>
+<th class="px-6 py-4 font-label-md text-label-md text-outline uppercase tracking-wider">Created</th>
+<th class="px-6 py-4 font-label-md text-label-md text-outline uppercase tracking-wider text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-800/30">
+<tr class="group hover:bg-white/[0.02] transition-colors">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+<span class="font-headline-md text-sm">Production</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<code class="font-code text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded text-xs">prod</code>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
+<span class="material-symbols-outlined text-[12px]" data-icon="verified" data-weight="fill">verified</span>
+                                                PRODUCTION
+                                            </span>
+</td>
+<td class="px-6 py-5 font-body-sm text-on-surface-variant">Oct 12, 2023</td>
+<td class="px-6 py-5 text-right">
+<button class="text-outline-variant hover:text-error transition-colors p-1">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</td>
+</tr>
+<tr class="group hover:bg-white/[0.02] transition-colors">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="h-2 w-2 rounded-full bg-amber-500"></div>
+<span class="font-headline-md text-sm">Staging Area</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<code class="font-code text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded text-xs">stage</code>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full bg-surface-container-highest text-on-surface-variant text-[10px] font-bold border border-outline-variant/30">
+                                                PRE-RELEASE
+                                            </span>
+</td>
+<td class="px-6 py-5 font-body-sm text-on-surface-variant">Nov 04, 2023</td>
+<td class="px-6 py-5 text-right">
+<button class="text-outline-variant hover:text-error transition-colors p-1">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</td>
+</tr>
+<tr class="group hover:bg-white/[0.02] transition-colors">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="h-2 w-2 rounded-full bg-indigo-500"></div>
+<span class="font-headline-md text-sm">Development</span>
+</div>
+</td>
+<td class="px-6 py-5">
+<code class="font-code text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded text-xs">dev</code>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full bg-surface-container-highest text-on-surface-variant text-[10px] font-bold border border-outline-variant/30">
+                                                INTERNAL
+                                            </span>
+</td>
+<td class="px-6 py-5 font-body-sm text-on-surface-variant">Jan 18, 2024</td>
+<td class="px-6 py-5 text-right">
+<button class="text-outline-variant hover:text-error transition-colors p-1">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-6 bg-surface-container-lowest/50 border-t border-slate-800/50">
+<div class="flex items-center gap-4 text-xs text-outline-variant">
+<span class="material-symbols-outlined text-sm" data-icon="info">info</span>
+<p>Environment slugs are immutable once used in a deployment pipeline. Deleting an environment will terminate all associated compute clusters.</p>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Dashboard Style Bento Preview -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="glass-panel p-6 rounded-xl flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<span class="material-symbols-outlined text-indigo-400" data-icon="bolt">bolt</span>
+<span class="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded">HEALTHY</span>
+</div>
+<div>
+<div class="text-3xl font-headline-lg font-bold text-white">99.9%</div>
+<div class="text-xs text-outline uppercase tracking-widest font-semibold mt-1">Prod Uptime</div>
+</div>
+</div>
+<div class="glass-panel p-6 rounded-xl flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<span class="material-symbols-outlined text-indigo-400" data-icon="rocket_launch">rocket_launch</span>
+<span class="text-[10px] font-bold text-indigo-400 bg-indigo-400/10 px-2 py-1 rounded">+12% WK</span>
+</div>
+<div>
+<div class="text-3xl font-headline-lg font-bold text-white">42</div>
+<div class="text-xs text-outline uppercase tracking-widest font-semibold mt-1">Weekly Deploys</div>
+</div>
+</div>
+<div class="glass-panel p-6 rounded-xl flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<span class="material-symbols-outlined text-indigo-400" data-icon="dns">dns</span>
+<span class="text-[10px] font-bold text-on-surface-variant bg-surface-container-highest px-2 py-1 rounded">GLOBAL</span>
+</div>
+<div>
+<div class="text-3xl font-headline-lg font-bold text-white">124</div>
+<div class="text-xs text-outline uppercase tracking-widest font-semibold mt-1">Active Nodes</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Floating Action Button - Only for main dashboards/actions -->
+<button class="fixed bottom-8 right-8 h-14 w-14 rounded-full bg-primary-container text-on-primary-container shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+</body></html>

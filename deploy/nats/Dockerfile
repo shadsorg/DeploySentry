@@ -1,3 +1,3 @@
 FROM nats:2-alpine
 EXPOSE 4222 8222
-CMD ["-js", "-sd", "/data", "-m", "8222", "--max_payload", "1048576"]
+CMD ["-js", "-sd", "/data", "-m", "8222"]

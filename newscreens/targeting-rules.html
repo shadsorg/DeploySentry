@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>InfraCore | Targeting Rules</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Manrope:wght@600;700;800&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary": "#ffb783",
+                    "background": "#0b1326",
+                    "primary-fixed-dim": "#c0c1ff",
+                    "on-secondary": "#490080",
+                    "outline-variant": "#464554",
+                    "error-container": "#93000a",
+                    "on-tertiary-fixed": "#301400",
+                    "primary-fixed": "#e1e0ff",
+                    "on-secondary-container": "#d6a9ff",
+                    "on-tertiary-container": "#452000",
+                    "surface-dim": "#0b1326",
+                    "secondary": "#ddb7ff",
+                    "tertiary-fixed-dim": "#ffb783",
+                    "on-error": "#690005",
+                    "inverse-on-surface": "#283044",
+                    "surface": "#0b1326",
+                    "on-primary-fixed": "#07006c",
+                    "on-primary-container": "#0d0096",
+                    "on-error-container": "#ffdad6",
+                    "on-secondary-fixed": "#2c0051",
+                    "on-background": "#dae2fd",
+                    "surface-container": "#171f33",
+                    "tertiary-container": "#d97721",
+                    "secondary-fixed-dim": "#ddb7ff",
+                    "error": "#ffb4ab",
+                    "tertiary-fixed": "#ffdcc5",
+                    "outline": "#908fa0",
+                    "inverse-surface": "#dae2fd",
+                    "on-primary": "#1000a9",
+                    "primary": "#c0c1ff",
+                    "surface-tint": "#c0c1ff",
+                    "on-tertiary-fixed-variant": "#703700",
+                    "secondary-fixed": "#f0dbff",
+                    "on-surface": "#dae2fd",
+                    "inverse-primary": "#494bd6",
+                    "surface-bright": "#31394d",
+                    "surface-container-lowest": "#060e20",
+                    "on-tertiary": "#4f2500",
+                    "on-secondary-fixed-variant": "#6900b3",
+                    "surface-container-low": "#131b2e",
+                    "on-surface-variant": "#c7c4d7",
+                    "surface-container-highest": "#2d3449",
+                    "surface-variant": "#2d3449",
+                    "secondary-container": "#6f00be",
+                    "surface-container-high": "#222a3d",
+                    "primary-container": "#8083ff",
+                    "on-primary-fixed-variant": "#2f2ebe"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "lg": "24px",
+                    "unit": "4px",
+                    "xl": "40px",
+                    "md": "16px",
+                    "sm": "8px",
+                    "margin-page": "32px",
+                    "gutter": "20px",
+                    "xs": "4px"
+            },
+            "fontFamily": {
+                    "body-md": ["Inter"],
+                    "code": ["monospace"],
+                    "headline-md": ["Manrope"],
+                    "label-md": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "headline-xl": ["Manrope"],
+                    "headline-lg": ["Manrope"],
+                    "body-sm": ["Inter"]
+            },
+            "fontSize": {
+                    "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                    "code": ["14px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "600"}],
+                    "label-md": ["12px", {"lineHeight": "1", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                    "headline-xl": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                    "body-sm": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(11, 19, 38, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(144, 143, 160, 0.2);
+        }
+        .hud-glow {
+            box-shadow: 0 0 20px rgba(192, 193, 255, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-x-hidden">
+<!-- SideNavBar Shell -->
+<aside class="fixed left-0 top-0 h-full w-[240px] border-r bg-slate-950/60 backdrop-blur-xl border-slate-800/50 shadow-[4px_0_24px_rgba(0,0,0,0.4)] flex flex-col h-full py-4 space-y-2 z-50">
+<div class="px-6 mb-8">
+<h1 class="text-xl font-black text-indigo-500 tracking-tighter font-headline-md">InfraCore</h1>
+<p class="text-[10px] text-slate-500 font-code tracking-widest uppercase">v2.4.0-stable</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="text-slate-400 hover:text-slate-200 px-4 py-2 transition-colors flex items-center gap-3 font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined text-indigo-500" data-icon="dashboard">dashboard</span>
+                Dashboard
+            </a>
+<a class="text-slate-400 hover:text-slate-200 px-4 py-2 transition-colors flex items-center gap-3 font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined text-indigo-500" data-icon="rocket_launch">rocket_launch</span>
+                Deployments
+            </a>
+<a class="bg-indigo-500/10 text-indigo-400 border-l-2 border-indigo-500 font-semibold px-4 py-2 transition-all flex items-center gap-3 font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="toggle_on">toggle_on</span>
+                Feature Flags
+            </a>
+<a class="text-slate-400 hover:text-slate-200 px-4 py-2 transition-colors flex items-center gap-3 font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined text-indigo-500" data-icon="dns">dns</span>
+                Infrastructure
+            </a>
+<a class="text-slate-400 hover:text-slate-200 px-4 py-2 transition-colors flex items-center gap-3 font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined text-indigo-500" data-icon="settings">settings</span>
+                Settings
+            </a>
+<a class="text-slate-400 hover:text-slate-200 px-4 py-2 transition-colors flex items-center gap-3 font-manrope text-sm tracking-tight" href="#">
+<span class="material-symbols-outlined text-indigo-500" data-icon="terminal">terminal</span>
+                Logs
+            </a>
+</nav>
+<div class="px-4 mt-auto space-y-1">
+<a class="text-slate-400 hover:text-slate-200 px-4 py-2 transition-colors flex items-center gap-3 text-xs font-manrope" href="#">
+<span class="material-symbols-outlined text-indigo-500" data-icon="contact_support">contact_support</span>
+                Support
+            </a>
+<a class="text-slate-400 hover:text-slate-200 px-4 py-2 transition-colors flex items-center gap-3 text-xs font-manrope" href="#">
+<span class="material-symbols-outlined text-indigo-500" data-icon="menu_book">menu_book</span>
+                Documentation
+            </a>
+<div class="mt-4 p-3 glass-panel rounded-lg flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-[10px] font-bold">SA</div>
+<div class="overflow-hidden">
+<p class="text-xs font-bold truncate">Admin</p>
+<p class="text-[10px] text-slate-500 truncate">infra-prod-01</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- TopNavBar Shell -->
+<header class="fixed top-0 right-0 w-[calc(100%-240px)] h-16 border-b bg-slate-950/40 backdrop-blur-md border-slate-800/50 flex items-center justify-between px-8 z-40">
+<div class="flex items-center gap-8">
+<span class="text-lg font-bold text-slate-100 font-manrope">Environment Console</span>
+<div class="hidden md:flex items-center gap-6 font-manrope text-sm font-medium">
+<a class="text-indigo-400 border-b-2 border-indigo-500 pb-5" href="#">Production</a>
+<a class="text-slate-400 hover:text-slate-200 pb-5 transition-colors" href="#">Staging</a>
+<a class="text-slate-400 hover:text-slate-200 pb-5 transition-colors" href="#">Development</a>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm" data-icon="search">search</span>
+<input class="bg-slate-900/50 border border-slate-800 rounded-lg pl-9 pr-4 py-1.5 text-xs focus:ring-1 ring-indigo-500/50 outline-none w-64 transition-all" placeholder="Search flags..." type="text"/>
+</div>
+<div class="flex items-center gap-2 border-l border-slate-800 pl-4">
+<button class="p-1.5 text-slate-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="bg-primary-container text-on-primary-container px-4 py-1.5 rounded text-xs font-bold hover:opacity-90 transition-all flex items-center gap-2">
+                    Quick Deploy
+                </button>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-[240px] pt-24 px-10 pb-12">
+<!-- Breadcrumbs & Title -->
+<div class="mb-8">
+<nav class="flex items-center gap-2 text-[10px] text-slate-500 uppercase tracking-widest mb-2 font-code">
+<span>Projects</span>
+<span class="material-symbols-outlined text-[10px]" data-icon="chevron_right">chevron_right</span>
+<span>Core API</span>
+<span class="material-symbols-outlined text-[10px]" data-icon="chevron_right">chevron_right</span>
+<span class="text-indigo-400">new-payment-engine</span>
+</nav>
+<div class="flex items-end justify-between">
+<div>
+<h2 class="font-headline-lg text-on-surface">Targeting Rules</h2>
+<p class="text-on-surface-variant text-body-sm mt-1">Configure environment-specific overrides and segment delivery for <code class="bg-slate-900 px-1.5 py-0.5 rounded text-indigo-300">new_payment_engine</code></p>
+</div>
+<div class="flex items-center gap-3">
+<div class="px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+<span class="text-[10px] font-bold text-green-500 uppercase tracking-tighter">Live in Production</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Dashboard Grid Layout -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Rule List (Priority View) -->
+<div class="col-span-12 lg:col-span-8 space-y-6">
+<!-- Active Rules Card -->
+<div class="glass-panel rounded-xl overflow-hidden shadow-2xl">
+<div class="px-6 py-4 border-b border-slate-800/50 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-indigo-400" data-icon="format_list_numbered">format_list_numbered</span>
+<h3 class="font-headline-md text-base">Active Rules Hierarchy</h3>
+</div>
+<span class="text-[10px] font-code text-slate-500 bg-slate-900 px-2 py-1 rounded">Rules are evaluated top-down</span>
+</div>
+<!-- Rule Item 1 -->
+<div class="p-6 border-b border-slate-800/50 hover:bg-white/[0.02] transition-colors relative group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500/40"></div>
+<div class="flex items-start justify-between">
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-4">
+<span class="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400">01</span>
+<span class="font-bold text-sm text-on-surface">Internal Beta Testers</span>
+<span class="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 text-[10px] font-bold uppercase tracking-tight">Active</span>
+</div>
+<div class="flex flex-wrap items-center gap-3 font-code text-xs">
+<span class="text-slate-500 italic">IF</span>
+<span class="bg-surface-container-high px-2 py-1 rounded border border-slate-700 text-on-surface">user_email</span>
+<span class="text-indigo-400 font-bold">ENDS WITH</span>
+<span class="bg-surface-container-high px-2 py-1 rounded border border-slate-700 text-on-surface">@infracore.io</span>
+<span class="text-slate-500 italic">SERVE</span>
+<span class="bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded border border-indigo-500/30 font-bold">Enabled (true)</span>
+</div>
+</div>
+<div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 hover:bg-slate-800 rounded transition-all text-slate-400 hover:text-white">
+<span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
+</button>
+<button class="p-2 hover:bg-slate-800 rounded transition-all text-slate-400 hover:text-white">
+<span class="material-symbols-outlined text-sm" data-icon="drag_indicator">drag_indicator</span>
+</button>
+<button class="p-2 hover:bg-error-container/20 rounded transition-all text-error">
+<span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Rule Item 2 -->
+<div class="p-6 border-b border-slate-800/50 hover:bg-white/[0.02] transition-colors relative group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-transparent group-hover:bg-indigo-500/20"></div>
+<div class="flex items-start justify-between">
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-4">
+<span class="w-6 h-6 rounded bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400">02</span>
+<span class="font-bold text-sm text-on-surface">Tier 1 Canary Launch</span>
+<span class="px-2 py-0.5 rounded bg-tertiary-container/10 text-tertiary-container text-[10px] font-bold uppercase tracking-tight">Warning State</span>
+</div>
+<div class="flex flex-wrap items-center gap-3 font-code text-xs">
+<span class="text-slate-500 italic">IF</span>
+<span class="bg-surface-container-high px-2 py-1 rounded border border-slate-700 text-on-surface">region</span>
+<span class="text-indigo-400 font-bold">IN</span>
+<span class="bg-surface-container-high px-2 py-1 rounded border border-slate-700 text-on-surface">["us-east-1", "eu-west-2"]</span>
+<span class="text-slate-500 italic">SERVE</span>
+<span class="bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded border border-indigo-500/30 font-bold">Percentage Rollout (15%)</span>
+</div>
+</div>
+<div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 hover:bg-slate-800 rounded transition-all text-slate-400 hover:text-white">
+<span class="material-symbols-outlined text-sm" data-icon="edit">edit</span>
+</button>
+<button class="p-2 hover:bg-slate-800 rounded transition-all text-slate-400 hover:text-white">
+<span class="material-symbols-outlined text-sm" data-icon="drag_indicator">drag_indicator</span>
+</button>
+<button class="p-2 hover:bg-error-container/20 rounded transition-all text-error">
+<span class="material-symbols-outlined text-sm" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Default Rule -->
+<div class="p-6 bg-slate-900/40">
+<div class="flex items-start justify-between">
+<div class="flex-1">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-slate-500" data-icon="layers">layers</span>
+<span class="font-bold text-sm text-slate-400">Default Value</span>
+</div>
+<div class="flex flex-wrap items-center gap-3 font-code text-xs">
+<span class="text-slate-500 italic">ALL OTHER USERS SERVE</span>
+<span class="bg-slate-800 text-slate-400 px-2 py-1 rounded border border-slate-700 font-bold">Disabled (false)</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Rule Statistics Bento Item -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="glass-panel p-6 rounded-xl">
+<div class="flex items-center justify-between mb-4">
+<span class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Evaluations</span>
+<span class="material-symbols-outlined text-indigo-400 text-lg" data-icon="analytics">analytics</span>
+</div>
+<p class="text-2xl font-bold font-manrope">1.2M</p>
+<p class="text-xs text-slate-500 mt-1">Last 24 hours</p>
+</div>
+<div class="glass-panel p-6 rounded-xl">
+<div class="flex items-center justify-between mb-4">
+<span class="text-[10px] font-bold text-green-500 uppercase tracking-widest">Uptime</span>
+<span class="material-symbols-outlined text-green-500 text-lg" data-icon="check_circle">check_circle</span>
+</div>
+<p class="text-2xl font-bold font-manrope">100%</p>
+<p class="text-xs text-slate-500 mt-1">Propagation latency: 12ms</p>
+</div>
+<div class="glass-panel p-6 rounded-xl">
+<div class="flex items-center justify-between mb-4">
+<span class="text-[10px] font-bold text-purple-400 uppercase tracking-widest">Conflicts</span>
+<span class="material-symbols-outlined text-purple-400 text-lg" data-icon="warning_amber">warning_amber</span>
+</div>
+<p class="text-2xl font-bold font-manrope">0</p>
+<p class="text-xs text-slate-500 mt-1">Logic check passed</p>
+</div>
+</div>
+</div>
+<!-- Rule Builder (Side Interaction Panel) -->
+<div class="col-span-12 lg:col-span-4">
+<div class="glass-panel rounded-xl p-6 sticky top-24 border-indigo-500/20 hud-glow">
+<div class="flex items-center gap-3 mb-6">
+<div class="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-indigo-400" data-icon="add_box">add_box</span>
+</div>
+<div>
+<h3 class="font-headline-md text-base">Create New Rule</h3>
+<p class="text-xs text-slate-500">Define logic for targeted rollout</p>
+</div>
+</div>
+<form class="space-y-6">
+<!-- Attribute -->
+<div>
+<label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Attribute</label>
+<div class="relative">
+<select class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm appearance-none focus:ring-1 ring-indigo-500/50 outline-none">
+<option>user_id</option>
+<option>user_email</option>
+<option>organization_id</option>
+<option>region</option>
+<option>os_version</option>
+<option>Custom...</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+<!-- Operator -->
+<div>
+<label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Operator</label>
+<div class="relative">
+<select class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm appearance-none focus:ring-1 ring-indigo-500/50 outline-none">
+<option>Is one of</option>
+<option>Is not one of</option>
+<option>Contains</option>
+<option>Ends with</option>
+<option>Greater than</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+<!-- Target Value -->
+<div>
+<label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Target Value</label>
+<input class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:ring-1 ring-indigo-500/50 outline-none placeholder:text-slate-600" placeholder="e.g. beta-org-99" type="text"/>
+<p class="text-[10px] text-slate-500 mt-2 flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]" data-icon="info">info</span>
+                                Use comma-separated values for lists
+                            </p>
+</div>
+<!-- Serve Value -->
+<div class="pt-4 border-t border-slate-800">
+<label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Serve Value</label>
+<div class="grid grid-cols-2 gap-3">
+<button class="border border-indigo-500 bg-indigo-500/10 text-indigo-400 py-2 rounded-lg text-sm font-bold transition-all" type="button">True</button>
+<button class="border border-slate-700 bg-slate-800/50 text-slate-400 py-2 rounded-lg text-sm font-bold hover:border-slate-500 transition-all" type="button">False</button>
+</div>
+</div>
+<!-- Priority -->
+<div>
+<div class="flex items-center justify-between mb-2">
+<label class="text-xs font-bold text-slate-400 uppercase tracking-widest">Priority Index</label>
+<span class="text-indigo-400 text-xs font-code">Rank: 03</span>
+</div>
+<input class="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500" max="10" min="1" type="range" value="3"/>
+</div>
+<!-- Create Button -->
+<button class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-headline-md text-sm py-3 rounded-lg shadow-lg shadow-indigo-500/20 active:scale-[0.98] transition-transform flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-lg" data-icon="bolt">bolt</span>
+                            Create Rule
+                        </button>
+</form>
+</div>
+</div>
+</div>
+<!-- Infrastructure Visual Overlay Decorator -->
+<div class="fixed bottom-0 right-0 p-8 opacity-20 pointer-events-none -z-10">
+<div class="flex flex-col items-end">
+<span class="text-[80px] font-black text-slate-800 leading-none">TARGET</span>
+<span class="text-[80px] font-black text-indigo-900 leading-none">RULES</span>
+</div>
+</div>
+</main>
+<!-- Contextual FAB (Hidden on rules detail page per prompt logic but provided for structure if needed) -->
+<!-- Suppressed based on "Contextual FAB Suppression" rule for detail/transactional screens -->
+</body></html>

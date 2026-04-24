@@ -2446,3 +2446,77 @@ tbody tr:last-child td {
     position: static;
   }
 }
+
+/* ---------------------------------------------------------------------- */
+/* Rollouts page filter bar + sortable table                               */
+/* ---------------------------------------------------------------------- */
+
+.rollouts-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 18px;
+  align-items: flex-end;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: #f7f8fc;
+  border: 1px solid #e5e7ee;
+  border-radius: 8px;
+}
+.rollouts-filter-bar .filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+.rollouts-filter-bar .filter-group select {
+  padding: 5px 8px;
+  font-size: 13px;
+}
+.rollouts-filter-bar .filter-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #667;
+}
+.rollouts-filter-bar .filter-checks {
+  flex-direction: row;
+  gap: 14px;
+  align-items: center;
+  min-width: 0;
+  padding-bottom: 4px;
+}
+.rollouts-filter-bar .filter-checks label {
+  font-size: 13px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.rollouts-filter-bar .filter-reset {
+  margin-left: auto;
+  align-self: flex-end;
+}
+
+.rollouts-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.rollouts-table th.sortable:hover {
+  background: #eef0f8;
+}
+.rollouts-table .row-subtitle {
+  font-size: 11px;
+  color: #778;
+  margin-top: 2px;
+}
+
+.rollouts-hidden-hint {
+  padding: 10px 14px;
+  background: #fff8e1;
+  border: 1px solid #f0e0a0;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #6b5a00;
+  margin-top: 10px;
+}

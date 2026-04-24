@@ -108,6 +108,9 @@ func (r *RolloutRepo) List(ctx context.Context, opts rollout.RolloutListOptions)
 	if opts.ReleaseID != nil {
 		w.Add("release_id=$%d", *opts.ReleaseID)
 	}
+	if opts.Since != nil {
+		w.Add("created_at >= $%d", *opts.Since)
+	}
 	where, args := w.Build()
 
 	limit := opts.Limit

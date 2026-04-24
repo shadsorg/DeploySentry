@@ -690,10 +690,11 @@ export const rolloutPolicyApi = {
 export const rolloutsApi = {
   list: (orgSlug: string, opts?: {
     status?: RolloutStatus;
-    target_type?: string;
+    target_type?: 'deploy' | 'config' | '';
     limit?: number;
     include_terminal?: boolean;
     include_stale?: boolean;
+    since_hours?: number;
   }) => {
     const params = new URLSearchParams();
     if (opts?.status) params.set('status', opts.status);
@@ -701,10 +702,18 @@ export const rolloutsApi = {
     if (opts?.limit) params.set('limit', String(opts.limit));
     if (opts?.include_terminal) params.set('include_terminal', 'true');
     if (opts?.include_stale) params.set('include_stale', 'true');
+    if (opts?.since_hours) params.set('since_hours', String(opts.since_hours));
     const qs = params.toString();
     return request<{
       items: RolloutWithTarget[];
-      filter: { include_terminal: boolean; include_stale: boolean; stale_cutoff_hours: number };
+      filter: {
+        include_terminal: boolean;
+        include_stale: boolean;
+        stale_cutoff_hours: number;
+        hidden_terminal_count: number;
+        hidden_stale_count: number;
+        total_matched: number;
+      };
     }>(`/orgs/${orgSlug}/rollouts${qs ? '?' + qs : ''}`);
   },
   get: (orgSlug: string, id: string) =>

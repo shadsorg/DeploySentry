@@ -28,6 +28,7 @@ type RolloutListOptions struct {
 	TargetType *models.TargetType
 	Status     *models.RolloutStatus
 	ReleaseID  *uuid.UUID
+	Since      *time.Time // if set, only rollouts with created_at >= Since are returned
 	Limit      int
 }
 

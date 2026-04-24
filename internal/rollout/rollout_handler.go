@@ -66,6 +66,15 @@ func (h *RolloutHandler) list(c *gin.Context) {
 			opts.Limit = n
 		}
 	}
+	// ?since_hours=24 → only rollouts with created_at within the last 24h.
+	// Server-side filter (goes into the SQL WHERE clause) so large result
+	// sets stay manageable.
+	if v := c.Query("since_hours"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			since := time.Now().UTC().Add(-time.Duration(n) * time.Hour)
+			opts.Since = &since
+		}
+	}
 	includeTerminal := c.Query("include_terminal") == "true"
 	includeStale := c.Query("include_stale") == "true"
 
@@ -74,19 +83,24 @@ func (h *RolloutHandler) list(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	totalBeforePostFilter := len(rows)
 
 	// Default view hides both terminal and stale-pending rows so operators
 	// see what's actually in progress. Opt-in via ?include_terminal=true
 	// or ?include_stale=true, or by supplying an explicit `status` filter
 	// (which implies the caller knows what they're looking for).
+	hiddenTerminal := 0
+	hiddenStale := 0
 	if opts.Status == nil {
 		filtered := rows[:0]
 		now := time.Now().UTC()
 		for _, r := range rows {
 			if !includeTerminal && r.IsTerminal() {
+				hiddenTerminal++
 				continue
 			}
 			if !includeStale && r.Status == models.RolloutPending && now.Sub(r.CreatedAt) > staleCutoff {
+				hiddenStale++
 				continue
 			}
 			filtered = append(filtered, r)
@@ -99,11 +113,15 @@ func (h *RolloutHandler) list(c *gin.Context) {
 		enriched := h.enricher.Enrich(c.Request.Context(), rows)
 		payload["items"] = enriched
 	}
-	// Surface the filter decisions so clients can display "N rows hidden" affordances.
+	// Surface the filter decisions + hidden counts so the UI can render
+	// "N rows shown, M hidden" affordances without guessing.
 	payload["filter"] = gin.H{
-		"include_terminal":       includeTerminal,
-		"include_stale":          includeStale,
-		"stale_cutoff_hours":     int(staleCutoff.Hours()),
+		"include_terminal":      includeTerminal,
+		"include_stale":         includeStale,
+		"stale_cutoff_hours":    int(staleCutoff.Hours()),
+		"hidden_terminal_count": hiddenTerminal,
+		"hidden_stale_count":    hiddenStale,
+		"total_matched":         totalBeforePostFilter,
 	}
 	c.JSON(http.StatusOK, payload)
 }

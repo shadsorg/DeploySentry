@@ -52,6 +52,17 @@ func (h *Handler) reportStatus(c *gin.Context) {
 	}
 
 	createdBy := actorFromContext(c)
+	if method, _ := c.Get("auth_method"); method == "api_key" && createdBy == uuid.Nil {
+		// Auto-create-deployment (first time we see a version) requires a
+		// non-nil created_by because deployments.created_by FKs into users.
+		// Surface this explicitly instead of letting the inner validation
+		// return a less helpful "created_by is required".
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error": "cannot determine created_by: the calling api key has no associated user on record; " +
+				"mint a key from the dashboard (which stamps the creating user) and retry",
+		})
+		return
+	}
 	status, sErr := h.svc.Report(c.Request.Context(), ReportInput{
 		ApplicationID: appID,
 		EnvironmentID: envID,
@@ -120,16 +131,8 @@ func resolveEnvironmentID(c *gin.Context, appID uuid.UUID) (uuid.UUID, *resolveE
 	return uuid.Nil, &resolveError{http.StatusBadRequest, "environment_id is required"}
 }
 
+// actorFromContext delegates to auth.ActorUserID so both JWT and API-key
+// auth resolve to a usable user UUID (api_key_created_by for API keys).
 func actorFromContext(c *gin.Context) uuid.UUID {
-	if v, ok := c.Get("user_id"); ok {
-		if id, ok := v.(uuid.UUID); ok {
-			return id
-		}
-		if s, ok := v.(string); ok {
-			if id, err := uuid.Parse(s); err == nil {
-				return id
-			}
-		}
-	}
-	return uuid.Nil
+	return auth.ActorUserID(c)
 }

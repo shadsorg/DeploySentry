@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -217,12 +218,89 @@ type ResourceOwnershipChecker interface {
 	IsResourceOwner(ctx context.Context, resourceType string, resourceID, userID, orgID uuid.UUID) (bool, error)
 }
 
+// permissionSatisfyingScopes maps each RBAC Permission to the API-key
+// scopes that imply it. When a request authenticates via API key (no user
+// role), RequirePermission consults this table instead of the role matrix.
+// The `admin` scope is a universal superset — always sufficient — and
+// handled separately in scopeSatisfies.
+//
+// Naming reconciliation: RBAC uses singular+action (deploy:create),
+// scopes use plural+access (deploys:write). This table is the only place
+// those two naming schemes cross.
+var permissionSatisfyingScopes = map[Permission][]string{
+	PermDeployCreate:    {"deploys:write"},
+	PermDeployRead:      {"deploys:read", "deploys:write"},
+	PermDeployPromote:   {"deploys:write"},
+	PermDeployRollback:  {"deploys:write"},
+	PermDeployManage:    {"deploys:write"},
+	PermFlagCreate:      {"flags:write"},
+	PermFlagRead:        {"flags:read", "flags:write"},
+	PermFlagUpdate:      {"flags:write"},
+	PermFlagToggle:      {"flags:write"},
+	PermFlagArchive:     {"flags:write"},
+	PermReleaseCreate:   {"releases:write"},
+	PermReleaseRead:     {"releases:read", "releases:write"},
+	PermReleasePromote:  {"releases:write"},
+	PermStatusWrite:     {"status:write"},
+	PermAPIKeyManage:    {"apikey:manage"},
+	PermSettingsRead:    {"deploys:read", "flags:read"},
+	PermSettingsWrite:   {"deploys:write", "flags:write"},
+	// PermProjectManage / PermOrgManage / PermUserManage / PermBillingManage /
+	// PermGroupManage / PermEnvDeploy / PermAuditRead are session-only; no API
+	// key scope currently grants them. Listed explicitly so future scope
+	// additions have an obvious home.
+}
+
+// scopeSatisfies reports whether the set of API key scopes includes one
+// that satisfies the given permission. The `admin` scope is always
+// sufficient (matches the model's HasScope superset semantics).
+func scopeSatisfies(scopes []string, perm Permission) bool {
+	for _, s := range scopes {
+		if s == "admin" {
+			return true
+		}
+	}
+	for _, want := range permissionSatisfyingScopes[perm] {
+		for _, have := range scopes {
+			if have == want {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // RequirePermission returns a Gin middleware that checks whether the
-// authenticated user has the specified permission for the target resource.
-// It expects "user_id" and "role" to be set on the Gin context by a prior
-// authentication middleware or role resolver.
+// authenticated caller has the specified permission.
+//
+// Two authorization paths are honored, in this order:
+//  1. API-key auth: the calling key's scopes (set by AuthMiddleware as
+//     `api_key_scopes`) are checked against permissionSatisfyingScopes.
+//     `admin` scope is a universal superset.
+//  2. Session / JWT auth: the user's role (set by the role resolver as
+//     `role`) is checked against the RBAC permission matrix.
+//
+// Either path succeeding lets the request through.
 func RequirePermission(rbac *RBACChecker, perm Permission) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Path 1: API key scopes.
+		if method, _ := c.Get("auth_method"); method == "api_key" {
+			scopesVal, _ := c.Get("api_key_scopes")
+			scopes, _ := scopesVal.([]string)
+			if scopeSatisfies(scopes, perm) {
+				c.Next()
+				return
+			}
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"error":          "insufficient permissions",
+				"required":       string(perm),
+				"api_key_scopes": scopes,
+				"hint":           "add one of these scopes to the api key: " + scopeHintFor(perm),
+			})
+			return
+		}
+
+		// Path 2: session role.
 		roleValue, exists := c.Get("role")
 		if !exists {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "role not determined"})
@@ -417,4 +495,15 @@ func ValidateResourceOwnership(checker ResourceOwnershipChecker, resourceType, r
 
 		c.Next()
 	}
+}
+
+// scopeHintFor returns a short comma-separated list of scopes that
+// would satisfy the given permission, for inclusion in the 403 error
+// body. Always mentions `admin` as the universal fallback.
+func scopeHintFor(perm Permission) string {
+	scopes := permissionSatisfyingScopes[perm]
+	if len(scopes) == 0 {
+		return "admin (this permission has no non-admin scope mapping yet)"
+	}
+	return strings.Join(append(scopes, "admin"), ", ")
 }

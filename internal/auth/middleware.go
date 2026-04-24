@@ -26,6 +26,36 @@ type AuthInfo struct {
 	Method    string
 }
 
+// ActorUserID returns the user UUID to stamp on rows that carry a
+// created_by / user FK. For JWT auth this is the user_id from the token.
+// For API-key auth the key itself has no user row, so we fall back to the
+// ancestor user who minted the key (stamped into the context as
+// "api_key_created_by" by the middleware). Returns uuid.Nil when neither
+// is present — callers that require a non-nil actor should check the
+// zero value and 422 with an actionable message.
+func ActorUserID(c *gin.Context) uuid.UUID {
+	if v, ok := c.Get(ContextKeyUserID); ok {
+		switch id := v.(type) {
+		case uuid.UUID:
+			if id != uuid.Nil {
+				return id
+			}
+		case string:
+			if parsed, err := uuid.Parse(id); err == nil {
+				return parsed
+			}
+		}
+	}
+	if v, ok := c.Get("api_key_created_by"); ok {
+		if s, ok := v.(string); ok && s != "" {
+			if parsed, err := uuid.Parse(s); err == nil {
+				return parsed
+			}
+		}
+	}
+	return uuid.Nil
+}
+
 // GetAuthInfo extracts authentication information from the Gin context
 func GetAuthInfo(c *gin.Context) (*AuthInfo, bool) {
 	info := &AuthInfo{}

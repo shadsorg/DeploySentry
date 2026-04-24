@@ -70,14 +70,11 @@ func NewHandlerWithRollouts(service DeployService, webhookSvc *webhooks.Service,
 }
 
 // actorFromDeployContext extracts the authenticated user UUID from the Gin
-// context, falling back to uuid.Nil when no user_id key is present.
+// context. For JWT auth this is user_id from the token; for API-key auth
+// it falls back to the ancestor user who minted the key (api_key_created_by).
+// Delegates to auth.ActorUserID so the logic stays in one place.
 func actorFromDeployContext(c *gin.Context) uuid.UUID {
-	if v, ok := c.Get("user_id"); ok {
-		if id, ok := v.(uuid.UUID); ok {
-			return id
-		}
-	}
-	return uuid.Nil
+	return auth.ActorUserID(c)
 }
 
 // RegisterRoutes mounts all deployment API routes on the given router group.
@@ -142,11 +139,18 @@ func (h *Handler) createDeployment(c *gin.Context) {
 		return
 	}
 
-	// In a real application, created_by comes from the authenticated user context.
-	userID, _ := c.Get("user_id")
-	createdBy, ok := userID.(uuid.UUID)
-	if !ok {
-		createdBy = uuid.Nil
+	// created_by comes from the authenticated caller. For JWT this is the
+	// session user; for API-key auth the ancestor user is threaded through
+	// the context as api_key_created_by (see auth.ActorUserID). When the
+	// caller is an API key with no ancestor on record, surface an
+	// actionable 422 instead of the downstream "created_by is required".
+	createdBy := auth.ActorUserID(c)
+	if method, _ := c.Get("auth_method"); method == "api_key" && createdBy == uuid.Nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error": "cannot determine created_by: the calling api key has no associated user on record; " +
+				"mint a key from the dashboard (which stamps the creating user) and retry",
+		})
+		return
 	}
 
 	mode := models.DeployMode(req.Mode)

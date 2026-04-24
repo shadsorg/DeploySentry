@@ -23,8 +23,13 @@ func setupRouter(appID, envID uuid.UUID, keyAppID *uuid.UUID, keyEnvs []string) 
 
 	// Inject fake auth context so the env-resolution path exercises the
 	// api_key branch without standing up real middleware.
+	// Mirror what the real middleware sets on API-key auth, including
+	// the ancestor user stamped as api_key_created_by so the handler
+	// can populate deployments.created_by for the auto-create path.
+	creator := uuid.New()
 	router.Use(func(c *gin.Context) {
 		c.Set("auth_method", "api_key")
+		c.Set("api_key_created_by", creator.String())
 		if keyAppID != nil {
 			c.Set("api_key_app_id", keyAppID.String())
 		}

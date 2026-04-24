@@ -934,3 +934,91 @@ func TestRequireScope_APIKeyBadScopesType(t *testing.T) {
 
 	assert.Equal(t, http.StatusForbidden, w.Code)
 }
+
+// -----------------------------------------------------------------------------
+// RequirePermission — API key scope path (added alongside the RBAC role path).
+// -----------------------------------------------------------------------------
+
+func TestRequirePermission_APIKeyScope_DeploysWriteSatisfiesDeployCreate(t *testing.T) {
+	rbac := NewRBACChecker()
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	_, r := gin.CreateTestContext(w)
+
+	r.GET("/test", func(ctx *gin.Context) {
+		ctx.Set("auth_method", "api_key")
+		ctx.Set("api_key_scopes", []string{"deploys:write"})
+		RequirePermission(rbac, PermDeployCreate)(ctx)
+	}, func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test", nil))
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestRequirePermission_APIKeyScope_AdminSatisfiesEverything(t *testing.T) {
+	rbac := NewRBACChecker()
+	gin.SetMode(gin.TestMode)
+
+	perms := []Permission{
+		PermDeployCreate, PermDeployPromote, PermDeployRollback,
+		PermFlagCreate, PermFlagUpdate, PermFlagArchive,
+		PermReleaseCreate, PermReleasePromote,
+		PermStatusWrite, PermAPIKeyManage,
+	}
+	for _, perm := range perms {
+		t.Run(string(perm), func(t *testing.T) {
+			w := httptest.NewRecorder()
+			_, r := gin.CreateTestContext(w)
+			r.GET("/test", func(ctx *gin.Context) {
+				ctx.Set("auth_method", "api_key")
+				ctx.Set("api_key_scopes", []string{"admin"})
+				RequirePermission(rbac, perm)(ctx)
+			}, func(ctx *gin.Context) {
+				ctx.JSON(http.StatusOK, gin.H{"status": "ok"})
+			})
+			r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test", nil))
+			assert.Equal(t, http.StatusOK, w.Code, "admin scope must satisfy %s", perm)
+		})
+	}
+}
+
+func TestRequirePermission_APIKeyScope_InsufficientReturnsActionableBody(t *testing.T) {
+	rbac := NewRBACChecker()
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	_, r := gin.CreateTestContext(w)
+
+	r.GET("/test", func(ctx *gin.Context) {
+		ctx.Set("auth_method", "api_key")
+		ctx.Set("api_key_scopes", []string{"flags:read"})
+		RequirePermission(rbac, PermDeployCreate)(ctx)
+	}, func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test", nil))
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "deploys:write")
+	assert.Contains(t, w.Body.String(), "admin")
+	assert.Contains(t, w.Body.String(), "flags:read") // echoes the scopes the key DID have
+}
+
+func TestRequirePermission_APIKeyScope_ReadImpliedByWrite(t *testing.T) {
+	rbac := NewRBACChecker()
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	_, r := gin.CreateTestContext(w)
+
+	r.GET("/test", func(ctx *gin.Context) {
+		ctx.Set("auth_method", "api_key")
+		ctx.Set("api_key_scopes", []string{"flags:write"})
+		RequirePermission(rbac, PermFlagRead)(ctx)
+	}, func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/test", nil))
+	assert.Equal(t, http.StatusOK, w.Code, "flags:write should also satisfy flag:read")
+}

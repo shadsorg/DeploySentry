@@ -87,7 +87,8 @@ function statusBadgeClass(status: string): string {
   }
 }
 
-function healthColorClass(score: number): string {
+function healthColorClass(score: number | undefined | null): string {
+  if (score == null) return 'text-muted';
   if (score >= 99) return 'text-success';
   if (score >= 95) return 'text-warning';
   return 'text-danger';
@@ -314,7 +315,7 @@ export default function DeploymentDetailPage() {
         <div className="info-card">
           <div className="info-card-label">Health</div>
           <div className={`info-card-value ${healthColorClass(dep.health_score)}`}>
-            {dep.health_score}%
+            {dep.health_score != null ? `${dep.health_score}%` : '—'}
           </div>
         </div>
         <div className="info-card">

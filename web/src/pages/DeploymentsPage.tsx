@@ -4,6 +4,7 @@ import type { Deployment, DeployStrategy, DeployStatus, OrgEnvironment, RolloutP
 import { entitiesApi, deploymentsApi, rolloutPolicyApi } from '@/api';
 import { StrategyPicker } from '@/components/rollout/StrategyPicker';
 import { GroupPicker } from '@/components/rollout/GroupPicker';
+import Combobox, { type ComboboxOption } from '@/components/Combobox';
 import { resolvePolicy } from '@/lib/policyResolver';
 
 // ---------------------------------------------------------------------------
@@ -57,16 +58,34 @@ function statusLabel(status: DeployStatus): string {
   }
 }
 
-function healthColor(score: number): string {
+// Record-mode deploys don't compute a health_score; render neutral colors
+// when the value is missing instead of blowing up at `.toFixed`.
+function healthColor(score: number | undefined | null): string {
+  if (score == null) return 'text-muted';
   if (score >= 95) return 'text-success';
   if (score >= 80) return 'text-warning';
   return 'text-danger';
 }
 
-function trafficBarColor(score: number): string {
+function trafficBarColor(score: number | undefined | null): string {
+  if (score == null) return 'var(--color-muted, var(--color-text-muted))';
   if (score >= 95) return 'var(--color-success)';
   if (score >= 80) return 'var(--color-warning)';
   return 'var(--color-danger)';
+}
+
+function formatRelative(iso: string): string {
+  const then = new Date(iso).getTime();
+  const diff = Date.now() - then;
+  if (diff < 0) return 'just now';
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
 }
 
 function formatTime(iso: string): string {
@@ -116,6 +135,10 @@ const DeploymentsPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [policies, setPolicies] = useState<RolloutPolicy[]>([]);
+  // Autocomplete suggestions sourced from deploy history for the selected app/env.
+  const [artifactOptions, setArtifactOptions] = useState<ComboboxOption[]>([]);
+  const [versionOptions, setVersionOptions] = useState<ComboboxOption[]>([]);
+  const [appId, setAppId] = useState<string>('');
 
   const load = useCallback(() => {
     if (!orgSlug || !projectSlug || !appSlug) {
@@ -127,7 +150,10 @@ const DeploymentsPage: React.FC = () => {
 
     entitiesApi
       .getApp(orgSlug, projectSlug, appSlug)
-      .then((app) => deploymentsApi.list(app.id))
+      .then((app) => {
+        setAppId(app.id);
+        return deploymentsApi.list(app.id);
+      })
       .then((result) => setDeployments(result.deployments ?? []))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -149,6 +175,46 @@ const DeploymentsPage: React.FC = () => {
     if (!creating || !orgSlug) return;
     rolloutPolicyApi.list(orgSlug).then((r) => setPolicies(r.items ?? [])).catch(() => {});
   }, [creating, orgSlug]);
+
+  // Fetch artifact suggestions once the modal opens and the app is known.
+  useEffect(() => {
+    if (!creating || !appId) return;
+    deploymentsApi
+      .listArtifacts(appId)
+      .then((r) =>
+        setArtifactOptions(
+          (r.artifacts ?? []).map((a) => ({
+            value: a.value,
+            hint: `last seen ${formatRelative(a.last_seen_at)}`,
+          })),
+        ),
+      )
+      .catch(() => setArtifactOptions([]));
+  }, [creating, appId]);
+
+  // Version suggestions depend on env so re-fetch on env change.
+  useEffect(() => {
+    if (!creating || !appId) {
+      setVersionOptions([]);
+      return;
+    }
+    deploymentsApi
+      .listVersions(appId, envId || undefined)
+      .then((r) =>
+        setVersionOptions(
+          (r.versions ?? []).map((v) => ({
+            value: v.version,
+            hint: [
+              v.commit_sha ? `${v.commit_sha.slice(0, 7)}` : null,
+              `last seen ${formatRelative(v.last_seen_at)}`,
+            ]
+              .filter(Boolean)
+              .join(' · '),
+          })),
+        ),
+      )
+      .catch(() => setVersionOptions([]));
+  }, [creating, appId, envId]);
 
   const envName = environments.find((e) => e.id === envId)?.name;
   const effective = resolvePolicy(policies, envName, 'deploy');
@@ -255,22 +321,20 @@ const DeploymentsPage: React.FC = () => {
             <h3>New Deployment</h3>
             <div className="form-group">
               <label className="form-label">Artifact URL / Version Ref</label>
-              <input
-                className="form-input"
-                type="text"
-                placeholder="e.g. gcr.io/my-project/app:v1.2.3"
+              <Combobox
                 value={artifact}
-                onChange={(e) => setArtifact(e.target.value)}
+                onChange={setArtifact}
+                options={artifactOptions}
+                placeholder="e.g. gcr.io/my-project/app:v1.2.3"
               />
             </div>
             <div className="form-group">
               <label className="form-label">Version</label>
-              <input
-                className="form-input"
-                type="text"
-                placeholder="e.g. v1.2.3"
+              <Combobox
                 value={version}
-                onChange={(e) => setVersion(e.target.value)}
+                onChange={setVersion}
+                options={versionOptions}
+                placeholder="e.g. v1.2.3"
               />
             </div>
             <div className="form-group">
@@ -430,7 +494,7 @@ const DeploymentsPage: React.FC = () => {
                     </td>
                     <td>
                       <span className={healthColor(dep.health_score)}>
-                        {dep.health_score.toFixed(1)}%
+                        {dep.health_score != null ? `${dep.health_score.toFixed(1)}%` : '—'}
                       </span>
                     </td>
                     <td className="text-sm text-secondary" style={{ whiteSpace: 'nowrap' }}>

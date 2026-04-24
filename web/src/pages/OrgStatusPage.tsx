@@ -196,7 +196,7 @@ function EnvChip({ cell }: { cell: OrgStatusEnvCell }) {
   const label = cell.environment.slug ?? '??';
   const tooltip = tooltipFor(cell);
   const classes = ['env-chip'];
-  if (cell.never_deployed) {
+  if (cell.never_deployed && !cell.latest_build) {
     classes.push('env-chip-faded');
   } else {
     classes.push(`health-${cell.health.state}`);
@@ -204,10 +204,44 @@ function EnvChip({ cell }: { cell: OrgStatusEnvCell }) {
     if (cell.health.staleness === 'missing' && cell.health.state !== 'unknown') classes.push('missing');
   }
   return (
-    <span className={classes.join(' ')} title={tooltip}>
-      {label}
+    <span className="env-chip-group" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <span className={classes.join(' ')} title={tooltip}>
+        {label}
+      </span>
+      {cell.latest_build && <BuildPill build={cell.latest_build} />}
     </span>
   );
+}
+
+function BuildPill({ build }: { build: NonNullable<OrgStatusEnvCell['latest_build']> }) {
+  const running = build.status === 'pending' || build.status === 'running';
+  const failed = build.status === 'failed' || build.status === 'cancelled';
+  const variant = running ? 'pending' : failed ? 'failed' : 'completed';
+  const label = build.workflow_name ? build.workflow_name : 'build';
+  const tooltip = [
+    `${label}: ${build.status}`,
+    build.version ? `version: ${build.version}` : null,
+    build.commit_sha ? `sha: ${build.commit_sha.slice(0, 7)}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const content = (
+    <span
+      className={`status-pill status-${variant}`}
+      style={{ fontSize: 11, padding: '1px 6px' }}
+      title={tooltip}
+    >
+      {running ? `⏱ ${label}` : failed ? `✗ ${label}` : `✓ ${label}`}
+    </span>
+  );
+  if (build.html_url) {
+    return (
+      <a href={build.html_url} target="_blank" rel="noopener noreferrer">
+        {content}
+      </a>
+    );
+  }
+  return content;
 }
 
 function MonitoringLinkIcon({ link }: { link: MonitoringLink }) {

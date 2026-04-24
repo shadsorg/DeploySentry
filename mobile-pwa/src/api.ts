@@ -1,4 +1,4 @@
-import type { AuthUser, Organization } from './types';
+import type { AuthUser, Organization, OrgStatusResponse } from './types';
 
 const BASE = '/api/v1';
 
@@ -67,4 +67,8 @@ export const authApi = {
 
 export const orgsApi = {
   list: () => request<{ organizations: Organization[] }>('/orgs'),
+};
+
+export const orgStatusApi = {
+  get: (orgSlug: string) => request<OrgStatusResponse>(`/orgs/${orgSlug}/status`),
 };

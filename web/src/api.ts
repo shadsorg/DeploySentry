@@ -41,6 +41,15 @@ import type {
 
 const BASE = '/api/v1';
 
+function handleUnauthorized() {
+  // Don't redirect-loop if we're already on the login page or an auth endpoint.
+  const path = window.location.pathname;
+  if (path === '/login' || path === '/register' || path === '/') return;
+  localStorage.removeItem('ds_token');
+  const next = encodeURIComponent(path + window.location.search);
+  window.location.assign(`/login?next=${next}`);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const token = localStorage.getItem('ds_token') || '';
   const res = await fetch(`${BASE}${path}`, {
@@ -51,6 +60,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       ...init?.headers,
     },
   });
+  if (res.status === 401) {
+    handleUnauthorized();
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || 'Session expired');
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Request failed: ${res.status}`);
@@ -288,6 +302,9 @@ export const authApi = {
     }),
 
   me: () => request<AuthUser>('/users/me'),
+
+  extend: () =>
+    request<{ token: string }>('/auth/extend', { method: 'POST' }),
 
   logout: () => {
     localStorage.removeItem('ds_token');

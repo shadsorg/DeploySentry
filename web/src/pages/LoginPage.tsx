@@ -7,7 +7,11 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/portal';
+  const nextParam = new URLSearchParams(location.search).get('next');
+  const from =
+    nextParam ||
+    (location.state as { from?: { pathname: string } })?.from?.pathname ||
+    '/portal';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

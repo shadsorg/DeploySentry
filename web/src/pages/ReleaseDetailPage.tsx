@@ -67,9 +67,14 @@ export default function ReleaseDetailPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-  if (!release) return <div>Release not found.</div>;
+  if (loading) return (
+    <div className="empty-state" style={{ padding: '40px 0' }}>
+      <span className="ms" style={{ fontSize: 32, color: 'var(--color-primary)', marginBottom: 12, display: 'block' }}>sync</span>
+      Loading release…
+    </div>
+  );
+  if (error) return <div className="page-error">Error: {error}</div>;
+  if (!release) return <div className="page-error">Release not found.</div>;
 
   const actions = getReleaseActions(release.status);
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { authApi, orgsApi, setFetch } from './api';
+import { authApi, orgsApi, orgStatusApi, setFetch } from './api';
 
 describe('api', () => {
   let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
@@ -55,5 +55,27 @@ describe('api', () => {
     await expect(orgsApi.list()).rejects.toThrow();
     expect(localStorage.getItem('ds_token')).toBeNull();
     expect(assignMock).toHaveBeenCalledWith('/m/login?next=%2Fm%2Forgs');
+  });
+
+  it('orgStatusApi.get fetches /orgs/:slug/status with Bearer token', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          org: { id: '1', slug: 'acme', name: 'Acme' },
+          generated_at: '2026-04-24T00:00:00Z',
+          projects: [],
+        }),
+        { status: 200 },
+      ),
+    );
+    const res = await orgStatusApi.get('acme');
+    expect(res.org.slug).toBe('acme');
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/orgs/acme/status',
+      expect.objectContaining({}),
+    );
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer header.payload.sig');
   });
 });

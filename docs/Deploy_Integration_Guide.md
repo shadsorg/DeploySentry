@@ -200,6 +200,66 @@ Behavior:
 - `deploy.failed` / `deploy.crashed` events are recorded but do not create a deployment row.
 - Unknown environment names (not in `env_mapping`) respond with `202 Accepted` and the payload is stored but no deployment is created — fail closed, not silent.
 
+### Streaming GitHub Actions build/test status to the Status board
+
+The deploy-event webhook above records a deploy **once it has succeeded**.
+To also show CI build/test progress (pending → running → completed) as a
+pill on the Org Status board, subscribe GitHub to DeploySentry's dedicated
+`workflow_run` endpoint. Each workflow on each commit appears as its own
+lane, so build / test / e2e runs don't collide with each other.
+
+**1. Mint a scoped API key** with `status:write` scope bound to one
+application and one environment. The same key style works for both SDK
+health pushes and this webhook — you can reuse an existing key if its
+scope matches.
+
+**2. Add a repo webhook** at GitHub repo settings → Webhooks → Add webhook:
+
+- Payload URL: `https://api.deploysentry.com/api/v1/applications/<APP_ID>/integrations/github/workflow`
+- Content type: `application/json`
+- Secret: leave blank unless you want HMAC (see below).
+- SSL verification: enabled.
+- Which events: "Let me select individual events" → check only **Workflow runs**.
+
+Under the webhook's "Additional HTTP headers" (via GitHub's API or a proxy
+if your repo UI doesn't expose it), add:
+
+```
+Authorization: Bearer <ds_...>
+```
+
+If your org pins webhook delivery through a gateway that strips
+Authorization, store the bearer in the webhook's Secret field and terminate
+at a small forwarding layer — or move the integration to a GitHub App,
+which supports custom headers natively.
+
+**3. Verify deliveries** from GitHub's "Recent Deliveries" tab and on the
+DeploySentry side:
+
+```bash
+curl -H "Authorization: Bearer $DS_API_KEY" \
+  "https://api.deploysentry.com/api/v1/applications/$APP_ID/versions?limit=5"
+```
+
+Each run appears as a record-mode `deployments` row with
+`source="github-actions:<workflow-name>"`. The Org Status board renders it
+as a small pill next to the env chip — `⏱ build` while running, `✓ build`
+on success, `✗ build` on failure (click-through to the run's GitHub page).
+
+Behavior:
+
+- Upsert key is `(application_id, environment_id, commit_sha, workflow_name)`.
+  Re-runs of the same workflow update the same row; build + test + e2e
+  workflows run alongside each other as separate lanes.
+- `requested` / `in_progress` events set `status=running`.
+- `completed` events set `status=completed` / `failed` / `cancelled` per
+  the run's conclusion.
+- `ping` events return 200 immediately so GitHub shows the webhook as
+  healthy without creating a row.
+- Optional HMAC: if the API key has a `github_secret` stored in metadata,
+  the endpoint verifies `X-Hub-Signature-256`. Bearer auth is required
+  regardless.
+
 ### Using a first-party SDK
 
 If you're already using one of the DeploySentry SDKs for feature flags, enabling status reporting is a one-line config change — no new dependency, no handwritten HTTP call. All server SDKs share the same contract: set `reportStatus` / `report_status` / `WithReportStatus(true)`, pass the application UUID, and optionally supply a health provider.

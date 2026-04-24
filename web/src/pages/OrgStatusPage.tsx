@@ -239,8 +239,8 @@ function Favicon({ url, label }: { url: string; label: string }) {
       return '';
     }
   }, [url]);
-  if (!host) return <span>{label}</span>;
   const [broken, setBroken] = useState(false);
+  if (!host) return <span>{label}</span>;
   if (broken) return <span>{label[0]?.toUpperCase() ?? '?'}</span>;
   return (
     <img

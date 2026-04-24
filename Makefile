@@ -1,4 +1,4 @@
-.PHONY: dev-up dev-down migrate-up migrate-down run-api run-web test test-unit test-int build docker-build dev-deploy lint clean help dev-setup dev-cli e2e-sdk-up e2e-sdk-down e2e-sdk e2e-sdk-debug
+.PHONY: dev-up dev-down migrate-up migrate-down run-api run-web test test-unit test-int build docker-build dev-deploy lint clean help dev-setup dev-cli e2e-sdk-up e2e-sdk-down e2e-sdk e2e-sdk-debug run-mobile build-mobile
 
 # Build metadata
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
@@ -69,6 +69,14 @@ run-api:
 ## run-web: Run the web frontend dev server
 run-web:
 	cd web && npm run dev
+
+## run-mobile: Run the mobile PWA dev server (port 3002)
+run-mobile:
+	cd mobile-pwa && npm install && npm run dev
+
+## build-mobile: Build the mobile PWA for production into mobile-pwa/dist
+build-mobile:
+	cd mobile-pwa && npm install && npm run build
 
 ## test: Run all tests
 test:

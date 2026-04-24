@@ -107,5 +107,25 @@ transitions visible by row.
 
 ---
 
+## Automated runner
+
+`scripts/smoke-github-workflow.sh` executes Parts A–E (minus the UI
+check and, optionally, Part C — it's skipped when `DS_DATABASE_DSN` /
+`psql` are unavailable). Invoke:
+
+```bash
+DS_API_KEY=ds_xxx \
+APP_ID=<uuid> \
+ENV_ID=<uuid> \
+OTHER_APP_ID=<uuid> \
+DS_DATABASE_DSN=postgres://… \
+bash scripts/smoke-github-workflow.sh
+```
+
+Exit code 0 = all runnable parts passed. The script prints per-step
+`PASS` / `FAIL` / `SKIP` with a summary at the end.
+
+---
+
 If all of A1–A3, B1–B4, C, D, and the idempotency check pass, the
 integration is ready to point at a real GitHub repo.

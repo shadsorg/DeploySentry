@@ -99,9 +99,18 @@ export default function MembersPage() {
 
   return (
     <div className="page-content">
-      <h2>Members &amp; Groups</h2>
+      <div className="page-header-row">
+        <div className="page-header" style={{ marginBottom: 0 }}>
+          <h1>Members &amp; Groups</h1>
+          <p>Manage your team's access levels across the organization.</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => {}}>
+          <span className="ms" style={{ fontSize: 16 }}>person_add</span>
+          Invite Member
+        </button>
+      </div>
 
-      <div className="detail-tabs">
+      <div className="detail-tabs" style={{ marginTop: 20 }}>
         <button
           className={`detail-tab${activeTab === 'members' ? ' active' : ''}`}
           onClick={() => setActiveTab('members')}
@@ -149,74 +158,81 @@ export default function MembersPage() {
           )}
 
           {loading ? (
-            <p className="text-muted">Loading members...</p>
+            <div className="empty-state">Loading members…</div>
           ) : members.length === 0 ? (
-            <p className="empty-state">No members yet. Add one above.</p>
+            <div className="empty-state card"><p>No members yet. Add one above.</p></div>
           ) : (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Org Role</th>
-                  <th>Joined</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {members.map((m) => (
-                  <tr key={m.id}>
-                    <td>{m.name}</td>
-                    <td>{m.email}</td>
-                    <td>
-                      <span className={`badge badge-${m.role}`}>{m.role}</span>
-                    </td>
-                    <td>{formatDate(m.joined_at)}</td>
-                    <td>
-                      <div
-                        style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}
-                      >
-                        {m.role === 'owner' ? (
-                          <span className="text-muted">Owner</span>
-                        ) : (
-                          <select
-                            className="form-select"
-                            value={m.role}
-                            onChange={(e) => handleChangeRole(m.user_id, e.target.value)}
-                          >
-                            <option value="admin">Admin</option>
-                            <option value="member">Member</option>
-                            <option value="viewer">Viewer</option>
-                          </select>
-                        )}
-
-                        {confirmDelete === m.user_id ? (
-                          <span className="inline-confirm">
-                            Are you sure?{' '}
-                            <button
-                              className="btn btn-sm btn-danger"
-                              onClick={() => handleRemoveMember(m.user_id)}
-                            >
-                              Yes
-                            </button>{' '}
-                            <button className="btn btn-sm" onClick={() => setConfirmDelete(null)}>
-                              No
-                            </button>
-                          </span>
-                        ) : (
-                          <button
-                            className="btn btn-sm btn-danger"
-                            onClick={() => setConfirmDelete(m.user_id)}
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                    </td>
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>Team Directory</span>
+                <span className="text-xs text-secondary">{members.length} member{members.length !== 1 ? 's' : ''}</span>
+              </div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Member</th>
+                    <th>Role</th>
+                    <th>Joined</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {members.map((m) => (
+                    <tr key={m.id}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{
+                            width: 34, height: 34, borderRadius: '50%',
+                            background: 'var(--color-primary-bg)', border: '1px solid var(--color-border)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 11, fontWeight: 700, color: 'var(--color-primary)',
+                            flexShrink: 0,
+                          }}>
+                            {m.name ? m.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() : '?'}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: 14 }}>{m.name}</div>
+                            <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{m.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`badge badge-${m.role}`}>{m.role}</span>
+                      </td>
+                      <td>{formatDate(m.joined_at)}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                          {m.role === 'owner' ? (
+                            <span className="text-muted">Owner</span>
+                          ) : (
+                            <select
+                              className="form-select"
+                              style={{ maxWidth: 120 }}
+                              value={m.role}
+                              onChange={(e) => handleChangeRole(m.user_id, e.target.value)}
+                            >
+                              <option value="admin">Admin</option>
+                              <option value="member">Member</option>
+                              <option value="viewer">Viewer</option>
+                            </select>
+                          )}
+                          {confirmDelete === m.user_id ? (
+                            <span className="inline-confirm">
+                              <button className="btn btn-sm btn-danger" onClick={() => handleRemoveMember(m.user_id)}>Yes</button>
+                              <button className="btn btn-sm" onClick={() => setConfirmDelete(null)}>No</button>
+                            </span>
+                          ) : (
+                            <button className="btn btn-sm btn-danger" onClick={() => setConfirmDelete(m.user_id)}>
+                              <span className="ms" style={{ fontSize: 14 }}>person_remove</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
@@ -411,40 +427,42 @@ export default function MembersPage() {
               )}
 
               {groupsLoading ? (
-                <p className="text-muted">Loading groups...</p>
+                <div className="empty-state">Loading groups…</div>
               ) : groups.length === 0 ? (
-                <p className="empty-state">No groups yet. Create one above.</p>
+                <div className="empty-state card"><p>No groups yet. Create one above.</p></div>
               ) : (
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Description</th>
-                      <th>Members</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {groups.map((g) => (
-                      <tr key={g.id}>
-                        <td>
-                          <button
-                            className="btn btn-sm"
-                            style={{ textDecoration: 'underline', padding: 0, background: 'none', color: '#5b9bd5', cursor: 'pointer' }}
-                            onClick={() => setSelectedGroup(g)}
-                          >
-                            {g.name}
-                          </button>
-                        </td>
-                        <td>{g.description}</td>
-                        <td>{g.member_count}</td>
-                        <td>
-                          {confirmDeleteGroup === g.id ? (
-                            <span className="inline-confirm">
-                              Are you sure?{' '}
-                              <button
-                                className="btn btn-sm btn-danger"
-                                onClick={async () => {
+                <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Members</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {groups.map((g) => (
+                        <tr key={g.id}>
+                          <td>
+                            <button
+                              className="btn-link"
+                              style={{ color: 'var(--color-primary)', fontWeight: 600 }}
+                              onClick={() => setSelectedGroup(g)}
+                            >
+                              {g.name}
+                            </button>
+                          </td>
+                          <td className="text-secondary">{g.description}</td>
+                          <td>
+                            <span className="badge" style={{ background: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)' }}>
+                              {g.member_count}
+                            </span>
+                          </td>
+                          <td>
+                            {confirmDeleteGroup === g.id ? (
+                              <span className="inline-confirm">
+                                <button className="btn btn-sm btn-danger" onClick={async () => {
                                   if (!orgSlug) return;
                                   setGroupActionError(null);
                                   try {
@@ -455,27 +473,18 @@ export default function MembersPage() {
                                     setGroupActionError(err instanceof Error ? err.message : 'Failed to delete group');
                                     setConfirmDeleteGroup(null);
                                   }
-                                }}
-                              >
-                                Yes
-                              </button>{' '}
-                              <button className="btn btn-sm" onClick={() => setConfirmDeleteGroup(null)}>
-                                No
-                              </button>
-                            </span>
-                          ) : (
-                            <button
-                              className="btn btn-sm btn-danger"
-                              onClick={() => setConfirmDeleteGroup(g.id)}
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                                }}>Yes</button>
+                                <button className="btn btn-sm" onClick={() => setConfirmDeleteGroup(null)}>No</button>
+                              </span>
+                            ) : (
+                              <button className="btn btn-sm btn-danger" onClick={() => setConfirmDeleteGroup(g.id)}>Delete</button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           )}

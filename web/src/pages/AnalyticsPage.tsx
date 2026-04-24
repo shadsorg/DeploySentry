@@ -42,49 +42,50 @@ export default function AnalyticsPage() {
   return (
     <div className="analytics-page">
       <div className="page-header-row">
-        <h1 className="page-header">{projectName ? `${projectName} — Analytics` : 'Analytics'}</h1>
-
-        <div className="time-range-selector">
-          <label htmlFor="time-range">Time Range:</label>
-          <select
-            id="time-range"
-            className="form-select"
-            value={timeRange}
-            onChange={(e) => handleTimeRangeChange(e.target.value as TimeRange)}
-          >
-            <option value="24h">Last 24 Hours</option>
-            <option value="7d">Last 7 Days</option>
-            <option value="30d">Last 30 Days</option>
-          </select>
+        <div className="page-header" style={{ marginBottom: 0 }}>
+          <h1>{projectName ? `${projectName} — Analytics` : 'Analytics'}</h1>
+          <p>Aggregated insights for this project.</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-bg-elevated)', border: '1px solid var(--color-border)', borderRadius: 8, padding: 4 }}>
+          {(['24h', '7d', '30d'] as TimeRange[]).map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => handleTimeRangeChange(r)}
+              style={{
+                padding: '6px 14px',
+                fontSize: 12,
+                fontWeight: 600,
+                borderRadius: 6,
+                border: timeRange === r ? '1px solid rgba(99,102,241,0.3)' : '1px solid transparent',
+                background: timeRange === r ? 'var(--color-primary-bg)' : 'transparent',
+                color: timeRange === r ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                cursor: 'pointer',
+              }}
+            >
+              {r === '24h' ? 'Last 24h' : r === '7d' ? '7 Days' : '30 Days'}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Tab Navigation */}
       <div className="tabs">
-        <button
-          className={`tab${activeTab === 'overview' ? ' active' : ''}`}
-          onClick={() => handleTabChange('overview')}
-        >
-          📊 Overview
-        </button>
-        <button
-          className={`tab${activeTab === 'flags' ? ' active' : ''}`}
-          onClick={() => handleTabChange('flags')}
-        >
-          🚩 Flag Analytics
-        </button>
-        <button
-          className={`tab${activeTab === 'deployments' ? ' active' : ''}`}
-          onClick={() => handleTabChange('deployments')}
-        >
-          🚀 Deployments
-        </button>
-        <button
-          className={`tab${activeTab === 'system' ? ' active' : ''}`}
-          onClick={() => handleTabChange('system')}
-        >
-          🏥 System Health
-        </button>
+        {([
+          { key: 'overview', icon: 'insights', label: 'Overview' },
+          { key: 'flags', icon: 'toggle_on', label: 'Flag Analytics' },
+          { key: 'deployments', icon: 'rocket_launch', label: 'Deployments' },
+          { key: 'system', icon: 'monitor_heart', label: 'System Health' },
+        ] as { key: TabType; icon: string; label: string }[]).map(({ key, icon, label }) => (
+          <button
+            key={key}
+            className={`tab${activeTab === key ? ' active' : ''}`}
+            onClick={() => handleTabChange(key)}
+          >
+            <span className="ms" style={{ fontSize: 15, verticalAlign: 'middle', marginRight: 6 }}>{icon}</span>
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* Tab Content */}

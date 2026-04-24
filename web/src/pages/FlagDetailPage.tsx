@@ -279,9 +279,14 @@ export default function FlagDetailPage() {
     }
   };
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-  if (!flag) return <div>Flag not found.</div>;
+  if (loading) return (
+    <div className="empty-state" style={{ padding: '40px 0' }}>
+      <span className="ms" style={{ fontSize: 32, color: 'var(--color-primary)', marginBottom: 12, display: 'block' }}>sync</span>
+      Loading flag…
+    </div>
+  );
+  if (error) return <div className="page-error">Error: {error}</div>;
+  if (!flag) return <div className="page-error">Flag not found.</div>;
 
   const handleRuleEnvToggle = async (ruleId: string, envId: string, currentEnabled: boolean) => {
     if (!id) return;
@@ -379,16 +384,29 @@ export default function FlagDetailPage() {
     <div>
       {/* Header Section */}
       <div className="detail-header">
-        <Link to={backPath}>&larr; Back to Flags</Link>
+        <Link to={backPath} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, color: 'var(--color-text-muted)', textDecoration: 'none', marginBottom: 12 }}>
+          <span className="ms" style={{ fontSize: 14 }}>arrow_back</span>
+          Back to Flags
+        </Link>
 
         <div className="detail-header-top">
           <div>
-            <h1 className="detail-header-title">{flag.name}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 10,
+                background: 'var(--color-primary-bg)', border: '1px solid rgba(99,102,241,0.25)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>toggle_on</span>
+              </div>
+              <h1 className="detail-header-title" style={{ fontFamily: 'var(--font-display)', fontWeight: 800, letterSpacing: '-0.02em' }}>{flag.name}</h1>
+            </div>
             <span className="flag-key">{flag.key}</span>
           </div>
           <div className="detail-header-badges">
             <span className={`badge badge-${flag.category}`}>{flag.category}</span>
             {flag.archived && <span className="badge badge-disabled">Archived</span>}
+            <span className="badge badge-ops">{flag.flag_type}</span>
           </div>
         </div>
 
@@ -425,36 +443,22 @@ export default function FlagDetailPage() {
 
       {/* Tabs */}
       <div className="detail-tabs">
-        <button
-          className={`detail-tab${activeTab === 'environments' ? ' active' : ''}`}
-          onClick={() => setActiveTab('environments')}
-        >
-          Environments
-        </button>
-        <button
-          className={`detail-tab${activeTab === 'rules' ? ' active' : ''}`}
-          onClick={() => setActiveTab('rules')}
-        >
-          Targeting Rules
-        </button>
-        <button
-          className={`detail-tab${activeTab === 'yaml' ? ' active' : ''}`}
-          onClick={() => setActiveTab('yaml')}
-        >
-          YAML
-        </button>
-        <button
-          className={`detail-tab${activeTab === 'settings' ? ' active' : ''}`}
-          onClick={() => setActiveTab('settings')}
-        >
-          Settings
-        </button>
-        <button
-          className={`detail-tab${activeTab === 'lifecycle' ? ' active' : ''}`}
-          onClick={() => setActiveTab('lifecycle')}
-        >
-          Lifecycle
-        </button>
+        {[
+          { key: 'environments', icon: 'lan', label: 'Environments' },
+          { key: 'rules', icon: 'rule', label: 'Targeting Rules' },
+          { key: 'yaml', icon: 'code', label: 'YAML' },
+          { key: 'settings', icon: 'tune', label: 'Settings' },
+          { key: 'lifecycle', icon: 'event_available', label: 'Lifecycle' },
+        ].map(({ key, icon, label }) => (
+          <button
+            key={key}
+            className={`detail-tab${activeTab === key ? ' active' : ''}`}
+            onClick={() => setActiveTab(key as typeof activeTab)}
+          >
+            <span className="ms" style={{ fontSize: 15, verticalAlign: 'middle', marginRight: 5 }}>{icon}</span>
+            {label}
+          </button>
+        ))}
         <button
           className={`detail-tab${activeTab === 'history' ? ' active' : ''}`}
           onClick={() => setActiveTab('history')}

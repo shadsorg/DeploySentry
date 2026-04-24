@@ -152,23 +152,6 @@ export const deploymentsApi = {
   desiredState: (id: string) => request<any>(`/deployments/${id}/desired-state`),
   rollbackHistory: (id: string) => request<{ rollbacks: any[] }>(`/deployments/${id}/rollback-history`),
   phases: (id: string) => request<{ phases: DeploymentPhase[] }>(`/deployments/${id}/phases`),
-  // Autocomplete helpers for the New Deployment form. Both endpoints return
-  // recency-sorted distinct values (cap: 50) from the deployments history.
-  listArtifacts: (appId: string) =>
-    request<{ artifacts: { value: string; last_seen_at: string }[] }>(
-      `/applications/${appId}/artifacts`,
-    ),
-  listVersions: (appId: string, envId?: string) => {
-    const qs = envId ? `?environment_id=${encodeURIComponent(envId)}` : '';
-    return request<{
-      versions: {
-        version: string;
-        commit_sha?: string;
-        last_seen_at: string;
-        environment_ids?: string[];
-      }[];
-    }>(`/applications/${appId}/versions${qs}`);
-  },
 };
 
 // Agents

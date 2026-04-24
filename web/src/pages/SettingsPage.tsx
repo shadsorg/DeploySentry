@@ -473,19 +473,32 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
       {/* Page header */}
       <div className="page-header">
         <h1>{headingMap[level]}</h1>
+        <p>Configure {level === 'org' ? 'organization-wide' : level === 'project' ? 'project' : 'application'} settings and integrations.</p>
       </div>
 
       {/* Tabs */}
       <div className="tabs">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            className={`tab${activeTab === t.key ? ' active' : ''}`}
-            onClick={() => setActiveTab(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
+        {tabs.map((t) => {
+          const iconMap: Record<string, string> = {
+            environments: 'lan',
+            webhooks: 'webhook',
+            notifications: 'notifications',
+            'rollout-policy': 'policy',
+            general: 'settings',
+            authorization: 'lock',
+            danger: 'warning',
+          };
+          return (
+            <button
+              key={t.key}
+              className={`tab${activeTab === t.key ? ' active' : ''}`}
+              onClick={() => setActiveTab(t.key)}
+            >
+              <span className="ms" style={{ fontSize: 15, verticalAlign: 'middle', marginRight: 5 }}>{iconMap[t.key] ?? 'settings'}</span>
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* ------------------------------------------------------------------ */}

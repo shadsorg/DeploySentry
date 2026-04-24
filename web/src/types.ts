@@ -97,9 +97,7 @@ export interface Deployment {
   mode?: 'orchestrate' | 'record';
   source?: string | null;
   traffic_percent: number;
-  // Optional: record-mode deploys bypass the phase engine and never
-  // compute a health score. Treat missing as "unknown".
-  health_score?: number;
+  health_score: number;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -240,21 +238,9 @@ export interface OrgStatusDeploymentMini {
   completed_at?: string | null;
 }
 
-export interface OrgStatusBuildMini {
-  id: string;
-  workflow_name: string;
-  status: string;
-  version: string;
-  commit_sha?: string;
-  html_url?: string;
-  started_at?: string | null;
-  completed_at?: string | null;
-}
-
 export interface OrgStatusEnvCell {
   environment: { id: string; slug?: string; name?: string };
   current_deployment?: OrgStatusDeploymentMini | null;
-  latest_build?: OrgStatusBuildMini | null;
   health: OrgStatusHealthBlock;
   never_deployed: boolean;
 }

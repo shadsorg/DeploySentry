@@ -128,9 +128,10 @@ export default function RolloutsPage() {
 
   return (
     <div className="page">
-      <header className="page-header">
+      <div className="page-header">
         <h1>Rollouts</h1>
-      </header>
+        <p>Monitor active and historical rollouts across all projects.</p>
+      </div>
 
       <section className="rollouts-filter-bar">
         <div className="filter-group">
@@ -194,81 +195,103 @@ export default function RolloutsPage() {
         )}
       </section>
 
-      {loading && <p>Loading…</p>}
+      {loading && (
+        <div className="empty-state" style={{ padding: '40px 0' }}>
+          <span className="ms" style={{ fontSize: 32, color: 'var(--color-primary)', marginBottom: 12, display: 'block' }}>sync</span>
+          Loading rollouts…
+        </div>
+      )}
 
       {!loading && items.length === 0 && (
-        <p className="empty-state">
-          No rollouts match the filter.
+        <div className="empty-state card" style={{ padding: '48px 24px' }}>
+          <span className="ms" style={{ fontSize: 40, color: 'var(--color-text-muted)', marginBottom: 12, display: 'block' }}>dynamic_feed</span>
+          <h3>No rollouts match the filter</h3>
           {!includeTerminal && !includeStale && filter === '' && (
-            <> Try "Include completed" or "Include stale pending" to see historical rows.</>
+            <p>Try "Include completed" or "Include stale pending" to see historical rows.</p>
           )}
-        </p>
+        </div>
       )}
 
       {items.length > 0 && (
         <>
-          <table className="data-table rollouts-table">
-            <thead>
-              <tr>
-                <th className="sortable" onClick={() => toggleSort('target')}>
-                  Target{sortIndicator(sortKey === 'target', sortDir)}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('strategy')}>
-                  Strategy{sortIndicator(sortKey === 'strategy', sortDir)}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('phase')}>
-                  Phase{sortIndicator(sortKey === 'phase', sortDir)}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('status')}>
-                  Status{sortIndicator(sortKey === 'status', sortDir)}
-                </th>
-                <th className="sortable" onClick={() => toggleSort('age')}>
-                  Created{sortIndicator(sortKey === 'age', sortDir)}
-                </th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((r) => {
-                const steps = r.strategy_snapshot.steps ?? [];
-                const currentPct = steps[r.current_phase_index]?.percent;
-                return (
-                  <tr key={r.id}>
-                    <td>
-                      <div style={{ fontWeight: 500 }}>
-                        {r.target?.summary || `${r.target_type} · ${r.id.slice(0, 8)}`}
-                      </div>
-                      {r.target?.kind === 'deploy' && r.target.version && (
-                        <div className="row-subtitle">
-                          version {r.target.version.slice(0, 12)}
-                          {r.target.environment_slug ? ` · ${r.target.environment_slug}` : ''}
-                        </div>
-                      )}
-                      {r.target?.kind === 'config' && r.target.flag_key && (
-                        <div className="row-subtitle">
-                          flag {r.target.flag_key}
-                          {r.target.environment_slug ? ` · ${r.target.environment_slug}` : ''}
-                        </div>
-                      )}
-                    </td>
-                    <td>{r.strategy_snapshot.name}</td>
-                    <td>
-                      {r.current_phase_index + 1}/{steps.length || '—'}
-                      {currentPct !== undefined && <> · {currentPct}%</>}
-                    </td>
-                    <td><RolloutStatusBadge status={r.status} /></td>
-                    <td>
-                      <div>{new Date(r.created_at).toLocaleString()}</div>
-                      <div className="row-subtitle">{formatAge(r.age_seconds)} ago</div>
-                    </td>
-                    <td>
-                      <Link to={`/orgs/${orgSlug}/rollouts/${r.id}`} className="btn">Open</Link>
-                    </td>
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid var(--color-border)', gap: 8 }}>
+              <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>monitoring</span>
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15 }}>Active Rollouts</span>
+              <span className="badge" style={{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)', marginLeft: 4 }}>
+                {items.length}
+              </span>
+              {loading && <span className="ms" style={{ fontSize: 16, color: 'var(--color-text-muted)', marginLeft: 'auto', animation: 'spin 1s linear infinite' }}>sync</span>}
+            </div>
+            <div className="table-container">
+              <table className="rollouts-table">
+                <thead>
+                  <tr>
+                    <th className="sortable" onClick={() => toggleSort('target')}>
+                      Target{sortIndicator(sortKey === 'target', sortDir)}
+                    </th>
+                    <th className="sortable" onClick={() => toggleSort('strategy')}>
+                      Strategy{sortIndicator(sortKey === 'strategy', sortDir)}
+                    </th>
+                    <th className="sortable" onClick={() => toggleSort('phase')}>
+                      Phase{sortIndicator(sortKey === 'phase', sortDir)}
+                    </th>
+                    <th className="sortable" onClick={() => toggleSort('status')}>
+                      Status{sortIndicator(sortKey === 'status', sortDir)}
+                    </th>
+                    <th className="sortable" onClick={() => toggleSort('age')}>
+                      Created{sortIndicator(sortKey === 'age', sortDir)}
+                    </th>
+                    <th></th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                </thead>
+                <tbody>
+                  {sorted.map((r) => {
+                    const steps = r.strategy_snapshot.steps ?? [];
+                    const currentPct = steps[r.current_phase_index]?.percent;
+                    return (
+                      <tr key={r.id}>
+                        <td>
+                          <div style={{ fontWeight: 600, fontFamily: 'var(--font-display)' }}>
+                            {r.target?.summary || `${r.target_type} · ${r.id.slice(0, 8)}`}
+                          </div>
+                          {r.target?.kind === 'deploy' && r.target.version && (
+                            <div className="row-subtitle">
+                              version {r.target.version.slice(0, 12)}
+                              {r.target.environment_slug ? ` · ${r.target.environment_slug}` : ''}
+                            </div>
+                          )}
+                          {r.target?.kind === 'config' && r.target.flag_key && (
+                            <div className="row-subtitle">
+                              flag {r.target.flag_key}
+                              {r.target.environment_slug ? ` · ${r.target.environment_slug}` : ''}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <span className="badge" style={{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)', borderRadius: 4 }}>
+                            {r.strategy_snapshot.name}
+                          </span>
+                        </td>
+                        <td>
+                          {r.current_phase_index + 1}/{steps.length || '—'}
+                          {currentPct !== undefined && <> · {currentPct}%</>}
+                        </td>
+                        <td><RolloutStatusBadge status={r.status} /></td>
+                        <td>
+                          <div>{new Date(r.created_at).toLocaleString()}</div>
+                          <div className="row-subtitle">{formatAge(r.age_seconds)} ago</div>
+                        </td>
+                        <td>
+                          <Link to={`/orgs/${orgSlug}/rollouts/${r.id}`} className="btn btn-secondary btn-sm">Details</Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
           {totalHidden > 0 && (
             <p className="rollouts-hidden-hint">

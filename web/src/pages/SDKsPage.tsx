@@ -327,9 +327,11 @@ const SDKsPage: React.FC = () => {
   return (
     <div>
       {/* Page header */}
-      <div className="page-header">
-        <h1>{projectName ? `${projectName} — SDKs & Docs` : 'SDKs & Integration'}</h1>
-        <p>Install a DeploySentry SDK to evaluate feature flags in your application</p>
+      <div className="page-header-row">
+        <div className="page-header" style={{ marginBottom: 0 }}>
+          <h1>{projectName ? `${projectName} — SDKs & Docs` : 'SDKs & Integration'}</h1>
+          <p>Install a DeploySentry SDK to evaluate feature flags in your application.</p>
+        </div>
       </div>
 
       {/* SDK cards grid */}
@@ -357,7 +359,7 @@ const SDKsPage: React.FC = () => {
                 title="Copy install command"
                 onClick={() => handleCopy(sdk.installCmd)}
               >
-                📋
+                <span className="ms" style={{ fontSize: 16 }}>content_copy</span>
               </button>
             </div>
             <a href="#quick-start" className="btn btn-secondary btn-sm">

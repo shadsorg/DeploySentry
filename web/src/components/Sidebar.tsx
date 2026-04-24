@@ -1,6 +1,18 @@
 import { NavLink, useParams } from 'react-router-dom';
 import OrgSwitcher from './OrgSwitcher';
 
+const NAV_ITEMS = [
+  { to: 'status',         icon: 'dashboard',     label: 'Status' },
+  { to: 'deployments',    icon: 'history',       label: 'Deploy History' },
+  { to: 'projects',       icon: 'account_tree',  label: 'Projects' },
+  { to: 'members',        icon: 'group',         label: 'Members' },
+  { to: 'api-keys',       icon: 'vpn_key',       label: 'API Keys' },
+  { to: 'strategies',     icon: 'architecture',  label: 'Strategies' },
+  { to: 'rollouts',       icon: 'dynamic_feed',  label: 'Rollouts' },
+  { to: 'rollout-groups', icon: 'layers',        label: 'Rollout Groups' },
+  { to: 'settings',       icon: 'settings',      label: 'Settings' },
+];
+
 export default function Sidebar() {
   const { orgSlug } = useParams();
 
@@ -11,79 +23,23 @@ export default function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        {orgSlug && (
-          <>
-            <NavLink
-              to={`/orgs/${orgSlug}/status`}
-              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-            >
-              <span className="nav-icon">▦</span>
-              Status
-            </NavLink>
-            <NavLink
-              to={`/orgs/${orgSlug}/deployments`}
-              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-            >
-              <span className="nav-icon">⧗</span>
-              Deploy History
-            </NavLink>
-            <NavLink
-              to={`/orgs/${orgSlug}/projects`}
-              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-            >
-              <span className="nav-icon">□</span>
-              Projects
-            </NavLink>
-            <NavLink
-              to={`/orgs/${orgSlug}/members`}
-              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-            >
-              <span className="nav-icon">@</span>
-              Members
-            </NavLink>
-            <NavLink
-              to={`/orgs/${orgSlug}/api-keys`}
-              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-            >
-              <span className="nav-icon">!</span>
-              API Keys
-            </NavLink>
-            <NavLink
-              to={`/orgs/${orgSlug}/strategies`}
-              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-            >
-              <span className="nav-icon">~</span>
-              Strategies
-            </NavLink>
-            <NavLink
-              to={`/orgs/${orgSlug}/rollouts`}
-              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-            >
-              <span className="nav-icon">↻</span>
-              Rollouts
-            </NavLink>
-            <NavLink
-              to={`/orgs/${orgSlug}/rollout-groups`}
-              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-            >
-              <span className="nav-icon">⊕</span>
-              Rollout Groups
-            </NavLink>
-            <NavLink
-              to={`/orgs/${orgSlug}/settings`}
-              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-            >
-              <span className="nav-icon">*</span>
-              Settings
-            </NavLink>
-          </>
-        )}
-        <div className="sidebar-section">Help</div>
+        {orgSlug && NAV_ITEMS.map(({ to, icon, label }) => (
+          <NavLink
+            key={to}
+            to={`/orgs/${orgSlug}/${to}`}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <span className="ms nav-icon" style={{ fontSize: 18 }}>{icon}</span>
+            {label}
+          </NavLink>
+        ))}
+
+        <div className="sidebar-section" style={{ marginTop: 20 }}>Help</div>
         <NavLink
           to="/docs"
           className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
         >
-          <span className="nav-icon">?</span>
+          <span className="ms nav-icon" style={{ fontSize: 18 }}>description</span>
           Documentation
         </NavLink>
       </nav>

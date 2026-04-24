@@ -40,31 +40,70 @@ export default function RolloutGroupsPage() {
 
   return (
     <div className="page">
-      <header className="page-header">
-        <h1>Rollout Groups</h1>
-        <div className="header-actions">
-          <button className="btn btn-primary" onClick={() => setCreating(true)}>New Group</button>
+      <div className="page-header-row">
+        <div className="page-header" style={{ marginBottom: 0 }}>
+          <h1>Rollout Groups</h1>
+          <p>Coordinate dependent rollouts across multiple applications.</p>
         </div>
-      </header>
+        <button className="btn btn-primary" onClick={() => setCreating(true)}>
+          <span className="ms" style={{ fontSize: 16 }}>add</span>
+          New Group
+        </button>
+      </div>
 
-      {loading && <p>Loading…</p>}
-      {!loading && items.length === 0 && <p className="empty-state">No rollout groups yet.</p>}
+      {loading && (
+        <div className="empty-state" style={{ padding: '40px 0' }}>
+          <span className="ms" style={{ fontSize: 32, color: 'var(--color-primary)', marginBottom: 12, display: 'block' }}>sync</span>
+          Loading groups…
+        </div>
+      )}
+      {!loading && items.length === 0 && (
+        <div className="empty-state card" style={{ padding: '48px 24px' }}>
+          <span className="ms" style={{ fontSize: 40, color: 'var(--color-text-muted)', marginBottom: 12, display: 'block' }}>layers</span>
+          <h3>No rollout groups yet</h3>
+          <p>Create a group to coordinate multi-app rollouts with a shared policy.</p>
+          <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => setCreating(true)}>
+            <span className="ms" style={{ fontSize: 16 }}>add</span>
+            New Group
+          </button>
+        </div>
+      )}
 
       {items.length > 0 && (
-        <table className="data-table">
-          <thead>
-            <tr><th>Name</th><th>Policy</th><th>Created</th></tr>
-          </thead>
-          <tbody>
-            {items.map((g) => (
-              <tr key={g.id}>
-                <td><Link to={`/orgs/${orgSlug}/rollout-groups/${g.id}`}>{g.name}</Link></td>
-                <td>{g.coordination_policy}</td>
-                <td>{new Date(g.created_at).toLocaleString()}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>layers</span>
+            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>Rollout Groups</span>
+            <span className="badge" style={{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)', marginLeft: 4 }}>{items.length}</span>
+          </div>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr><th>Name</th><th>Policy</th><th>Created</th></tr>
+              </thead>
+              <tbody>
+                {items.map((g) => (
+                  <tr key={g.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                          width: 32, height: 32, borderRadius: 8,
+                          background: 'var(--color-primary-bg)', border: '1px solid rgba(99,102,241,0.2)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                        }}>
+                          <span className="ms" style={{ fontSize: 16, color: 'var(--color-primary)' }}>layers</span>
+                        </div>
+                        <Link to={`/orgs/${orgSlug}/rollout-groups/${g.id}`} style={{ fontWeight: 600 }}>{g.name}</Link>
+                      </div>
+                    </td>
+                    <td><span className="badge badge-ops">{g.coordination_policy}</span></td>
+                    <td className="text-secondary">{new Date(g.created_at).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
       {creating && (

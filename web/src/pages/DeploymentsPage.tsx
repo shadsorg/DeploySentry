@@ -4,7 +4,6 @@ import type { Deployment, DeployStrategy, DeployStatus, OrgEnvironment, RolloutP
 import { entitiesApi, deploymentsApi, rolloutPolicyApi } from '@/api';
 import { StrategyPicker } from '@/components/rollout/StrategyPicker';
 import { GroupPicker } from '@/components/rollout/GroupPicker';
-import Combobox, { type ComboboxOption } from '@/components/Combobox';
 import { resolvePolicy } from '@/lib/policyResolver';
 
 // ---------------------------------------------------------------------------
@@ -58,34 +57,16 @@ function statusLabel(status: DeployStatus): string {
   }
 }
 
-// Record-mode deploys don't compute a health_score; render neutral colors
-// when the value is missing instead of blowing up at `.toFixed`.
-function healthColor(score: number | undefined | null): string {
-  if (score == null) return 'text-muted';
+function healthColor(score: number): string {
   if (score >= 95) return 'text-success';
   if (score >= 80) return 'text-warning';
   return 'text-danger';
 }
 
-function trafficBarColor(score: number | undefined | null): string {
-  if (score == null) return 'var(--color-muted, var(--color-text-muted))';
+function trafficBarColor(score: number): string {
   if (score >= 95) return 'var(--color-success)';
   if (score >= 80) return 'var(--color-warning)';
   return 'var(--color-danger)';
-}
-
-function formatRelative(iso: string): string {
-  const then = new Date(iso).getTime();
-  const diff = Date.now() - then;
-  if (diff < 0) return 'just now';
-  const s = Math.floor(diff / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
 }
 
 function formatTime(iso: string): string {
@@ -135,10 +116,6 @@ const DeploymentsPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [policies, setPolicies] = useState<RolloutPolicy[]>([]);
-  // Autocomplete suggestions sourced from deploy history for the selected app/env.
-  const [artifactOptions, setArtifactOptions] = useState<ComboboxOption[]>([]);
-  const [versionOptions, setVersionOptions] = useState<ComboboxOption[]>([]);
-  const [appId, setAppId] = useState<string>('');
 
   const load = useCallback(() => {
     if (!orgSlug || !projectSlug || !appSlug) {
@@ -150,10 +127,7 @@ const DeploymentsPage: React.FC = () => {
 
     entitiesApi
       .getApp(orgSlug, projectSlug, appSlug)
-      .then((app) => {
-        setAppId(app.id);
-        return deploymentsApi.list(app.id);
-      })
+      .then((app) => deploymentsApi.list(app.id))
       .then((result) => setDeployments(result.deployments ?? []))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -175,46 +149,6 @@ const DeploymentsPage: React.FC = () => {
     if (!creating || !orgSlug) return;
     rolloutPolicyApi.list(orgSlug).then((r) => setPolicies(r.items ?? [])).catch(() => {});
   }, [creating, orgSlug]);
-
-  // Fetch artifact suggestions once the modal opens and the app is known.
-  useEffect(() => {
-    if (!creating || !appId) return;
-    deploymentsApi
-      .listArtifacts(appId)
-      .then((r) =>
-        setArtifactOptions(
-          (r.artifacts ?? []).map((a) => ({
-            value: a.value,
-            hint: `last seen ${formatRelative(a.last_seen_at)}`,
-          })),
-        ),
-      )
-      .catch(() => setArtifactOptions([]));
-  }, [creating, appId]);
-
-  // Version suggestions depend on env so re-fetch on env change.
-  useEffect(() => {
-    if (!creating || !appId) {
-      setVersionOptions([]);
-      return;
-    }
-    deploymentsApi
-      .listVersions(appId, envId || undefined)
-      .then((r) =>
-        setVersionOptions(
-          (r.versions ?? []).map((v) => ({
-            value: v.version,
-            hint: [
-              v.commit_sha ? `${v.commit_sha.slice(0, 7)}` : null,
-              `last seen ${formatRelative(v.last_seen_at)}`,
-            ]
-              .filter(Boolean)
-              .join(' · '),
-          })),
-        ),
-      )
-      .catch(() => setVersionOptions([]));
-  }, [creating, appId, envId]);
 
   const envName = environments.find((e) => e.id === envId)?.name;
   const effective = resolvePolicy(policies, envName, 'deploy');
@@ -301,8 +235,13 @@ const DeploymentsPage: React.FC = () => {
     );
   }
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
+  if (loading) return (
+    <div className="empty-state" style={{ padding: '40px 0' }}>
+      <span className="ms" style={{ fontSize: 32, color: 'var(--color-primary)', marginBottom: 12, display: 'block' }}>sync</span>
+      Loading deployments…
+    </div>
+  );
+  if (error) return <div className="page-error">Error: {error}</div>;
 
   return (
     <div>
@@ -312,7 +251,10 @@ const DeploymentsPage: React.FC = () => {
           <h1>{appName ? `${appName} — Deployments` : 'Deployments'}</h1>
           <p>Monitor and manage application deployments across environments</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreateModal}>+ New Deployment</button>
+        <button className="btn btn-primary" onClick={openCreateModal}>
+          <span className="ms" style={{ fontSize: 16 }}>rocket_launch</span>
+          New Deployment
+        </button>
       </div>
 
       {creating && (
@@ -321,20 +263,22 @@ const DeploymentsPage: React.FC = () => {
             <h3>New Deployment</h3>
             <div className="form-group">
               <label className="form-label">Artifact URL / Version Ref</label>
-              <Combobox
-                value={artifact}
-                onChange={setArtifact}
-                options={artifactOptions}
+              <input
+                className="form-input"
+                type="text"
                 placeholder="e.g. gcr.io/my-project/app:v1.2.3"
+                value={artifact}
+                onChange={(e) => setArtifact(e.target.value)}
               />
             </div>
             <div className="form-group">
               <label className="form-label">Version</label>
-              <Combobox
-                value={version}
-                onChange={setVersion}
-                options={versionOptions}
+              <input
+                className="form-input"
+                type="text"
                 placeholder="e.g. v1.2.3"
+                value={version}
+                onChange={(e) => setVersion(e.target.value)}
               />
             </div>
             <div className="form-group">
@@ -430,7 +374,14 @@ const DeploymentsPage: React.FC = () => {
       </div>
 
       {/* Table */}
-      <div className="card">
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>rocket_launch</span>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>Deployments</span>
+          <span className="badge" style={{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)', marginLeft: 4 }}>
+            {filtered.length}
+          </span>
+        </div>
         <div className="table-container">
           <table>
             <thead>
@@ -448,9 +399,10 @@ const DeploymentsPage: React.FC = () => {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7}>
-                    <div className="empty-state">
+                    <div className="empty-state" style={{ padding: '40px 0' }}>
+                      <span className="ms" style={{ fontSize: 36, display: 'block', marginBottom: 12, color: 'var(--color-text-muted)' }}>rocket_launch</span>
                       <h3>No deployments found</h3>
-                      <p>Try adjusting your filters or search term.</p>
+                      <p>Try adjusting your filters or create a new deployment.</p>
                     </div>
                   </td>
                 </tr>
@@ -494,7 +446,7 @@ const DeploymentsPage: React.FC = () => {
                     </td>
                     <td>
                       <span className={healthColor(dep.health_score)}>
-                        {dep.health_score != null ? `${dep.health_score.toFixed(1)}%` : '—'}
+                        {dep.health_score.toFixed(1)}%
                       </span>
                     </td>
                     <td className="text-sm text-secondary" style={{ whiteSpace: 'nowrap' }}>

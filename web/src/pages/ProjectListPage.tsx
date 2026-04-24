@@ -35,15 +35,22 @@ export default function ProjectListPage() {
     <div>
       <ActiveRolloutsCard orgSlug={orgSlug} />
       <div className="page-header-row">
-        <h1 className="page-header">Projects</h1>
+        <div className="page-header" style={{ marginBottom: 0 }}>
+          <h1>Projects</h1>
+          <p>Organize applications and feature flags by team or service area.</p>
+        </div>
         <Link to={`/orgs/${orgSlug}/projects/new`} className="btn btn-primary">
+          <span className="ms" style={{ fontSize: 16 }}>add</span>
           Create Project
         </Link>
       </div>
       {projects.length === 0 ? (
-        <div className="empty-state">
-          <p>No projects yet.</p>
-          <Link to={`/orgs/${orgSlug}/projects/new`} className="btn btn-primary">
+        <div className="empty-state card" style={{ padding: '48px 24px' }}>
+          <span className="ms" style={{ fontSize: 40, color: 'var(--color-text-muted)', marginBottom: 12, display: 'block' }}>account_tree</span>
+          <h3>No projects yet</h3>
+          <p>Create your first project to start managing deployments and flags.</p>
+          <Link to={`/orgs/${orgSlug}/projects/new`} className="btn btn-primary" style={{ marginTop: 16 }}>
+            <span className="ms" style={{ fontSize: 16 }}>add</span>
             Create Your First Project
           </Link>
         </div>
@@ -57,7 +64,14 @@ export default function ProjectListPage() {
                 className="project-card"
                 style={isDeleted ? { opacity: 0.5, pointerEvents: 'auto' } : undefined}
               >
-                <div className="flex items-center gap-2" style={{ justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 8,
+                    background: 'var(--color-primary-bg)', border: '1px solid rgba(99,102,241,0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <span className="ms" style={{ fontSize: 16, color: 'var(--color-primary)' }}>account_tree</span>
+                  </div>
                   <Link
                     to={`/orgs/${orgSlug}/projects/${project.slug}/apps`}
                     style={{ textDecoration: 'none', color: 'inherit', flex: 1 }}
@@ -65,12 +79,7 @@ export default function ProjectListPage() {
                     <h3 className="project-card-name" style={{ margin: 0 }}>
                       {project.name}
                       {isDeleted && (
-                        <span
-                          className="badge badge-disabled"
-                          style={{ marginLeft: 8, fontSize: 11 }}
-                        >
-                          Deleted
-                        </span>
+                        <span className="badge badge-disabled" style={{ marginLeft: 8, fontSize: 11 }}>Deleted</span>
                       )}
                     </h3>
                   </Link>

@@ -156,17 +156,22 @@ export default function OrgDeploymentsPage() {
 
   return (
     <div className="org-deployments-page">
-      <div className="page-header">
-        <h1>Deploy History</h1>
-        <p>Every deployment across this org, newest first.</p>
+      <div className="page-header-row">
+        <div className="page-header" style={{ marginBottom: 0 }}>
+          <h1>Deploy History</h1>
+          <p>Every deployment across this org, newest first.</p>
+        </div>
       </div>
 
       <div className="org-deployments-layout">
         <aside className="org-deployments-filters">
           <div className="org-deployments-filters-head">
-            <span style={{ fontWeight: 600 }}>Filters</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="ms" style={{ fontSize: 16, color: 'var(--color-primary)' }}>filter_list</span>
+              <span style={{ fontWeight: 600 }}>Filters</span>
+            </div>
             {activeFilterCount > 0 && (
-              <button className="btn" type="button" onClick={resetFilters}>
+              <button className="btn btn-sm" type="button" onClick={resetFilters}>
                 Reset
               </button>
             )}
@@ -262,33 +267,51 @@ export default function OrgDeploymentsPage() {
 
         <main className="org-deployments-main">
           {error && <div className="page-error">Error: {error}</div>}
-          <div className="org-deployments-table">
-            <div className="org-deployments-row org-deployments-head">
-              <div>When</div>
-              <div>Where</div>
-              <div>Version</div>
-              <div>Status</div>
-              <div>Mode</div>
-              <div>Source</div>
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>history</span>
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>Activity Stream</span>
+              {rows.length > 0 && (
+                <span className="badge" style={{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)', marginLeft: 4 }}>
+                  {rows.length}
+                </span>
+              )}
+              {loading && rows.length > 0 && (
+                <span className="ms" style={{ fontSize: 16, color: 'var(--color-text-muted)', marginLeft: 'auto', animation: 'spin 1s linear infinite' }}>sync</span>
+              )}
             </div>
-            {loading && rows.length === 0 && (
-              <div className="org-deployments-empty">Loading…</div>
-            )}
-            {!loading && rows.length === 0 && (
-              <div className="org-deployments-empty">
-                No deployments match the current filters.
+            <div className="org-deployments-table" style={{ margin: 0 }}>
+              <div className="org-deployments-row org-deployments-head">
+                <div>When</div>
+                <div>Where</div>
+                <div>Version</div>
+                <div>Status</div>
+                <div>Mode</div>
+                <div>Source</div>
               </div>
-            )}
-            {rows.map((row) => (
-              <DeploymentRow key={row.id} orgSlug={orgSlug} row={row} />
-            ))}
+              {loading && rows.length === 0 && (
+                <div className="org-deployments-empty">
+                  <span className="ms" style={{ fontSize: 28, display: 'block', marginBottom: 8, color: 'var(--color-primary)' }}>sync</span>
+                  Loading…
+                </div>
+              )}
+              {!loading && rows.length === 0 && (
+                <div className="org-deployments-empty">
+                  <span className="ms" style={{ fontSize: 36, display: 'block', marginBottom: 8, color: 'var(--color-text-muted)' }}>history</span>
+                  No deployments match the current filters.
+                </div>
+              )}
+              {rows.map((row) => (
+                <DeploymentRow key={row.id} orgSlug={orgSlug} row={row} />
+              ))}
+            </div>
           </div>
 
           {cursor && (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 16 }}>
               <button
                 type="button"
-                className="btn"
+                className="btn btn-secondary"
                 onClick={() => load(true, cursor)}
                 disabled={loadingMore}
               >

@@ -77,23 +77,37 @@ export default function RolloutDetailPage() {
     }
   }
 
-  if (loading) return <div className="page"><p>Loading…</p></div>;
-  if (error) return <div className="page"><p className="error">{error}</p></div>;
-  if (!rollout) return <div className="page"><p>Rollout not found.</p></div>;
+  if (loading) return (
+    <div className="empty-state" style={{ padding: '40px 0' }}>
+      <span className="ms" style={{ fontSize: 32, color: 'var(--color-primary)', marginBottom: 12, display: 'block' }}>sync</span>
+      Loading rollout…
+    </div>
+  );
+  if (error) return <div className="page-error">{error}</div>;
+  if (!rollout) return <div className="page-error">Rollout not found.</div>;
 
   const canAct = !['succeeded', 'rolled_back', 'aborted', 'superseded'].includes(rollout.status);
 
   return (
     <div className="page">
-      <header className="page-header">
-        <h1>Rollout {rollout.id.slice(0, 8)}</h1>
-        <div>
-          <RolloutStatusBadge status={rollout.status} />
+      <div className="page-header-row">
+        <div className="page-header" style={{ marginBottom: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 10,
+              background: 'var(--color-primary-bg)', border: '1px solid rgba(99,102,241,0.25)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>dynamic_feed</span>
+            </div>
+            <h1 style={{ margin: 0 }}>Rollout <span style={{ fontFamily: 'monospace', fontSize: 18, color: 'var(--color-primary)' }}>{rollout.id.slice(0, 8)}</span></h1>
+          </div>
         </div>
-      </header>
+        <RolloutStatusBadge status={rollout.status} />
+      </div>
 
-      <section className="card">
-        <h3>Strategy: {rollout.strategy_snapshot.name}</h3>
+      <section className="card" style={{ marginTop: 20 }}>
+        <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, marginBottom: 12 }}>Strategy: {rollout.strategy_snapshot.name}</h3>
         <dl className="rollout-detail-grid">
           <dt>Target</dt>
           <dd>
@@ -122,62 +136,86 @@ export default function RolloutDetailPage() {
 
       {canAct && (
         <section className="card">
-          <h3>Actions</h3>
-          <div className="action-bar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <span className="ms" style={{ fontSize: 16, color: 'var(--color-primary)' }}>play_circle</span>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, margin: 0 }}>Actions</h3>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
+              className="btn btn-secondary"
               disabled={busy !== null || rollout.status !== 'active'}
               onClick={() => runAction('pause', () => rolloutsApi.pause(orgSlug, rollout.id))}
             >
+              <span className="ms" style={{ fontSize: 15 }}>pause</span>
               Pause
             </button>
             <button
+              className="btn btn-secondary"
               disabled={busy !== null || rollout.status !== 'paused'}
               onClick={() => runAction('resume', () => rolloutsApi.resume(orgSlug, rollout.id))}
             >
+              <span className="ms" style={{ fontSize: 15 }}>play_arrow</span>
               Resume
             </button>
             <button
+              className="btn btn-primary"
               disabled={busy !== null || !['active', 'paused'].includes(rollout.status)}
               onClick={() => runAction('promote', () => rolloutsApi.promote(orgSlug, rollout.id))}
             >
+              <span className="ms" style={{ fontSize: 15 }}>fast_forward</span>
               Promote
             </button>
             <button
+              className="btn btn-primary"
               disabled={busy !== null || rollout.status !== 'awaiting_approval'}
               onClick={() => runAction('approve', () => rolloutsApi.approve(orgSlug, rollout.id))}
             >
+              <span className="ms" style={{ fontSize: 15 }}>check_circle</span>
               Approve
             </button>
             <button
+              className="btn"
+              style={{ borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }}
               disabled={busy !== null}
-              className="btn-danger"
               onClick={() => setReasonModal('rollback')}
             >
+              <span className="ms" style={{ fontSize: 15 }}>undo</span>
               Rollback
             </button>
             <button
+              className="btn"
+              style={{ borderColor: 'var(--color-warning)', color: 'var(--color-warning)' }}
               disabled={busy !== null}
-              className="btn-warning"
               onClick={() => setReasonModal('force-promote')}
             >
+              <span className="ms" style={{ fontSize: 15 }}>skip_next</span>
               Force Promote
             </button>
           </div>
         </section>
       )}
 
-      <section className="card">
-        <h3>Event Log</h3>
+      <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>history</span>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>Event Log</span>
+          {events.length > 0 && (
+            <span className="badge" style={{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)', marginLeft: 4 }}>{events.length}</span>
+          )}
+        </div>
         {(events ?? []).length === 0 ? (
-          <p className="empty-state">No events yet.</p>
+          <div className="empty-state" style={{ padding: '32px 0' }}>
+            <span className="ms" style={{ fontSize: 32, display: 'block', marginBottom: 8, color: 'var(--color-text-muted)' }}>event_note</span>
+            No events yet.
+          </div>
         ) : (
-          <ul className="event-list">
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
             {(events ?? []).map((ev) => (
-              <li key={ev.id}>
-                <span className="event-time">{new Date(ev.occurred_at).toLocaleString()}</span>
-                <span className="event-type">{ev.event_type}</span>
-                <span className="event-actor">{ev.actor_type}{ev.actor_id ? ` · ${ev.actor_id.slice(0, 8)}` : ''}</span>
-                {ev.reason && <span className="event-reason">"{ev.reason}"</span>}
+              <li key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', borderBottom: '1px solid var(--color-border)' }}>
+                <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontFamily: 'monospace', minWidth: 160 }}>{new Date(ev.occurred_at).toLocaleString()}</span>
+                <span className="badge badge-ops">{ev.event_type}</span>
+                <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{ev.actor_type}{ev.actor_id ? ` · ${ev.actor_id.slice(0, 8)}` : ''}</span>
+                {ev.reason && <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontStyle: 'italic' }}>"{ev.reason}"</span>}
               </li>
             ))}
           </ul>

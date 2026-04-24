@@ -73,18 +73,22 @@ export default function OrgStatusPage() {
         <p>Compact health + version view across every project and application in this org.</p>
       </div>
 
+      <div className="stat-grid" style={{ marginBottom: 24 }}>
+        <StatCard label="Healthy" value={globalCounts.healthy} color="var(--color-success)" />
+        <StatCard label="Degraded" value={globalCounts.degraded} color="var(--color-warning)" />
+        <StatCard label="Unhealthy" value={globalCounts.unhealthy} color="var(--color-danger)" />
+        <StatCard label="Unknown" value={globalCounts.unknown} color="var(--color-text-muted)" />
+      </div>
+
       <div className="org-status-summary">
-        <SummaryPill state="healthy" count={globalCounts.healthy} />
-        <SummaryPill state="degraded" count={globalCounts.degraded} />
-        <SummaryPill state="unhealthy" count={globalCounts.unhealthy} />
-        <SummaryPill state="unknown" count={globalCounts.unknown} />
-        <div className="org-status-refresh">
+        <div className="org-status-refresh" style={{ marginLeft: 0 }}>
           {lastFetched && (
             <span className="org-status-timestamp">
               Updated {relativeTime(lastFetched)}
             </span>
           )}
-          <button className="btn" type="button" onClick={load}>
+          <button className="btn btn-secondary btn-sm" type="button" onClick={load}>
+            <span className="ms" style={{ fontSize: 14 }}>refresh</span>
             Refresh
           </button>
         </div>
@@ -108,7 +112,9 @@ export default function OrgStatusPage() {
               className={`org-status-project-bar health-${p.aggregate_health}`}
               onClick={() => toggle(p.project.id)}
             >
-              <span className="org-status-caret">{isCollapsed ? '▸' : '▾'}</span>
+              <span className="ms org-status-caret" style={{ fontSize: 16 }}>
+                {isCollapsed ? 'chevron_right' : 'expand_more'}
+              </span>
               <span className="org-status-project-name">{p.project.name}</span>
               <span className="org-status-project-count">
                 {p.applications.length} app{p.applications.length === 1 ? '' : 's'}
@@ -196,7 +202,7 @@ function EnvChip({ cell }: { cell: OrgStatusEnvCell }) {
   const label = cell.environment.slug ?? '??';
   const tooltip = tooltipFor(cell);
   const classes = ['env-chip'];
-  if (cell.never_deployed && !cell.latest_build) {
+  if (cell.never_deployed) {
     classes.push('env-chip-faded');
   } else {
     classes.push(`health-${cell.health.state}`);
@@ -204,44 +210,10 @@ function EnvChip({ cell }: { cell: OrgStatusEnvCell }) {
     if (cell.health.staleness === 'missing' && cell.health.state !== 'unknown') classes.push('missing');
   }
   return (
-    <span className="env-chip-group" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      <span className={classes.join(' ')} title={tooltip}>
-        {label}
-      </span>
-      {cell.latest_build && <BuildPill build={cell.latest_build} />}
+    <span className={classes.join(' ')} title={tooltip}>
+      {label}
     </span>
   );
-}
-
-function BuildPill({ build }: { build: NonNullable<OrgStatusEnvCell['latest_build']> }) {
-  const running = build.status === 'pending' || build.status === 'running';
-  const failed = build.status === 'failed' || build.status === 'cancelled';
-  const variant = running ? 'pending' : failed ? 'failed' : 'completed';
-  const label = build.workflow_name ? build.workflow_name : 'build';
-  const tooltip = [
-    `${label}: ${build.status}`,
-    build.version ? `version: ${build.version}` : null,
-    build.commit_sha ? `sha: ${build.commit_sha.slice(0, 7)}` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-  const content = (
-    <span
-      className={`status-pill status-${variant}`}
-      style={{ fontSize: 11, padding: '1px 6px' }}
-      title={tooltip}
-    >
-      {running ? `⏱ ${label}` : failed ? `✗ ${label}` : `✓ ${label}`}
-    </span>
-  );
-  if (build.html_url) {
-    return (
-      <a href={build.html_url} target="_blank" rel="noopener noreferrer">
-        {content}
-      </a>
-    );
-  }
-  return content;
 }
 
 function MonitoringLinkIcon({ link }: { link: MonitoringLink }) {
@@ -282,11 +254,12 @@ function Favicon({ url, label }: { url: string; label: string }) {
   );
 }
 
-function SummaryPill({ state, count }: { state: HealthState; count: number }) {
+function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <span className={`health-pill health-${state}`}>
-      {count} {state}
-    </span>
+    <div className="stat-card">
+      <div className="stat-label">{label}</div>
+      <div className="stat-value" style={{ color, fontFamily: 'var(--font-display)' }}>{value}</div>
+    </div>
   );
 }
 

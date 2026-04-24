@@ -119,16 +119,26 @@ export default function APIKeysPage() {
   return (
     <div>
       <div className="page-header-row">
-        <h1 className="page-header">API Keys</h1>
+        <div className="page-header" style={{ marginBottom: 0 }}>
+          <h1>API Keys</h1>
+          <p>Authenticate programmatic access. Scope keys to projects, apps, or environments.</p>
+        </div>
         <button className="btn btn-primary" onClick={() => setShowCreate(!showCreate)}>
+          <span className="ms" style={{ fontSize: 16 }}>{showCreate ? 'close' : 'key'}</span>
           {showCreate ? 'Cancel' : 'Create API Key'}
         </button>
       </div>
 
-      <p className="text-muted" style={{ marginBottom: 24, maxWidth: 600 }}>
-        API keys authenticate programmatic access to the DeploySentry API. Use them to integrate with CI/CD pipelines,
-        automate flag management, or connect your SDKs. Keys are scoped to an organization and can be revoked at any time.
-      </p>
+      <div className="stat-grid" style={{ marginBottom: 24, marginTop: 20, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
+        <div className="stat-card">
+          <div className="stat-label">Active Keys</div>
+          <div className="stat-value" style={{ fontFamily: 'var(--font-display)', color: 'var(--color-primary)' }}>{keys.length}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Scoped Keys</div>
+          <div className="stat-value" style={{ fontFamily: 'var(--font-display)' }}>{keys.filter((k) => k.project_id || k.application_id).length}</div>
+        </div>
+      </div>
 
       {showCreate && (
         <div className="inline-form">
@@ -262,84 +272,92 @@ export default function APIKeysPage() {
       )}
 
       {loading ? (
-        <p className="text-muted">Loading API keys...</p>
+        <div className="empty-state">Loading API keys…</div>
       ) : keys.length === 0 ? (
-        <p className="empty-state">No API keys. Create one to integrate with DeploySentry.</p>
+        <div className="empty-state card" style={{ padding: '48px 24px' }}>
+          <span className="ms" style={{ fontSize: 40, color: 'var(--color-text-muted)', marginBottom: 12, display: 'block' }}>vpn_key</span>
+          <h3>No API keys yet</h3>
+          <p>Create one to integrate with DeploySentry.</p>
+        </div>
       ) : (
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Key Prefix</th>
-              <th>Scopes</th>
-              <th>Environments</th>
-              <th>Created</th>
-              <th>Last Used</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {keys.map((key) => (
-              <tr key={key.id}>
-                <td>
-                  <strong>{key.name}</strong>
-                </td>
-                <td>
-                  <code>{key.prefix}</code>
-                </td>
-                <td>
-                  {key.scopes.map((scope) => (
-                    <span key={scope} className={scopeBadgeClass(scope)}>
-                      {scope}
-                    </span>
-                  ))}
-                </td>
-                <td>
-                  {key.environment_ids.length === 0 ? (
-                    <span className="badge">All</span>
-                  ) : (
-                    key.environment_ids.map((eid: string) => {
-                      const env = environments.find((e) => e.id === eid);
-                      return (
-                        <span key={eid} className="badge" style={{ marginRight: 4 }}>
-                          {env?.name || eid.slice(0, 8)}
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>shield</span>
+            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>Active Access Tokens</span>
+            <span className="badge" style={{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)', marginLeft: 4 }}>
+              {keys.length}
+            </span>
+          </div>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Prefix</th>
+                  <th>Scopes</th>
+                  <th>Environments</th>
+                  <th>Created</th>
+                  <th>Last Used</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {keys.map((key) => (
+                  <tr key={key.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                          width: 32, height: 32, borderRadius: 8,
+                          background: 'var(--color-primary-bg)', border: '1px solid rgba(99,102,241,0.2)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                        }}>
+                          <span className="ms" style={{ fontSize: 16, color: 'var(--color-primary)' }}>vpn_key</span>
+                        </div>
+                        <span style={{ fontWeight: 600 }}>{key.name}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <code style={{ background: 'var(--color-bg)', padding: '2px 8px', borderRadius: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                        {key.prefix}
+                      </code>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {key.scopes.map((scope) => (
+                          <span key={scope} className={scopeBadgeClass(scope)}>{scope}</span>
+                        ))}
+                      </div>
+                    </td>
+                    <td>
+                      {key.environment_ids.length === 0 ? (
+                        <span className="badge badge-ops">All</span>
+                      ) : (
+                        key.environment_ids.map((eid: string) => {
+                          const env = environments.find((e) => e.id === eid);
+                          return <span key={eid} className="badge" style={{ marginRight: 4 }}>{env?.name || eid.slice(0, 8)}</span>;
+                        })
+                      )}
+                    </td>
+                    <td className="text-secondary">{formatDate(key.created_at)}</td>
+                    <td className="text-secondary">{key.last_used_at ? formatDate(key.last_used_at) : <span className="text-muted">Never</span>}</td>
+                    <td>
+                      {confirmRevoke === key.id ? (
+                        <span className="inline-confirm">
+                          <button className="btn btn-sm btn-danger" onClick={() => handleRevoke(key.id)}>Yes</button>
+                          <button className="btn btn-sm" onClick={() => setConfirmRevoke(null)}>No</button>
                         </span>
-                      );
-                    })
-                  )}
-                </td>
-                <td>{formatDate(key.created_at)}</td>
-                <td>{key.last_used_at ? formatDate(key.last_used_at) : 'Never'}</td>
-                <td>
-                  {confirmRevoke === key.id ? (
-                    <span>
-                      Are you sure?{' '}
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => handleRevoke(key.id)}
-                      >
-                        Yes
-                      </button>{' '}
-                      <button
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => setConfirmRevoke(null)}
-                      >
-                        No
-                      </button>
-                    </span>
-                  ) : (
-                    <button
-                      className="btn btn-sm btn-danger"
-                      onClick={() => setConfirmRevoke(key.id)}
-                    >
-                      Revoke
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                      ) : (
+                        <button className="btn-icon" title="Revoke" onClick={() => setConfirmRevoke(key.id)}>
+                          <span className="ms" style={{ fontSize: 16, color: 'var(--color-danger)' }}>delete</span>
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   );

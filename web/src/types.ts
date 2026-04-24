@@ -577,6 +577,27 @@ export interface RolloutEvent {
   occurred_at: string;
 }
 
+/**
+ * Enriched rollout list row. Mirrors models.RolloutWithTarget server-side.
+ * Every target field is best-effort — deleted rows leave them empty and
+ * the UI renders a "(unknown)" placeholder.
+ */
+export interface RolloutTargetDisplay {
+  kind: 'deploy' | 'config';
+  summary: string;
+  application_slug?: string;
+  application_name?: string;
+  project_slug?: string;
+  environment_slug?: string;
+  version?: string;
+  flag_key?: string;
+}
+
+export interface RolloutWithTarget extends Rollout {
+  target: RolloutTargetDisplay;
+  age_seconds: number;
+}
+
 // ---- Rollout groups (Plan 4) ----
 
 export type CoordinationPolicy = 'independent' | 'pause_on_sibling_abort' | 'cascade_abort';

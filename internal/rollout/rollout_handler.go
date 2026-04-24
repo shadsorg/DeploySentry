@@ -15,13 +15,26 @@ import (
 
 // RolloutHandler serves rollout list, detail, and 6 runtime control endpoints.
 type RolloutHandler struct {
-	svc *RolloutService
+	svc      *RolloutService
+	enricher *Enricher
 }
 
 // NewRolloutHandler builds the handler.
 func NewRolloutHandler(svc *RolloutService) *RolloutHandler {
 	return &RolloutHandler{svc: svc}
 }
+
+// WithEnricher wires in the list-row enricher. Optional: when nil, the
+// list endpoint returns bare Rollout rows for backward compatibility.
+func (h *RolloutHandler) WithEnricher(e *Enricher) *RolloutHandler {
+	h.enricher = e
+	return h
+}
+
+// staleCutoff is the default age after which a `pending` rollout with no
+// progress is considered dev detritus and excluded from list responses
+// unless the caller passes ?include_stale=true.
+const staleCutoff = 7 * 24 * time.Hour
 
 // RegisterRoutes mounts routes under /orgs/:orgSlug/.
 func (h *RolloutHandler) RegisterRoutes(api *gin.RouterGroup) {
@@ -53,12 +66,46 @@ func (h *RolloutHandler) list(c *gin.Context) {
 			opts.Limit = n
 		}
 	}
+	includeTerminal := c.Query("include_terminal") == "true"
+	includeStale := c.Query("include_stale") == "true"
+
 	rows, err := h.svc.List(c.Request.Context(), opts)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"items": rows})
+
+	// Default view hides both terminal and stale-pending rows so operators
+	// see what's actually in progress. Opt-in via ?include_terminal=true
+	// or ?include_stale=true, or by supplying an explicit `status` filter
+	// (which implies the caller knows what they're looking for).
+	if opts.Status == nil {
+		filtered := rows[:0]
+		now := time.Now().UTC()
+		for _, r := range rows {
+			if !includeTerminal && r.IsTerminal() {
+				continue
+			}
+			if !includeStale && r.Status == models.RolloutPending && now.Sub(r.CreatedAt) > staleCutoff {
+				continue
+			}
+			filtered = append(filtered, r)
+		}
+		rows = filtered
+	}
+
+	payload := gin.H{"items": rows}
+	if h.enricher != nil {
+		enriched := h.enricher.Enrich(c.Request.Context(), rows)
+		payload["items"] = enriched
+	}
+	// Surface the filter decisions so clients can display "N rows hidden" affordances.
+	payload["filter"] = gin.H{
+		"include_terminal":       includeTerminal,
+		"include_stale":          includeStale,
+		"stale_cutoff_hours":     int(staleCutoff.Hours()),
+	}
+	c.JSON(http.StatusOK, payload)
 }
 
 func (h *RolloutHandler) get(c *gin.Context) {

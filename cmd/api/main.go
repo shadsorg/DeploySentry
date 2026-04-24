@@ -476,7 +476,11 @@ func run() error {
 
 	rolloutExecSvc := rollout.NewRolloutService(rolloutRepo, rolloutPhaseRepo, rolloutEventRepo, nc)
 	rolloutExecSvc.SetApplicator(routerApp)
-	rollout.NewRolloutHandler(rolloutExecSvc).RegisterRoutes(api)
+	// Enricher attaches human-readable target summaries (app slug + version
+	// for deploy rollouts, flag key + env for config rollouts) at list time
+	// so operators can tell rollouts apart without clicking into each.
+	rolloutEnricher := rollout.NewEnricher(deployService, entityRepo, entityRepo, envRepo, flagService)
+	rollout.NewRolloutHandler(rolloutExecSvc).WithEnricher(rolloutEnricher).RegisterRoutes(api)
 
 	rolloutAttacher := rollout.NewAttacher(strategySvc, strategyDefaultSvc, rolloutPolicySvc, rolloutExecSvc)
 	deployHandlerAdapter := &deployRolloutAttacherAdapter{attacher: rolloutAttacher, entities: entityRepo}

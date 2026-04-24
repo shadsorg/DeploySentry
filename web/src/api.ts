@@ -31,6 +31,7 @@ import type {
   RolloutStatus,
   Rollout,
   RolloutEvent,
+  RolloutWithTarget,
   CoordinationPolicy,
   RolloutGroup,
   MonitoringLink,
@@ -687,13 +688,24 @@ export const rolloutPolicyApi = {
 
 // ---- Rollouts (runtime control) ----
 export const rolloutsApi = {
-  list: (orgSlug: string, opts?: { status?: RolloutStatus; target_type?: string; limit?: number }) => {
+  list: (orgSlug: string, opts?: {
+    status?: RolloutStatus;
+    target_type?: string;
+    limit?: number;
+    include_terminal?: boolean;
+    include_stale?: boolean;
+  }) => {
     const params = new URLSearchParams();
     if (opts?.status) params.set('status', opts.status);
     if (opts?.target_type) params.set('target_type', opts.target_type);
     if (opts?.limit) params.set('limit', String(opts.limit));
+    if (opts?.include_terminal) params.set('include_terminal', 'true');
+    if (opts?.include_stale) params.set('include_stale', 'true');
     const qs = params.toString();
-    return request<{ items: Rollout[] }>(`/orgs/${orgSlug}/rollouts${qs ? '?' + qs : ''}`);
+    return request<{
+      items: RolloutWithTarget[];
+      filter: { include_terminal: boolean; include_stale: boolean; stale_cutoff_hours: number };
+    }>(`/orgs/${orgSlug}/rollouts${qs ? '?' + qs : ''}`);
   },
   get: (orgSlug: string, id: string) =>
     request<Rollout>(`/orgs/${orgSlug}/rollouts/${id}`),

@@ -58,6 +58,31 @@ type Rollout struct {
 	CompletedAt            *time.Time       `json:"completed_at,omitempty"`
 }
 
+// RolloutTargetDisplay is a human-readable snapshot of what a rollout is
+// driving. Attached at list time so operators can tell rollouts apart
+// without clicking into each row. All fields are best-effort — if the
+// underlying row (deployment, flag, etc.) has been deleted, fields stay
+// empty and the UI renders a "(unknown)" placeholder.
+type RolloutTargetDisplay struct {
+	Kind            string `json:"kind"` // "deploy" | "config"
+	Summary         string `json:"summary"`
+	ApplicationSlug string `json:"application_slug,omitempty"`
+	ApplicationName string `json:"application_name,omitempty"`
+	ProjectSlug     string `json:"project_slug,omitempty"`
+	EnvironmentSlug string `json:"environment_slug,omitempty"`
+	Version         string `json:"version,omitempty"`
+	FlagKey         string `json:"flag_key,omitempty"`
+}
+
+// RolloutWithTarget is the enriched list-row shape returned by the
+// list endpoint. Keeps Rollout unchanged so existing consumers don't
+// break; new clients render the Target block.
+type RolloutWithTarget struct {
+	*Rollout
+	Target RolloutTargetDisplay `json:"target"`
+	AgeSeconds int64             `json:"age_seconds"`
+}
+
 // IsTerminal reports whether status represents a finished rollout.
 func (r *Rollout) IsTerminal() bool {
 	switch r.Status {

@@ -97,7 +97,10 @@ export interface Deployment {
   mode?: 'orchestrate' | 'record';
   source?: string | null;
   traffic_percent: number;
-  health_score: number;
+  // Optional: record-mode deploys (e.g. github-actions build lanes) bypass
+  // the phase engine and never compute a health score. Treat missing as
+  // "unknown" at render time.
+  health_score?: number;
   created_by: string;
   created_at: string;
   updated_at: string;

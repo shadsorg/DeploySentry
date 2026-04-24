@@ -57,13 +57,17 @@ function statusLabel(status: DeployStatus): string {
   }
 }
 
-function healthColor(score: number): string {
+// Record-mode deploys (github-actions build lanes) never compute a health
+// score. Render neutral colors + a "—" instead of crashing at `.toFixed`.
+function healthColor(score: number | undefined | null): string {
+  if (score == null) return 'text-muted';
   if (score >= 95) return 'text-success';
   if (score >= 80) return 'text-warning';
   return 'text-danger';
 }
 
-function trafficBarColor(score: number): string {
+function trafficBarColor(score: number | undefined | null): string {
+  if (score == null) return 'var(--color-text-muted, var(--color-muted))';
   if (score >= 95) return 'var(--color-success)';
   if (score >= 80) return 'var(--color-warning)';
   return 'var(--color-danger)';
@@ -446,7 +450,7 @@ const DeploymentsPage: React.FC = () => {
                     </td>
                     <td>
                       <span className={healthColor(dep.health_score)}>
-                        {dep.health_score.toFixed(1)}%
+                        {dep.health_score != null ? `${dep.health_score.toFixed(1)}%` : '—'}
                       </span>
                     </td>
                     <td className="text-sm text-secondary" style={{ whiteSpace: 'nowrap' }}>

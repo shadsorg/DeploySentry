@@ -212,8 +212,10 @@ const DeploymentsPage: React.FC = () => {
   };
 
   const filtered = useMemo(() => {
+    // ⚡ Bolt: Hoist search.toLowerCase() to avoid O(N) evaluations in the loop
+    const q = search ? search.toLowerCase() : '';
     return deployments.filter((d) => {
-      if (search && !d.version.toLowerCase().includes(search.toLowerCase())) {
+      if (q && !d.version.toLowerCase().includes(q)) {
         return false;
       }
       if (strategyFilter !== 'all' && d.strategy !== strategyFilter) {

@@ -1,6 +1,7 @@
 package webhooks
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -52,8 +53,8 @@ func (h *Handler) CreateWebhook(c *gin.Context) {
 	}
 
 	// Get organization from context
-	orgID, exists := c.Get(auth.ContextKeyOrgID)
-	if !exists {
+	orgID, ok := auth.OrgIDFromContext(c)
+	if !ok {
 		response.Unauthorized(c, "Organization not found")
 		return
 	}
@@ -66,7 +67,7 @@ func (h *Handler) CreateWebhook(c *gin.Context) {
 		}
 	}
 
-	webhook, err := h.service.CreateWebhook(c.Request.Context(), orgID.(uuid.UUID), req, userID)
+	webhook, err := h.service.CreateWebhook(c.Request.Context(), orgID, req, userID)
 	if err != nil {
 		response.Error(c, "Failed to create webhook", err)
 		return
@@ -80,8 +81,8 @@ func (h *Handler) CreateWebhook(c *gin.Context) {
 // ListWebhooks lists webhooks for an organization.
 func (h *Handler) ListWebhooks(c *gin.Context) {
 	// Get organization from context
-	orgID, exists := c.Get(auth.ContextKeyOrgID)
-	if !exists {
+	orgID, ok := auth.OrgIDFromContext(c)
+	if !ok {
 		response.Unauthorized(c, "Organization not found")
 		return
 	}
@@ -117,7 +118,7 @@ func (h *Handler) ListWebhooks(c *gin.Context) {
 		}
 	}
 
-	webhooks, err := h.service.ListWebhooks(c.Request.Context(), orgID.(uuid.UUID), opts)
+	webhooks, err := h.service.ListWebhooks(c.Request.Context(), orgID, opts)
 	if err != nil {
 		response.Error(c, "Failed to list webhooks", err)
 		return
@@ -139,13 +140,17 @@ func (h *Handler) GetWebhook(c *gin.Context) {
 
 	webhook, err := h.service.GetWebhook(c.Request.Context(), webhookID)
 	if err != nil {
+		if errors.Is(err, models.ErrWebhookNotFound) {
+			response.NotFound(c, "Webhook not found")
+			return
+		}
 		response.Error(c, "Failed to get webhook", err)
 		return
 	}
 
 	// Check if user has access to this webhook
-	orgID, exists := c.Get(auth.ContextKeyOrgID)
-	if !exists || webhook.OrgID != orgID.(uuid.UUID) {
+	orgID, ok := auth.OrgIDFromContext(c)
+	if !ok || webhook.OrgID != orgID {
 		response.NotFound(c, "Webhook not found")
 		return
 	}
@@ -186,13 +191,17 @@ func (h *Handler) UpdateWebhook(c *gin.Context) {
 
 	webhook, err := h.service.UpdateWebhook(c.Request.Context(), webhookID, req, userID)
 	if err != nil {
+		if errors.Is(err, models.ErrWebhookNotFound) {
+			response.NotFound(c, "Webhook not found")
+			return
+		}
 		response.Error(c, "Failed to update webhook", err)
 		return
 	}
 
 	// Check if user has access to this webhook
-	orgID, exists := c.Get(auth.ContextKeyOrgID)
-	if !exists || webhook.OrgID != orgID.(uuid.UUID) {
+	orgID, ok := auth.OrgIDFromContext(c)
+	if !ok || webhook.OrgID != orgID {
 		response.NotFound(c, "Webhook not found")
 		return
 	}
@@ -221,12 +230,16 @@ func (h *Handler) DeleteWebhook(c *gin.Context) {
 	// First check if webhook exists and user has access
 	webhook, err := h.service.GetWebhook(c.Request.Context(), webhookID)
 	if err != nil {
+		if errors.Is(err, models.ErrWebhookNotFound) {
+			response.NotFound(c, "Webhook not found")
+			return
+		}
 		response.Error(c, "Failed to get webhook", err)
 		return
 	}
 
-	orgID, exists := c.Get(auth.ContextKeyOrgID)
-	if !exists || webhook.OrgID != orgID.(uuid.UUID) {
+	orgID, ok := auth.OrgIDFromContext(c)
+	if !ok || webhook.OrgID != orgID {
 		response.NotFound(c, "Webhook not found")
 		return
 	}
@@ -264,12 +277,16 @@ func (h *Handler) TestWebhook(c *gin.Context) {
 	// First check if webhook exists and user has access
 	webhook, err := h.service.GetWebhook(c.Request.Context(), webhookID)
 	if err != nil {
+		if errors.Is(err, models.ErrWebhookNotFound) {
+			response.NotFound(c, "Webhook not found")
+			return
+		}
 		response.Error(c, "Failed to get webhook", err)
 		return
 	}
 
-	orgID, exists := c.Get(auth.ContextKeyOrgID)
-	if !exists || webhook.OrgID != orgID.(uuid.UUID) {
+	orgID, ok := auth.OrgIDFromContext(c)
+	if !ok || webhook.OrgID != orgID {
 		response.NotFound(c, "Webhook not found")
 		return
 	}
@@ -306,12 +323,16 @@ func (h *Handler) GetWebhookDeliveries(c *gin.Context) {
 	// First check if webhook exists and user has access
 	webhook, err := h.service.GetWebhook(c.Request.Context(), webhookID)
 	if err != nil {
+		if errors.Is(err, models.ErrWebhookNotFound) {
+			response.NotFound(c, "Webhook not found")
+			return
+		}
 		response.Error(c, "Failed to get webhook", err)
 		return
 	}
 
-	orgID, exists := c.Get(auth.ContextKeyOrgID)
-	if !exists || webhook.OrgID != orgID.(uuid.UUID) {
+	orgID, ok := auth.OrgIDFromContext(c)
+	if !ok || webhook.OrgID != orgID {
 		response.NotFound(c, "Webhook not found")
 		return
 	}

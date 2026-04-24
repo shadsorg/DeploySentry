@@ -135,7 +135,6 @@ export default function OrgDeploymentsPage() {
     setRows([]);
     setCursor(undefined);
     load(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load]);
 
   function setFilter<K extends keyof Filters>(key: K, value: string) {

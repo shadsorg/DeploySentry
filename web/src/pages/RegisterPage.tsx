@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../authHooks';
+import SiteHeader from '@/components/SiteHeader';
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -35,20 +36,13 @@ export default function RegisterPage() {
   }
 
   return (
+    <>
+    <SiteHeader variant="landing" size="large" />
     <div className="auth-page">
       <div className="auth-card">
         <div className="auth-header">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 12,
-              background: 'var(--color-primary-bg)', border: '1px solid rgba(99,102,241,0.3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <span className="ms" style={{ fontSize: 24, color: 'var(--color-primary)' }}>person_add</span>
-            </div>
-          </div>
-          <h1>DeploySentry</h1>
-          <p>Create your account</p>
+          <h1>Create account</h1>
+          <p>Get started with Deploy Sentry.</p>
         </div>
 
         {error && <div className="auth-error">{error}</div>}
@@ -121,5 +115,6 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

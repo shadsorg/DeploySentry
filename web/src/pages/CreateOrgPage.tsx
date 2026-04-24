@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { entitiesApi } from '@/api';
+import SiteHeader from '@/components/SiteHeader';
 
 export default function CreateOrgPage() {
   const navigate = useNavigate();
@@ -36,6 +37,8 @@ export default function CreateOrgPage() {
   }
 
   return (
+    <>
+    <SiteHeader variant="landing" size="large" />
     <div className="page-center">
       <div className="form-card">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
@@ -87,5 +90,6 @@ export default function CreateOrgPage() {
         </form>
       </div>
     </div>
+    </>
   );
 }

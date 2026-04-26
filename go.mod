@@ -1,6 +1,6 @@
 module github.com/deploysentry/deploysentry
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/envoyproxy/go-control-plane v0.14.0

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )

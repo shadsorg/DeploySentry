@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/platform/gelf"
+	"github.com/shadsorg/deploysentry/internal/platform/gelf"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )

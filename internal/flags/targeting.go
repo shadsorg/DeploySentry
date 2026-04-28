@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 // CombineOperator defines how multiple conditions in a compound rule are combined.

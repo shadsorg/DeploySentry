@@ -311,7 +311,7 @@ package groups
 import (
 	"context"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -355,8 +355,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/deploysentry/deploysentry/internal/groups"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/groups"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -563,7 +563,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -754,8 +754,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/deploysentry/deploysentry/internal/auth"
-	"github.com/deploysentry/deploysentry/internal/entities"
+	"github.com/shadsorg/deploysentry/internal/auth"
+	"github.com/shadsorg/deploysentry/internal/entities"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -998,7 +998,7 @@ package grants
 import (
 	"context"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -1033,8 +1033,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/deploysentry/deploysentry/internal/grants"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/grants"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -1251,7 +1251,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -1532,9 +1532,9 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/deploysentry/deploysentry/internal/auth"
-	"github.com/deploysentry/deploysentry/internal/entities"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/auth"
+	"github.com/shadsorg/deploysentry/internal/entities"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )

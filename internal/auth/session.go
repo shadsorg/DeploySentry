@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 
-	"github.com/deploysentry/deploysentry/internal/platform/cache"
+	"github.com/shadsorg/deploysentry/internal/platform/cache"
 )
 
 const (

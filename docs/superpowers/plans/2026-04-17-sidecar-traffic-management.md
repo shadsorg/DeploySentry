@@ -228,7 +228,7 @@ package registry
 import (
 	"context"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -259,8 +259,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/agent/registry"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/agent/registry"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -444,8 +444,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/agent/registry"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/agent/registry"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -598,7 +598,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -715,7 +715,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/deploysentry/deploysentry/internal/agent/registry"
+	"github.com/shadsorg/deploysentry/internal/agent/registry"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -822,8 +822,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/deploysentry/deploysentry/internal/auth"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/auth"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -1028,7 +1028,7 @@ registry.NewHandler(agentService).RegisterRoutes(api, rbacChecker)
 Add to the import block:
 
 ```go
-"github.com/deploysentry/deploysentry/internal/agent/registry"
+"github.com/shadsorg/deploysentry/internal/agent/registry"
 ```
 
 - [ ] **Step 4: Verify it compiles**
@@ -1059,7 +1059,7 @@ package xds_test
 import (
 	"testing"
 
-	"github.com/deploysentry/deploysentry/internal/agent/xds"
+	"github.com/shadsorg/deploysentry/internal/agent/xds"
 )
 
 func TestBuildSnapshot(t *testing.T) {
@@ -1373,7 +1373,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/agent/xds"
+	"github.com/shadsorg/deploysentry/internal/agent/xds"
 )
 
 func TestServerStartAndUpdate(t *testing.T) {
@@ -1547,7 +1547,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/agent/sse"
+	"github.com/shadsorg/deploysentry/internal/agent/sse"
 )
 
 func TestClientReceivesEvents(t *testing.T) {
@@ -1764,7 +1764,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/agent/reporter"
+	"github.com/shadsorg/deploysentry/internal/agent/reporter"
 	"github.com/google/uuid"
 )
 
@@ -1818,7 +1818,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -2075,10 +2075,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/deploysentry/deploysentry/internal/agent"
-	"github.com/deploysentry/deploysentry/internal/agent/reporter"
-	"github.com/deploysentry/deploysentry/internal/agent/sse"
-	"github.com/deploysentry/deploysentry/internal/agent/xds"
+	"github.com/shadsorg/deploysentry/internal/agent"
+	"github.com/shadsorg/deploysentry/internal/agent/reporter"
+	"github.com/shadsorg/deploysentry/internal/agent/sse"
+	"github.com/shadsorg/deploysentry/internal/agent/xds"
 	"github.com/google/uuid"
 )
 

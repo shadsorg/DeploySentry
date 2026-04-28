@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/platform/crypto"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/platform/crypto"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )

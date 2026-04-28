@@ -10,9 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"github.com/deploysentry/deploysentry/internal/auth"
-	"github.com/deploysentry/deploysentry/internal/deploy"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/auth"
+	"github.com/shadsorg/deploysentry/internal/deploy"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 // WorkflowRunHandler receives GitHub `workflow_run` events and writes

@@ -11,10 +11,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/deploysentry/deploysentry/internal/agent"
-	"github.com/deploysentry/deploysentry/internal/agent/reporter"
-	"github.com/deploysentry/deploysentry/internal/agent/sse"
-	"github.com/deploysentry/deploysentry/internal/agent/xds"
+	"github.com/shadsorg/deploysentry/internal/agent"
+	"github.com/shadsorg/deploysentry/internal/agent/reporter"
+	"github.com/shadsorg/deploysentry/internal/agent/sse"
+	"github.com/shadsorg/deploysentry/internal/agent/xds"
 	"github.com/google/uuid"
 )
 

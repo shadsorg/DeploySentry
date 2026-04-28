@@ -12,8 +12,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"github.com/deploysentry/deploysentry/internal/deploy"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/deploy"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 // fakeRepo implements just the DeployRepository methods the handler uses.

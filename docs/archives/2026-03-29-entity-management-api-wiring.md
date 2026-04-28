@@ -60,7 +60,7 @@ package entities
 import (
 	"context"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -96,7 +96,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -263,8 +263,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/deploysentry/deploysentry/internal/auth"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/auth"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -359,7 +359,7 @@ For `CreateOrg` transactional safety: The service calls `CreateOrg` then `AddOrg
 
 Read `cmd/api/main.go`. Add:
 
-1. Import: `"github.com/deploysentry/deploysentry/internal/entities"`
+1. Import: `"github.com/shadsorg/deploysentry/internal/entities"`
 2. In Repositories section: `entityRepo := postgres.NewEntityRepository(db.Pool)`
 3. In Services section: `entityService := entities.NewEntityService(entityRepo)`
 4. In Routes section (after existing handlers): `entities.NewHandler(entityService, rbacChecker).RegisterRoutes(api)`

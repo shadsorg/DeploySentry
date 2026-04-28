@@ -8,9 +8,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"github.com/deploysentry/deploysentry/internal/auth"
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/platform/response"
+	"github.com/shadsorg/deploysentry/internal/auth"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/platform/response"
 )
 
 // Handler provides HTTP handlers for webhook operations.

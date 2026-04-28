@@ -1,4 +1,4 @@
-module github.com/deploysentry/deploysentry
+module github.com/shadsorg/deploysentry
 
 go 1.25.0
 

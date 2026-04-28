@@ -3,7 +3,7 @@ package rollout
 import (
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 // StrategyOverrides captures per-rollout tweaks to a template at attach time.

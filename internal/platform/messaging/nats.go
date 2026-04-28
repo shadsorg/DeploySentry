@@ -9,7 +9,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 
-	"github.com/deploysentry/deploysentry/internal/platform/config"
+	"github.com/shadsorg/deploysentry/internal/platform/config"
 )
 
 // NATS wraps a NATS connection and JetStream context.

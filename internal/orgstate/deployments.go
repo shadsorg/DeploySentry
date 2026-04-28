@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/platform/database/postgres"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/platform/database/postgres"
 	"github.com/google/uuid"
 )
 

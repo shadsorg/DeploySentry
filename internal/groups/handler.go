@@ -5,8 +5,8 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/deploysentry/deploysentry/internal/auth"
-	"github.com/deploysentry/deploysentry/internal/entities"
+	"github.com/shadsorg/deploysentry/internal/auth"
+	"github.com/shadsorg/deploysentry/internal/entities"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )

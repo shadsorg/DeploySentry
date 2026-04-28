@@ -9,8 +9,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/rollout/applicator"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/rollout/applicator"
 	"github.com/google/uuid"
 )
 

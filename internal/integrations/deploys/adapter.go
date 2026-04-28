@@ -8,7 +8,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 // ErrInvalidSignature is returned by an adapter when a webhook's signature

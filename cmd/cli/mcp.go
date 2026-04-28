@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	mcpserver "github.com/deploysentry/deploysentry/internal/mcp"
+	mcpserver "github.com/shadsorg/deploysentry/internal/mcp"
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/spf13/cobra"
 )

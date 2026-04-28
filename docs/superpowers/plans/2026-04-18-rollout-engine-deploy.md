@@ -423,7 +423,7 @@ package rollout
 import (
 	"context"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -476,8 +476,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/rollout"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/rollout"
 	"github.com/google/uuid"
 )
 
@@ -633,8 +633,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/rollout"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/rollout"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -1039,7 +1039,7 @@ package applicator
 import (
 	"context"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 // HealthScore is a normalized health reading in [0, 1].
@@ -1077,8 +1077,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/deploysentry/deploysentry/internal/health"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/health"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -1198,9 +1198,9 @@ import (
 	"errors"
 	"math"
 
-	"github.com/deploysentry/deploysentry/internal/health"
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/rollout/applicator"
+	"github.com/shadsorg/deploysentry/internal/health"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/rollout/applicator"
 	"github.com/google/uuid"
 )
 
@@ -1318,7 +1318,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 func baseTemplate() *models.Strategy {
@@ -1392,7 +1392,7 @@ package rollout
 import (
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 // StrategyOverrides captures per-rollout tweaks to a template at attach time.
@@ -1514,8 +1514,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/rollout/applicator"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/rollout/applicator"
 )
 
 func TestEvaluateAbortConditions_Trips(t *testing.T) {
@@ -1595,8 +1595,8 @@ Create `internal/rollout/engine/gates.go`:
 package engine
 
 import (
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/rollout/applicator"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/rollout/applicator"
 )
 
 // EvaluateAbortConditions returns the first abort condition whose threshold
@@ -1695,8 +1695,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/rollout/applicator"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/rollout/applicator"
 	"github.com/google/uuid"
 )
 
@@ -1949,8 +1949,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/rollout/applicator"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/rollout/applicator"
 	"github.com/google/uuid"
 )
 
@@ -2226,7 +2226,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -2396,7 +2396,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -2599,7 +2599,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -2719,7 +2719,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -2987,7 +2987,7 @@ if h.rollouts != nil && req.Rollout != nil && !req.Rollout.ApplyImmediately {
 c.JSON(http.StatusCreated, d)
 ```
 
-Import the rollout package: `"github.com/deploysentry/deploysentry/internal/rollout"`.
+Import the rollout package: `"github.com/shadsorg/deploysentry/internal/rollout"`.
 
 Define the actor helper if one doesn't already exist in the deploy package:
 
@@ -3045,7 +3045,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -3196,7 +3196,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -3527,8 +3527,8 @@ git commit -m "feat(db): seed system canary, blue-green, rolling strategies per 
 - [ ] **Step 1: Add imports**
 
 ```go
-"github.com/deploysentry/deploysentry/internal/rollout/applicator/deploy"
-"github.com/deploysentry/deploysentry/internal/rollout/engine"
+"github.com/shadsorg/deploysentry/internal/rollout/applicator/deploy"
+"github.com/shadsorg/deploysentry/internal/rollout/engine"
 ```
 
 - [ ] **Step 2: Construct repos, applicator, engine, service, handler**

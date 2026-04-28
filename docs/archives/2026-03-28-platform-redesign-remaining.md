@@ -27,7 +27,7 @@ package applications
 import (
 	"context"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -54,7 +54,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -230,7 +230,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -322,8 +322,8 @@ package applications
 import (
 	"net/http"
 
-	"github.com/deploysentry/deploysentry/internal/auth"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/auth"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -501,7 +501,7 @@ func (h *Handler) deleteApplication(c *gin.Context) {
 
 In `cmd/api/main.go`, add to imports:
 ```go
-"github.com/deploysentry/deploysentry/internal/applications"
+"github.com/shadsorg/deploysentry/internal/applications"
 ```
 
 After the existing repository declarations (around line 180), add:
@@ -551,7 +551,7 @@ package settings
 import (
 	"context"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -578,7 +578,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -765,7 +765,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -828,8 +828,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/deploysentry/deploysentry/internal/auth"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/auth"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -967,7 +967,7 @@ func (h *Handler) deleteSetting(c *gin.Context) {
 
 - [ ] **Step 5: Wire into main.go**
 
-Add import `"github.com/deploysentry/deploysentry/internal/settings"`.
+Add import `"github.com/shadsorg/deploysentry/internal/settings"`.
 
 After appRepo line, add:
 ```go
@@ -1820,7 +1820,7 @@ set -e
 
 INSTALL_DIR="${HOME}/.deploysentry/bin"
 BINARY_NAME="deploysentry"
-BASE_URL="${DEPLOYSENTRY_RELEASES_URL:-https://github.com/deploysentry/deploysentry/releases/download}"
+BASE_URL="${DEPLOYSENTRY_RELEASES_URL:-https://github.com/shadsorg/deploysentry/releases/download}"
 VERSION="${VERSION:-latest}"
 
 # Detect OS and architecture

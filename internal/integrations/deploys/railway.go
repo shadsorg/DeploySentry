@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 // RailwayAdapter maps Railway's deploy webhook payload into the canonical

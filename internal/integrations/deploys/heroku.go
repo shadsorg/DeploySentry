@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 // HerokuAdapter consumes Heroku App Webhook `release` events. The

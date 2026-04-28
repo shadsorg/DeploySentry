@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 // VercelAdapter consumes Vercel deployment webhook events. Signed with

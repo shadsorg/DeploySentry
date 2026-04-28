@@ -17,9 +17,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/platform/crypto"
-	"github.com/deploysentry/deploysentry/internal/platform/messaging"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/platform/crypto"
+	"github.com/shadsorg/deploysentry/internal/platform/messaging"
 )
 
 // Service provides webhook management and delivery functionality.

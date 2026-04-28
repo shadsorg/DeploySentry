@@ -393,7 +393,7 @@ claude mcp add deploysentry -- deploysentry mcp serve
 
 > **Troubleshooting.** The CLI uses API keys, not browser OAuth. If
 > `auth login` opens a browser that 404s, your binary is stale — rebuild
-> with `go install github.com/deploysentry/deploysentry/cmd/cli@main`,
+> with `go install github.com/shadsorg/deploysentry/cmd/cli@main`,
 > or skip `auth login` entirely and just `export DEPLOYSENTRY_API_KEY=…`
 > (every other CLI command and the MCP server fall back to that env
 > var). `docs/Getting_Started.md` is canonical.

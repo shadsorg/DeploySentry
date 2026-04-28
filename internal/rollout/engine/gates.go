@@ -4,8 +4,8 @@
 package engine
 
 import (
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/rollout/applicator"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/rollout/applicator"
 )
 
 // EvaluateAbortConditions returns the first abort condition whose threshold

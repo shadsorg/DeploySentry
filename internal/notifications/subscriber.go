@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/deploysentry/deploysentry/internal/platform/messaging"
+	"github.com/shadsorg/deploysentry/internal/platform/messaging"
 	"github.com/nats-io/nats.go/jetstream"
 )
 

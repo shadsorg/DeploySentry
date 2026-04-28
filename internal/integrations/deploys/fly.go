@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 // FlyAdapter consumes Fly.io-shaped deploy events. Fly's native webhook

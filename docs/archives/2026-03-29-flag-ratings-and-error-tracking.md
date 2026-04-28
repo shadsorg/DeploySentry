@@ -226,7 +226,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -291,7 +291,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
@@ -466,7 +466,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -701,8 +701,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/auth"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/auth"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -923,8 +923,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/auth"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/auth"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -1234,7 +1234,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -1470,7 +1470,7 @@ ratings.NewHandler(ratingService, rbacChecker).RegisterRoutes(api)
 
 Add to imports:
 ```go
-"github.com/deploysentry/deploysentry/internal/ratings"
+"github.com/shadsorg/deploysentry/internal/ratings"
 ```
 
 - [ ] **Step 2: Verify it compiles**

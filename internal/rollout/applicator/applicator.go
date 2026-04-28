@@ -5,7 +5,7 @@ package applicator
 import (
 	"context"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 // HealthScore is a normalized health reading in [0, 1].

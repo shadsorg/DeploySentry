@@ -12,10 +12,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/currentstate"
-	"github.com/deploysentry/deploysentry/internal/entities"
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/platform/database/postgres"
+	"github.com/shadsorg/deploysentry/internal/currentstate"
+	"github.com/shadsorg/deploysentry/internal/entities"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/platform/database/postgres"
 	"github.com/google/uuid"
 )
 

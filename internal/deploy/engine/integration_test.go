@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/deploy/engine"
-	"github.com/deploysentry/deploysentry/internal/deploy/strategies"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/deploy/engine"
+	"github.com/shadsorg/deploysentry/internal/deploy/strategies"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/deploysentry/deploysentry/internal/health"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/health"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 

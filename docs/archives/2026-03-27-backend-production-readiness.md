@@ -337,8 +337,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/platform/cache/flagcache"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/platform/cache/flagcache"
 	"github.com/google/uuid"
 )
 
@@ -459,7 +459,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -603,7 +603,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -893,7 +893,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -1049,8 +1049,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/deploysentry/deploysentry/internal/auth"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/auth"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -1149,8 +1149,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/flags"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/flags"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -1452,8 +1452,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/deploy"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/deploy"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -1696,8 +1696,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/releases"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/releases"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -2016,8 +2016,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/platform/config"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/platform/config"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/argon2"
@@ -2268,13 +2268,13 @@ git commit -m "feat: add SessionTTL config for flag session consistency"
 Add these imports to `cmd/api/main.go`:
 
 ```go
-"github.com/deploysentry/deploysentry/internal/auth"
-"github.com/deploysentry/deploysentry/internal/deploy"
-"github.com/deploysentry/deploysentry/internal/flags"
-"github.com/deploysentry/deploysentry/internal/platform/cache/flagcache"
-"github.com/deploysentry/deploysentry/internal/platform/database/postgres"
-"github.com/deploysentry/deploysentry/internal/platform/middleware"
-"github.com/deploysentry/deploysentry/internal/releases"
+"github.com/shadsorg/deploysentry/internal/auth"
+"github.com/shadsorg/deploysentry/internal/deploy"
+"github.com/shadsorg/deploysentry/internal/flags"
+"github.com/shadsorg/deploysentry/internal/platform/cache/flagcache"
+"github.com/shadsorg/deploysentry/internal/platform/database/postgres"
+"github.com/shadsorg/deploysentry/internal/platform/middleware"
+"github.com/shadsorg/deploysentry/internal/releases"
 ```
 
 After the `router.GET("/ready", ...)` block (line 131), add:

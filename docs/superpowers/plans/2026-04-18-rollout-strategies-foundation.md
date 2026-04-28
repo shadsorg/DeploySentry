@@ -499,7 +499,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 func validStrategy() *models.Strategy {
@@ -619,7 +619,7 @@ package rollout
 import (
 	"fmt"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 var validAbortOperators = map[string]bool{
@@ -730,7 +730,7 @@ package rollout
 import (
 	"context"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -780,7 +780,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -897,8 +897,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/rollout"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/rollout"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -1453,7 +1453,7 @@ package rollout
 import (
 	"testing"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -1537,7 +1537,7 @@ Create `internal/rollout/resolver.go`:
 package rollout
 
 import (
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -1677,7 +1677,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -1848,7 +1848,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -2078,7 +2078,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 func TestYAML_RoundTrip(t *testing.T) {
@@ -2151,7 +2151,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"gopkg.in/yaml.v3"
 )
 
@@ -2347,7 +2347,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -2564,7 +2564,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -3039,7 +3039,7 @@ Expected: existing lines showing where other handlers are registered; no `rollou
 In `cmd/api/main.go`, add to the import block (alphabetical placement within the `deploysentry/internal/...` group):
 
 ```go
-"github.com/deploysentry/deploysentry/internal/rollout"
+"github.com/shadsorg/deploysentry/internal/rollout"
 ```
 
 - [ ] **Step 3: Construct the services and resolver, register routes**

@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/deploysentry/deploysentry/internal/platform/gelf"
+	"github.com/shadsorg/deploysentry/internal/platform/gelf"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"

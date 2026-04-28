@@ -8,7 +8,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/deploysentry/deploysentry/internal/platform/config"
+	"github.com/shadsorg/deploysentry/internal/platform/config"
 )
 
 // Redis wraps the go-redis client with convenience methods.

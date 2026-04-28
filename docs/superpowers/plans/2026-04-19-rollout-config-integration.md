@@ -249,7 +249,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -363,8 +363,8 @@ import (
 	"errors"
 	"math"
 
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/rollout/applicator"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/rollout/applicator"
 	"github.com/google/uuid"
 )
 
@@ -468,7 +468,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 type stubInner struct {
@@ -565,7 +565,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 // Router dispatches Applicator calls to an inner applicator chosen by
@@ -1105,7 +1105,7 @@ func (u *flagRuleUpdater) UpdateRulePercentage(ctx context.Context, ruleID uuid.
 }
 ```
 
-(Add any needed import aliases — e.g., `applicatorconfig "github.com/deploysentry/deploysentry/internal/rollout/applicator/config"`.)
+(Add any needed import aliases — e.g., `applicatorconfig "github.com/shadsorg/deploysentry/internal/rollout/applicator/config"`.)
 
 - [ ] **Step 2: Add the flag attacher adapter**
 
@@ -1187,8 +1187,8 @@ rolloutExecEngine := rolloutengine.New(engineRepos, routerApp, natsPublisher, ro
 Add imports as needed:
 
 ```go
-"github.com/deploysentry/deploysentry/internal/rollout/applicator"
-applicatorconfig "github.com/deploysentry/deploysentry/internal/rollout/applicator/config"
+"github.com/shadsorg/deploysentry/internal/rollout/applicator"
+applicatorconfig "github.com/shadsorg/deploysentry/internal/rollout/applicator/config"
 ```
 
 - [ ] **Step 4: Rewire flag handler with attacher**

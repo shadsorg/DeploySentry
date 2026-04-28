@@ -26,7 +26,7 @@ INSTALL_DIR=$HOME/bin sh -c "$(curl -fsSL https://api.dr-sentry.com/install.sh)"
 # or from source — REQUIRED today. The latest GitHub release predates the
 # 2026-04-23 auth-flow fix, so the one-liner above still pulls a binary
 # that lacks the `--token` flag. Build from main until a new release lands.
-go install github.com/deploysentry/deploysentry/cmd/cli@main
+go install github.com/shadsorg/deploysentry/cmd/cli@main
 # `go install` writes to $GOPATH/bin as `cli`; rename to `deploysentry`
 mv "$(go env GOPATH)/bin/cli" "$(go env GOPATH)/bin/deploysentry"
 ```
@@ -79,7 +79,7 @@ deploysentry orgs list           # should return your orgs
 
 > **Troubleshooting — "`auth login` opened my browser to a 404 page".** You have a CLI binary from before 2026-04-23, when the flow was still OAuth. Two fixes:
 >
-> 1. **Rebuild the CLI** — `go install github.com/deploysentry/deploysentry/cmd/cli@main` (or re-run `curl -fsSL https://api.dr-sentry.com/install.sh | sh` once the latest release has been cut). Then run `deploysentry auth login --token ds_live_…`.
+> 1. **Rebuild the CLI** — `go install github.com/shadsorg/deploysentry/cmd/cli@main` (or re-run `curl -fsSL https://api.dr-sentry.com/install.sh | sh` once the latest release has been cut). Then run `deploysentry auth login --token ds_live_…`.
 > 2. **Skip `auth login` on this binary.** Set `export DEPLOYSENTRY_API_KEY=ds_live_…` in your shell. Every CLI command (and the MCP server) falls back to the env var when no credentials file exists, so you can use the tool without persisting a key. Only the `auth login` / `auth status` commands will be broken — the rest work fine.
 >
 > DeploySentry does not currently offer a browser-based OAuth flow; API keys are the supported credential.

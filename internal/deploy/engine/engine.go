@@ -10,10 +10,10 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/deploy"
-	"github.com/deploysentry/deploysentry/internal/deploy/strategies"
-	"github.com/deploysentry/deploysentry/internal/health"
-	"github.com/deploysentry/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/deploy"
+	"github.com/shadsorg/deploysentry/internal/deploy/strategies"
+	"github.com/shadsorg/deploysentry/internal/health"
+	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 )
 

@@ -131,7 +131,7 @@ with 'unknown flag: --token'.
 
 Two workarounds:
   1. Build from source:
-       go install github.com/deploysentry/deploysentry/cmd/cli@main
+       go install github.com/shadsorg/deploysentry/cmd/cli@main
 
   2. Skip 'auth login' on this binary and export the API key:
        export DEPLOYSENTRY_API_KEY=ds_live_...

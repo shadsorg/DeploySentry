@@ -98,7 +98,7 @@ The `./scripts/dev.sh` script provides a unified interface for all development t
 
 ```bash
 # Clone and setup (one time only)
-git clone https://github.com/deploysentry/deploysentry.git
+git clone https://github.com/shadsorg/deploysentry.git
 cd deploysentry
 ./scripts/dev-setup.sh
 

@@ -8,7 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/deploysentry/deploysentry/internal/platform/config"
+	"github.com/shadsorg/deploysentry/internal/platform/config"
 )
 
 // DB wraps a pgxpool.Pool with convenience methods.

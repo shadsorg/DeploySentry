@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/health"
+	"github.com/shadsorg/deploysentry/internal/health"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )

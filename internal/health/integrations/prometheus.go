@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/health"
+	"github.com/shadsorg/deploysentry/internal/health"
 	"github.com/google/uuid"
 )
 

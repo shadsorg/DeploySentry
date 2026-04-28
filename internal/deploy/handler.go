@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/analytics"
-	"github.com/deploysentry/deploysentry/internal/auth"
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/rollout"
-	"github.com/deploysentry/deploysentry/internal/webhooks"
+	"github.com/shadsorg/deploysentry/internal/analytics"
+	"github.com/shadsorg/deploysentry/internal/auth"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/rollout"
+	"github.com/shadsorg/deploysentry/internal/webhooks"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )

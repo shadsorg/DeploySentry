@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/deploysentry/deploysentry/internal/models"
-	"github.com/deploysentry/deploysentry/internal/webhooks"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/webhooks"
 	"github.com/google/uuid"
 )
 

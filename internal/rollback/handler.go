@@ -3,7 +3,7 @@ package rollback
 import (
 	"net/http"
 
-	"github.com/deploysentry/deploysentry/internal/auth"
+	"github.com/shadsorg/deploysentry/internal/auth"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )

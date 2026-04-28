@@ -151,7 +151,7 @@ import (
     "fmt"
     "log"
 
-    deploysentry "github.com/deploysentry/deploysentry/sdk/go"
+    deploysentry "github.com/shadsorg/deploysentry/sdk/go"
 )
 
 func main() {
@@ -587,7 +587,7 @@ For services that cannot maintain persistent connections, DeploySentry supports 
 Webhook payloads are signed with HMAC-SHA256. Verify the `X-DeploySentry-Signature` header against your webhook secret:
 
 ```go
-import "github.com/deploysentry/deploysentry/internal/notifications"
+import "github.com/shadsorg/deploysentry/internal/notifications"
 
 valid := notifications.VerifySignature(requestBody, signatureHeader, webhookSecret)
 ```

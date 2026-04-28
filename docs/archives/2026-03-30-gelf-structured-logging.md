@@ -978,7 +978,7 @@ func TestStructuredLogger_NilGELFClientDoesNotPanic(t *testing.T) {
 
 // Test helpers — add near top of file with other test imports/utilities.
 // Add imports: "encoding/json", "github.com/stretchr/testify/require",
-//              "github.com/deploysentry/deploysentry/internal/platform/gelf"
+//              "github.com/shadsorg/deploysentry/internal/platform/gelf"
 
 type gelfMockTransport struct {
 	messages [][]byte
@@ -1074,7 +1074,7 @@ if gelfClient != nil {
 }
 ```
 
-Add imports: `"github.com/google/uuid"` and `"github.com/deploysentry/deploysentry/internal/platform/gelf"`.
+Add imports: `"github.com/google/uuid"` and `"github.com/shadsorg/deploysentry/internal/platform/gelf"`.
 
 **Note on `_userId`:** The auth middleware sets `user_id` as `uuid.UUID` in the Gin context. The type assertion `uid.(uuid.UUID)` is correct for production. In tests that need to verify `_userId` propagation, set `user_id` as `uuid.UUID`, not `string`.
 
@@ -1083,7 +1083,7 @@ Add imports: `"github.com/google/uuid"` and `"github.com/deploysentry/deploysent
 Add the `newTestGELFClient` helper using the gelf package:
 
 ```go
-import "github.com/deploysentry/deploysentry/internal/platform/gelf"
+import "github.com/shadsorg/deploysentry/internal/platform/gelf"
 
 func newTestGELFClient(mt *gelfMockTransport) *gelf.Client {
 	return gelf.NewTestClient(mt)
@@ -1289,7 +1289,7 @@ func (c *Client) ErrorWithContext(shortMessage, errorName, errorStack, requestID
 }
 ```
 
-Add imports: `"github.com/google/uuid"` and `"github.com/deploysentry/deploysentry/internal/platform/gelf"`.
+Add imports: `"github.com/google/uuid"` and `"github.com/shadsorg/deploysentry/internal/platform/gelf"`.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -1332,7 +1332,7 @@ defer func() {
 }()
 ```
 
-Add import: `"github.com/deploysentry/deploysentry/internal/platform/gelf"`
+Add import: `"github.com/shadsorg/deploysentry/internal/platform/gelf"`
 
 - [ ] **Step 2: Update middleware registration to pass GELF client**
 

@@ -247,3 +247,37 @@ func TestFlagsToggle_NoFlag(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "--on or --off")
 }
+
+func TestFlagsArchive_Success(t *testing.T) {
+	srv := newMockServer(t)
+	stubProjectAndEnv(t, srv, "proj-uuid", "env-prod-uuid")
+	srv.onPathFunc("POST", "/api/v1/flags/f-1/archive", func(recordedRequest) (int, any) {
+		return 200, map[string]any{"status": "archived"}
+	})
+	srv.onPathFunc("GET", "/api/v1/flags", func(recordedRequest) (int, any) {
+		return 200, map[string]any{"flags": []map[string]any{{"id": "f-1", "key": "old"}}}
+	})
+	setTestConfig(t, srv.URL(), "ds_testkey", "acme", "payments", "")
+
+	stdout, _, err := runCmd(t, rootCmd, "flags", "archive", "old")
+	require.NoError(t, err)
+	require.Contains(t, stdout, "archived successfully")
+}
+
+func TestFlagsEvaluate_Success(t *testing.T) {
+	srv := newMockServer(t)
+	stubProjectAndEnv(t, srv, "proj-uuid", "env-prod-uuid")
+	srv.onPathFunc("POST", "/api/v1/flags/evaluate", func(req recordedRequest) (int, any) {
+		require.Equal(t, "dark-mode", req.Body["flag_key"])
+		require.Equal(t, "proj-uuid", req.Body["project_id"])
+		ctx, _ := req.Body["context"].(map[string]any)
+		require.Equal(t, "u1", ctx["user_id"])
+		return 200, map[string]any{"value": true, "reason": "DEFAULT_VALUE"}
+	})
+	setTestConfig(t, srv.URL(), "ds_testkey", "acme", "payments", "")
+
+	stdout, _, err := runCmd(t, rootCmd, "flags", "evaluate", "dark-mode", "--context", `{"user_id":"u1"}`)
+	require.NoError(t, err)
+	require.Contains(t, stdout, "Value:  true")
+	require.Contains(t, stdout, "DEFAULT_VALUE")
+}

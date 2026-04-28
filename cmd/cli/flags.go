@@ -580,35 +580,41 @@ func runFlagsEvaluate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
-
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
+	projectID, err := resolveProjectID(client, org, projectSlug)
+	if err != nil {
+		return err
+	}
 
-	key := args[0]
 	contextJSON, _ := cmd.Flags().GetString("context")
-
 	var evalContext map[string]interface{}
 	if err := json.Unmarshal([]byte(contextJSON), &evalContext); err != nil {
 		return fmt.Errorf("invalid context JSON: %w", err)
 	}
 
 	body := map[string]interface{}{
-		"context": evalContext,
+		"flag_key":   args[0],
+		"project_id": projectID,
+		"context":    evalContext,
 	}
-	if env := getEnv(); env != "" {
-		body["environment"] = env
+	if envSlug := getEnv(); envSlug != "" {
+		envID, err := resolveEnvID(client, org, envSlug)
+		if err != nil {
+			return err
+		}
+		body["environment_id"] = envID
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/flags/%s/evaluate", org, project, key)
-	resp, err := client.post(path, body)
+	resp, err := client.post("/api/v1/flags/evaluate", body)
 	if err != nil {
-		return fmt.Errorf("failed to evaluate flag %q: %w", key, err)
+		return fmt.Errorf("failed to evaluate flag %q: %w", args[0], err)
 	}
 
 	if getOutputFormat() == "json" {
@@ -616,16 +622,12 @@ func runFlagsEvaluate(cmd *cobra.Command, args []string) error {
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
-
-	value := resp["value"]
-	reason, _ := resp["reason"].(string)
-	ruleIndex, hasRule := resp["rule_index"].(float64)
-
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag:   %s\n", key)
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Value:  %v\n", value)
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Reason: %s\n", reason)
-	if hasRule {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Rule:   #%.0f\n", ruleIndex)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag:   %s\n", args[0])
+	if v, ok := resp["value"]; ok {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Value:  %v\n", v)
+	}
+	if r, ok := resp["reason"].(string); ok {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Reason: %s\n", r)
 	}
 	return nil
 }
@@ -635,29 +637,32 @@ func runFlagsArchive(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
-
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
-
-	key := args[0]
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/flags/%s/archive", org, project, key)
-	resp, err := client.post(path, nil)
+	projectID, err := resolveProjectID(client, org, projectSlug)
 	if err != nil {
-		return fmt.Errorf("failed to archive flag %q: %w", key, err)
+		return err
+	}
+	flagID, err := resolveFlagID(client, projectID, args[0])
+	if err != nil {
+		return err
 	}
 
+	resp, err := client.post(fmt.Sprintf("/api/v1/flags/%s/archive", flagID), nil)
+	if err != nil {
+		return fmt.Errorf("failed to archive flag %q: %w", args[0], err)
+	}
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
-
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag %q archived successfully.\n", key)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag %q archived successfully.\n", args[0])
 	return nil
 }

@@ -129,7 +129,7 @@ func runAppsCreate(cmd *cobra.Command, args []string) error {
 		body["description"] = description
 	}
 	if repo != "" {
-		body["repository_url"] = repo
+		body["repo_url"] = repo
 	}
 
 	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/apps", org, project)
@@ -209,7 +209,7 @@ func runAppsList(cmd *cobra.Command, args []string) error {
 		slug, _ := app["slug"].(string)
 		name, _ := app["name"].(string)
 		description, _ := app["description"].(string)
-		repo, _ := app["repository_url"].(string)
+		repo, _ := app["repo_url"].(string)
 		createdAt, _ := app["created_at"].(string)
 
 		// Truncate description for table display.

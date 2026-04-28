@@ -205,11 +205,11 @@ func runAnalyticsSummary(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
-	env, err := requireEnv()
+	envSlug, err := requireEnv()
 	if err != nil {
 		return err
 	}
@@ -219,9 +219,18 @@ func runAnalyticsSummary(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	projectID, err := resolveProjectID(client, org, projectSlug)
+	if err != nil {
+		return err
+	}
+	envID, err := resolveEnvID(client, org, envSlug)
+	if err != nil {
+		return err
+	}
+
 	timeRange, _ := cmd.Flags().GetString("time-range")
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/analytics/summary?environment=%s&time_range=%s",
-		org, project, env, timeRange)
+	path := fmt.Sprintf("/api/v1/analytics/summary?project_id=%s&environment_id=%s&time_range=%s",
+		projectID, envID, timeRange)
 
 	resp, err := client.get(path)
 	if err != nil {
@@ -312,11 +321,11 @@ func runAnalyticsFlagsStats(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
-	env, err := requireEnv()
+	envSlug, err := requireEnv()
 	if err != nil {
 		return err
 	}
@@ -326,11 +335,20 @@ func runAnalyticsFlagsStats(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	projectID, err := resolveProjectID(client, org, projectSlug)
+	if err != nil {
+		return err
+	}
+	envID, err := resolveEnvID(client, org, envSlug)
+	if err != nil {
+		return err
+	}
+
 	timeRange, _ := cmd.Flags().GetString("time-range")
 	limit, _ := cmd.Flags().GetInt("limit")
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/analytics/flags/stats?environment=%s&time_range=%s&limit=%d",
-		org, project, env, timeRange, limit)
+	path := fmt.Sprintf("/api/v1/analytics/flags/stats?project_id=%s&environment_id=%s&time_range=%s&limit=%d",
+		projectID, envID, timeRange, limit)
 
 	resp, err := client.get(path)
 	if err != nil {
@@ -377,11 +395,11 @@ func runAnalyticsFlagsUsage(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
-	env, err := requireEnv()
+	envSlug, err := requireEnv()
 	if err != nil {
 		return err
 	}
@@ -391,11 +409,20 @@ func runAnalyticsFlagsUsage(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	projectID, err := resolveProjectID(client, org, projectSlug)
+	if err != nil {
+		return err
+	}
+	envID, err := resolveEnvID(client, org, envSlug)
+	if err != nil {
+		return err
+	}
+
 	flagKey := args[0]
 	timeRange, _ := cmd.Flags().GetString("time-range")
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/analytics/flags/%s/usage?environment=%s&time_range=%s",
-		org, project, flagKey, env, timeRange)
+	path := fmt.Sprintf("/api/v1/analytics/flags/%s/usage?project_id=%s&environment_id=%s&time_range=%s",
+		flagKey, projectID, envID, timeRange)
 
 	resp, err := client.get(path)
 	if err != nil {
@@ -452,7 +479,7 @@ func runAnalyticsDeploymentsStats(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
@@ -462,15 +489,26 @@ func runAnalyticsDeploymentsStats(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	timeRange, _ := cmd.Flags().GetString("time-range")
-	env := getEnv()
-
-	params := []string{fmt.Sprintf("project_id=%s", project), fmt.Sprintf("time_range=%s", timeRange)}
-	if env != "" {
-		params = append(params, fmt.Sprintf("environment=%s", env))
+	projectID, err := resolveProjectID(client, org, projectSlug)
+	if err != nil {
+		return err
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/analytics/deployments/stats?%s", org, strings.Join(params, "&"))
+	timeRange, _ := cmd.Flags().GetString("time-range")
+
+	params := []string{
+		fmt.Sprintf("project_id=%s", projectID),
+		fmt.Sprintf("time_range=%s", timeRange),
+	}
+	if envSlug := getEnv(); envSlug != "" {
+		envID, err := resolveEnvID(client, org, envSlug)
+		if err != nil {
+			return err
+		}
+		params = append(params, fmt.Sprintf("environment_id=%s", envID))
+	}
+
+	path := fmt.Sprintf("/api/v1/analytics/deployments/stats?%s", strings.Join(params, "&"))
 
 	resp, err := client.get(path)
 	if err != nil {
@@ -661,12 +699,17 @@ func runAnalyticsExport(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
 
 	client, err := clientFromConfig()
+	if err != nil {
+		return err
+	}
+
+	projectID, err := resolveProjectID(client, org, projectSlug)
 	if err != nil {
 		return err
 	}
@@ -680,7 +723,7 @@ func runAnalyticsExport(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("you must specify either --start-date and --end-date, or --time-range")
 	}
 
-	params := []string{fmt.Sprintf("project_id=%s", project)}
+	params := []string{fmt.Sprintf("project_id=%s", projectID)}
 	if startDate != "" && endDate != "" {
 		params = append(params, fmt.Sprintf("start_date=%s", startDate))
 		params = append(params, fmt.Sprintf("end_date=%s", endDate))
@@ -691,7 +734,7 @@ func runAnalyticsExport(cmd *cobra.Command, args []string) error {
 		params = append(params, fmt.Sprintf("format=%s", format))
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/analytics/admin/export?%s", org, strings.Join(params, "&"))
+	path := fmt.Sprintf("/api/v1/analytics/admin/export?%s", strings.Join(params, "&"))
 
 	spinner := newSpinner("Exporting analytics data...")
 	resp, err := client.get(path)

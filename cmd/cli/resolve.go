@@ -213,3 +213,46 @@ func resolveFlagID(client *apiClient, projectID, flagKey string) (string, error)
 	}
 	return "", fmt.Errorf("%w: %q in project %s", ErrFlagNotFound, flagKey, projectID)
 }
+
+// resolveAppID resolves an application slug to its UUID by fetching
+// /api/v1/orgs/:org/projects/:project/apps/:appSlug.
+func resolveAppID(client *apiClient, org, projectSlug, appSlug string) (string, error) {
+	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/apps/%s", org, projectSlug, appSlug)
+	resp, err := client.get(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve app %q: %w", appSlug, err)
+	}
+	id, ok := resp["id"].(string)
+	if !ok || id == "" {
+		return "", fmt.Errorf("resolve app %q: response missing id", appSlug)
+	}
+	return id, nil
+}
+
+// resolveReleaseID resolves a release name to its UUID by listing releases
+// for the app and matching on name. The releases API does not version
+// releases by tag — releases are identified by a free-form `name` field —
+// so callers pass the human-readable name they used when creating the
+// release.
+func resolveReleaseID(client *apiClient, appID, name string) (string, error) {
+	path := fmt.Sprintf("/api/v1/applications/%s/releases", appID)
+	resp, err := client.get(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve release %q: %w", name, err)
+	}
+	releases, _ := resp["releases"].([]any)
+	for _, r := range releases {
+		obj, ok := r.(map[string]any)
+		if !ok {
+			continue
+		}
+		n, _ := obj["name"].(string)
+		if n == name {
+			id, _ := obj["id"].(string)
+			if id != "" {
+				return id, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("release %q not found in app %s", name, appID)
+}

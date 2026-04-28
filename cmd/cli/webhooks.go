@@ -263,8 +263,7 @@ func init() {
 }
 
 func runWebhooksCreate(cmd *cobra.Command, args []string) error {
-	org, err := requireOrg()
-	if err != nil {
+	if _, err := requireOrg(); err != nil {
 		return err
 	}
 	project := getProject() // Optional for webhooks
@@ -292,8 +291,7 @@ func runWebhooksCreate(cmd *cobra.Command, args []string) error {
 		body["project_id"] = project
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/webhooks", org)
-	resp, err := client.post(path, body)
+	resp, err := client.post("/api/v1/webhooks", body)
 	if err != nil {
 		return fmt.Errorf("failed to create webhook: %w", err)
 	}
@@ -314,8 +312,7 @@ func runWebhooksCreate(cmd *cobra.Command, args []string) error {
 }
 
 func runWebhooksList(cmd *cobra.Command, args []string) error {
-	org, err := requireOrg()
-	if err != nil {
+	if _, err := requireOrg(); err != nil {
 		return err
 	}
 
@@ -343,7 +340,7 @@ func runWebhooksList(cmd *cobra.Command, args []string) error {
 		params = append(params, fmt.Sprintf("limit=%d", limit))
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/webhooks", org)
+	path := "/api/v1/webhooks"
 	if len(params) > 0 {
 		path += "?" + strings.Join(params, "&")
 	}
@@ -411,8 +408,7 @@ func runWebhooksList(cmd *cobra.Command, args []string) error {
 }
 
 func runWebhooksGet(cmd *cobra.Command, args []string) error {
-	org, err := requireOrg()
-	if err != nil {
+	if _, err := requireOrg(); err != nil {
 		return err
 	}
 
@@ -422,7 +418,7 @@ func runWebhooksGet(cmd *cobra.Command, args []string) error {
 	}
 
 	webhookID := args[0]
-	path := fmt.Sprintf("/api/v1/orgs/%s/webhooks/%s", org, webhookID)
+	path := fmt.Sprintf("/api/v1/webhooks/%s", webhookID)
 
 	resp, err := client.get(path)
 	if err != nil {
@@ -475,8 +471,7 @@ func runWebhooksGet(cmd *cobra.Command, args []string) error {
 }
 
 func runWebhooksUpdate(cmd *cobra.Command, args []string) error {
-	org, err := requireOrg()
-	if err != nil {
+	if _, err := requireOrg(); err != nil {
 		return err
 	}
 
@@ -523,7 +518,7 @@ func runWebhooksUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no updates specified")
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/webhooks/%s", org, webhookID)
+	path := fmt.Sprintf("/api/v1/webhooks/%s", webhookID)
 	resp, err := client.put(path, body)
 	if err != nil {
 		return fmt.Errorf("failed to update webhook: %w", err)
@@ -540,8 +535,7 @@ func runWebhooksUpdate(cmd *cobra.Command, args []string) error {
 }
 
 func runWebhooksDelete(cmd *cobra.Command, args []string) error {
-	org, err := requireOrg()
-	if err != nil {
+	if _, err := requireOrg(); err != nil {
 		return err
 	}
 
@@ -564,7 +558,7 @@ func runWebhooksDelete(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/webhooks/%s", org, webhookID)
+	path := fmt.Sprintf("/api/v1/webhooks/%s", webhookID)
 	_, err = client.delete(path)
 	if err != nil {
 		return fmt.Errorf("failed to delete webhook: %w", err)
@@ -575,8 +569,7 @@ func runWebhooksDelete(cmd *cobra.Command, args []string) error {
 }
 
 func runWebhooksTest(cmd *cobra.Command, args []string) error {
-	org, err := requireOrg()
-	if err != nil {
+	if _, err := requireOrg(); err != nil {
 		return err
 	}
 
@@ -599,7 +592,7 @@ func runWebhooksTest(cmd *cobra.Command, args []string) error {
 		"payload":    payload,
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/webhooks/%s/test", org, webhookID)
+	path := fmt.Sprintf("/api/v1/webhooks/%s/test", webhookID)
 	resp, err := client.post(path, body)
 	if err != nil {
 		return fmt.Errorf("failed to test webhook: %w", err)
@@ -636,8 +629,7 @@ func runWebhooksTest(cmd *cobra.Command, args []string) error {
 }
 
 func runWebhooksDeliveries(cmd *cobra.Command, args []string) error {
-	org, err := requireOrg()
-	if err != nil {
+	if _, err := requireOrg(); err != nil {
 		return err
 	}
 
@@ -659,7 +651,7 @@ func runWebhooksDeliveries(cmd *cobra.Command, args []string) error {
 		params = append(params, fmt.Sprintf("limit=%d", limit))
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/webhooks/%s/deliveries", org, webhookID)
+	path := fmt.Sprintf("/api/v1/webhooks/%s/deliveries", webhookID)
 	if len(params) > 0 {
 		path += "?" + strings.Join(params, "&")
 	}

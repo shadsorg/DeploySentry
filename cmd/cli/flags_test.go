@@ -281,3 +281,50 @@ func TestFlagsEvaluate_Success(t *testing.T) {
 	require.Contains(t, stdout, "Value:  true")
 	require.Contains(t, stdout, "DEFAULT_VALUE")
 }
+
+// resetFlagsListFlags clears cobra flag state for the list command.
+func resetFlagsListFlags(t *testing.T) {
+	t.Helper()
+	t.Cleanup(func() {
+		for _, name := range []string{"category", "status"} {
+			if f := flagsListCmd.Flags().Lookup(name); f != nil {
+				f.Changed = false
+				_ = f.Value.Set(f.DefValue)
+			}
+		}
+	})
+}
+
+func TestFlagsList_Success(t *testing.T) {
+	resetFlagsListFlags(t)
+	srv := newMockServer(t)
+	stubProjectAndEnv(t, srv, "proj-uuid", "env-prod-uuid")
+	srv.onPathFunc("GET", "/api/v1/flags", func(req recordedRequest) (int, any) {
+		require.Contains(t, req.Path, "project_id=proj-uuid")
+		return 200, map[string]any{
+			"flags": []map[string]any{
+				{"key": "dark-mode", "flag_type": "boolean", "category": "feature", "default_value": "false"},
+			},
+		}
+	})
+	setTestConfig(t, srv.URL(), "ds_testkey", "acme", "payments", "")
+
+	stdout, _, err := runCmd(t, rootCmd, "flags", "list")
+	require.NoError(t, err)
+	require.Contains(t, stdout, "dark-mode")
+	require.Contains(t, stdout, "boolean")
+}
+
+func TestFlagsList_FilterByCategory(t *testing.T) {
+	resetFlagsListFlags(t)
+	srv := newMockServer(t)
+	stubProjectAndEnv(t, srv, "proj-uuid", "env-prod-uuid")
+	srv.onPathFunc("GET", "/api/v1/flags", func(req recordedRequest) (int, any) {
+		require.Contains(t, req.Path, "category=release")
+		return 200, map[string]any{"flags": []map[string]any{}}
+	})
+	setTestConfig(t, srv.URL(), "ds_testkey", "acme", "payments", "")
+
+	_, _, err := runCmd(t, rootCmd, "flags", "list", "--category", "release")
+	require.NoError(t, err)
+}

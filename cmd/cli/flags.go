@@ -62,19 +62,16 @@ Examples:
 var flagsListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List feature flags",
-	Long: `List feature flags, optionally filtered by tag, status, or search term.
+	Long: `List feature flags for the current project, optionally filtered by category or archive status.
 
 Examples:
   # List all flags
   deploysentry flags list
 
-  # Search for flags by name
-  deploysentry flags list --search checkout
+  # Filter by category
+  deploysentry flags list --category release
 
-  # List flags with a specific tag
-  deploysentry flags list --tag frontend
-
-  # List only archived flags
+  # List archived flags
   deploysentry flags list --status archived
 
   # Output in JSON format
@@ -192,10 +189,8 @@ func init() {
 	_ = flagsCreateCmd.MarkFlagRequired("key")
 
 	// flags list flags
-	flagsListCmd.Flags().String("tag", "", "filter by tag")
+	flagsListCmd.Flags().String("category", "", "filter by category: release, feature, experiment, ops, permission")
 	flagsListCmd.Flags().String("status", "", "filter by status (active, archived)")
-	flagsListCmd.Flags().String("search", "", "search flags by key or description")
-	flagsListCmd.Flags().Int("limit", 50, "maximum number of results")
 
 	// flags toggle flags
 	flagsToggleCmd.Flags().Bool("on", false, "turn the flag on")
@@ -307,43 +302,33 @@ func runFlagsCreate(cmd *cobra.Command, args []string) error {
 }
 
 func runFlagsList(cmd *cobra.Command, args []string) error {
+	_ = args
 	org, err := requireOrg()
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
-
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
-
-	params := []string{}
-	if tag, _ := cmd.Flags().GetString("tag"); tag != "" {
-		params = append(params, "tag="+tag)
-	}
-	if status, _ := cmd.Flags().GetString("status"); status != "" {
-		params = append(params, "status="+status)
-	}
-	if search, _ := cmd.Flags().GetString("search"); search != "" {
-		params = append(params, "search="+search)
-	}
-	if limit, _ := cmd.Flags().GetInt("limit"); limit > 0 {
-		params = append(params, fmt.Sprintf("limit=%d", limit))
-	}
-	if env := getEnv(); env != "" {
-		params = append(params, "environment="+env)
+	projectID, err := resolveProjectID(client, org, projectSlug)
+	if err != nil {
+		return err
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/flags", org, project)
-	if len(params) > 0 {
-		path += "?" + strings.Join(params, "&")
+	params := []string{"project_id=" + projectID}
+	if cat, _ := cmd.Flags().GetString("category"); cat != "" {
+		params = append(params, "category="+cat)
+	}
+	if status, _ := cmd.Flags().GetString("status"); status == "archived" {
+		params = append(params, "archived=true")
 	}
 
-	resp, err := client.get(path)
+	resp, err := client.get("/api/v1/flags?" + strings.Join(params, "&"))
 	if err != nil {
 		return fmt.Errorf("failed to list flags: %w", err)
 	}
@@ -361,15 +346,12 @@ func runFlagsList(cmd *cobra.Command, args []string) error {
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "KEY\tTYPE\tSTATUS\tDEFAULT\tTAGS\tUPDATED")
+	_, _ = fmt.Fprintln(w, "KEY\tTYPE\tCATEGORY\tDEFAULT\tTAGS\tUPDATED")
 	for _, f := range flags {
-		flag, ok := f.(map[string]interface{})
-		if !ok {
-			continue
-		}
+		flag, _ := f.(map[string]interface{})
 		key, _ := flag["key"].(string)
-		flagType, _ := flag["type"].(string)
-		status, _ := flag["status"].(string)
+		flagType, _ := flag["flag_type"].(string)
+		category, _ := flag["category"].(string)
 		defaultVal, _ := flag["default_value"].(string)
 		updatedAt, _ := flag["updated_at"].(string)
 
@@ -385,7 +367,7 @@ func runFlagsList(cmd *cobra.Command, args []string) error {
 		}
 
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
-			key, flagType, status, defaultVal, tagList, updatedAt)
+			key, flagType, category, defaultVal, tagList, updatedAt)
 	}
 	return w.Flush()
 }

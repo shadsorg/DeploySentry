@@ -406,7 +406,7 @@ func runFlagsGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
@@ -415,16 +415,18 @@ func runFlagsGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-
-	key := args[0]
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/flags/%s", org, project, key)
-	if env := getEnv(); env != "" {
-		path += "?environment=" + env
+	projectID, err := resolveProjectID(client, org, projectSlug)
+	if err != nil {
+		return err
+	}
+	flagID, err := resolveFlagID(client, projectID, args[0])
+	if err != nil {
+		return err
 	}
 
-	resp, err := client.get(path)
+	resp, err := client.get(fmt.Sprintf("/api/v1/flags/%s", flagID))
 	if err != nil {
-		return fmt.Errorf("failed to get flag %q: %w", key, err)
+		return fmt.Errorf("failed to get flag %q: %w", args[0], err)
 	}
 
 	if getOutputFormat() == "json" {
@@ -433,12 +435,9 @@ func runFlagsGet(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Feature Flag: %s\n", key)
-	if t, ok := resp["type"].(string); ok {
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Feature Flag: %s\n", args[0])
+	if t, ok := resp["flag_type"].(string); ok {
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Type:        %s\n", t)
-	}
-	if s, ok := resp["status"].(string); ok {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:      %s\n", s)
 	}
 	if d, ok := resp["default_value"]; ok {
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Default:     %v\n", d)
@@ -446,29 +445,6 @@ func runFlagsGet(cmd *cobra.Command, args []string) error {
 	if desc, ok := resp["description"].(string); ok && desc != "" {
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Description: %s\n", desc)
 	}
-	if created, ok := resp["created_at"].(string); ok {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Created:     %s\n", created)
-	}
-	if updated, ok := resp["updated_at"].(string); ok {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Updated:     %s\n", updated)
-	}
-
-	// Print targeting rules if present.
-	if rules, ok := resp["rules"].([]interface{}); ok && len(rules) > 0 {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n  Targeting Rules:\n")
-		for i, r := range rules {
-			rule, ok := r.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			attr, _ := rule["attribute"].(string)
-			op, _ := rule["operator"].(string)
-			val := rule["value"]
-			pct, _ := rule["percentage"].(float64)
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "    %d. %s %s -> %v (%.0f%%)\n", i+1, attr, op, val, pct)
-		}
-	}
-
 	return nil
 }
 

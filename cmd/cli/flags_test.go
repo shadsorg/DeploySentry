@@ -105,3 +105,37 @@ func TestFlagsCreate_APIError(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "key must be unique")
 }
+
+func TestFlagsGet_Success(t *testing.T) {
+	srv := newMockServer(t)
+	stubProjectAndEnv(t, srv, "proj-uuid", "env-prod-uuid")
+	// Register the more specific route first so prefix matching prefers it.
+	srv.onPathFunc("GET", "/api/v1/flags/f-1", func(recordedRequest) (int, any) {
+		return 200, map[string]any{
+			"id": "f-1", "key": "dark-mode", "flag_type": "boolean",
+			"default_value": "false", "description": "Dark UI",
+		}
+	})
+	srv.onPathFunc("GET", "/api/v1/flags", func(recordedRequest) (int, any) {
+		return 200, map[string]any{"flags": []map[string]any{{"id": "f-1", "key": "dark-mode"}}}
+	})
+	setTestConfig(t, srv.URL(), "ds_testkey", "acme", "payments", "")
+
+	stdout, _, err := runCmd(t, rootCmd, "flags", "get", "dark-mode")
+	require.NoError(t, err)
+	require.Contains(t, stdout, "Type:        boolean")
+	require.Contains(t, stdout, "Default:     false")
+	require.Contains(t, stdout, "Description: Dark UI")
+}
+
+func TestFlagsGet_FlagNotFound(t *testing.T) {
+	srv := newMockServer(t)
+	stubProjectAndEnv(t, srv, "proj-uuid", "env-prod-uuid")
+	srv.onPathFunc("GET", "/api/v1/flags", func(recordedRequest) (int, any) {
+		return 200, map[string]any{"flags": []map[string]any{}}
+	})
+	setTestConfig(t, srv.URL(), "ds_testkey", "acme", "payments", "")
+
+	_, _, err := runCmd(t, rootCmd, "flags", "get", "missing")
+	require.Error(t, err)
+}

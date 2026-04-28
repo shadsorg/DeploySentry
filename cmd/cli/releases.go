@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
@@ -14,165 +13,165 @@ var releasesCmd = &cobra.Command{
 	Use:     "releases",
 	Aliases: []string{"release", "rel"},
 	Short:   "Manage releases",
-	Long: `Create, list, and promote releases across environments.
+	Long: `Create, list, inspect, and promote application releases.
 
-Releases represent versioned snapshots of your application that can be
-deployed to one or more environments. Use the release pipeline to
-promote releases from dev through staging to production.
+Releases group together a set of flag changes and roll them out via a
+traffic-percentage progression. Each release belongs to a single
+application, identified by its slug via --app.
 
 Examples:
-  # Create a release from the current commit
-  deploysentry releases create --version v1.2.0
+  # Create a release on the "api" app
+  deploysentry releases create --app api --name v1.2.0
 
-  # List recent releases
-  deploysentry releases list
+  # List recent releases for an app
+  deploysentry releases list --app api
 
-  # View release status across all environments
-  deploysentry releases status v1.2.0
+  # Inspect a release by name
+  deploysentry releases get v1.2.0 --app api
 
-  # Promote a release to the next environment
-  deploysentry releases promote v1.2.0`,
+  # Promote a release to 50% traffic
+  deploysentry releases promote v1.2.0 --app api --traffic-percent 50`,
 }
 
 var releasesCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new release",
-	Long: `Create a new release with a version tag and optional commit reference.
+	Long: `Create a new release on an application.
 
-If --commit is not specified, the HEAD commit of the current branch
-is used (when run inside a Git repository).
+A release is identified by a free-form --name (e.g. a version tag like
+"v1.2.0", a sprint name, or any human-readable label). Releases start
+in the draft state and are advanced via 'releases promote'.
 
 Examples:
-  # Create a release with explicit version
-  deploysentry releases create --version v1.2.0
+  # Create a release named v1.2.0
+  deploysentry releases create --app api --name v1.2.0
 
-  # Create a release pinned to a specific commit
-  deploysentry releases create --version v1.2.0 --commit abc123def
+  # Create a release with a description
+  deploysentry releases create --app api --name v1.2.0 \
+    --description "Q1 feature release"
 
-  # Create a release with metadata
-  deploysentry releases create --version v1.2.0 \
-    --description "Q1 feature release" \
-    --commit abc123def`,
+  # Create a session-sticky release (sticky header required)
+  deploysentry releases create --app api --name v1.2.0 \
+    --session-sticky --sticky-header X-User-ID`,
 	RunE: runReleasesCreate,
 }
 
 var releasesListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List releases",
-	Long: `List releases for the current project, sorted by creation time.
+	Short: "List releases for an application",
+	Long: `List releases for the application identified by --app.
 
 Examples:
-  # List all releases
-  deploysentry releases list
+  # List all releases for the api app
+  deploysentry releases list --app api
 
-  # List releases in JSON format
-  deploysentry releases list -o json
-
-  # Limit results
-  deploysentry releases list --limit 10`,
+  # JSON output
+  deploysentry releases list --app api -o json`,
 	RunE: runReleasesList,
 }
 
-var releasesStatusCmd = &cobra.Command{
-	Use:   "status [version]",
-	Short: "Show release status across environments",
-	Long: `Display the deployment status of a release across all configured
-environments, showing which environments have the release deployed,
-its current state, and deployment timestamps.
-
-If no version is specified, the latest release is shown.
+var releasesGetCmd = &cobra.Command{
+	Use:   "get [name]",
+	Short: "Show details for a single release",
+	Long: `Fetch a release by name (as registered when the release was created).
 
 Examples:
-  # Show status of a specific release
-  deploysentry releases status v1.2.0
-
-  # Show status of the latest release
-  deploysentry releases status
-
-  # Show status in JSON format
-  deploysentry releases status v1.2.0 -o json`,
-	RunE: runReleasesStatus,
+  deploysentry releases get v1.2.0 --app api
+  deploysentry releases get v1.2.0 --app api -o json`,
+	Args: cobra.ExactArgs(1),
+	RunE: runReleasesGet,
 }
 
 var releasesPromoteCmd = &cobra.Command{
-	Use:   "promote [version]",
-	Short: "Promote a release to the next environment",
-	Long: `Promote a release to the next environment in the pipeline.
-
-The promotion pipeline is defined in your project configuration
-(typically dev -> staging -> production). This command advances the
-release to the next stage.
-
-If --to is specified, the release is promoted directly to that
-environment (skipping intermediate stages if allowed by policy).
+	Use:   "promote [name]",
+	Short: "Advance a release to a target traffic percentage",
+	Long: `Advance a release's traffic percentage. The promote endpoint accepts
+a --traffic-percent value between 1 and 100.
 
 Examples:
-  # Promote the latest release to the next environment
-  deploysentry releases promote
+  # Promote v1.2.0 to 25% traffic
+  deploysentry releases promote v1.2.0 --app api --traffic-percent 25
 
-  # Promote a specific version
-  deploysentry releases promote v1.2.0
-
-  # Promote directly to production
-  deploysentry releases promote v1.2.0 --to production
-
-  # Promote with a specific deployment strategy
-  deploysentry releases promote v1.2.0 --strategy canary`,
+  # Full rollout
+  deploysentry releases promote v1.2.0 --app api --traffic-percent 100`,
+	Args: cobra.ExactArgs(1),
 	RunE: runReleasesPromote,
 }
 
 func init() {
 	// releases create flags
-	releasesCreateCmd.Flags().String("version", "", "release version tag (required)")
-	releasesCreateCmd.Flags().String("commit", "", "Git commit SHA (defaults to HEAD)")
+	releasesCreateCmd.Flags().String("app", "", "application slug (required)")
+	releasesCreateCmd.Flags().String("name", "", "release name (required, e.g. v1.2.0)")
 	releasesCreateCmd.Flags().String("description", "", "release description")
-	_ = releasesCreateCmd.MarkFlagRequired("version")
+	releasesCreateCmd.Flags().Bool("session-sticky", false, "make the rollout session-sticky")
+	releasesCreateCmd.Flags().String("sticky-header", "", "request header used for session stickiness")
+	_ = releasesCreateCmd.MarkFlagRequired("app")
+	_ = releasesCreateCmd.MarkFlagRequired("name")
 
 	// releases list flags
-	releasesListCmd.Flags().Int("limit", 20, "maximum number of results")
+	releasesListCmd.Flags().String("app", "", "application slug (required)")
+	_ = releasesListCmd.MarkFlagRequired("app")
+
+	// releases get flags
+	releasesGetCmd.Flags().String("app", "", "application slug (required)")
+	_ = releasesGetCmd.MarkFlagRequired("app")
 
 	// releases promote flags
-	releasesPromoteCmd.Flags().String("to", "", "target environment to promote to")
-	releasesPromoteCmd.Flags().String("strategy", "", "deployment strategy for the promotion")
+	releasesPromoteCmd.Flags().String("app", "", "application slug (required)")
+	releasesPromoteCmd.Flags().Int("traffic-percent", 0, "target traffic percent (1-100, required)")
+	_ = releasesPromoteCmd.MarkFlagRequired("app")
+	_ = releasesPromoteCmd.MarkFlagRequired("traffic-percent")
 
 	releasesCmd.AddCommand(releasesCreateCmd)
 	releasesCmd.AddCommand(releasesListCmd)
-	releasesCmd.AddCommand(releasesStatusCmd)
+	releasesCmd.AddCommand(releasesGetCmd)
 	releasesCmd.AddCommand(releasesPromoteCmd)
 
 	rootCmd.AddCommand(releasesCmd)
 }
 
-func runReleasesCreate(cmd *cobra.Command, args []string) error {
+// resolveAppContext resolves --app to an application UUID, given the
+// session's org and project slugs.
+func resolveAppContext(client *apiClient, appSlug string) (appID string, err error) {
 	org, err := requireOrg()
 	if err != nil {
-		return err
+		return "", err
 	}
 	project, err := requireProject()
 	if err != nil {
-		return err
+		return "", err
 	}
+	return resolveAppID(client, org, project, appSlug)
+}
 
-	version, _ := cmd.Flags().GetString("version")
-	commitSHA, _ := cmd.Flags().GetString("commit")
-	description, _ := cmd.Flags().GetString("description")
-
+func runReleasesCreate(cmd *cobra.Command, _ []string) error {
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
+	appSlug, _ := cmd.Flags().GetString("app")
+	appID, err := resolveAppContext(client, appSlug)
+	if err != nil {
+		return err
+	}
 
-	body := map[string]interface{}{
-		"version": version,
-	}
-	if commitSHA != "" {
-		body["commit"] = commitSHA
-	}
+	name, _ := cmd.Flags().GetString("name")
+	description, _ := cmd.Flags().GetString("description")
+	sessionSticky, _ := cmd.Flags().GetBool("session-sticky")
+	stickyHeader, _ := cmd.Flags().GetString("sticky-header")
+
+	body := map[string]interface{}{"name": name}
 	if description != "" {
 		body["description"] = description
 	}
+	if sessionSticky {
+		body["session_sticky"] = true
+	}
+	if stickyHeader != "" {
+		body["sticky_header"] = stickyHeader
+	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/releases", org, project)
+	path := fmt.Sprintf("/api/v1/applications/%s/releases", appID)
 	resp, err := client.post(path, body)
 	if err != nil {
 		return fmt.Errorf("failed to create release: %w", err)
@@ -185,35 +184,30 @@ func runReleasesCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	id, _ := resp["id"].(string)
+	respName, _ := resp["name"].(string)
+	if respName == "" {
+		respName = name
+	}
 	status, _ := resp["status"].(string)
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Release created successfully.\n")
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  ID:      %s\n", id)
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Version: %s\n", version)
-	if commitSHA != "" {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Commit:  %s\n", commitSHA)
-	}
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:  %s\n", status)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  ID:     %s\n", id)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Name:   %s\n", respName)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status: %s\n", status)
 	return nil
 }
 
-func runReleasesList(cmd *cobra.Command, args []string) error {
-	org, err := requireOrg()
-	if err != nil {
-		return err
-	}
-	project, err := requireProject()
-	if err != nil {
-		return err
-	}
-
+func runReleasesList(cmd *cobra.Command, _ []string) error {
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
+	appSlug, _ := cmd.Flags().GetString("app")
+	appID, err := resolveAppContext(client, appSlug)
+	if err != nil {
+		return err
+	}
 
-	limit, _ := cmd.Flags().GetInt("limit")
-
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/releases?limit=%d", org, project, limit)
+	path := fmt.Sprintf("/api/v1/applications/%s/releases", appID)
 	resp, err := client.get(path)
 	if err != nil {
 		return fmt.Errorf("failed to list releases: %w", err)
@@ -232,68 +226,44 @@ func runReleasesList(cmd *cobra.Command, args []string) error {
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "VERSION\tCOMMIT\tSTATUS\tENVIRONMENTS\tCREATED")
+	_, _ = fmt.Fprintln(w, "NAME\tSTATUS\tTRAFFIC\tCREATED")
 	for _, r := range releases {
 		rel, ok := r.(map[string]interface{})
 		if !ok {
 			continue
 		}
-		ver, _ := rel["version"].(string)
-		commit, _ := rel["commit"].(string)
+		name, _ := rel["name"].(string)
 		status, _ := rel["status"].(string)
 		createdAt, _ := rel["created_at"].(string)
-
-		envs := ""
-		if e, ok := rel["environments"].([]interface{}); ok {
-			envStrs := make([]string, 0, len(e))
-			for _, env := range e {
-				if s, ok := env.(string); ok {
-					envStrs = append(envStrs, s)
-				}
-			}
-			envs = strings.Join(envStrs, ", ")
+		var trafficPct int
+		if tp, ok := rel["traffic_percent"].(float64); ok {
+			trafficPct = int(tp)
 		}
-
-		// Truncate commit to short form.
-		if len(commit) > 8 {
-			commit = commit[:8]
-		}
-
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", ver, commit, status, envs, createdAt)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%d%%\t%s\n", name, status, trafficPct, createdAt)
 	}
 	return w.Flush()
 }
 
-func runReleasesStatus(cmd *cobra.Command, args []string) error {
-	org, err := requireOrg()
-	if err != nil {
-		return err
-	}
-	project, err := requireProject()
-	if err != nil {
-		return err
-	}
-
+func runReleasesGet(cmd *cobra.Command, args []string) error {
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
-
-	var version string
-	if len(args) > 0 {
-		version = args[0]
-	}
-
-	var path string
-	if version != "" {
-		path = fmt.Sprintf("/api/v1/orgs/%s/projects/%s/releases/%s/status", org, project, version)
-	} else {
-		path = fmt.Sprintf("/api/v1/orgs/%s/projects/%s/releases/latest/status", org, project)
-	}
-
-	resp, err := client.get(path)
+	appSlug, _ := cmd.Flags().GetString("app")
+	appID, err := resolveAppContext(client, appSlug)
 	if err != nil {
-		return fmt.Errorf("failed to get release status: %w", err)
+		return err
+	}
+
+	name := args[0]
+	releaseID, err := resolveReleaseID(client, appID, name)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.get(fmt.Sprintf("/api/v1/releases/%s", releaseID))
+	if err != nil {
+		return fmt.Errorf("failed to get release: %w", err)
 	}
 
 	if getOutputFormat() == "json" {
@@ -302,69 +272,48 @@ func runReleasesStatus(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	ver, _ := resp["version"].(string)
-	commit, _ := resp["commit"].(string)
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Release: %s\n", ver)
-	if commit != "" {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Commit:  %s\n", commit)
+	respName, _ := resp["name"].(string)
+	status, _ := resp["status"].(string)
+	description, _ := resp["description"].(string)
+	createdAt, _ := resp["created_at"].(string)
+	var trafficPct int
+	if tp, ok := resp["traffic_percent"].(float64); ok {
+		trafficPct = int(tp)
 	}
-	_, _ = fmt.Fprintln(cmd.OutOrStdout())
-
-	envStatuses, _ := resp["environments"].([]interface{})
-	if len(envStatuses) == 0 {
-		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Not deployed to any environment.")
-		return nil
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Release: %s\n", respName)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  ID:      %s\n", releaseID)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:  %s\n", status)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Traffic: %d%%\n", trafficPct)
+	if description != "" {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Desc:    %s\n", description)
 	}
-
-	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "ENVIRONMENT\tSTATUS\tDEPLOYED AT\tSTRATEGY\tPROGRESS")
-	for _, e := range envStatuses {
-		envStatus, ok := e.(map[string]interface{})
-		if !ok {
-			continue
-		}
-		env, _ := envStatus["environment"].(string)
-		status, _ := envStatus["status"].(string)
-		deployedAt, _ := envStatus["deployed_at"].(string)
-		strategy, _ := envStatus["strategy"].(string)
-		progress, _ := envStatus["progress"].(float64)
-
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%.0f%%\n",
-			env, status, deployedAt, strategy, progress)
+	if createdAt != "" {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Created: %s\n", createdAt)
 	}
-	return w.Flush()
+	return nil
 }
 
 func runReleasesPromote(cmd *cobra.Command, args []string) error {
-	org, err := requireOrg()
-	if err != nil {
-		return err
-	}
-	project, err := requireProject()
-	if err != nil {
-		return err
-	}
-
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
-
-	version := "latest"
-	if len(args) > 0 {
-		version = args[0]
+	appSlug, _ := cmd.Flags().GetString("app")
+	appID, err := resolveAppContext(client, appSlug)
+	if err != nil {
+		return err
 	}
 
-	body := map[string]interface{}{}
-	if to, _ := cmd.Flags().GetString("to"); to != "" {
-		body["target_environment"] = to
-	}
-	if strategy, _ := cmd.Flags().GetString("strategy"); strategy != "" {
-		body["strategy"] = strategy
+	name := args[0]
+	releaseID, err := resolveReleaseID(client, appID, name)
+	if err != nil {
+		return err
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/releases/%s/promote", org, project, version)
-	resp, err := client.post(path, body)
+	trafficPct, _ := cmd.Flags().GetInt("traffic-percent")
+	body := map[string]interface{}{"traffic_percent": trafficPct}
+
+	resp, err := client.post(fmt.Sprintf("/api/v1/releases/%s/promote", releaseID), body)
 	if err != nil {
 		return fmt.Errorf("failed to promote release: %w", err)
 	}
@@ -375,12 +324,13 @@ func runReleasesPromote(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	targetEnv, _ := resp["environment"].(string)
-	deployID, _ := resp["deployment_id"].(string)
+	status, _ := resp["status"].(string)
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Release promoted successfully.\n")
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Version:       %s\n", version)
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Target Env:    %s\n", targetEnv)
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Deployment ID: %s\n", deployID)
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nUse 'deploysentry deploy status %s --watch' to monitor.\n", deployID)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Name:    %s\n", name)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  ID:      %s\n", releaseID)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Traffic: %d%%\n", trafficPct)
+	if status != "" {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:  %s\n", status)
+	}
 	return nil
 }

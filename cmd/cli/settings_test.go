@@ -53,12 +53,8 @@ func TestSettingsList_Success(t *testing.T) {
 }
 
 // TestSettingsSet_Success verifies PUT /api/v1/settings with the upsert body.
-//
-// NOTE: The CLI sends the value as a plain string, but the server's
-// setSettingRequest binds Value as json.RawMessage. That's a body-shape
-// mismatch the audit missed; this test asserts only that the CLI uses the
-// right URL + method + scope/target/key fields. The mismatch is captured
-// in the Phase B report for follow-up.
+// The server expects scope, target_id, key, and value (json.RawMessage), and
+// the CLI matches that contract.
 func TestSettingsSet_Success(t *testing.T) {
 	resetSettingsSetFlags(t)
 	srv := newMockServer(t)

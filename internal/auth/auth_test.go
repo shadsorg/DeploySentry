@@ -87,6 +87,18 @@ func TestRBACChecker_HasPermission_Admin(t *testing.T) {
 	assert.False(t, rbac.HasPermission(RoleAdmin, PermOrgManage), "admin should NOT have org:manage")
 }
 
+// TestRBACChecker_HasPermission_OwnerAdmin_APIKeyManage regression-tests the
+// gap that was reported as "owner of org gets 403 when creating an API key".
+// The legacy RoleOwner / RoleAdmin (the strings actually persisted in
+// org_members.role per migration 031) must be able to manage API keys; the
+// dead granular RoleOrgOwner / RoleOrgAdmin had this permission but are
+// never produced by ResolveOrgRole, so the legacy roles must carry it too.
+func TestRBACChecker_HasPermission_OwnerAdmin_APIKeyManage(t *testing.T) {
+	rbac := NewRBACChecker()
+	assert.True(t, rbac.HasPermission(RoleOwner, PermAPIKeyManage), "owner should have apikey:manage")
+	assert.True(t, rbac.HasPermission(RoleAdmin, PermAPIKeyManage), "admin should have apikey:manage")
+}
+
 func TestRBACChecker_HasPermission_Developer(t *testing.T) {
 	rbac := NewRBACChecker()
 
@@ -140,8 +152,9 @@ func TestRBACChecker_HasPermission_InvalidRole(t *testing.T) {
 func TestRBACChecker_GetPermissions_Owner(t *testing.T) {
 	rbac := NewRBACChecker()
 	perms := rbac.GetPermissions(RoleOwner)
-	assert.Len(t, perms, 20)
+	assert.Len(t, perms, 21)
 	assert.Contains(t, perms, PermStatusWrite)
+	assert.Contains(t, perms, PermAPIKeyManage)
 }
 
 func TestRBACChecker_GetPermissions_Viewer(t *testing.T) {

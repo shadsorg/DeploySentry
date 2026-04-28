@@ -124,24 +124,12 @@ var flagsUpdateCmd = &cobra.Command{
 	Short: "Update a feature flag configuration",
 	Long: `Update the configuration of an existing feature flag.
 
-You can modify the default value, description, tags, and targeting
-rules. To add a targeting rule, use --add-rule with a JSON object.
-
-Targeting Rule JSON format:
-  {
-    "attribute": "user.plan",
-    "operator": "in",
-    "values": ["pro", "enterprise"],
-    "percentage": 100,
-    "value": true
-  }
+You can modify the default value, description, name, category, and tags.
+For targeting-rule changes, use the "flags rules" subcommands.
 
 Examples:
   # Update the default value
   deploysentry flags update checkout-variant --default "variant-b"
-
-  # Add a targeting rule
-  deploysentry flags update dark-mode --add-rule '{"attribute":"user.plan","operator":"eq","values":["pro"],"value":true}'
 
   # Update the description
   deploysentry flags update dark-mode --description "Controls dark mode UI theme"`,
@@ -216,7 +204,8 @@ func init() {
 	// flags update flags
 	flagsUpdateCmd.Flags().String("default", "", "new default value")
 	flagsUpdateCmd.Flags().String("description", "", "updated description")
-	flagsUpdateCmd.Flags().String("add-rule", "", "add a targeting rule (JSON)")
+	flagsUpdateCmd.Flags().String("name", "", "updated name")
+	flagsUpdateCmd.Flags().String("category", "", "updated category")
 	flagsUpdateCmd.Flags().StringSlice("tag", nil, "set tags (replaces existing)")
 
 	// flags evaluate flags
@@ -508,52 +497,52 @@ func runFlagsUpdate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
-
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
+	projectID, err := resolveProjectID(client, org, projectSlug)
+	if err != nil {
+		return err
+	}
+	flagID, err := resolveFlagID(client, projectID, args[0])
+	if err != nil {
+		return err
+	}
 
-	key := args[0]
 	body := map[string]interface{}{}
-
 	if cmd.Flags().Changed("default") {
-		defaultVal, _ := cmd.Flags().GetString("default")
-		body["default_value"] = defaultVal
+		v, _ := cmd.Flags().GetString("default")
+		body["default_value"] = v
 	}
 	if cmd.Flags().Changed("description") {
-		description, _ := cmd.Flags().GetString("description")
-		body["description"] = description
+		v, _ := cmd.Flags().GetString("description")
+		body["description"] = v
+	}
+	if cmd.Flags().Changed("name") {
+		v, _ := cmd.Flags().GetString("name")
+		body["name"] = v
+	}
+	if cmd.Flags().Changed("category") {
+		v, _ := cmd.Flags().GetString("category")
+		body["category"] = v
 	}
 	if cmd.Flags().Changed("tag") {
-		tags, _ := cmd.Flags().GetStringSlice("tag")
-		body["tags"] = tags
-	}
-	if cmd.Flags().Changed("add-rule") {
-		ruleJSON, _ := cmd.Flags().GetString("add-rule")
-		var rule map[string]interface{}
-		if err := json.Unmarshal([]byte(ruleJSON), &rule); err != nil {
-			return fmt.Errorf("invalid rule JSON: %w", err)
-		}
-		body["add_rule"] = rule
+		v, _ := cmd.Flags().GetStringSlice("tag")
+		body["tags"] = v
 	}
 
 	if len(body) == 0 {
-		return fmt.Errorf("no updates specified; use --default, --description, --tag, or --add-rule")
+		return fmt.Errorf("no updates specified; use --default, --description, --name, --category, or --tag")
 	}
 
-	if env := getEnv(); env != "" {
-		body["environment"] = env
-	}
-
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/flags/%s", org, project, key)
-	resp, err := client.patch(path, body)
+	resp, err := client.put(fmt.Sprintf("/api/v1/flags/%s", flagID), body)
 	if err != nil {
-		return fmt.Errorf("failed to update flag %q: %w", key, err)
+		return fmt.Errorf("failed to update flag %q: %w", args[0], err)
 	}
 
 	if getOutputFormat() == "json" {
@@ -561,8 +550,7 @@ func runFlagsUpdate(cmd *cobra.Command, args []string) error {
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
-
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag %q updated successfully.\n", key)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag %q updated successfully.\n", args[0])
 	return nil
 }
 

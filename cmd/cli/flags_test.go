@@ -139,3 +139,49 @@ func TestFlagsGet_FlagNotFound(t *testing.T) {
 	_, _, err := runCmd(t, rootCmd, "flags", "get", "missing")
 	require.Error(t, err)
 }
+
+func resetFlagsUpdateFlags(t *testing.T) {
+	t.Helper()
+	t.Cleanup(func() {
+		for _, name := range []string{"default", "description", "name", "category", "tag"} {
+			f := flagsUpdateCmd.Flags().Lookup(name)
+			if f == nil {
+				continue
+			}
+			f.Changed = false
+			_ = f.Value.Set(f.DefValue)
+		}
+	})
+}
+
+func TestFlagsUpdate_DefaultValue(t *testing.T) {
+	resetFlagsUpdateFlags(t)
+	srv := newMockServer(t)
+	stubProjectAndEnv(t, srv, "proj-uuid", "env-prod-uuid")
+	// More specific route first.
+	srv.onPathFunc("PUT", "/api/v1/flags/f-1", func(req recordedRequest) (int, any) {
+		require.Equal(t, "true", req.Body["default_value"])
+		return 200, map[string]any{"id": "f-1"}
+	})
+	srv.onPathFunc("GET", "/api/v1/flags", func(recordedRequest) (int, any) {
+		return 200, map[string]any{"flags": []map[string]any{{"id": "f-1", "key": "dark-mode"}}}
+	})
+	setTestConfig(t, srv.URL(), "ds_testkey", "acme", "payments", "")
+
+	_, _, err := runCmd(t, rootCmd, "flags", "update", "dark-mode", "--default", "true")
+	require.NoError(t, err)
+}
+
+func TestFlagsUpdate_NoChanges(t *testing.T) {
+	resetFlagsUpdateFlags(t)
+	srv := newMockServer(t)
+	stubProjectAndEnv(t, srv, "proj-uuid", "env-prod-uuid")
+	srv.onPathFunc("GET", "/api/v1/flags", func(recordedRequest) (int, any) {
+		return 200, map[string]any{"flags": []map[string]any{{"id": "f-1", "key": "dark-mode"}}}
+	})
+	setTestConfig(t, srv.URL(), "ds_testkey", "acme", "payments", "")
+
+	_, _, err := runCmd(t, rootCmd, "flags", "update", "dark-mode")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no updates specified")
+}

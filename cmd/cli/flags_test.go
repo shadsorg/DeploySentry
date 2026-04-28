@@ -185,3 +185,65 @@ func TestFlagsUpdate_NoChanges(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "no updates specified")
 }
+
+func resetFlagsToggleFlags(t *testing.T) {
+	t.Helper()
+	t.Cleanup(func() {
+		for _, name := range []string{"on", "off"} {
+			f := flagsToggleCmd.Flags().Lookup(name)
+			if f == nil {
+				continue
+			}
+			f.Changed = false
+			_ = f.Value.Set(f.DefValue)
+		}
+	})
+}
+
+func TestFlagsToggle_Unscoped_On(t *testing.T) {
+	resetFlagsToggleFlags(t)
+	srv := newMockServer(t)
+	stubProjectAndEnv(t, srv, "proj-uuid", "env-prod-uuid")
+	srv.onPathFunc("POST", "/api/v1/flags/f-1/toggle", func(req recordedRequest) (int, any) {
+		require.Equal(t, true, req.Body["enabled"])
+		return 200, map[string]any{"enabled": true}
+	})
+	srv.onPathFunc("GET", "/api/v1/flags", func(recordedRequest) (int, any) {
+		return 200, map[string]any{"flags": []map[string]any{{"id": "f-1", "key": "dark-mode"}}}
+	})
+	setTestConfig(t, srv.URL(), "ds_testkey", "acme", "payments", "")
+
+	stdout, _, err := runCmd(t, rootCmd, "flags", "toggle", "dark-mode", "--on")
+	require.NoError(t, err)
+	require.Contains(t, stdout, "toggled ON")
+	require.NotContains(t, stdout, " in ")
+}
+
+func TestFlagsToggle_EnvScoped_Off(t *testing.T) {
+	resetFlagsToggleFlags(t)
+	srv := newMockServer(t)
+	stubProjectAndEnv(t, srv, "proj-uuid", "env-prod-uuid")
+	srv.onPathFunc("PUT", "/api/v1/flags/f-1/environments/env-prod-uuid", func(req recordedRequest) (int, any) {
+		require.Equal(t, false, req.Body["enabled"])
+		return 200, map[string]any{"enabled": false}
+	})
+	srv.onPathFunc("GET", "/api/v1/flags", func(recordedRequest) (int, any) {
+		return 200, map[string]any{"flags": []map[string]any{{"id": "f-1", "key": "dark-mode"}}}
+	})
+	setTestConfig(t, srv.URL(), "ds_testkey", "acme", "payments", "production")
+
+	stdout, _, err := runCmd(t, rootCmd, "flags", "toggle", "dark-mode", "--off")
+	require.NoError(t, err)
+	require.Contains(t, stdout, "toggled OFF in production")
+}
+
+func TestFlagsToggle_NoFlag(t *testing.T) {
+	resetFlagsToggleFlags(t)
+	srv := newMockServer(t)
+	stubProjectAndEnv(t, srv, "proj-uuid", "env-prod-uuid")
+	setTestConfig(t, srv.URL(), "ds_testkey", "acme", "payments", "")
+
+	_, _, err := runCmd(t, rootCmd, "flags", "toggle", "dark-mode")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "--on or --off")
+}

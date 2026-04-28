@@ -442,14 +442,13 @@ func runFlagsToggle(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
 
 	on, _ := cmd.Flags().GetBool("on")
 	off, _ := cmd.Flags().GetBool("off")
-
 	if !on && !off {
 		return fmt.Errorf("you must specify either --on or --off")
 	}
@@ -461,21 +460,39 @@ func runFlagsToggle(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-
-	key := args[0]
-	enabled := on
-
-	body := map[string]interface{}{
-		"enabled": enabled,
-	}
-	if env := getEnv(); env != "" {
-		body["environment"] = env
-	}
-
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/flags/%s/toggle", org, project, key)
-	resp, err := client.post(path, body)
+	projectID, err := resolveProjectID(client, org, projectSlug)
 	if err != nil {
-		return fmt.Errorf("failed to toggle flag %q: %w", key, err)
+		return err
+	}
+	flagID, err := resolveFlagID(client, projectID, args[0])
+	if err != nil {
+		return err
+	}
+
+	enabled := on
+	envSlug := getEnv()
+
+	var resp map[string]any
+	if envSlug != "" {
+		envID, err := resolveEnvID(client, org, envSlug)
+		if err != nil {
+			return err
+		}
+		resp, err = client.put(
+			fmt.Sprintf("/api/v1/flags/%s/environments/%s", flagID, envID),
+			map[string]any{"enabled": enabled},
+		)
+		if err != nil {
+			return fmt.Errorf("failed to toggle flag %q in env %q: %w", args[0], envSlug, err)
+		}
+	} else {
+		resp, err = client.post(
+			fmt.Sprintf("/api/v1/flags/%s/toggle", flagID),
+			map[string]any{"enabled": enabled},
+		)
+		if err != nil {
+			return fmt.Errorf("failed to toggle flag %q: %w", args[0], err)
+		}
 	}
 
 	if getOutputFormat() == "json" {
@@ -488,7 +505,11 @@ func runFlagsToggle(cmd *cobra.Command, args []string) error {
 	if enabled {
 		state = "ON"
 	}
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag %q toggled %s.\n", key, state)
+	if envSlug != "" {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag %q toggled %s in %s.\n", args[0], state, envSlug)
+	} else {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag %q toggled %s.\n", args[0], state)
+	}
 	return nil
 }
 

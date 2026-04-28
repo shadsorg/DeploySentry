@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -28,212 +26,144 @@ promotion capabilities.
 
 Examples:
   # Create a canary deployment to production
-  deploysentry deploy create --release v1.2.0 --env production --strategy canary
+  deploysentry deploy create --app api --version v1.2.0 --artifact ghcr.io/acme/api:v1.2.0 --strategy canary
 
   # Watch deployment status in real time
-  deploysentry deploy status --watch
+  deploysentry deploy status <deployment-id> --watch
 
   # Promote a canary deployment to the next phase
-  deploysentry deploy promote
+  deploysentry deploy promote <deployment-id>
 
-  # Rollback a failed deployment
-  deploysentry deploy rollback`,
+  # Rollback a deployment
+  deploysentry deploy rollback <deployment-id> --reason "elevated error rate"`,
 }
 
 var deployCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a new deployment",
-	Long: `Create a new deployment for a release to a target environment.
+	Long: `Create a new deployment for an application to a target environment.
 
-You must specify the release version and target environment. The
-deployment strategy defaults to "rolling" but can be set to "canary"
-or "blue-green".
+Required: --app, --version, --artifact, and an environment (via --env or
+DS config). The deployment strategy defaults to "rolling" but can be set
+to "canary", "blue-green", or any named rollout strategy from scope ancestry.
 
 Flags:
-  --release     The release version to deploy (required)
-  --env         Target environment (required)
-  --strategy    Deployment strategy: rolling, canary, blue-green (default: rolling)
-  --description Optional description for the deployment
+  --app          Application slug or UUID (required)
+  --version      Version string for the deployment (required)
+  --artifact     Artifact reference (image tag, asset URL, etc.) (required)
+  --env          Target environment slug or UUID (or set via 'env' config)
+  --strategy     Deployment strategy: rolling, canary, blue-green, or a named rollout strategy (default: rolling)
+  --commit-sha   Commit SHA associated with this deployment
+  --mode         Deployment mode: orchestrate (default) or record
+  --source       Optional free-form source label (e.g. "ci", "manual")
+  --description  (deprecated; ignored — server has no description field)
+  --apply-immediately  Skip rollout staging and apply immediately
 
 Examples:
-  # Create a rolling deployment
-  deploysentry deploy create --release v1.2.0 --env staging
+  # Rolling deployment
+  deploysentry deploy create --app api --version v1.2.0 --artifact ghcr.io/acme/api:v1.2.0 --env staging
 
-  # Create a canary deployment with description
-  deploysentry deploy create --release v1.3.0 --env production --strategy canary \
-    --description "Gradual rollout of new checkout flow"
+  # Canary
+  deploysentry deploy create --app api --version v1.3.0 --artifact ghcr.io/acme/api:v1.3.0 --env production --strategy canary
 
-  # Create a blue-green deployment
-  deploysentry deploy create --release v2.0.0 --env production --strategy blue-green`,
+  # Record-mode deploy (platform already shipped, just track it)
+  deploysentry deploy create --app api --version v1.4.0 --artifact ghcr.io/acme/api:v1.4.0 --env production --mode record`,
 	RunE: runDeployCreate,
 }
 
 var deployStatusCmd = &cobra.Command{
-	Use:   "status [deployment-id]",
+	Use:   "status <deployment-id>",
 	Short: "Show deployment status",
-	Long: `Display the current status of a deployment.
-
-If no deployment ID is specified, the most recent deployment for the
-current project and environment is shown.
+	Long: `Display the current status of a deployment by UUID.
 
 Use --watch to continuously poll for status updates.
 
 Examples:
-  # Show status of the latest deployment
-  deploysentry deploy status
-
-  # Show status of a specific deployment
-  deploysentry deploy status deploy_abc123
-
-  # Watch deployment progress in real time
-  deploysentry deploy status --watch
-
-  # Watch a specific deployment
-  deploysentry deploy status deploy_abc123 --watch`,
+  deploysentry deploy status 7c0b8c80-...
+  deploysentry deploy status 7c0b8c80-... --watch`,
+	Args: cobra.ExactArgs(1),
 	RunE: runDeployStatus,
 }
 
 var deployPromoteCmd = &cobra.Command{
-	Use:   "promote [deployment-id]",
+	Use:   "promote <deployment-id>",
 	Short: "Promote a canary deployment to the next phase",
 	Long: `Promote a canary deployment to the next traffic percentage phase.
 
-This advances the deployment to the next configured canary step,
-increasing traffic to the new version. If no deployment ID is given,
-the current active canary deployment is promoted.
-
 Examples:
-  # Promote the current canary deployment
-  deploysentry deploy promote
-
-  # Promote a specific deployment
-  deploysentry deploy promote deploy_abc123`,
+  deploysentry deploy promote 7c0b8c80-...`,
+	Args: cobra.ExactArgs(1),
 	RunE: runDeployPromote,
 }
 
 var deployRollbackCmd = &cobra.Command{
-	Use:   "rollback [deployment-id]",
+	Use:   "rollback <deployment-id>",
 	Short: "Trigger a rollback of a deployment",
-	Long: `Immediately roll back a deployment to the previous stable version.
-
-This command triggers an automated rollback, shifting all traffic
-back to the previous version. If no deployment ID is specified, the
-most recent active deployment is rolled back.
+	Long: `Immediately roll back a deployment. The --reason flag is required.
 
 Examples:
-  # Rollback the latest deployment
-  deploysentry deploy rollback
-
-  # Rollback a specific deployment
-  deploysentry deploy rollback deploy_abc123
-
-  # Rollback with a reason
-  deploysentry deploy rollback --reason "Elevated error rates detected"`,
+  deploysentry deploy rollback 7c0b8c80-... --reason "elevated error rates"`,
+	Args: cobra.ExactArgs(1),
 	RunE: runDeployRollback,
 }
 
 var deployPauseCmd = &cobra.Command{
-	Use:   "pause [deployment-id]",
+	Use:   "pause <deployment-id>",
 	Short: "Pause an in-progress deployment",
-	Long: `Pause an in-progress deployment, freezing it at the current state.
-
-This is useful when you need to investigate metrics before proceeding
-with a canary promotion. The deployment can be resumed later.
-
-Examples:
-  # Pause the current deployment
-  deploysentry deploy pause
-
-  # Pause a specific deployment
-  deploysentry deploy pause deploy_abc123`,
-	RunE: runDeployPause,
+	Args:  cobra.ExactArgs(1),
+	RunE:  runDeployPause,
 }
 
 var deployResumeCmd = &cobra.Command{
-	Use:   "resume [deployment-id]",
+	Use:   "resume <deployment-id>",
 	Short: "Resume a paused deployment",
-	Long: `Resume a previously paused deployment.
-
-The deployment will continue from where it was paused, proceeding
-with the next canary phase or completing the rollout.
-
-Examples:
-  # Resume the current paused deployment
-  deploysentry deploy resume
-
-  # Resume a specific deployment
-  deploysentry deploy resume deploy_abc123`,
-	RunE: runDeployResume,
+	Args:  cobra.ExactArgs(1),
+	RunE:  runDeployResume,
 }
 
 var deployListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List deployments",
-	Long: `List deployments for the current project, optionally filtered by
-environment and status.
+	Short: "List deployments for an application",
+	Long: `List deployments for the given application, optionally filtered by
+environment.
 
-Results are sorted by creation time, most recent first.
+The server's list endpoint is application-scoped and requires --app.
 
 Examples:
-  # List all deployments
-  deploysentry deploy list
-
-  # List deployments for a specific environment
-  deploysentry deploy list --env production
-
-  # List only failed deployments
-  deploysentry deploy list --status failed
-
-  # List deployments in JSON format
-  deploysentry deploy list -o json`,
+  deploysentry deploy list --app api
+  deploysentry deploy list --app api --env production
+  deploysentry deploy list --app api -o json`,
 	RunE: runDeployList,
-}
-
-var deployLogsCmd = &cobra.Command{
-	Use:   "logs [deployment-id]",
-	Short: "Stream deployment logs",
-	Long: `Stream real-time logs for a deployment.
-
-Logs include deployment events, health check results, traffic
-shifting updates, and rollback notifications.
-
-Use Ctrl+C to stop streaming.
-
-Examples:
-  # Stream logs for the latest deployment
-  deploysentry deploy logs
-
-  # Stream logs for a specific deployment
-  deploysentry deploy logs deploy_abc123
-
-  # Show only the last 50 log lines
-  deploysentry deploy logs --tail 50`,
-	RunE: runDeployLogs,
 }
 
 func init() {
 	// deploy create flags
-	deployCreateCmd.Flags().String("release", "", "release version to deploy (required)")
-	deployCreateCmd.Flags().String("env", "", "target environment (required)")
-	deployCreateCmd.Flags().String("strategy", "rolling", "deployment strategy: rolling, canary, blue-green, or a named rollout strategy from scope ancestry")
-	deployCreateCmd.Flags().String("description", "", "optional description for the deployment")
-	deployCreateCmd.Flags().Bool("apply-immediately", false, "skip any onboarded strategy prompt; apply immediately")
-	_ = deployCreateCmd.MarkFlagRequired("release")
+	deployCreateCmd.Flags().String("app", "", "application slug or UUID (required)")
+	deployCreateCmd.Flags().String("version", "", "version string for the deployment (required)")
+	deployCreateCmd.Flags().String("artifact", "", "artifact reference (image tag, etc.) (required)")
+	deployCreateCmd.Flags().String("env", "", "target environment (or use 'env' config)")
+	deployCreateCmd.Flags().String("strategy", "rolling", "deployment strategy: rolling, canary, blue-green, or a named rollout strategy")
+	deployCreateCmd.Flags().String("commit-sha", "", "commit SHA associated with this deployment")
+	deployCreateCmd.Flags().String("mode", "", "deployment mode: orchestrate (default) or record")
+	deployCreateCmd.Flags().String("source", "", "optional source label (e.g. ci, manual)")
+	deployCreateCmd.Flags().Bool("apply-immediately", false, "skip rollout staging; apply immediately")
+	_ = deployCreateCmd.MarkFlagRequired("app")
+	_ = deployCreateCmd.MarkFlagRequired("version")
+	_ = deployCreateCmd.MarkFlagRequired("artifact")
 
 	// deploy status flags
 	deployStatusCmd.Flags().Bool("watch", false, "continuously watch deployment status")
 	deployStatusCmd.Flags().Duration("interval", 5*time.Second, "polling interval for --watch")
 
 	// deploy rollback flags
-	deployRollbackCmd.Flags().String("reason", "", "reason for the rollback")
+	deployRollbackCmd.Flags().String("reason", "", "reason for the rollback (required by API)")
+	_ = deployRollbackCmd.MarkFlagRequired("reason")
 
 	// deploy list flags
-	deployListCmd.Flags().String("env", "", "filter by environment")
-	deployListCmd.Flags().String("status", "", "filter by status (pending, running, completed, failed, rolled_back)")
+	deployListCmd.Flags().String("app", "", "application slug or UUID (required)")
+	deployListCmd.Flags().String("env", "", "filter by environment slug or UUID")
 	deployListCmd.Flags().Int("limit", 20, "maximum number of results")
-
-	// deploy logs flags
-	deployLogsCmd.Flags().Int("tail", 0, "number of recent log lines to show (0 for all)")
+	_ = deployListCmd.MarkFlagRequired("app")
 
 	deployCmd.AddCommand(deployCreateCmd)
 	deployCmd.AddCommand(deployStatusCmd)
@@ -242,7 +172,6 @@ func init() {
 	deployCmd.AddCommand(deployPauseCmd)
 	deployCmd.AddCommand(deployResumeCmd)
 	deployCmd.AddCommand(deployListCmd)
-	deployCmd.AddCommand(deployLogsCmd)
 
 	rootCmd.AddCommand(deployCmd)
 }
@@ -252,34 +181,43 @@ func runDeployCreate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
 
-	release, _ := cmd.Flags().GetString("release")
-	env, _ := cmd.Flags().GetString("env")
-	if env == "" {
-		env = getEnv()
+	appSlug, _ := cmd.Flags().GetString("app")
+	version, _ := cmd.Flags().GetString("version")
+	artifact, _ := cmd.Flags().GetString("artifact")
+	envInput, _ := cmd.Flags().GetString("env")
+	if envInput == "" {
+		envInput = getEnv()
 	}
-	if env == "" {
+	if envInput == "" {
 		return fmt.Errorf("environment is required; set via --env flag or config")
 	}
 	strategy, _ := cmd.Flags().GetString("strategy")
-	description, _ := cmd.Flags().GetString("description")
+	commitSHA, _ := cmd.Flags().GetString("commit-sha")
+	mode, _ := cmd.Flags().GetString("mode")
+	source, _ := cmd.Flags().GetString("source")
 
 	// Validate built-in strategy types; named rollout strategies from scope ancestry are passed through.
 	builtinStrategies := map[string]bool{"rolling": true, "canary": true, "blue-green": true}
 	isNamedStrategy := !builtinStrategies[strategy]
-	if isNamedStrategy && strategy != "" {
-		// Named rollout strategy — valid, will be sent in the rollout sub-map.
-	} else if !builtinStrategies[strategy] {
-		return fmt.Errorf("invalid strategy %q; must be one of: rolling, canary, blue-green, or a named rollout strategy", strategy)
-	}
 
 	applyImmediately, _ := cmd.Flags().GetBool("apply-immediately")
 
 	client, err := clientFromConfig()
+	if err != nil {
+		return err
+	}
+
+	// Resolve app slug -> UUID and env slug -> UUID.
+	appID, err := resolveAppID(client, org, projectSlug, appSlug)
+	if err != nil {
+		return err
+	}
+	envID, err := resolveEnvID(client, org, envInput)
 	if err != nil {
 		return err
 	}
@@ -290,12 +228,20 @@ func runDeployCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	body := map[string]interface{}{
-		"release":     release,
-		"environment": env,
-		"strategy":    deployStrategy,
+		"application_id": appID,
+		"environment_id": envID,
+		"version":        version,
+		"artifact":       artifact,
+		"strategy":       deployStrategy,
 	}
-	if description != "" {
-		body["description"] = description
+	if commitSHA != "" {
+		body["commit_sha"] = commitSHA
+	}
+	if mode != "" {
+		body["mode"] = mode
+	}
+	if source != "" {
+		body["source"] = source
 	}
 
 	// Attach rollout sub-map when a named strategy or apply-immediately is requested.
@@ -310,8 +256,7 @@ func runDeployCreate(cmd *cobra.Command, args []string) error {
 		body["rollout"] = rollout
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/deployments", org, project)
-	resp, err := client.post(path, body)
+	resp, err := client.post("/api/v1/deployments", body)
 	if err != nil {
 		return fmt.Errorf("failed to create deployment: %w", err)
 	}
@@ -326,8 +271,9 @@ func runDeployCreate(cmd *cobra.Command, args []string) error {
 	status, _ := resp["status"].(string)
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Deployment created successfully.\n")
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  ID:          %s\n", id)
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Release:     %s\n", release)
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Environment: %s\n", env)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Application: %s\n", appSlug)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Version:     %s\n", version)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Environment: %s\n", envInput)
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Strategy:    %s\n", strategy)
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:      %s\n", status)
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nUse 'deploysentry deploy status %s --watch' to monitor progress.\n", id)
@@ -335,15 +281,6 @@ func runDeployCreate(cmd *cobra.Command, args []string) error {
 }
 
 func runDeployStatus(cmd *cobra.Command, args []string) error {
-	org, err := requireOrg()
-	if err != nil {
-		return err
-	}
-	project, err := requireProject()
-	if err != nil {
-		return err
-	}
-
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
@@ -351,24 +288,10 @@ func runDeployStatus(cmd *cobra.Command, args []string) error {
 
 	watch, _ := cmd.Flags().GetBool("watch")
 	interval, _ := cmd.Flags().GetDuration("interval")
-
-	var deploymentID string
-	if len(args) > 0 {
-		deploymentID = args[0]
-	}
+	deploymentID := args[0]
 
 	printStatus := func() error {
-		var path string
-		if deploymentID != "" {
-			path = fmt.Sprintf("/api/v1/orgs/%s/projects/%s/deployments/%s", org, project, deploymentID)
-		} else {
-			path = fmt.Sprintf("/api/v1/orgs/%s/projects/%s/deployments/latest", org, project)
-			env := getEnv()
-			if env != "" {
-				path += "?environment=" + env
-			}
-		}
-
+		path := fmt.Sprintf("/api/v1/deployments/%s", deploymentID)
 		resp, err := client.get(path)
 		if err != nil {
 			return fmt.Errorf("failed to get deployment status: %w", err)
@@ -382,10 +305,11 @@ func runDeployStatus(cmd *cobra.Command, args []string) error {
 
 		id, _ := resp["id"].(string)
 		status, _ := resp["status"].(string)
-		release, _ := resp["release"].(string)
-		env, _ := resp["environment"].(string)
+		version, _ := resp["version"].(string)
+		appID, _ := resp["application_id"].(string)
+		envID, _ := resp["environment_id"].(string)
 		strategy, _ := resp["strategy"].(string)
-		progress, _ := resp["progress"].(float64)
+		traffic, _ := resp["traffic_percent"].(float64)
 		createdAt, _ := resp["created_at"].(string)
 
 		if watch {
@@ -394,19 +318,26 @@ func runDeployStatus(cmd *cobra.Command, args []string) error {
 		}
 
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Deployment Status\n")
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  ID:          %s\n", id)
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Release:     %s\n", release)
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Environment: %s\n", env)
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Strategy:    %s\n", strategy)
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:      %s\n", status)
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Progress:    %.0f%%\n", progress)
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Created:     %s\n", createdAt)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  ID:             %s\n", id)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Version:        %s\n", version)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Application:    %s\n", appID)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Environment:    %s\n", envID)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Strategy:       %s\n", strategy)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:         %s\n", status)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Traffic:        %.0f%%\n", traffic)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Created:        %s\n", createdAt)
 
-		// Print progress bar.
+		// Print traffic bar.
 		barWidth := 40
-		filled := int(progress / 100.0 * float64(barWidth))
+		filled := int(traffic / 100.0 * float64(barWidth))
+		if filled < 0 {
+			filled = 0
+		}
+		if filled > barWidth {
+			filled = barWidth
+		}
 		bar := strings.Repeat("=", filled) + strings.Repeat("-", barWidth-filled)
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n  [%s] %.0f%%\n", bar, progress)
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n  [%s] %.0f%%\n", bar, traffic)
 
 		return nil
 	}
@@ -421,7 +352,6 @@ func runDeployStatus(cmd *cobra.Command, args []string) error {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	// Print immediately, then on each tick.
 	if err := printStatus(); err != nil {
 		return err
 	}
@@ -439,26 +369,13 @@ func runDeployStatus(cmd *cobra.Command, args []string) error {
 }
 
 func runDeployPromote(cmd *cobra.Command, args []string) error {
-	org, err := requireOrg()
-	if err != nil {
-		return err
-	}
-	project, err := requireProject()
-	if err != nil {
-		return err
-	}
-
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
+	deploymentID := args[0]
 
-	deploymentID := "latest"
-	if len(args) > 0 {
-		deploymentID = args[0]
-	}
-
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/deployments/%s/promote", org, project, deploymentID)
+	path := fmt.Sprintf("/api/v1/deployments/%s/promote", deploymentID)
 	resp, err := client.post(path, nil)
 	if err != nil {
 		return fmt.Errorf("failed to promote deployment: %w", err)
@@ -471,40 +388,22 @@ func runDeployPromote(cmd *cobra.Command, args []string) error {
 	}
 
 	status, _ := resp["status"].(string)
-	progress, _ := resp["progress"].(float64)
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Deployment promoted successfully.\n")
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:   %s\n", status)
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Progress: %.0f%%\n", progress)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status: %s\n", status)
 	return nil
 }
 
 func runDeployRollback(cmd *cobra.Command, args []string) error {
-	org, err := requireOrg()
-	if err != nil {
-		return err
-	}
-	project, err := requireProject()
-	if err != nil {
-		return err
-	}
-
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
-
-	deploymentID := "latest"
-	if len(args) > 0 {
-		deploymentID = args[0]
-	}
-
-	body := map[string]interface{}{}
+	deploymentID := args[0]
 	reason, _ := cmd.Flags().GetString("reason")
-	if reason != "" {
-		body["reason"] = reason
-	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/deployments/%s/rollback", org, project, deploymentID)
+	body := map[string]interface{}{"reason": reason}
+
+	path := fmt.Sprintf("/api/v1/deployments/%s/rollback", deploymentID)
 	resp, err := client.post(path, body)
 	if err != nil {
 		return fmt.Errorf("failed to rollback deployment: %w", err)
@@ -517,8 +416,8 @@ func runDeployRollback(cmd *cobra.Command, args []string) error {
 	}
 
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Rollback initiated successfully.\n")
-	if id, ok := resp["id"].(string); ok {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Deployment ID: %s\n", id)
+	if depID, ok := resp["deployment_id"].(string); ok {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Deployment ID: %s\n", depID)
 	}
 	if status, ok := resp["status"].(string); ok {
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:        %s\n", status)
@@ -527,26 +426,13 @@ func runDeployRollback(cmd *cobra.Command, args []string) error {
 }
 
 func runDeployPause(cmd *cobra.Command, args []string) error {
-	org, err := requireOrg()
-	if err != nil {
-		return err
-	}
-	project, err := requireProject()
-	if err != nil {
-		return err
-	}
-
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
+	deploymentID := args[0]
 
-	deploymentID := "latest"
-	if len(args) > 0 {
-		deploymentID = args[0]
-	}
-
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/deployments/%s/pause", org, project, deploymentID)
+	path := fmt.Sprintf("/api/v1/deployments/%s/pause", deploymentID)
 	resp, err := client.post(path, nil)
 	if err != nil {
 		return fmt.Errorf("failed to pause deployment: %w", err)
@@ -563,26 +449,13 @@ func runDeployPause(cmd *cobra.Command, args []string) error {
 }
 
 func runDeployResume(cmd *cobra.Command, args []string) error {
-	org, err := requireOrg()
-	if err != nil {
-		return err
-	}
-	project, err := requireProject()
-	if err != nil {
-		return err
-	}
-
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
+	deploymentID := args[0]
 
-	deploymentID := "latest"
-	if len(args) > 0 {
-		deploymentID = args[0]
-	}
-
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/deployments/%s/resume", org, project, deploymentID)
+	path := fmt.Sprintf("/api/v1/deployments/%s/resume", deploymentID)
 	resp, err := client.post(path, nil)
 	if err != nil {
 		return fmt.Errorf("failed to resume deployment: %w", err)
@@ -603,7 +476,7 @@ func runDeployList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
@@ -613,25 +486,31 @@ func runDeployList(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Build query parameters.
-	params := []string{}
-	if env, _ := cmd.Flags().GetString("env"); env != "" {
-		params = append(params, "environment="+env)
-	} else if e := getEnv(); e != "" {
-		params = append(params, "environment="+e)
+	appSlug, _ := cmd.Flags().GetString("app")
+	appID, err := resolveAppID(client, org, projectSlug, appSlug)
+	if err != nil {
+		return err
 	}
-	if status, _ := cmd.Flags().GetString("status"); status != "" {
-		params = append(params, "status="+status)
+
+	params := []string{"app_id=" + appID}
+	if envInput, _ := cmd.Flags().GetString("env"); envInput != "" {
+		envID, err := resolveEnvID(client, org, envInput)
+		if err != nil {
+			return err
+		}
+		params = append(params, "environment_id="+envID)
+	} else if e := getEnv(); e != "" {
+		envID, err := resolveEnvID(client, org, e)
+		if err != nil {
+			return err
+		}
+		params = append(params, "environment_id="+envID)
 	}
 	if limit, _ := cmd.Flags().GetInt("limit"); limit > 0 {
 		params = append(params, fmt.Sprintf("limit=%d", limit))
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/deployments", org, project)
-	if len(params) > 0 {
-		path += "?" + strings.Join(params, "&")
-	}
-
+	path := "/api/v1/deployments?" + strings.Join(params, "&")
 	resp, err := client.get(path)
 	if err != nil {
 		return fmt.Errorf("failed to list deployments: %w", err)
@@ -650,95 +529,23 @@ func runDeployList(cmd *cobra.Command, args []string) error {
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "ID\tRELEASE\tENVIRONMENT\tSTRATEGY\tSTATUS\tPROGRESS\tCREATED")
+	_, _ = fmt.Fprintln(w, "ID\tVERSION\tSTRATEGY\tSTATUS\tTRAFFIC\tCREATED")
 	for _, d := range deployments {
 		dep, ok := d.(map[string]interface{})
 		if !ok {
 			continue
 		}
 		id, _ := dep["id"].(string)
-		release, _ := dep["release"].(string)
-		env, _ := dep["environment"].(string)
+		version, _ := dep["version"].(string)
 		strategy, _ := dep["strategy"].(string)
 		status, _ := dep["status"].(string)
-		progress, _ := dep["progress"].(float64)
+		traffic, _ := dep["traffic_percent"].(float64)
 		createdAt, _ := dep["created_at"].(string)
 
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%.0f%%\t%s\n",
-			id, release, env, strategy, status, progress, createdAt)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%.0f%%\t%s\n",
+			id, version, strategy, status, traffic, createdAt)
 	}
 	return w.Flush()
-}
-
-func runDeployLogs(cmd *cobra.Command, args []string) error {
-	org, err := requireOrg()
-	if err != nil {
-		return err
-	}
-	project, err := requireProject()
-	if err != nil {
-		return err
-	}
-
-	client, err := clientFromConfig()
-	if err != nil {
-		return err
-	}
-
-	deploymentID := "latest"
-	if len(args) > 0 {
-		deploymentID = args[0]
-	}
-	tail, _ := cmd.Flags().GetInt("tail")
-
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/deployments/%s/logs", org, project, deploymentID)
-	if tail > 0 {
-		path += fmt.Sprintf("?tail=%d", tail)
-	}
-
-	// Stream logs via SSE (Server-Sent Events).
-	req, err := client.newRequest(http.MethodGet, path, nil)
-	if err != nil {
-		return fmt.Errorf("failed to create log stream request: %w", err)
-	}
-	req.Header.Set("Accept", "text/event-stream")
-
-	resp2, err := client.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to connect to log stream: %w", err)
-	}
-	defer func() { _ = resp2.Body.Close() }()
-
-	if resp2.StatusCode != http.StatusOK {
-		return fmt.Errorf("log stream returned status %d", resp2.StatusCode)
-	}
-
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Streaming deployment logs (Ctrl+C to stop)...\n\n")
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-
-	scanner := bufio.NewScanner(resp2.Body)
-	doneCh := make(chan struct{})
-
-	go func() {
-		defer close(doneCh)
-		for scanner.Scan() {
-			line := scanner.Text()
-			// Parse SSE data lines.
-			if strings.HasPrefix(line, "data: ") {
-				_, _ = fmt.Fprintln(cmd.OutOrStdout(), line[6:])
-			}
-		}
-	}()
-
-	select {
-	case <-doneCh:
-		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "\nLog stream ended.")
-	case <-sigCh:
-		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "\nStopped streaming logs.")
-	}
-	return nil
 }
 
 // clientFromConfig creates an API client from the current configuration.

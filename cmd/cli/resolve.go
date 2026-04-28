@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 )
@@ -141,4 +142,74 @@ func resolveEnvInputs(client *apiClient, inputs []string) ([]string, error) {
 		out = append(out, id)
 	}
 	return out, nil
+}
+
+// resolveProjectID returns the project's UUID by GETting
+// /api/v1/orgs/:org/projects/:project. Errors out with a useful
+// message if the project doesn't exist or the API is unreachable.
+func resolveProjectID(client *apiClient, org, projectSlug string) (string, error) {
+	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s", org, projectSlug)
+	resp, err := client.get(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve project %q: %w", projectSlug, err)
+	}
+	id, ok := resp["id"].(string)
+	if !ok || id == "" {
+		return "", fmt.Errorf("resolve project %q: response missing id", projectSlug)
+	}
+	return id, nil
+}
+
+// resolveEnvID returns the environment's UUID for the given org by listing
+// org-level environments and matching on slug.
+func resolveEnvID(client *apiClient, org, envSlug string) (string, error) {
+	path := fmt.Sprintf("/api/v1/orgs/%s/environments", org)
+	resp, err := client.get(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve environment %q: %w", envSlug, err)
+	}
+	envs, _ := resp["environments"].([]any)
+	for _, e := range envs {
+		obj, ok := e.(map[string]any)
+		if !ok {
+			continue
+		}
+		slug, _ := obj["slug"].(string)
+		if slug == envSlug {
+			id, _ := obj["id"].(string)
+			if id != "" {
+				return id, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("environment %q not found in org %q", envSlug, org)
+}
+
+// ErrFlagNotFound is returned when resolveFlagID can't find a flag with the
+// given key in the given project.
+var ErrFlagNotFound = errors.New("flag not found")
+
+// resolveFlagID returns a flag's UUID by listing flags in the given project
+// and matching on key.
+func resolveFlagID(client *apiClient, projectID, flagKey string) (string, error) {
+	path := fmt.Sprintf("/api/v1/flags?project_id=%s", projectID)
+	resp, err := client.get(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve flag %q: %w", flagKey, err)
+	}
+	flags, _ := resp["flags"].([]any)
+	for _, f := range flags {
+		obj, ok := f.(map[string]any)
+		if !ok {
+			continue
+		}
+		key, _ := obj["key"].(string)
+		if key == flagKey {
+			id, _ := obj["id"].(string)
+			if id != "" {
+				return id, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("%w: %q in project %s", ErrFlagNotFound, flagKey, projectID)
 }

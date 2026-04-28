@@ -35,21 +35,24 @@ var projectsCreateCmd = &cobra.Command{
 	Short: "Create a new project",
 	Long: `Create a new project within the current organization.
 
-A project requires a name and optionally accepts a description,
-default environments, and repository URL.
+A project requires a name and a slug. If --slug is omitted it is
+auto-derived from --name (lowercased, non-alphanumerics replaced with
+dashes). Optionally accepts a description and a repository URL.
+
+Note: environments are managed at the organization level and cannot be
+set per-project at create time.
 
 Examples:
-  # Create a basic project
+  # Create a basic project (slug auto-derived from name)
   deploysentry projects create --name my-api
+
+  # Create with an explicit slug
+  deploysentry projects create --name "Payments Stack" --slug pay-stack
 
   # Create a project with full details
   deploysentry projects create --name my-api \
     --description "Backend API service" \
-    --repo https://github.com/myorg/my-api
-
-  # Create with custom environments
-  deploysentry projects create --name my-api \
-    --environments dev,staging,production`,
+    --repo https://github.com/myorg/my-api`,
 	RunE: runProjectsCreate,
 }
 
@@ -93,9 +96,9 @@ Examples:
 func init() {
 	// projects create flags
 	projectsCreateCmd.Flags().String("name", "", "project name (required)")
+	projectsCreateCmd.Flags().String("slug", "", "project slug (auto-derived from name when omitted)")
 	projectsCreateCmd.Flags().String("description", "", "project description")
 	projectsCreateCmd.Flags().String("repo", "", "repository URL")
-	projectsCreateCmd.Flags().String("environments", "dev,staging,production", "comma-separated list of environments")
 	_ = projectsCreateCmd.MarkFlagRequired("name")
 
 	// projects config flags
@@ -117,9 +120,13 @@ func runProjectsCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	name, _ := cmd.Flags().GetString("name")
+	slug, _ := cmd.Flags().GetString("slug")
 	description, _ := cmd.Flags().GetString("description")
 	repo, _ := cmd.Flags().GetString("repo")
-	environments, _ := cmd.Flags().GetString("environments")
+
+	if slug == "" {
+		slug = slugifyProjectName(name)
+	}
 
 	client, err := clientFromConfig()
 	if err != nil {
@@ -128,15 +135,13 @@ func runProjectsCreate(cmd *cobra.Command, args []string) error {
 
 	body := map[string]interface{}{
 		"name": name,
+		"slug": slug,
 	}
 	if description != "" {
 		body["description"] = description
 	}
 	if repo != "" {
-		body["repository_url"] = repo
-	}
-	if environments != "" {
-		body["environments"] = splitAndTrim(environments, ",")
+		body["repo_url"] = repo
 	}
 
 	path := fmt.Sprintf("/api/v1/orgs/%s/projects", org)
@@ -152,12 +157,15 @@ func runProjectsCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	id, _ := resp["id"].(string)
-	slug, _ := resp["slug"].(string)
+	respSlug, _ := resp["slug"].(string)
+	if respSlug == "" {
+		respSlug = slug
+	}
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Project created successfully.\n")
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  ID:   %s\n", id)
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Name: %s\n", name)
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Slug: %s\n", slug)
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nAdd '--project %s' to commands or set it in .deploysentry.yml.\n", slug)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Slug: %s\n", respSlug)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nAdd '--project %s' to commands or set it in .deploysentry.yml.\n", respSlug)
 	return nil
 }
 
@@ -297,6 +305,35 @@ func runProjectsConfig(cmd *cobra.Command, args []string) error {
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %-25s %v\n", key+":", value)
 	}
 	return nil
+}
+
+// slugifyProjectName converts a project name to a URL-safe slug. Lowercases
+// the input, replaces every run of non-alphanumeric characters with a single
+// dash, and trims leading/trailing dashes. e.g. "Payments Stack" -> "payments-stack".
+func slugifyProjectName(name string) string {
+	out := make([]byte, 0, len(name))
+	prevDash := true // suppress leading dashes
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		switch {
+		case c >= 'A' && c <= 'Z':
+			out = append(out, c+('a'-'A'))
+			prevDash = false
+		case (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'):
+			out = append(out, c)
+			prevDash = false
+		default:
+			if !prevDash {
+				out = append(out, '-')
+				prevDash = true
+			}
+		}
+	}
+	// Trim trailing dash.
+	if len(out) > 0 && out[len(out)-1] == '-' {
+		out = out[:len(out)-1]
+	}
+	return string(out)
 }
 
 // splitAndTrim splits a string by a separator and trims whitespace.

@@ -199,6 +199,8 @@ func init() {
 	flagsCreateCmd.Flags().String("default", "", "default value for the flag")
 	flagsCreateCmd.Flags().String("description", "", "description of the flag")
 	flagsCreateCmd.Flags().StringSlice("tag", nil, "tags for the flag (can be specified multiple times)")
+	flagsCreateCmd.Flags().String("name", "", "human-readable name (defaults to --key)")
+	flagsCreateCmd.Flags().String("category", "feature", "flag category: release, feature, experiment, ops, permission")
 	_ = flagsCreateCmd.MarkFlagRequired("key")
 
 	// flags list flags
@@ -232,22 +234,30 @@ func init() {
 }
 
 func runFlagsCreate(cmd *cobra.Command, args []string) error {
+	_ = args
 	org, err := requireOrg()
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
 
 	key, _ := cmd.Flags().GetString("key")
+	name, _ := cmd.Flags().GetString("name")
+	if name == "" {
+		name = key
+	}
 	flagType, _ := cmd.Flags().GetString("type")
 	defaultVal, _ := cmd.Flags().GetString("default")
 	description, _ := cmd.Flags().GetString("description")
+	category, _ := cmd.Flags().GetString("category")
+	if category == "" {
+		category = "feature"
+	}
 	tags, _ := cmd.Flags().GetStringSlice("tag")
 
-	// Validate flag type.
 	validTypes := map[string]bool{"boolean": true, "string": true, "integer": true, "json": true}
 	if !validTypes[flagType] {
 		return fmt.Errorf("invalid flag type %q; must be one of: boolean, string, integer, json", flagType)
@@ -258,9 +268,17 @@ func runFlagsCreate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	projectID, err := resolveProjectID(client, org, projectSlug)
+	if err != nil {
+		return err
+	}
+
 	body := map[string]interface{}{
-		"key":  key,
-		"type": flagType,
+		"project_id": projectID,
+		"key":        key,
+		"name":       name,
+		"flag_type":  flagType,
+		"category":   category,
 	}
 	if defaultVal != "" {
 		body["default_value"] = defaultVal
@@ -271,14 +289,15 @@ func runFlagsCreate(cmd *cobra.Command, args []string) error {
 	if len(tags) > 0 {
 		body["tags"] = tags
 	}
-
-	env := getEnv()
-	if env != "" {
-		body["environment"] = env
+	if envSlug := getEnv(); envSlug != "" {
+		envID, err := resolveEnvID(client, org, envSlug)
+		if err != nil {
+			return err
+		}
+		body["environment_id"] = envID
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/flags", org, project)
-	resp, err := client.post(path, body)
+	resp, err := client.post("/api/v1/flags", body)
 	if err != nil {
 		return fmt.Errorf("failed to create flag: %w", err)
 	}

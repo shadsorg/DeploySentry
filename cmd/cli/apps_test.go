@@ -26,11 +26,20 @@ func TestAppsCreate_Success(t *testing.T) {
 	srv.onPathFunc("POST", "/api/v1/orgs/acme/projects/payments/apps", func(req recordedRequest) (int, any) {
 		require.Equal(t, "API", req.Body["name"])
 		require.Equal(t, "api", req.Body["slug"])
+		// The CLI must send the server's bound JSON field name `repo_url`,
+		// not the previous `repository_url` typo.
+		require.Equal(t, "https://github.com/acme/api", req.Body["repo_url"])
+		_, hasOldField := req.Body["repository_url"]
+		require.False(t, hasOldField, "CLI must not send the old repository_url field name")
 		return 201, map[string]any{"id": "app-1", "name": "API", "slug": "api"}
 	})
 	setTestConfig(t, srv.URL(), "ds_testkey", "acme", "payments", "")
 
-	stdout, _, err := runCmd(t, rootCmd, "apps", "create", "--name", "API", "--slug", "api")
+	stdout, _, err := runCmd(t, rootCmd, "apps", "create",
+		"--name", "API",
+		"--slug", "api",
+		"--repo", "https://github.com/acme/api",
+	)
 	require.NoError(t, err)
 	require.NotEmpty(t, stdout)
 }

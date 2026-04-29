@@ -42,6 +42,22 @@ export default defineConfig(({ mode }) => {
           globPatterns: ['**/*.{js,css,html,png,svg,ico,webmanifest}'],
           navigateFallback: '/m/index.html',
           navigateFallbackDenylist: [/^\/api\//],
+          runtimeCaching: [
+            {
+              urlPattern: ({ request, url }) =>
+                request.method === 'GET' &&
+                /^\/api\/v1\/(orgs|flags|projects|audit-log|users)/.test(url.pathname),
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'ds-api-reads',
+                expiration: {
+                  maxEntries: 200,
+                  maxAgeSeconds: 60 * 60 * 24,
+                },
+                cacheableResponse: { statuses: [0, 200] },
+              },
+            },
+          ],
         },
         devOptions: {
           enabled: false,

@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RuleEditSheet } from './RuleEditSheet';
-import { setFetch } from '../api';
+import { flagsApi, setFetch } from '../api';
+import { OfflineWriteBlockedError } from '../lib/offlineError';
 import type { TargetingRule } from '../types';
 
 function makeRule(overrides: Partial<TargetingRule>): TargetingRule {
@@ -297,5 +298,34 @@ describe('RuleEditSheet', () => {
     expect(screen.getByText('Compound rules must be edited on desktop.')).toBeInTheDocument();
     const save = screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement;
     expect(save.disabled).toBe(true);
+  });
+
+  it('offline: when updateRule throws OfflineWriteBlockedError, fires onOfflineBlocked and not onSaved/error', async () => {
+    const rule = makeRule({ rule_type: 'percentage', percentage: 10 });
+    const updateSpy = vi
+      .spyOn(flagsApi, 'updateRule')
+      .mockRejectedValue(new OfflineWriteBlockedError());
+    const onSaved = vi.fn();
+    const onClose = vi.fn();
+    const onOfflineBlocked = vi.fn();
+    render(
+      <RuleEditSheet
+        rule={rule}
+        flagId="f1"
+        open
+        onClose={onClose}
+        onSaved={onSaved}
+        onOfflineBlocked={onOfflineBlocked}
+      />,
+    );
+    const numeric = screen.getByLabelText('Percentage') as HTMLInputElement;
+    await userEvent.clear(numeric);
+    await userEvent.type(numeric, '50');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(onOfflineBlocked).toHaveBeenCalledTimes(1));
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    updateSpy.mockRestore();
   });
 });

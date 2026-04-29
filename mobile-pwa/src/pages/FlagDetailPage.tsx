@@ -17,6 +17,8 @@ import type {
 import { CategoryBadge } from '../components/CategoryBadge';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { RuleEditSheet } from '../components/RuleEditSheet';
+import { OfflineWriteBlockedModal } from '../components/OfflineWriteBlockedModal';
+import { assertOnlineForWrite, isOfflineWriteBlockedError } from '../lib/offlineError';
 import { ruleSummary } from '../lib/ruleSummary';
 
 const PAGE_SIZE = 20;
@@ -477,6 +479,9 @@ export function FlagDetailPage() {
   const [rulePanelExpanded, setRulePanelExpanded] = useState(false);
   const [reorderError, setReorderError] = useState<string | null>(null);
 
+  // Offline write-blocked modal — opens when a mutation is attempted offline.
+  const [offlineModalOpen, setOfflineModalOpen] = useState(false);
+
   // Fan-in fetch for the 5 detail endpoints.
   useEffect(() => {
     if (!flagId || !orgSlug) return;
@@ -546,6 +551,15 @@ export function FlagDetailPage() {
       prev: FlagEnvironmentState | undefined,
     ): Promise<void> => {
       if (!flagId) return;
+      try {
+        assertOnlineForWrite();
+      } catch (err) {
+        if (isOfflineWriteBlockedError(err)) {
+          setOfflineModalOpen(true);
+          return;
+        }
+        throw err;
+      }
       // Apply optimistically.
       setEnvStates((prevStates) => {
         const idx = prevStates.findIndex((s) => s.environment_id === envId);
@@ -607,6 +621,15 @@ export function FlagDetailPage() {
       prev: RuleEnvironmentState | undefined,
     ): Promise<void> => {
       if (!flagId) return;
+      try {
+        assertOnlineForWrite();
+      } catch (err) {
+        if (isOfflineWriteBlockedError(err)) {
+          setOfflineModalOpen(true);
+          return;
+        }
+        throw err;
+      }
       // Apply optimistically.
       setRuleEnvStates((prevStates) => {
         const idx = prevStates.findIndex(
@@ -671,6 +694,15 @@ export function FlagDetailPage() {
   const swapRulePriorities = useCallback(
     async (idxA: number, idxB: number): Promise<void> => {
       if (!flagId) return;
+      try {
+        assertOnlineForWrite();
+      } catch (err) {
+        if (isOfflineWriteBlockedError(err)) {
+          setOfflineModalOpen(true);
+          return;
+        }
+        throw err;
+      }
       const ordered = [...rules].sort((a, b) => a.priority - b.priority);
       const ruleA = ordered[idxA];
       const ruleB = ordered[idxB];
@@ -751,6 +783,10 @@ export function FlagDetailPage() {
 
   return (
     <section style={{ padding: 20 }}>
+      <OfflineWriteBlockedModal
+        open={offlineModalOpen}
+        onClose={() => setOfflineModalOpen(false)}
+      />
       <Link to={backHref} className="m-back-link">
         ‹ Back to flags
       </Link>
@@ -872,6 +908,10 @@ export function FlagDetailPage() {
           onSaved={(updated) => {
             handleRuleSaved(updated);
             setEditingRule(null);
+          }}
+          onOfflineBlocked={() => {
+            setEditingRule(null);
+            setOfflineModalOpen(true);
           }}
         />
       ) : null}

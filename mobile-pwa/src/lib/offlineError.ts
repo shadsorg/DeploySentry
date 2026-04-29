@@ -8,3 +8,9 @@ export class OfflineWriteBlockedError extends Error {
 export function isOfflineWriteBlockedError(err: unknown): err is OfflineWriteBlockedError {
   return err instanceof OfflineWriteBlockedError;
 }
+
+export function assertOnlineForWrite(): void {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new OfflineWriteBlockedError();
+  }
+}

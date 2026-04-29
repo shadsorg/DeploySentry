@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { OfflineWriteBlockedError, isOfflineWriteBlockedError } from './offlineError';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import {
+  OfflineWriteBlockedError,
+  assertOnlineForWrite,
+  isOfflineWriteBlockedError,
+} from './offlineError';
 
 describe('OfflineWriteBlockedError', () => {
   it('is an instance of Error and has a default message', () => {
@@ -35,5 +39,21 @@ describe('isOfflineWriteBlockedError', () => {
     expect(isOfflineWriteBlockedError('string')).toBe(false);
     expect(isOfflineWriteBlockedError(42)).toBe(false);
     expect(isOfflineWriteBlockedError({ name: 'OfflineWriteBlockedError' })).toBe(false);
+  });
+});
+
+describe('assertOnlineForWrite', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('does not throw when navigator.onLine is true', () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    expect(() => assertOnlineForWrite()).not.toThrow();
+  });
+
+  it('throws OfflineWriteBlockedError when navigator.onLine is false', () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    expect(() => assertOnlineForWrite()).toThrow(OfflineWriteBlockedError);
   });
 });

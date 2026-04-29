@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
@@ -1018,6 +1018,154 @@ describe('FlagDetailPage', () => {
     const downLast = await screen.findByRole('button', { name: /Move rule-b down/ });
     expect(upFirst).toBeDisabled();
     expect(downLast).toBeDisabled();
+  });
+
+  // ------------------------------------------------------------------
+  // Phase 6 — offline write-blocked modal integration
+  // ------------------------------------------------------------------
+
+  describe('Phase 6: offline write-blocked guards', () => {
+    let originalOnLine: PropertyDescriptor | undefined;
+
+    beforeEach(() => {
+      originalOnLine = Object.getOwnPropertyDescriptor(
+        Object.getPrototypeOf(navigator),
+        'onLine',
+      );
+      Object.defineProperty(navigator, 'onLine', {
+        value: false,
+        configurable: true,
+      });
+    });
+
+    afterEach(() => {
+      if (originalOnLine) {
+        Object.defineProperty(
+          Object.getPrototypeOf(navigator),
+          'onLine',
+          originalOnLine,
+        );
+      }
+      try {
+        delete (navigator as unknown as { onLine?: boolean }).onLine;
+      } catch {
+        // ignore
+      }
+    });
+
+    it('offline: tapping env toggle does not fire PUT, does not flip toggle, and opens modal', async () => {
+      const fetchMock = makeFetchMockMethodAware(
+        defaultHandlerWithPut({ envStates: [] }),
+      );
+      setFetch(fetchMock);
+      renderAt('/m/orgs/acme/flags/payments/flag-1');
+      await screen.findByText('checkout_v2');
+
+      const toggle = await screen.findByRole('switch', { name: /Toggle Development/ });
+      expect(toggle).not.toBeChecked();
+      await userEvent.click(toggle);
+
+      // Modal opens.
+      expect(
+        await screen.findByRole('alertdialog', { name: /You're offline/ }),
+      ).toBeInTheDocument();
+
+      // No PUT fired.
+      const putCalls = fetchMock.mock.calls.filter((c) => {
+        const init = c[1] as RequestInit | undefined;
+        return (init?.method ?? 'GET').toUpperCase() === 'PUT';
+      });
+      expect(putCalls).toHaveLength(0);
+
+      // Toggle did not flip.
+      expect(
+        screen.getByRole('switch', { name: /Toggle Development/ }),
+      ).not.toBeChecked();
+    });
+
+    it('offline: tapping a rule reorder arrow fires no PUTs and opens modal', async () => {
+      const rules = [
+        makePercentageRule('rule-a', 10, 1),
+        makePercentageRule('rule-b', 20, 2),
+      ];
+      const fetchMock = makeFetchMockMethodAware(
+        defaultHandlerWithRuleUpdate({ rules }),
+      );
+      setFetch(fetchMock);
+      renderAt('/m/orgs/acme/flags/payments/flag-1');
+      await screen.findByText('checkout_v2');
+
+      await userEvent.click(screen.getByRole('button', { name: /Rule order/ }));
+      const upBtn = await screen.findByRole('button', { name: /Move rule-b up/ });
+      await userEvent.click(upBtn);
+
+      expect(
+        await screen.findByRole('alertdialog', { name: /You're offline/ }),
+      ).toBeInTheDocument();
+
+      const putCalls = fetchMock.mock.calls.filter((c) => {
+        const init = c[1] as RequestInit | undefined;
+        return (init?.method ?? 'GET').toUpperCase() === 'PUT';
+      });
+      expect(putCalls).toHaveLength(0);
+    });
+
+    it('offline: RuleEditSheet save path opens the modal via onOfflineBlocked', async () => {
+      const rules = [makePercentageRule('rule-1', 25, 1)];
+      const ruleEnvStates: RuleEnvironmentState[] = [
+        { rule_id: 'rule-1', environment_id: 'env-dev', enabled: true },
+      ];
+      // Reads should still succeed; we set onLine=false only to gate writes.
+      // Reads via flagsApi.list* etc. don't go through the write guard.
+      // To allow the page to render under onLine=false we must keep reads OK,
+      // which the api request() guard already does (only blocks WRITE_METHODS).
+      setFetch(
+        makeFetchMockMethodAware(
+          defaultHandlerWithRuleUpdate({ rules, ruleEnvStates }),
+        ),
+      );
+      renderAt('/m/orgs/acme/flags/payments/flag-1');
+      await screen.findByText('checkout_v2');
+
+      await userEvent.click(screen.getByRole('button', { name: /Development/ }));
+      const editBtn = await screen.findByRole('button', {
+        name: /Edit rule 1 in Development/,
+      });
+      await userEvent.click(editBtn);
+
+      // Sheet open — change percentage and save.
+      const percent = await screen.findByLabelText(/Percentage$/);
+      await userEvent.clear(percent);
+      await userEvent.type(percent, '60');
+      await userEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+
+      expect(
+        await screen.findByRole('alertdialog', { name: /You're offline/ }),
+      ).toBeInTheDocument();
+    });
+
+    it('offline: tapping "Got it" closes the modal', async () => {
+      setFetch(
+        makeFetchMockMethodAware(defaultHandlerWithPut({ envStates: [] })),
+      );
+      renderAt('/m/orgs/acme/flags/payments/flag-1');
+      await screen.findByText('checkout_v2');
+
+      await userEvent.click(
+        await screen.findByRole('switch', { name: /Toggle Development/ }),
+      );
+      const dialog = await screen.findByRole('alertdialog', {
+        name: /You're offline/,
+      });
+      expect(dialog).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: /Got it/ }));
+      await waitFor(() =>
+        expect(
+          screen.queryByRole('alertdialog', { name: /You're offline/ }),
+        ).not.toBeInTheDocument(),
+      );
+    });
   });
 
   it('Phase 5: on swap PUT 500, both rules revert and an inline error renders', async () => {

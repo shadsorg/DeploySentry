@@ -16,6 +16,7 @@ import type {
 } from '../types';
 import { CategoryBadge } from '../components/CategoryBadge';
 import { ToggleSwitch } from '../components/ToggleSwitch';
+import { RuleEditSheet } from '../components/RuleEditSheet';
 import { ruleSummary } from '../lib/ruleSummary';
 
 const PAGE_SIZE = 20;
@@ -89,17 +90,28 @@ interface EnvSectionProps {
     patch: { enabled: boolean },
     prev: RuleEnvironmentState | undefined,
   ) => Promise<void>;
+  onEditRule: (rule: TargetingRule) => void;
 }
 
 interface RuleRowProps {
   rule: TargetingRule;
   envId: string;
   envName: string;
+  desktopUrl: string;
   ruleState: RuleEnvironmentState | undefined;
   onCommitRule: EnvSectionProps['onCommitRule'];
+  onEditRule: (rule: TargetingRule) => void;
 }
 
-function RuleRow({ rule, envId, envName, ruleState, onCommitRule }: RuleRowProps) {
+function RuleRow({
+  rule,
+  envId,
+  envName,
+  desktopUrl,
+  ruleState,
+  onCommitRule,
+  onEditRule,
+}: RuleRowProps) {
   const enabled = ruleState?.enabled === true;
   const [error, setError] = useState<string | null>(null);
   const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -145,6 +157,25 @@ function RuleRow({ rule, envId, envName, ruleState, onCommitRule }: RuleRowProps
           size="sm"
         />
       </span>
+      {rule.rule_type === 'compound' ? (
+        <a
+          href={desktopUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="m-flag-rule-edit-link"
+        >
+          Edit on desktop →
+        </a>
+      ) : (
+        <button
+          type="button"
+          className="m-flag-rule-edit"
+          aria-label={`Edit rule ${rule.priority} in ${envName}`}
+          onClick={() => onEditRule(rule)}
+        >
+          Edit
+        </button>
+      )}
       {error ? (
         <div className="m-flag-rule-error" role="alert">
           {error}
@@ -163,6 +194,7 @@ function EnvSection({
   ruleEnvStates,
   onCommit,
   onCommitRule,
+  onEditRule,
 }: EnvSectionProps) {
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -318,14 +350,100 @@ function EnvSection({
                     rule={rule}
                     envId={env.id}
                     envName={env.name}
+                    desktopUrl={desktopUrl}
                     ruleState={rs}
                     onCommitRule={onCommitRule}
+                    onEditRule={onEditRule}
                   />
                 );
               })}
             </ol>
           )}
         </div>
+      ) : null}
+    </div>
+  );
+}
+
+interface RuleOrderPanelProps {
+  rules: TargetingRule[];
+  expanded: boolean;
+  onToggleExpanded: () => void;
+  error: string | null;
+  onSwap: (idxA: number, idxB: number) => void;
+}
+
+function RuleOrderPanel({
+  rules,
+  expanded,
+  onToggleExpanded,
+  error,
+  onSwap,
+}: RuleOrderPanelProps) {
+  const ordered = useMemo(
+    () => [...rules].sort((a, b) => a.priority - b.priority),
+    [rules],
+  );
+  const count = ordered.length;
+
+  return (
+    <div className="m-rule-order-panel" style={{ marginTop: 16 }}>
+      <button
+        type="button"
+        className="m-rule-order-head"
+        aria-expanded={expanded}
+        onClick={onToggleExpanded}
+      >
+        <span className="m-rule-order-caret" aria-hidden>
+          {expanded ? '▾' : '▸'}
+        </span>
+        <span className="m-rule-order-title">Rule order</span>
+        <span className="m-rule-order-count">
+          {count} {count === 1 ? 'rule' : 'rules'}
+        </span>
+      </button>
+      {error ? (
+        <div className="m-rule-order-error" role="alert">
+          couldn't reorder: {error}
+        </div>
+      ) : null}
+      {expanded ? (
+        ordered.length === 0 ? (
+          <p className="m-muted" style={{ fontSize: 12, margin: '8px 0' }}>
+            No rules configured.
+          </p>
+        ) : (
+          <ol className="m-rule-order-list">
+            {ordered.map((rule, idx) => {
+              const isFirst = idx === 0;
+              const isLast = idx === ordered.length - 1;
+              return (
+                <li key={rule.id} className="m-rule-order-row">
+                  <button
+                    type="button"
+                    className="m-rule-order-arrow"
+                    aria-label={`Move ${rule.id} up`}
+                    disabled={isFirst}
+                    onClick={() => onSwap(idx, idx - 1)}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className="m-rule-order-arrow"
+                    aria-label={`Move ${rule.id} down`}
+                    disabled={isLast}
+                    onClick={() => onSwap(idx, idx + 1)}
+                  >
+                    ↓
+                  </button>
+                  <span className="m-rule-order-priority">{rule.priority}</span>
+                  <span className="m-rule-order-summary">{ruleSummary(rule)}</span>
+                </li>
+              );
+            })}
+          </ol>
+        )
       ) : null}
     </div>
   );
@@ -351,6 +469,13 @@ export function FlagDetailPage() {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Rule edit sheet — track the rule currently being edited (null = closed).
+  const [editingRule, setEditingRule] = useState<TargetingRule | null>(null);
+
+  // Rule order panel — collapsed by default; surfaces a swap error inline.
+  const [rulePanelExpanded, setRulePanelExpanded] = useState(false);
+  const [reorderError, setReorderError] = useState<string | null>(null);
 
   // Fan-in fetch for the 5 detail endpoints.
   useEffect(() => {
@@ -536,6 +661,53 @@ export function FlagDetailPage() {
     [flagId],
   );
 
+  // Handle a rule replacement coming back from the RuleEditSheet save.
+  const handleRuleSaved = useCallback((updated: TargetingRule) => {
+    setRules((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+  }, []);
+
+  // Swap two adjacent rules' priorities. Optimistically swap locally, then
+  // fire two PUTs in parallel; on any failure, revert both.
+  const swapRulePriorities = useCallback(
+    async (idxA: number, idxB: number): Promise<void> => {
+      if (!flagId) return;
+      const ordered = [...rules].sort((a, b) => a.priority - b.priority);
+      const ruleA = ordered[idxA];
+      const ruleB = ordered[idxB];
+      if (!ruleA || !ruleB) return;
+      const priA = ruleA.priority;
+      const priB = ruleB.priority;
+
+      // Optimistic swap.
+      setRules((prev) =>
+        prev.map((r) => {
+          if (r.id === ruleA.id) return { ...r, priority: priB };
+          if (r.id === ruleB.id) return { ...r, priority: priA };
+          return r;
+        }),
+      );
+      setReorderError(null);
+
+      try {
+        await Promise.all([
+          flagsApi.updateRule(flagId, ruleA.id, { priority: priB }),
+          flagsApi.updateRule(flagId, ruleB.id, { priority: priA }),
+        ]);
+      } catch (err) {
+        // Revert both rules to original priorities.
+        setRules((prev) =>
+          prev.map((r) => {
+            if (r.id === ruleA.id) return { ...r, priority: priA };
+            if (r.id === ruleB.id) return { ...r, priority: priB };
+            return r;
+          }),
+        );
+        setReorderError(err instanceof Error ? err.message : 'Failed to reorder');
+      }
+    },
+    [flagId, rules],
+  );
+
   const sortedEnvironments = useMemo(() => {
     return [...environments].sort((a, b) => {
       const ao = a.sort_order ?? 0;
@@ -628,6 +800,14 @@ export function FlagDetailPage() {
         </div>
       </div>
 
+      <RuleOrderPanel
+        rules={rules}
+        expanded={rulePanelExpanded}
+        onToggleExpanded={() => setRulePanelExpanded((v) => !v)}
+        error={reorderError}
+        onSwap={(idxA, idxB) => void swapRulePriorities(idxA, idxB)}
+      />
+
       <h3 style={{ fontSize: 14, margin: '20px 0 8px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted, #64748b)' }}>
         Environments
       </h3>
@@ -648,15 +828,12 @@ export function FlagDetailPage() {
                 ruleEnvStates={ruleEnvStates}
                 onCommit={commitEnvState}
                 onCommitRule={commitRuleEnvState}
+                onEditRule={(r) => setEditingRule(r)}
               />
             );
           })}
         </div>
       )}
-
-      <p className="m-muted" style={{ fontSize: 12, marginTop: 12 }}>
-        Rules are read-only on mobile. Edit on desktop.
-      </p>
 
       <h3 style={{ fontSize: 14, margin: '24px 0 8px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted, #64748b)' }}>
         History
@@ -684,6 +861,19 @@ export function FlagDetailPage() {
         >
           {historyLoading ? 'Loading…' : 'Load more'}
         </button>
+      ) : null}
+
+      {editingRule ? (
+        <RuleEditSheet
+          rule={editingRule}
+          flagId={flag.id}
+          open
+          onClose={() => setEditingRule(null)}
+          onSaved={(updated) => {
+            handleRuleSaved(updated);
+            setEditingRule(null);
+          }}
+        />
       ) : null}
     </section>
   );

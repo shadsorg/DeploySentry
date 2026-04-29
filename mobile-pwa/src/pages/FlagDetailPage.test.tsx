@@ -181,11 +181,11 @@ describe('FlagDetailPage', () => {
     // Collapsed by default — rule summary not visible
     expect(screen.queryByText(/25% rollout/)).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: /Development/ }));
+    await userEvent.click(screen.getByRole('button', { name: /^Development$/ }));
     expect(await screen.findByText(/25% rollout/)).toBeInTheDocument();
 
     // Collapse again
-    await userEvent.click(screen.getByRole('button', { name: /Development/ }));
+    await userEvent.click(screen.getByRole('button', { name: /^Development$/ }));
     expect(screen.queryByText(/25% rollout/)).not.toBeInTheDocument();
   });
 
@@ -776,5 +776,295 @@ describe('FlagDetailPage', () => {
     // Row is still marked disabled (the revert undid the optimistic enable).
     const row = screen.getByText('90% rollout').closest('li');
     expect(row).toHaveAttribute('data-rule-disabled', 'true');
+  });
+
+  // ------------------------------------------------------------------
+  // Phase 5 Task 7 — RuleEditSheet wiring + rule reorder
+  // ------------------------------------------------------------------
+
+  /**
+   * Wrap defaultHandler with PUT support for:
+   *   PUT /flags/:id/rules/:ruleId           → updateRule (sheet save + reorder)
+   *   PUT /flags/:id/rules/:ruleId/environments/:envId (handled separately)
+   *
+   * The handler tracks updateRule calls and lets the test inject a custom
+   * response body (to simulate the server returning a modified rule) or a
+   * non-200 status (to simulate failure).
+   */
+  function defaultHandlerWithRuleUpdate(
+    opts: DefaultHandlerOpts & {
+      onUpdateRule?: (ruleId: string, body: unknown) => void;
+      updateRuleResponse?: (ruleId: string, body: unknown) => Response;
+    } = {},
+  ): MethodAwareHandler {
+    const readHandler = defaultHandler(opts);
+    return (url, init) => {
+      const method = (init?.method ?? 'GET').toUpperCase();
+      // PUT /flags/:id/rules/:ruleId (NOT followed by /environments/...)
+      const updateMatch = url.match(/\/flags\/[^/]+\/rules\/([^/?#]+)$/);
+      if (method === 'PUT' && updateMatch) {
+        const ruleId = updateMatch[1];
+        let body: unknown = {};
+        try {
+          body = init?.body ? JSON.parse(String(init.body)) : {};
+        } catch {
+          body = {};
+        }
+        opts.onUpdateRule?.(ruleId, body);
+        if (opts.updateRuleResponse) {
+          return opts.updateRuleResponse(ruleId, body);
+        }
+        // Default: echo back a TargetingRule with patch applied.
+        const existing = (opts.rules ?? []).find((r) => r.id === ruleId);
+        const merged: TargetingRule = {
+          id: ruleId,
+          flag_id: 'flag-1',
+          rule_type: existing?.rule_type ?? 'percentage',
+          value: existing?.value ?? 'true',
+          priority: existing?.priority ?? 1,
+          percentage: existing?.percentage,
+          user_ids: existing?.user_ids,
+          attribute: existing?.attribute,
+          operator: existing?.operator,
+          segment_id: existing?.segment_id,
+          start_time: existing?.start_time,
+          end_time: existing?.end_time,
+          created_at: '',
+          updated_at: '',
+          ...(body as Partial<TargetingRule>),
+        };
+        return jsonResponse(merged);
+      }
+      return readHandler(url);
+    };
+  }
+
+  // --- RuleEditSheet wiring tests (4) ---
+
+  it('Phase 5: tapping Edit on a non-compound rule opens the RuleEditSheet', async () => {
+    const rules = [makePercentageRule('rule-1', 25, 1)];
+    const ruleEnvStates: RuleEnvironmentState[] = [
+      { rule_id: 'rule-1', environment_id: 'env-dev', enabled: true },
+    ];
+    setFetch(
+      makeFetchMockMethodAware(defaultHandlerWithRuleUpdate({ rules, ruleEnvStates })),
+    );
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+    await userEvent.click(screen.getByRole('button', { name: /Development/ }));
+
+    const editBtn = await screen.findByRole('button', { name: /Edit rule 1 in Development/ });
+    await userEvent.click(editBtn);
+
+    // The sheet renders with an "Edit rule" heading/title.
+    expect(await screen.findByRole('dialog', { name: /Edit rule/ })).toBeInTheDocument();
+  });
+
+  it('Phase 5: saving the RuleEditSheet replaces the rule in the rendered list', async () => {
+    const rules = [makePercentageRule('rule-1', 25, 1)];
+    const ruleEnvStates: RuleEnvironmentState[] = [
+      { rule_id: 'rule-1', environment_id: 'env-dev', enabled: true },
+    ];
+    setFetch(
+      makeFetchMockMethodAware(
+        defaultHandlerWithRuleUpdate({
+          rules,
+          ruleEnvStates,
+          updateRuleResponse: (ruleId, body) =>
+            jsonResponse({
+              id: ruleId,
+              flag_id: 'flag-1',
+              rule_type: 'percentage',
+              value: 'true',
+              priority: 1,
+              created_at: '',
+              updated_at: '',
+              ...(body as Partial<TargetingRule>),
+            }),
+        }),
+      ),
+    );
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+    await userEvent.click(screen.getByRole('button', { name: /Development/ }));
+
+    expect(await screen.findByText('25% rollout')).toBeInTheDocument();
+
+    const editBtn = await screen.findByRole('button', { name: /Edit rule 1 in Development/ });
+    await userEvent.click(editBtn);
+
+    // Change percentage to 75.
+    const percentInput = await screen.findByLabelText(/Percentage$/);
+    await userEvent.clear(percentInput);
+    await userEvent.type(percentInput, '75');
+
+    const saveBtn = screen.getByRole('button', { name: /^Save$/ });
+    await userEvent.click(saveBtn);
+
+    // After save, the rendered summary updates.
+    await waitFor(() => {
+      expect(screen.getByText('75% rollout')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('25% rollout')).not.toBeInTheDocument();
+  });
+
+  it('Phase 5: compound rules render "Edit on desktop" link, not an Edit button', async () => {
+    const rules: TargetingRule[] = [
+      {
+        id: 'rule-c',
+        flag_id: 'flag-1',
+        rule_type: 'compound',
+        value: 'true',
+        priority: 1,
+        created_at: '',
+        updated_at: '',
+      },
+    ];
+    const ruleEnvStates: RuleEnvironmentState[] = [
+      { rule_id: 'rule-c', environment_id: 'env-dev', enabled: true },
+    ];
+    setFetch(
+      makeFetchMockMethodAware(defaultHandlerWithRuleUpdate({ rules, ruleEnvStates })),
+    );
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+    await userEvent.click(screen.getByRole('button', { name: /Development/ }));
+
+    expect(
+      screen.queryByRole('button', { name: /Edit rule 1 in Development/ }),
+    ).not.toBeInTheDocument();
+    const link = await screen.findByRole('link', { name: /Edit on desktop/ });
+    expect(link.getAttribute('href')).toContain('/flags/flag-1');
+  });
+
+  it('Phase 5: closing the sheet without saving leaves rules unchanged', async () => {
+    const rules = [makePercentageRule('rule-1', 25, 1)];
+    const ruleEnvStates: RuleEnvironmentState[] = [
+      { rule_id: 'rule-1', environment_id: 'env-dev', enabled: true },
+    ];
+    setFetch(
+      makeFetchMockMethodAware(defaultHandlerWithRuleUpdate({ rules, ruleEnvStates })),
+    );
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+    await userEvent.click(screen.getByRole('button', { name: /Development/ }));
+
+    expect(await screen.findByText('25% rollout')).toBeInTheDocument();
+
+    const editBtn = await screen.findByRole('button', { name: /Edit rule 1 in Development/ });
+    await userEvent.click(editBtn);
+    expect(await screen.findByRole('dialog', { name: /Edit rule/ })).toBeInTheDocument();
+
+    // Close without saving.
+    await userEvent.click(screen.getByRole('button', { name: /Close/ }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /Edit rule/ })).not.toBeInTheDocument(),
+    );
+    // Summary unchanged.
+    expect(screen.getByText('25% rollout')).toBeInTheDocument();
+  });
+
+  // --- Rule reorder tests (3) ---
+
+  it('Phase 5: tapping ↑ on rule with priority 2 swaps with priority 1 (two PUTs fire)', async () => {
+    const updateCalls: Array<{ ruleId: string; body: unknown }> = [];
+    const rules = [
+      makePercentageRule('rule-a', 10, 1),
+      makePercentageRule('rule-b', 20, 2),
+    ];
+    setFetch(
+      makeFetchMockMethodAware(
+        defaultHandlerWithRuleUpdate({
+          rules,
+          onUpdateRule: (ruleId, body) => updateCalls.push({ ruleId, body }),
+        }),
+      ),
+    );
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+
+    // Expand the Rule order panel.
+    await userEvent.click(screen.getByRole('button', { name: /Rule order/ }));
+
+    // Up button on rule-b (priority 2) — appears in the reorder list.
+    const upBtn = await screen.findByRole('button', {
+      name: /Move rule-b up/,
+    });
+    await userEvent.click(upBtn);
+
+    await waitFor(() => {
+      expect(updateCalls).toHaveLength(2);
+    });
+    // Both PUTs fired with the swapped priorities.
+    expect(updateCalls).toContainEqual({ ruleId: 'rule-b', body: { priority: 1 } });
+    expect(updateCalls).toContainEqual({ ruleId: 'rule-a', body: { priority: 2 } });
+  });
+
+  it('Phase 5: ↑ on first rule and ↓ on last rule are disabled', async () => {
+    const rules = [
+      makePercentageRule('rule-a', 10, 1),
+      makePercentageRule('rule-b', 20, 2),
+    ];
+    setFetch(
+      makeFetchMockMethodAware(defaultHandlerWithRuleUpdate({ rules })),
+    );
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+
+    await userEvent.click(screen.getByRole('button', { name: /Rule order/ }));
+
+    const upFirst = await screen.findByRole('button', { name: /Move rule-a up/ });
+    const downLast = await screen.findByRole('button', { name: /Move rule-b down/ });
+    expect(upFirst).toBeDisabled();
+    expect(downLast).toBeDisabled();
+  });
+
+  it('Phase 5: on swap PUT 500, both rules revert and an inline error renders', async () => {
+    const rules = [
+      makePercentageRule('rule-a', 10, 1),
+      makePercentageRule('rule-b', 20, 2),
+    ];
+    setFetch(
+      makeFetchMockMethodAware(
+        defaultHandlerWithRuleUpdate({
+          rules,
+          updateRuleResponse: (ruleId) => {
+            // Fail the second rule's update; succeed on the first.
+            if (ruleId === 'rule-a') {
+              return jsonResponse({ error: 'reorder boom' }, 500);
+            }
+            return jsonResponse({
+              id: ruleId,
+              flag_id: 'flag-1',
+              rule_type: 'percentage',
+              value: 'true',
+              priority: 1,
+              created_at: '',
+              updated_at: '',
+            });
+          },
+        }),
+      ),
+    );
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+
+    await userEvent.click(screen.getByRole('button', { name: /Rule order/ }));
+
+    const upBtn = await screen.findByRole('button', { name: /Move rule-b up/ });
+    await userEvent.click(upBtn);
+
+    // Inline error renders.
+    expect(await screen.findByText(/reorder boom/)).toBeInTheDocument();
+
+    // The reorder panel still shows rule-a above rule-b (priorities reverted).
+    // Find the priority cells in render order; rule-a (priority 1) should still be first.
+    await waitFor(() => {
+      const upButtons = screen.getAllByRole('button', { name: /^Move rule-. up$/ });
+      // rule-a remains first (its up button is disabled).
+      expect(upButtons[0]).toHaveAttribute('aria-label', 'Move rule-a up');
+      expect(upButtons[0]).toBeDisabled();
+    });
   });
 });

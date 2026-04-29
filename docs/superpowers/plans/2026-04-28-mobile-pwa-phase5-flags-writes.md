@@ -331,7 +331,7 @@ Add small `↑` / `↓` buttons next to each rule (NOT in the env section — at
 - On any failure, revert both rules to their pre-swap priorities.
 - "Save order" is implicit — every arrow tap commits.
 
-- [ ] **Step 1 (test first):** Tests:
+- [x] **Step 1 (test first):** Tests:
   - Tapping "Edit" on a non-compound rule opens the sheet (sheet visible).
   - Saving the sheet updates the rule in the rendered list (e.g., the summary text changes).
   - Compound rules show "Edit on desktop →" link, NOT an Edit button.
@@ -339,9 +339,9 @@ Add small `↑` / `↓` buttons next to each rule (NOT in the env section — at
   - Tapping `↓` on the last rule does nothing (button disabled or hidden).
   - Tapping `↑` on the first rule does nothing.
 
-- [ ] **Step 2:** Implement. Place the "Rule order" panel above the env sections, collapsed by default with a count badge ("3 rules"). When expanded, list the rules with arrows + summary. This keeps env sections focused on per-env state.
+- [x] **Step 2:** Implement. Place the "Rule order" panel above the env sections, collapsed by default with a count badge ("3 rules"). When expanded, list the rules with arrows + summary. This keeps env sections focused on per-env state.
 
-- [ ] **Step 3:** Verify: vitest green, lint clean, tsc clean.
+- [x] **Step 3:** Verify: vitest green, lint clean, tsc clean.
 
 ---
 

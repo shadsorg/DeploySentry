@@ -124,11 +124,35 @@ export const flagsApi = {
     request<{ rule_environment_states: RuleEnvironmentState[] }>(
       `/flags/${flagId}/rules/environment-states`,
     ),
+  updateRule: (flagId: string, ruleId: string, patch: Partial<TargetingRule>) =>
+    request<TargetingRule>(`/flags/${flagId}/rules/${ruleId}`, {
+      method: 'PUT',
+      body: JSON.stringify(patch),
+    }),
+  setRuleEnvState: (
+    flagId: string,
+    ruleId: string,
+    envId: string,
+    patch: { enabled: boolean },
+  ) =>
+    request<RuleEnvironmentState>(
+      `/flags/${flagId}/rules/${ruleId}/environments/${envId}`,
+      { method: 'PUT', body: JSON.stringify(patch) },
+    ),
 };
 
 export const flagEnvStateApi = {
   list: (flagId: string) =>
     request<{ environment_states: FlagEnvironmentState[] }>(`/flags/${flagId}/environments`),
+  set: (
+    flagId: string,
+    envId: string,
+    patch: { enabled?: boolean; value?: unknown },
+  ) =>
+    request<FlagEnvironmentState>(`/flags/${flagId}/environments/${envId}`, {
+      method: 'PUT',
+      body: JSON.stringify(patch),
+    }),
 };
 
 export const envApi = {

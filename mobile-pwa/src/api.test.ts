@@ -238,4 +238,111 @@ describe('api', () => {
     expect(url).not.toContain('limit=');
     expect(url).not.toContain('offset=');
   });
+
+  it('flagEnvStateApi.set PUTs /flags/:id/environments/:envId with { enabled }', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ flag_id: 'f1', environment_id: 'e1', enabled: true }),
+        { status: 200 },
+      ),
+    );
+    const res = await flagEnvStateApi.set('f1', 'e1', { enabled: true });
+    expect(res.enabled).toBe(true);
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/flags/f1/environments/e1');
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.method).toBe('PUT');
+    expect(init.body).toBe(JSON.stringify({ enabled: true }));
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer header.payload.sig');
+  });
+
+  it('flagEnvStateApi.set PUTs only { value } when value-only patch given', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ flag_id: 'f1', environment_id: 'e1', enabled: false, value: 'v2' }),
+        { status: 200 },
+      ),
+    );
+    await flagEnvStateApi.set('f1', 'e1', { value: 'v2' });
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.method).toBe('PUT');
+    expect(init.body).toBe(JSON.stringify({ value: 'v2' }));
+  });
+
+  it('flagEnvStateApi.set PUTs combined { enabled, value } patch', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ flag_id: 'f1', environment_id: 'e1', enabled: true, value: 'true' }),
+        { status: 200 },
+      ),
+    );
+    await flagEnvStateApi.set('f1', 'e1', { enabled: true, value: 'true' });
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.method).toBe('PUT');
+    expect(init.body).toBe(JSON.stringify({ enabled: true, value: 'true' }));
+  });
+
+  it('flagsApi.setRuleEnvState PUTs /flags/:id/rules/:ruleId/environments/:envId', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ rule_id: 'r1', environment_id: 'e1', enabled: false }),
+        { status: 200 },
+      ),
+    );
+    const res = await flagsApi.setRuleEnvState('f1', 'r1', 'e1', { enabled: false });
+    expect(res.enabled).toBe(false);
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/flags/f1/rules/r1/environments/e1');
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.method).toBe('PUT');
+    expect(init.body).toBe(JSON.stringify({ enabled: false }));
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer header.payload.sig');
+  });
+
+  it('flagsApi.updateRule PUTs /flags/:id/rules/:ruleId with priority patch', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ id: 'r1', flag_id: 'f1', priority: 2, value: '', created_at: '', updated_at: '' }),
+        { status: 200 },
+      ),
+    );
+    await flagsApi.updateRule('f1', 'r1', { priority: 2 });
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/flags/f1/rules/r1');
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.method).toBe('PUT');
+    expect(init.body).toBe(JSON.stringify({ priority: 2 }));
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer header.payload.sig');
+  });
+
+  it('flagsApi.updateRule PUTs attribute rule fields when patched', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'r1',
+          flag_id: 'f1',
+          priority: 1,
+          attribute: 'plan',
+          operator: 'eq',
+          value: 'enterprise',
+          created_at: '',
+          updated_at: '',
+        }),
+        { status: 200 },
+      ),
+    );
+    await flagsApi.updateRule('f1', 'r1', {
+      attribute: 'plan',
+      operator: 'eq',
+      value: 'enterprise',
+    });
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.method).toBe('PUT');
+    expect(init.body).toBe(
+      JSON.stringify({ attribute: 'plan', operator: 'eq', value: 'enterprise' }),
+    );
+  });
 });

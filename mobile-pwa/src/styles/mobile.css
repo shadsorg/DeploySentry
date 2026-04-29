@@ -379,8 +379,14 @@ a {
   border-radius: var(--radius-lg, 10px);
   overflow: hidden;
 }
+.m-flag-env-section-head-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 10px;
+}
 .m-flag-env-section-head {
-  width: 100%;
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -391,6 +397,31 @@ a {
   color: inherit;
   text-align: left;
   cursor: pointer;
+}
+.m-flag-env-toggle-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+.m-flag-env-error {
+  font-size: 12px;
+  color: var(--color-danger, #ef4444);
+  padding: 4px 14px 8px;
+}
+.m-flag-env-default-input,
+.m-flag-env-default-select {
+  background: var(--color-bg-surface, #131b2e);
+  border: 1px solid var(--color-border, #1e293b);
+  border-radius: 6px;
+  color: inherit;
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  padding: 4px 8px;
+  min-height: 32px;
+}
+.m-flag-env-json-link {
+  font-size: 12px;
+  color: var(--color-primary, #6366f1);
+  text-decoration: none;
 }
 .m-flag-env-section-caret {
   width: 12px;

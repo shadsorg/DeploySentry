@@ -369,4 +369,219 @@ describe('FlagDetailPage', () => {
     renderAt('/m/orgs/acme/flags/payments/flag-1');
     await waitFor(() => expect(screen.getByText(/Flag fetch boom/)).toBeInTheDocument());
   });
+
+  // ------------------------------------------------------------------
+  // Phase 5 — write-path tests (env toggle + per-env default value edit)
+  // ------------------------------------------------------------------
+
+  type MethodAwareHandler = (
+    url: string,
+    init?: RequestInit,
+  ) => Response | Promise<Response>;
+
+  function makeFetchMockMethodAware(handler: MethodAwareHandler) {
+    return vi.fn<typeof fetch>(async (input, init) => {
+      const url = typeof input === 'string' ? input : (input as URL | Request).toString();
+      return handler(url, init);
+    });
+  }
+
+  /**
+   * Wrap the existing read-only defaultHandler with PUT support for
+   * `/flags/:id/environments/:envId`.
+   */
+  function defaultHandlerWithPut(
+    opts: DefaultHandlerOpts & {
+      putStatus?: number;
+      putBody?: unknown;
+      onPut?: (envId: string, body: unknown) => void;
+    } = {},
+  ): MethodAwareHandler {
+    const readHandler = defaultHandler(opts);
+    return (url, init) => {
+      const method = (init?.method ?? 'GET').toUpperCase();
+      const m = url.match(/\/flags\/([^/]+)\/environments\/([^/?#]+)$/);
+      if (method === 'PUT' && m) {
+        const envId = m[2];
+        let body: unknown = {};
+        try {
+          body = init?.body ? JSON.parse(String(init.body)) : {};
+        } catch {
+          body = {};
+        }
+        opts.onPut?.(envId, body);
+        if (opts.putStatus && opts.putStatus !== 200) {
+          return jsonResponse(opts.putBody ?? { error: 'boom' }, opts.putStatus);
+        }
+        const patch = body as { enabled?: boolean; value?: unknown };
+        const row: FlagEnvironmentState = {
+          flag_id: 'flag-1',
+          environment_id: envId,
+          enabled: patch.enabled ?? false,
+          value: patch.value,
+        };
+        return jsonResponse(row);
+      }
+      return readHandler(url);
+    };
+  }
+
+  it('tapping env toggle on disabled env issues PUT { enabled: true } and reflects state', async () => {
+    const calls: Array<{ envId: string; body: unknown }> = [];
+    const fetchMock = makeFetchMockMethodAware(
+      defaultHandlerWithPut({
+        envStates: [],
+        onPut: (envId, body) => calls.push({ envId, body }),
+      }),
+    );
+    setFetch(fetchMock);
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+
+    const toggle = await screen.findByRole('switch', { name: /Toggle Development/ });
+    expect(toggle).not.toBeChecked();
+    await userEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(calls).toContainEqual({ envId: 'env-dev', body: { enabled: true } });
+    });
+    await waitFor(() =>
+      expect(
+        screen.getByRole('switch', { name: /Toggle Development/ }),
+      ).toBeChecked(),
+    );
+  });
+
+  it('tapping env toggle on enabled env issues PUT { enabled: false }', async () => {
+    const calls: Array<{ envId: string; body: unknown }> = [];
+    const envStates: FlagEnvironmentState[] = [
+      { flag_id: 'flag-1', environment_id: 'env-dev', enabled: true },
+    ];
+    const fetchMock = makeFetchMockMethodAware(
+      defaultHandlerWithPut({
+        envStates,
+        onPut: (envId, body) => calls.push({ envId, body }),
+      }),
+    );
+    setFetch(fetchMock);
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+
+    const toggle = await screen.findByRole('switch', { name: /Toggle Development/ });
+    await waitFor(() => expect(toggle).toBeChecked());
+    await userEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(calls).toContainEqual({ envId: 'env-dev', body: { enabled: false } });
+    });
+  });
+
+  it('boolean flag: editing default value via select issues PUT { value: "true" }', async () => {
+    const calls: Array<{ envId: string; body: unknown }> = [];
+    const fetchMock = makeFetchMockMethodAware(
+      defaultHandlerWithPut({
+        flag: makeFlag({ flag_type: 'boolean', default_value: 'false' }),
+        onPut: (envId, body) => calls.push({ envId, body }),
+      }),
+    );
+    setFetch(fetchMock);
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+
+    await userEvent.click(screen.getByRole('button', { name: /Development/ }));
+    const select = (await screen.findAllByRole('combobox'))[0];
+    await userEvent.selectOptions(select, 'true');
+
+    await waitFor(() => {
+      expect(calls).toContainEqual({ envId: 'env-dev', body: { value: 'true' } });
+    });
+  });
+
+  it('string flag: editing default value commits on blur', async () => {
+    const calls: Array<{ envId: string; body: unknown }> = [];
+    const fetchMock = makeFetchMockMethodAware(
+      defaultHandlerWithPut({
+        flag: makeFlag({ flag_type: 'string', default_value: 'old' }),
+        onPut: (envId, body) => calls.push({ envId, body }),
+      }),
+    );
+    setFetch(fetchMock);
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+
+    await userEvent.click(screen.getByRole('button', { name: /Development/ }));
+    const inputs = await screen.findAllByRole('textbox');
+    const input = inputs[0];
+    await userEvent.clear(input);
+    await userEvent.type(input, 'newval');
+    input.blur();
+
+    await waitFor(() => {
+      expect(calls).toContainEqual({ envId: 'env-dev', body: { value: 'newval' } });
+    });
+  });
+
+  it('string flag: editing default value commits on Enter keypress', async () => {
+    const calls: Array<{ envId: string; body: unknown }> = [];
+    const fetchMock = makeFetchMockMethodAware(
+      defaultHandlerWithPut({
+        flag: makeFlag({ flag_type: 'string', default_value: 'old' }),
+        onPut: (envId, body) => calls.push({ envId, body }),
+      }),
+    );
+    setFetch(fetchMock);
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+
+    await userEvent.click(screen.getByRole('button', { name: /Development/ }));
+    const inputs = await screen.findAllByRole('textbox');
+    const input = inputs[0];
+    await userEvent.clear(input);
+    await userEvent.type(input, 'newval{Enter}');
+
+    await waitFor(() => {
+      expect(calls).toContainEqual({ envId: 'env-dev', body: { value: 'newval' } });
+    });
+  });
+
+  it('on PUT 500, toggle reverts and an error message renders', async () => {
+    const fetchMock = makeFetchMockMethodAware(
+      defaultHandlerWithPut({
+        envStates: [],
+        putStatus: 500,
+        putBody: { error: 'server boom' },
+      }),
+    );
+    setFetch(fetchMock);
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+
+    const toggle = await screen.findByRole('switch', { name: /Toggle Development/ });
+    expect(toggle).not.toBeChecked();
+    await userEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('switch', { name: /Toggle Development/ }),
+      ).not.toBeChecked();
+    });
+    expect(await screen.findByText(/couldn't save: server boom/)).toBeInTheDocument();
+  });
+
+  it('json flag: renders an "Edit JSON on desktop" deep-link instead of an input', async () => {
+    setFetch(
+      makeFetchMockMethodAware(
+        defaultHandlerWithPut({
+          flag: makeFlag({ flag_type: 'json', default_value: '{"a":1}' }),
+        }),
+      ),
+    );
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+
+    await userEvent.click(screen.getByRole('button', { name: /Development/ }));
+    const link = await screen.findByRole('link', { name: /Edit JSON on desktop/i });
+    expect(link).toBeInTheDocument();
+    expect(link.getAttribute('href')).toContain('/flags/flag-1');
+  });
 });

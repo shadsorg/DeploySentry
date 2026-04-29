@@ -1,10 +1,17 @@
 import type {
+  Application,
+  AuditLogEntry,
   AuthUser,
+  Flag,
+  FlagEnvironmentState,
   Organization,
+  OrgEnvironment,
   OrgStatusResponse,
   OrgDeploymentsFilters,
   OrgDeploymentsResponse,
   Project,
+  RuleEnvironmentState,
+  TargetingRule,
 } from './types';
 
 const BASE = '/api/v1';
@@ -97,4 +104,50 @@ export const orgDeploymentsApi = {
 export const projectsApi = {
   list: (orgSlug: string) =>
     request<{ projects: Project[] }>(`/orgs/${orgSlug}/projects`),
+};
+
+export const flagsApi = {
+  list: (
+    projectId: string,
+    params: { category?: string; archived?: boolean; applicationId?: string } = {},
+  ) => {
+    const qs = new URLSearchParams({ project_id: projectId });
+    if (params.category) qs.set('category', params.category);
+    if (params.archived !== undefined) qs.set('archived', String(params.archived));
+    if (params.applicationId) qs.set('application_id', params.applicationId);
+    return request<{ flags: Flag[] }>(`/flags?${qs.toString()}`);
+  },
+  get: (id: string) => request<Flag>(`/flags/${id}`),
+  listRules: (flagId: string) =>
+    request<{ rules: TargetingRule[] }>(`/flags/${flagId}/rules`),
+  listRuleEnvStates: (flagId: string) =>
+    request<{ rule_environment_states: RuleEnvironmentState[] }>(
+      `/flags/${flagId}/rules/environment-states`,
+    ),
+};
+
+export const flagEnvStateApi = {
+  list: (flagId: string) =>
+    request<{ environment_states: FlagEnvironmentState[] }>(`/flags/${flagId}/environments`),
+};
+
+export const envApi = {
+  listOrg: (orgSlug: string) =>
+    request<{ environments: OrgEnvironment[] }>(`/orgs/${orgSlug}/environments`),
+};
+
+export const appsApi = {
+  list: (orgSlug: string, projectSlug: string) =>
+    request<{ applications: Application[] }>(
+      `/orgs/${orgSlug}/projects/${projectSlug}/apps`,
+    ),
+};
+
+export const auditApi = {
+  listForFlag: (flagId: string, opts: { limit?: number; offset?: number } = {}) => {
+    const qs = new URLSearchParams({ resource_type: 'flag', resource_id: flagId });
+    if (opts.limit !== undefined) qs.set('limit', String(opts.limit));
+    if (opts.offset !== undefined) qs.set('offset', String(opts.offset));
+    return request<{ entries: AuditLogEntry[]; total: number }>(`/audit-log?${qs.toString()}`);
+  },
 };

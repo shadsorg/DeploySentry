@@ -65,3 +65,48 @@ test('authenticated status page smoke (API mocked at browser level)', async ({ p
   await page.getByText('Payments').waitFor({ state: 'visible' });
   await page.getByRole('button', { name: /flags/i }).waitFor({ state: 'visible' });
 });
+
+test('authenticated history page smoke (API mocked at browser level)', async ({ page, context }) => {
+  await context.addInitScript(() => {
+    const toB64u = (s: string) =>
+      btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const payload = { exp: Math.floor(Date.now() / 1000) + 3600 };
+    const token = `${toB64u('{"alg":"HS256"}')}.${toB64u(JSON.stringify(payload))}.sig`;
+    localStorage.setItem('ds_token', token);
+  });
+  await context.route('**/api/v1/users/me', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: '1', email: 'a@b.c', name: 'A' }) }),
+  );
+  await context.route('**/api/v1/orgs/acme/projects', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ projects: [] }) }),
+  );
+  await context.route('**/api/v1/orgs/acme/deployments**', (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        deployments: [
+          {
+            id: 'd1',
+            application_id: 'a1',
+            environment_id: 'e1',
+            version: 'v9.9.9',
+            strategy: 'canary',
+            status: 'completed',
+            traffic_percent: 100,
+            created_by: 'u1',
+            created_at: new Date(Date.now() - 60_000).toISOString(),
+            updated_at: '',
+            completed_at: null,
+            application: { id: 'a1', slug: 'api', name: 'API' },
+            environment: { id: 'e1', slug: 'prod', name: 'Production' },
+            project: { id: 'p1', slug: 'pay', name: 'Payments' },
+          },
+        ],
+      }),
+    }),
+  );
+  await page.goto('/m/orgs/acme/history');
+  await page.getByText('v9.9.9').waitFor({ state: 'visible' });
+  await page.getByRole('button', { name: 'Failed' }).click();
+});

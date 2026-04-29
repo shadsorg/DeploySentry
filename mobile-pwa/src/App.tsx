@@ -5,6 +5,7 @@ import { LoginPage } from './pages/LoginPage';
 import { OrgPickerPage } from './pages/OrgPickerPage';
 import { StatusPage } from './pages/StatusPage';
 import { HistoryPage } from './pages/HistoryPage';
+import { DeploymentDetailPage } from './pages/DeploymentDetailPage';
 import { FlagProjectPickerPage } from './pages/FlagProjectPickerPage';
 import { SettingsPage } from './pages/SettingsPage';
 
@@ -22,6 +23,7 @@ export function AppRoutes() {
           <Route index element={<Navigate to="status" replace />} />
           <Route path="status" element={<StatusPage />} />
           <Route path="history" element={<HistoryPage />} />
+          <Route path="history/:deploymentId" element={<DeploymentDetailPage />} />
           <Route path="flags" element={<FlagProjectPickerPage />} />
         </Route>
       </Route>

@@ -1,4 +1,11 @@
-import type { AuthUser, Organization, OrgStatusResponse } from './types';
+import type {
+  AuthUser,
+  Organization,
+  OrgStatusResponse,
+  OrgDeploymentsFilters,
+  OrgDeploymentsResponse,
+  Project,
+} from './types';
 
 const BASE = '/api/v1';
 
@@ -69,6 +76,25 @@ export const orgsApi = {
   list: () => request<{ organizations: Organization[] }>('/orgs'),
 };
 
+function buildQueryString(params: Record<string, string | number | undefined>): string {
+  const parts = Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== '' && v !== null)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`);
+  return parts.length ? `?${parts.join('&')}` : '';
+}
+
 export const orgStatusApi = {
   get: (orgSlug: string) => request<OrgStatusResponse>(`/orgs/${orgSlug}/status`),
+};
+
+export const orgDeploymentsApi = {
+  list: (orgSlug: string, filters: OrgDeploymentsFilters = {}) =>
+    request<OrgDeploymentsResponse>(
+      `/orgs/${orgSlug}/deployments${buildQueryString(filters as Record<string, string | number | undefined>)}`,
+    ),
+};
+
+export const projectsApi = {
+  list: (orgSlug: string) =>
+    request<{ projects: Project[] }>(`/orgs/${orgSlug}/projects`),
 };

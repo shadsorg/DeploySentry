@@ -69,3 +69,65 @@ export interface OrgStatusResponse {
   generated_at: string;
   projects: OrgStatusProjectNode[];
 }
+
+export type DeployStrategy = 'canary' | 'blue-green' | 'rolling';
+export type DeployStatus =
+  | 'pending'
+  | 'running'
+  | 'promoting'
+  | 'paused'
+  | 'completed'
+  | 'failed'
+  | 'rolled_back'
+  | 'cancelled';
+
+export interface Deployment {
+  id: string;
+  application_id: string;
+  environment_id: string;
+  version: string;
+  commit_sha?: string;
+  artifact?: string;
+  strategy: DeployStrategy;
+  status: DeployStatus;
+  mode?: 'orchestrate' | 'record';
+  source?: string | null;
+  traffic_percent: number;
+  health_score?: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  started_at?: string;
+  completed_at: string | null;
+}
+
+export interface OrgDeploymentRow extends Deployment {
+  application: { id: string; slug: string; name: string };
+  environment: { id: string; slug?: string; name?: string };
+  project: { id: string; slug: string; name: string };
+}
+
+export interface OrgDeploymentsResponse {
+  deployments: OrgDeploymentRow[];
+  next_cursor?: string;
+}
+
+export interface OrgDeploymentsFilters {
+  project_id?: string;
+  application_id?: string;
+  environment_id?: string;
+  status?: string;
+  mode?: string;
+  from?: string;
+  to?: string;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  slug: string;
+  org_id: string;
+  description?: string;
+}

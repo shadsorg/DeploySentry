@@ -15,6 +15,7 @@ import type {
   TargetingRule,
 } from '../types';
 import { CategoryBadge } from '../components/CategoryBadge';
+import { ruleSummary } from '../lib/ruleSummary';
 
 const PAGE_SIZE = 20;
 
@@ -45,31 +46,6 @@ function describeAction(action: string): string {
       return 'Updated rule environment state';
     default:
       return action;
-  }
-}
-
-function summarizeRule(rule: TargetingRule): string {
-  switch (rule.rule_type) {
-    case 'percentage': {
-      const n = rule.percentage ?? 0;
-      return `${n}% rollout`;
-    }
-    case 'user_target': {
-      const n = rule.user_ids?.length ?? 0;
-      return `${n} user IDs`;
-    }
-    case 'attribute': {
-      const combined = `${rule.attribute ?? ''} ${rule.operator ?? ''} ${rule.value ?? ''}`.trim();
-      return combined.length > 40 ? `${combined.slice(0, 39)}…` : combined;
-    }
-    case 'segment':
-      return `segment: ${rule.segment_id ?? ''}`;
-    case 'schedule':
-      return `${rule.start_time ?? ''} – ${rule.end_time ?? ''}`;
-    case 'compound':
-      return 'compound (edit on desktop)';
-    default:
-      return rule.value ?? '';
   }
 }
 
@@ -162,7 +138,7 @@ function EnvSection({ env, state, rules, ruleEnvStates }: EnvSectionProps) {
                 <li key={rule.id} className="m-flag-rule-row">
                   <span className="m-flag-rule-priority">{rule.priority}</span>
                   <span className="m-flag-rule-type">{rule.rule_type ?? 'rule'}</span>
-                  <span className="m-flag-rule-summary">{summarizeRule(rule)}</span>
+                  <span className="m-flag-rule-summary">{ruleSummary(rule)}</span>
                 </li>
               ))}
             </ol>

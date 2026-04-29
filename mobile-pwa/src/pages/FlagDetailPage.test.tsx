@@ -1168,6 +1168,14 @@ describe('FlagDetailPage', () => {
     });
   });
 
+  it('Phase 6: does not render the StaleBadge after a fresh successful fetch', async () => {
+    setFetch(makeFetchMock(defaultHandler()));
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    expect(await screen.findByText('checkout_v2')).toBeInTheDocument();
+    // Fresh data (<30s) → badge renders nothing.
+    expect(screen.queryByText(/Showing data from/i)).not.toBeInTheDocument();
+  });
+
   it('Phase 5: on swap PUT 500, both rules revert and an inline error renders', async () => {
     const rules = [
       makePercentageRule('rule-a', 10, 1),

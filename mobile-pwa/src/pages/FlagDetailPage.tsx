@@ -18,6 +18,7 @@ import { CategoryBadge } from '../components/CategoryBadge';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { RuleEditSheet } from '../components/RuleEditSheet';
 import { OfflineWriteBlockedModal } from '../components/OfflineWriteBlockedModal';
+import { StaleBadge } from '../components/StaleBadge';
 import { assertOnlineForWrite, isOfflineWriteBlockedError } from '../lib/offlineError';
 import { ruleSummary } from '../lib/ruleSummary';
 
@@ -482,12 +483,17 @@ export function FlagDetailPage() {
   // Offline write-blocked modal — opens when a mutation is attempted offline.
   const [offlineModalOpen, setOfflineModalOpen] = useState(false);
 
+  // Freshness signal for the initial detail fan-in fetch (Phase 6 Task 5).
+  const [lastSuccess, setLastSuccess] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
   // Fan-in fetch for the 5 detail endpoints.
   useEffect(() => {
     if (!flagId || !orgSlug) return;
     let cancelled = false;
     setError(null);
     setFlag(null);
+    setRefreshing(true);
 
     Promise.all([
       flagsApi.get(flagId),
@@ -503,10 +509,14 @@ export function FlagDetailPage() {
         setRuleEnvStates(ruleStatesRes.rule_environment_states);
         setEnvStates(envStatesRes.environment_states);
         setEnvironments(envRes.environments);
+        setLastSuccess(Date.now());
       })
       .catch((err: unknown) => {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to load flag');
+      })
+      .finally(() => {
+        if (!cancelled) setRefreshing(false);
       });
 
     return () => {
@@ -790,6 +800,7 @@ export function FlagDetailPage() {
       <Link to={backHref} className="m-back-link">
         ‹ Back to flags
       </Link>
+      <StaleBadge lastSuccess={lastSuccess} inflight={refreshing} />
 
       <header style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>

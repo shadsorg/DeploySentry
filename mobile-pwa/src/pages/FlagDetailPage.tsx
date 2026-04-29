@@ -17,6 +17,9 @@ import type {
 import { CategoryBadge } from '../components/CategoryBadge';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { RuleEditSheet } from '../components/RuleEditSheet';
+import { OfflineWriteBlockedModal } from '../components/OfflineWriteBlockedModal';
+import { StaleBadge } from '../components/StaleBadge';
+import { assertOnlineForWrite, isOfflineWriteBlockedError } from '../lib/offlineError';
 import { ruleSummary } from '../lib/ruleSummary';
 
 const PAGE_SIZE = 20;
@@ -477,12 +480,20 @@ export function FlagDetailPage() {
   const [rulePanelExpanded, setRulePanelExpanded] = useState(false);
   const [reorderError, setReorderError] = useState<string | null>(null);
 
+  // Offline write-blocked modal — opens when a mutation is attempted offline.
+  const [offlineModalOpen, setOfflineModalOpen] = useState(false);
+
+  // Freshness signal for the initial detail fan-in fetch (Phase 6 Task 5).
+  const [lastSuccess, setLastSuccess] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
   // Fan-in fetch for the 5 detail endpoints.
   useEffect(() => {
     if (!flagId || !orgSlug) return;
     let cancelled = false;
     setError(null);
     setFlag(null);
+    setRefreshing(true);
 
     Promise.all([
       flagsApi.get(flagId),
@@ -498,10 +509,14 @@ export function FlagDetailPage() {
         setRuleEnvStates(ruleStatesRes.rule_environment_states);
         setEnvStates(envStatesRes.environment_states);
         setEnvironments(envRes.environments);
+        setLastSuccess(Date.now());
       })
       .catch((err: unknown) => {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to load flag');
+      })
+      .finally(() => {
+        if (!cancelled) setRefreshing(false);
       });
 
     return () => {
@@ -546,6 +561,15 @@ export function FlagDetailPage() {
       prev: FlagEnvironmentState | undefined,
     ): Promise<void> => {
       if (!flagId) return;
+      try {
+        assertOnlineForWrite();
+      } catch (err) {
+        if (isOfflineWriteBlockedError(err)) {
+          setOfflineModalOpen(true);
+          return;
+        }
+        throw err;
+      }
       // Apply optimistically.
       setEnvStates((prevStates) => {
         const idx = prevStates.findIndex((s) => s.environment_id === envId);
@@ -607,6 +631,15 @@ export function FlagDetailPage() {
       prev: RuleEnvironmentState | undefined,
     ): Promise<void> => {
       if (!flagId) return;
+      try {
+        assertOnlineForWrite();
+      } catch (err) {
+        if (isOfflineWriteBlockedError(err)) {
+          setOfflineModalOpen(true);
+          return;
+        }
+        throw err;
+      }
       // Apply optimistically.
       setRuleEnvStates((prevStates) => {
         const idx = prevStates.findIndex(
@@ -671,6 +704,15 @@ export function FlagDetailPage() {
   const swapRulePriorities = useCallback(
     async (idxA: number, idxB: number): Promise<void> => {
       if (!flagId) return;
+      try {
+        assertOnlineForWrite();
+      } catch (err) {
+        if (isOfflineWriteBlockedError(err)) {
+          setOfflineModalOpen(true);
+          return;
+        }
+        throw err;
+      }
       const ordered = [...rules].sort((a, b) => a.priority - b.priority);
       const ruleA = ordered[idxA];
       const ruleB = ordered[idxB];
@@ -751,9 +793,14 @@ export function FlagDetailPage() {
 
   return (
     <section style={{ padding: 20 }}>
+      <OfflineWriteBlockedModal
+        open={offlineModalOpen}
+        onClose={() => setOfflineModalOpen(false)}
+      />
       <Link to={backHref} className="m-back-link">
         ‹ Back to flags
       </Link>
+      <StaleBadge lastSuccess={lastSuccess} inflight={refreshing} />
 
       <header style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -872,6 +919,10 @@ export function FlagDetailPage() {
           onSaved={(updated) => {
             handleRuleSaved(updated);
             setEditingRule(null);
+          }}
+          onOfflineBlocked={() => {
+            setEditingRule(null);
+            setOfflineModalOpen(true);
           }}
         />
       ) : null}

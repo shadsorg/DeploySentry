@@ -5,6 +5,7 @@ import type { OrgDeploymentRow, Project } from '../types';
 import { DeploymentRow } from '../components/DeploymentRow';
 import { StatusFilterChips } from '../components/StatusFilterChips';
 import { ProjectFilterSheet } from '../components/ProjectFilterSheet';
+import { StaleBadge } from '../components/StaleBadge';
 
 const PAGE_SIZE = 25;
 
@@ -21,6 +22,8 @@ export function HistoryPage() {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastSuccess, setLastSuccess] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Load project list once.
   useEffect(() => {
@@ -39,6 +42,7 @@ export function HistoryPage() {
       const isInitial = reset;
       if (isInitial) {
         setLoading(true);
+        setRefreshing(true);
       } else {
         setLoadingMore(true);
       }
@@ -52,11 +56,13 @@ export function HistoryPage() {
         setRows((prev) => (isInitial ? res.deployments : [...prev, ...res.deployments]));
         setCursor(res.next_cursor);
         setError(null);
+        if (isInitial) setLastSuccess(Date.now());
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load deployments');
       } finally {
         setLoading(false);
         setLoadingMore(false);
+        if (isInitial) setRefreshing(false);
       }
     },
     [orgSlug, status, projectId, cursor],
@@ -75,6 +81,7 @@ export function HistoryPage() {
   return (
     <section>
       <h2 style={{ margin: '4px 0 8px' }}>Deploy History</h2>
+      <StaleBadge lastSuccess={lastSuccess} inflight={refreshing} />
 
       <StatusFilterChips value={status} onChange={setStatus} />
 

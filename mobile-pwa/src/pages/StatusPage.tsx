@@ -4,6 +4,7 @@ import { orgStatusApi } from '../api';
 import type { OrgStatusEnvCell, OrgStatusResponse } from '../types';
 import { useAutoPoll } from '../hooks/useAutoPoll';
 import { ProjectCard } from '../components/ProjectCard';
+import { StaleBadge } from '../components/StaleBadge';
 
 const POLL_MS = 15_000;
 
@@ -11,16 +12,21 @@ export function StatusPage() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const [data, setData] = useState<OrgStatusResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [lastSuccess, setLastSuccess] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(() => {
     if (!orgSlug) return;
+    setRefreshing(true);
     orgStatusApi
       .get(orgSlug)
       .then((r) => {
         setData(r);
         setError(null);
+        setLastSuccess(Date.now());
       })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load status'));
+      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load status'))
+      .finally(() => setRefreshing(false));
   }, [orgSlug]);
 
   useAutoPoll(load, POLL_MS);
@@ -57,6 +63,7 @@ export function StatusPage() {
   return (
     <section>
       <h2 style={{ margin: '4px 0 12px' }}>Status</h2>
+      <StaleBadge lastSuccess={lastSuccess} inflight={refreshing} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {data.projects.map((p) => (
           <ProjectCard key={p.project.id} project={p} onEnvTap={onEnvTap} />

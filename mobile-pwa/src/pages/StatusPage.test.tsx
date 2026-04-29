@@ -66,4 +66,13 @@ describe('StatusPage', () => {
     renderAt('/orgs/acme/status');
     expect(await screen.findByText(/no projects/i)).toBeInTheDocument();
   });
+
+  it('does not render the StaleBadge after a fresh successful fetch', async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify(FIXTURE), { status: 200 }));
+    renderAt('/orgs/acme/status');
+    // Wait for data to render so we know the success path completed.
+    expect(await screen.findByText('Payments')).toBeInTheDocument();
+    // Fresh data (<30s) → badge renders nothing.
+    expect(screen.queryByText(/Showing data from/i)).not.toBeInTheDocument();
+  });
 });

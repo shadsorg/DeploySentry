@@ -206,4 +206,13 @@ describe('FlagListPage', () => {
     renderAt('/m/orgs/acme/flags/payments');
     await waitFor(() => expect(screen.getByText(/Boom/)).toBeInTheDocument());
   });
+
+  it('does not render the StaleBadge after a fresh successful fetch', async () => {
+    fetchMock = makeFetchMock(defaultHandler());
+    setFetch(fetchMock);
+    renderAt('/m/orgs/acme/flags/payments');
+    expect(await screen.findByText('checkout_v2')).toBeInTheDocument();
+    // Fresh data (<30s) → badge renders nothing.
+    expect(screen.queryByText(/Showing data from/i)).not.toBeInTheDocument();
+  });
 });

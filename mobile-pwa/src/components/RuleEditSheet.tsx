@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { TargetingRule } from '../types';
 import { flagsApi } from '../api';
+import { isOfflineWriteBlockedError } from '../lib/offlineError';
 import { ruleSummary } from '../lib/ruleSummary';
 
 interface RuleEditSheetProps {
@@ -9,6 +10,7 @@ interface RuleEditSheetProps {
   open: boolean;
   onClose: () => void;
   onSaved: (updatedRule: TargetingRule) => void;
+  onOfflineBlocked?: () => void;
 }
 
 const ATTRIBUTE_OPERATORS = [
@@ -105,6 +107,7 @@ export function RuleEditSheet({
   open,
   onClose,
   onSaved,
+  onOfflineBlocked,
 }: RuleEditSheetProps) {
   const [edits, setEdits] = useState<EditState>(() => initialState(rule));
   const [chipDraft, setChipDraft] = useState('');
@@ -133,7 +136,11 @@ export function RuleEditSheet({
       onSaved(updated);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save rule');
+      if (isOfflineWriteBlockedError(err)) {
+        onOfflineBlocked?.();
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to save rule');
+      }
     } finally {
       setSaving(false);
     }

@@ -11,6 +11,7 @@ import type {
 } from '../types';
 import { CategoryFilterChips } from '../components/CategoryFilterChips';
 import { FlagRow } from '../components/FlagRow';
+import { StaleBadge } from '../components/StaleBadge';
 
 const ALL_CATEGORIES: FlagCategory[] = [
   'release',
@@ -42,6 +43,8 @@ export function FlagListPage() {
   const [flags, setFlags] = useState<Flag[] | null>(null);
   const [stateMap, setStateMap] = useState<Map<string, FlagEnvironmentState[]>>(new Map());
   const [error, setError] = useState<string | null>(null);
+  const [lastSuccess, setLastSuccess] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Filter state, hydrated from URL on first mount.
   const [query, setQuery] = useState<string>(searchParams.get('q') ?? '');
@@ -71,6 +74,7 @@ export function FlagListPage() {
       try {
         setError(null);
         setFlags(null);
+        setRefreshing(true);
 
         const projectListPromise = projectsApi.list(orgSlug);
         const envPromise = envApi.listOrg(orgSlug);
@@ -84,7 +88,10 @@ export function FlagListPage() {
 
         const proj = projRes.projects.find((p) => p.slug === projectSlug) ?? null;
         if (!proj) {
-          if (!cancelled) setError('Project not found');
+          if (!cancelled) {
+            setError('Project not found');
+            setRefreshing(false);
+          }
           return;
         }
 
@@ -92,7 +99,10 @@ export function FlagListPage() {
         if (appsRes && appSlug) {
           app = appsRes.applications.find((a) => a.slug === appSlug) ?? null;
           if (!app) {
-            if (!cancelled) setError('Application not found');
+            if (!cancelled) {
+              setError('Application not found');
+              setRefreshing(false);
+            }
             return;
           }
         }
@@ -117,10 +127,13 @@ export function FlagListPage() {
 
         setStateMap(new Map(stateResults));
         setFlags(flagsRes.flags);
+        setLastSuccess(Date.now());
+        setRefreshing(false);
       } catch (e) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : 'Failed to load flags');
           setFlags([]);
+          setRefreshing(false);
         }
       }
     })();
@@ -184,6 +197,7 @@ export function FlagListPage() {
           Switch project →
         </Link>
       </div>
+      <StaleBadge lastSuccess={lastSuccess} inflight={refreshing} />
 
       <input
         type="search"

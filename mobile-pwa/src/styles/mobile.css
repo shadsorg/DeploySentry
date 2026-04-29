@@ -763,3 +763,171 @@ a {
   font-size: 13px;
   color: var(--color-danger, #ef4444);
 }
+
+/* StaleBadge — small pill shown on read screens when displayed data is older
+   than the freshness threshold (default 30s). When a refresh fetch is in
+   flight, [data-refreshing="true"] enables a subtle pulsing dot. */
+.m-stale-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--color-warning-bg, rgba(245, 158, 11, 0.12));
+  color: var(--color-warning, #f59e0b);
+  border: 1px solid var(--color-warning, #f59e0b);
+}
+
+.m-stale-badge[data-refreshing='true']::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: m-stale-badge-pulse 1200ms ease-in-out infinite;
+}
+
+@keyframes m-stale-badge-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.m-sw-banner {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 8px);
+  left: 12px;
+  right: 12px;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg, 8px);
+  background: var(--color-bg-elevated, #1b2339);
+  border: 1px solid var(--color-border, #1e293b);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  animation: m-sw-banner-slide-in 200ms ease-out;
+}
+
+.m-sw-banner-text {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text, #e2e8f0);
+}
+
+.m-sw-banner-action {
+  min-height: 36px;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+@keyframes m-sw-banner-slide-in {
+  from {
+    transform: translateY(-12px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* StaleBadge — small pill shown on read screens when displayed data is older
+   than the freshness threshold (default 30s). When a refresh fetch is in
+   flight, [data-refreshing="true"] enables a subtle pulsing dot. */
+.m-stale-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--color-warning-bg, rgba(245, 158, 11, 0.12));
+  color: var(--color-warning, #f59e0b);
+  border: 1px solid var(--color-warning, #f59e0b);
+}
+
+.m-stale-badge[data-refreshing='true']::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: m-stale-badge-pulse 1200ms ease-in-out infinite;
+}
+
+@keyframes m-stale-badge-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+
+/* OfflineWriteBlockedModal — shown when a write is attempted while offline.
+   Backdrop dims the page, centered card explains why and provides a single
+   "Got it" dismiss action. */
+.m-offline-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.m-offline-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.m-offline-modal-card {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  background: var(--color-bg-surface, #131b2e);
+  border: 1px solid var(--color-border, #1e293b);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.m-offline-modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text, #e2e8f0);
+}
+
+.m-offline-modal-body {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-secondary, #94a3b8);
+}
+
+.m-offline-modal-action {
+  align-self: flex-end;
+  min-height: 44px;
+  min-width: 88px;
+}

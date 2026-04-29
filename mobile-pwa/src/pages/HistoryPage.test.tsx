@@ -84,6 +84,18 @@ describe('HistoryPage', () => {
     );
   });
 
+  it('does not render the StaleBadge after a fresh successful fetch', async () => {
+    fetchMock.mockImplementation(async (url) => {
+      const u = String(url);
+      if (u.includes('/projects')) return new Response(JSON.stringify({ projects: [] }), { status: 200 });
+      return new Response(JSON.stringify({ deployments: [rowFixture()] }), { status: 200 });
+    });
+    renderAt('/orgs/acme/history');
+    expect(await screen.findByText('v2.1.0')).toBeInTheDocument();
+    // Fresh data (<30s) → badge renders nothing.
+    expect(screen.queryByText(/Showing data from/i)).not.toBeInTheDocument();
+  });
+
   it('refetches with status=failed when the Failed chip is tapped', async () => {
     fetchMock.mockImplementation(async (url) => {
       const u = String(url);

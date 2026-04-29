@@ -62,19 +62,16 @@ Examples:
 var flagsListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List feature flags",
-	Long: `List feature flags, optionally filtered by tag, status, or search term.
+	Long: `List feature flags for the current project, optionally filtered by category or archive status.
 
 Examples:
   # List all flags
   deploysentry flags list
 
-  # Search for flags by name
-  deploysentry flags list --search checkout
+  # Filter by category
+  deploysentry flags list --category release
 
-  # List flags with a specific tag
-  deploysentry flags list --tag frontend
-
-  # List only archived flags
+  # List archived flags
   deploysentry flags list --status archived
 
   # Output in JSON format
@@ -124,24 +121,12 @@ var flagsUpdateCmd = &cobra.Command{
 	Short: "Update a feature flag configuration",
 	Long: `Update the configuration of an existing feature flag.
 
-You can modify the default value, description, tags, and targeting
-rules. To add a targeting rule, use --add-rule with a JSON object.
-
-Targeting Rule JSON format:
-  {
-    "attribute": "user.plan",
-    "operator": "in",
-    "values": ["pro", "enterprise"],
-    "percentage": 100,
-    "value": true
-  }
+You can modify the default value, description, name, category, and tags.
+For targeting-rule changes, use the "flags rules" subcommands.
 
 Examples:
   # Update the default value
   deploysentry flags update checkout-variant --default "variant-b"
-
-  # Add a targeting rule
-  deploysentry flags update dark-mode --add-rule '{"attribute":"user.plan","operator":"eq","values":["pro"],"value":true}'
 
   # Update the description
   deploysentry flags update dark-mode --description "Controls dark mode UI theme"`,
@@ -199,13 +184,13 @@ func init() {
 	flagsCreateCmd.Flags().String("default", "", "default value for the flag")
 	flagsCreateCmd.Flags().String("description", "", "description of the flag")
 	flagsCreateCmd.Flags().StringSlice("tag", nil, "tags for the flag (can be specified multiple times)")
+	flagsCreateCmd.Flags().String("name", "", "human-readable name (defaults to --key)")
+	flagsCreateCmd.Flags().String("category", "feature", "flag category: release, feature, experiment, ops, permission")
 	_ = flagsCreateCmd.MarkFlagRequired("key")
 
 	// flags list flags
-	flagsListCmd.Flags().String("tag", "", "filter by tag")
+	flagsListCmd.Flags().String("category", "", "filter by category: release, feature, experiment, ops, permission")
 	flagsListCmd.Flags().String("status", "", "filter by status (active, archived)")
-	flagsListCmd.Flags().String("search", "", "search flags by key or description")
-	flagsListCmd.Flags().Int("limit", 50, "maximum number of results")
 
 	// flags toggle flags
 	flagsToggleCmd.Flags().Bool("on", false, "turn the flag on")
@@ -214,7 +199,8 @@ func init() {
 	// flags update flags
 	flagsUpdateCmd.Flags().String("default", "", "new default value")
 	flagsUpdateCmd.Flags().String("description", "", "updated description")
-	flagsUpdateCmd.Flags().String("add-rule", "", "add a targeting rule (JSON)")
+	flagsUpdateCmd.Flags().String("name", "", "updated name")
+	flagsUpdateCmd.Flags().String("category", "", "updated category")
 	flagsUpdateCmd.Flags().StringSlice("tag", nil, "set tags (replaces existing)")
 
 	// flags evaluate flags
@@ -232,22 +218,30 @@ func init() {
 }
 
 func runFlagsCreate(cmd *cobra.Command, args []string) error {
+	_ = args
 	org, err := requireOrg()
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
 
 	key, _ := cmd.Flags().GetString("key")
+	name, _ := cmd.Flags().GetString("name")
+	if name == "" {
+		name = key
+	}
 	flagType, _ := cmd.Flags().GetString("type")
 	defaultVal, _ := cmd.Flags().GetString("default")
 	description, _ := cmd.Flags().GetString("description")
+	category, _ := cmd.Flags().GetString("category")
+	if category == "" {
+		category = "feature"
+	}
 	tags, _ := cmd.Flags().GetStringSlice("tag")
 
-	// Validate flag type.
 	validTypes := map[string]bool{"boolean": true, "string": true, "integer": true, "json": true}
 	if !validTypes[flagType] {
 		return fmt.Errorf("invalid flag type %q; must be one of: boolean, string, integer, json", flagType)
@@ -258,9 +252,17 @@ func runFlagsCreate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	projectID, err := resolveProjectID(client, org, projectSlug)
+	if err != nil {
+		return err
+	}
+
 	body := map[string]interface{}{
-		"key":  key,
-		"type": flagType,
+		"project_id": projectID,
+		"key":        key,
+		"name":       name,
+		"flag_type":  flagType,
+		"category":   category,
 	}
 	if defaultVal != "" {
 		body["default_value"] = defaultVal
@@ -271,14 +273,15 @@ func runFlagsCreate(cmd *cobra.Command, args []string) error {
 	if len(tags) > 0 {
 		body["tags"] = tags
 	}
-
-	env := getEnv()
-	if env != "" {
-		body["environment"] = env
+	if envSlug := getEnv(); envSlug != "" {
+		envID, err := resolveEnvID(client, org, envSlug)
+		if err != nil {
+			return err
+		}
+		body["environment_id"] = envID
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/flags", org, project)
-	resp, err := client.post(path, body)
+	resp, err := client.post("/api/v1/flags", body)
 	if err != nil {
 		return fmt.Errorf("failed to create flag: %w", err)
 	}
@@ -299,43 +302,33 @@ func runFlagsCreate(cmd *cobra.Command, args []string) error {
 }
 
 func runFlagsList(cmd *cobra.Command, args []string) error {
+	_ = args
 	org, err := requireOrg()
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
-
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
-
-	params := []string{}
-	if tag, _ := cmd.Flags().GetString("tag"); tag != "" {
-		params = append(params, "tag="+tag)
-	}
-	if status, _ := cmd.Flags().GetString("status"); status != "" {
-		params = append(params, "status="+status)
-	}
-	if search, _ := cmd.Flags().GetString("search"); search != "" {
-		params = append(params, "search="+search)
-	}
-	if limit, _ := cmd.Flags().GetInt("limit"); limit > 0 {
-		params = append(params, fmt.Sprintf("limit=%d", limit))
-	}
-	if env := getEnv(); env != "" {
-		params = append(params, "environment="+env)
+	projectID, err := resolveProjectID(client, org, projectSlug)
+	if err != nil {
+		return err
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/flags", org, project)
-	if len(params) > 0 {
-		path += "?" + strings.Join(params, "&")
+	params := []string{"project_id=" + projectID}
+	if cat, _ := cmd.Flags().GetString("category"); cat != "" {
+		params = append(params, "category="+cat)
+	}
+	if status, _ := cmd.Flags().GetString("status"); status == "archived" {
+		params = append(params, "archived=true")
 	}
 
-	resp, err := client.get(path)
+	resp, err := client.get("/api/v1/flags?" + strings.Join(params, "&"))
 	if err != nil {
 		return fmt.Errorf("failed to list flags: %w", err)
 	}
@@ -353,15 +346,12 @@ func runFlagsList(cmd *cobra.Command, args []string) error {
 	}
 
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "KEY\tTYPE\tSTATUS\tDEFAULT\tTAGS\tUPDATED")
+	_, _ = fmt.Fprintln(w, "KEY\tTYPE\tCATEGORY\tDEFAULT\tTAGS\tUPDATED")
 	for _, f := range flags {
-		flag, ok := f.(map[string]interface{})
-		if !ok {
-			continue
-		}
+		flag, _ := f.(map[string]interface{})
 		key, _ := flag["key"].(string)
-		flagType, _ := flag["type"].(string)
-		status, _ := flag["status"].(string)
+		flagType, _ := flag["flag_type"].(string)
+		category, _ := flag["category"].(string)
 		defaultVal, _ := flag["default_value"].(string)
 		updatedAt, _ := flag["updated_at"].(string)
 
@@ -377,7 +367,7 @@ func runFlagsList(cmd *cobra.Command, args []string) error {
 		}
 
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
-			key, flagType, status, defaultVal, tagList, updatedAt)
+			key, flagType, category, defaultVal, tagList, updatedAt)
 	}
 	return w.Flush()
 }
@@ -387,7 +377,7 @@ func runFlagsGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
@@ -396,16 +386,18 @@ func runFlagsGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-
-	key := args[0]
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/flags/%s", org, project, key)
-	if env := getEnv(); env != "" {
-		path += "?environment=" + env
+	projectID, err := resolveProjectID(client, org, projectSlug)
+	if err != nil {
+		return err
+	}
+	flagID, err := resolveFlagID(client, projectID, args[0])
+	if err != nil {
+		return err
 	}
 
-	resp, err := client.get(path)
+	resp, err := client.get(fmt.Sprintf("/api/v1/flags/%s", flagID))
 	if err != nil {
-		return fmt.Errorf("failed to get flag %q: %w", key, err)
+		return fmt.Errorf("failed to get flag %q: %w", args[0], err)
 	}
 
 	if getOutputFormat() == "json" {
@@ -414,12 +406,9 @@ func runFlagsGet(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Feature Flag: %s\n", key)
-	if t, ok := resp["type"].(string); ok {
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Feature Flag: %s\n", args[0])
+	if t, ok := resp["flag_type"].(string); ok {
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Type:        %s\n", t)
-	}
-	if s, ok := resp["status"].(string); ok {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Status:      %s\n", s)
 	}
 	if d, ok := resp["default_value"]; ok {
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Default:     %v\n", d)
@@ -427,29 +416,6 @@ func runFlagsGet(cmd *cobra.Command, args []string) error {
 	if desc, ok := resp["description"].(string); ok && desc != "" {
 		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Description: %s\n", desc)
 	}
-	if created, ok := resp["created_at"].(string); ok {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Created:     %s\n", created)
-	}
-	if updated, ok := resp["updated_at"].(string); ok {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Updated:     %s\n", updated)
-	}
-
-	// Print targeting rules if present.
-	if rules, ok := resp["rules"].([]interface{}); ok && len(rules) > 0 {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\n  Targeting Rules:\n")
-		for i, r := range rules {
-			rule, ok := r.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			attr, _ := rule["attribute"].(string)
-			op, _ := rule["operator"].(string)
-			val := rule["value"]
-			pct, _ := rule["percentage"].(float64)
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "    %d. %s %s -> %v (%.0f%%)\n", i+1, attr, op, val, pct)
-		}
-	}
-
 	return nil
 }
 
@@ -458,14 +424,13 @@ func runFlagsToggle(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
 
 	on, _ := cmd.Flags().GetBool("on")
 	off, _ := cmd.Flags().GetBool("off")
-
 	if !on && !off {
 		return fmt.Errorf("you must specify either --on or --off")
 	}
@@ -477,21 +442,39 @@ func runFlagsToggle(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-
-	key := args[0]
-	enabled := on
-
-	body := map[string]interface{}{
-		"enabled": enabled,
-	}
-	if env := getEnv(); env != "" {
-		body["environment"] = env
-	}
-
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/flags/%s/toggle", org, project, key)
-	resp, err := client.post(path, body)
+	projectID, err := resolveProjectID(client, org, projectSlug)
 	if err != nil {
-		return fmt.Errorf("failed to toggle flag %q: %w", key, err)
+		return err
+	}
+	flagID, err := resolveFlagID(client, projectID, args[0])
+	if err != nil {
+		return err
+	}
+
+	enabled := on
+	envSlug := getEnv()
+
+	var resp map[string]any
+	if envSlug != "" {
+		envID, err := resolveEnvID(client, org, envSlug)
+		if err != nil {
+			return err
+		}
+		resp, err = client.put(
+			fmt.Sprintf("/api/v1/flags/%s/environments/%s", flagID, envID),
+			map[string]any{"enabled": enabled},
+		)
+		if err != nil {
+			return fmt.Errorf("failed to toggle flag %q in env %q: %w", args[0], envSlug, err)
+		}
+	} else {
+		resp, err = client.post(
+			fmt.Sprintf("/api/v1/flags/%s/toggle", flagID),
+			map[string]any{"enabled": enabled},
+		)
+		if err != nil {
+			return fmt.Errorf("failed to toggle flag %q: %w", args[0], err)
+		}
 	}
 
 	if getOutputFormat() == "json" {
@@ -504,7 +487,11 @@ func runFlagsToggle(cmd *cobra.Command, args []string) error {
 	if enabled {
 		state = "ON"
 	}
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag %q toggled %s.\n", key, state)
+	if envSlug != "" {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag %q toggled %s in %s.\n", args[0], state, envSlug)
+	} else {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag %q toggled %s.\n", args[0], state)
+	}
 	return nil
 }
 
@@ -513,52 +500,52 @@ func runFlagsUpdate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
-
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
+	projectID, err := resolveProjectID(client, org, projectSlug)
+	if err != nil {
+		return err
+	}
+	flagID, err := resolveFlagID(client, projectID, args[0])
+	if err != nil {
+		return err
+	}
 
-	key := args[0]
 	body := map[string]interface{}{}
-
 	if cmd.Flags().Changed("default") {
-		defaultVal, _ := cmd.Flags().GetString("default")
-		body["default_value"] = defaultVal
+		v, _ := cmd.Flags().GetString("default")
+		body["default_value"] = v
 	}
 	if cmd.Flags().Changed("description") {
-		description, _ := cmd.Flags().GetString("description")
-		body["description"] = description
+		v, _ := cmd.Flags().GetString("description")
+		body["description"] = v
+	}
+	if cmd.Flags().Changed("name") {
+		v, _ := cmd.Flags().GetString("name")
+		body["name"] = v
+	}
+	if cmd.Flags().Changed("category") {
+		v, _ := cmd.Flags().GetString("category")
+		body["category"] = v
 	}
 	if cmd.Flags().Changed("tag") {
-		tags, _ := cmd.Flags().GetStringSlice("tag")
-		body["tags"] = tags
-	}
-	if cmd.Flags().Changed("add-rule") {
-		ruleJSON, _ := cmd.Flags().GetString("add-rule")
-		var rule map[string]interface{}
-		if err := json.Unmarshal([]byte(ruleJSON), &rule); err != nil {
-			return fmt.Errorf("invalid rule JSON: %w", err)
-		}
-		body["add_rule"] = rule
+		v, _ := cmd.Flags().GetStringSlice("tag")
+		body["tags"] = v
 	}
 
 	if len(body) == 0 {
-		return fmt.Errorf("no updates specified; use --default, --description, --tag, or --add-rule")
+		return fmt.Errorf("no updates specified; use --default, --description, --name, --category, or --tag")
 	}
 
-	if env := getEnv(); env != "" {
-		body["environment"] = env
-	}
-
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/flags/%s", org, project, key)
-	resp, err := client.patch(path, body)
+	resp, err := client.put(fmt.Sprintf("/api/v1/flags/%s", flagID), body)
 	if err != nil {
-		return fmt.Errorf("failed to update flag %q: %w", key, err)
+		return fmt.Errorf("failed to update flag %q: %w", args[0], err)
 	}
 
 	if getOutputFormat() == "json" {
@@ -566,8 +553,7 @@ func runFlagsUpdate(cmd *cobra.Command, args []string) error {
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
-
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag %q updated successfully.\n", key)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag %q updated successfully.\n", args[0])
 	return nil
 }
 
@@ -576,35 +562,41 @@ func runFlagsEvaluate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
-
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
+	projectID, err := resolveProjectID(client, org, projectSlug)
+	if err != nil {
+		return err
+	}
 
-	key := args[0]
 	contextJSON, _ := cmd.Flags().GetString("context")
-
 	var evalContext map[string]interface{}
 	if err := json.Unmarshal([]byte(contextJSON), &evalContext); err != nil {
 		return fmt.Errorf("invalid context JSON: %w", err)
 	}
 
 	body := map[string]interface{}{
-		"context": evalContext,
+		"flag_key":   args[0],
+		"project_id": projectID,
+		"context":    evalContext,
 	}
-	if env := getEnv(); env != "" {
-		body["environment"] = env
+	if envSlug := getEnv(); envSlug != "" {
+		envID, err := resolveEnvID(client, org, envSlug)
+		if err != nil {
+			return err
+		}
+		body["environment_id"] = envID
 	}
 
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/flags/%s/evaluate", org, project, key)
-	resp, err := client.post(path, body)
+	resp, err := client.post("/api/v1/flags/evaluate", body)
 	if err != nil {
-		return fmt.Errorf("failed to evaluate flag %q: %w", key, err)
+		return fmt.Errorf("failed to evaluate flag %q: %w", args[0], err)
 	}
 
 	if getOutputFormat() == "json" {
@@ -612,16 +604,12 @@ func runFlagsEvaluate(cmd *cobra.Command, args []string) error {
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
-
-	value := resp["value"]
-	reason, _ := resp["reason"].(string)
-	ruleIndex, hasRule := resp["rule_index"].(float64)
-
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag:   %s\n", key)
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Value:  %v\n", value)
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Reason: %s\n", reason)
-	if hasRule {
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Rule:   #%.0f\n", ruleIndex)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag:   %s\n", args[0])
+	if v, ok := resp["value"]; ok {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Value:  %v\n", v)
+	}
+	if r, ok := resp["reason"].(string); ok {
+		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Reason: %s\n", r)
 	}
 	return nil
 }
@@ -631,29 +619,32 @@ func runFlagsArchive(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	project, err := requireProject()
+	projectSlug, err := requireProject()
 	if err != nil {
 		return err
 	}
-
 	client, err := clientFromConfig()
 	if err != nil {
 		return err
 	}
-
-	key := args[0]
-	path := fmt.Sprintf("/api/v1/orgs/%s/projects/%s/flags/%s/archive", org, project, key)
-	resp, err := client.post(path, nil)
+	projectID, err := resolveProjectID(client, org, projectSlug)
 	if err != nil {
-		return fmt.Errorf("failed to archive flag %q: %w", key, err)
+		return err
+	}
+	flagID, err := resolveFlagID(client, projectID, args[0])
+	if err != nil {
+		return err
 	}
 
+	resp, err := client.post(fmt.Sprintf("/api/v1/flags/%s/archive", flagID), nil)
+	if err != nil {
+		return fmt.Errorf("failed to archive flag %q: %w", args[0], err)
+	}
 	if getOutputFormat() == "json" {
 		data, _ := json.MarshalIndent(resp, "", "  ")
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), string(data))
 		return nil
 	}
-
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag %q archived successfully.\n", key)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Flag %q archived successfully.\n", args[0])
 	return nil
 }

@@ -293,3 +293,129 @@ test('flag detail env toggle issues PUT (API mocked at browser level)', async ({
   expect(req.method()).toBe('PUT');
   expect(JSON.parse(req.postData() ?? '{}')).toMatchObject({ enabled: true });
 });
+
+test('flag detail offline write shows OfflineWriteBlockedModal (API mocked)', async ({
+  page,
+  context,
+}) => {
+  await context.addInitScript(() => {
+    const toB64u = (s: string) =>
+      btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const payload = { exp: Math.floor(Date.now() / 1000) + 3600 };
+    const token = `${toB64u('{"alg":"HS256"}')}.${toB64u(JSON.stringify(payload))}.sig`;
+    localStorage.setItem('ds_token', token);
+  });
+  await context.route('**/api/v1/users/me', (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ id: '1', email: 'a@b.c', name: 'A' }),
+    }),
+  );
+  await context.route('**/api/v1/orgs/acme/environments', (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        environments: [
+          { id: 'env-dev', slug: 'dev', name: 'Development', sort_order: 1 },
+        ],
+      }),
+    }),
+  );
+  // Order matters: most-specific routes first.
+  await context.route('**/api/v1/flags/flag-1/rules/environment-states', (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        rule_environment_states: [
+          { rule_id: 'rule-1', environment_id: 'env-dev', enabled: true },
+        ],
+      }),
+    }),
+  );
+  await context.route('**/api/v1/flags/flag-1/rules', (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        rules: [
+          {
+            id: 'rule-1',
+            flag_id: 'flag-1',
+            rule_type: 'percentage',
+            percentage: 25,
+            value: 'true',
+            priority: 1,
+            created_at: '',
+            updated_at: '',
+          },
+        ],
+      }),
+    }),
+  );
+  await context.route('**/api/v1/flags/flag-1/environments', (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        environment_states: [
+          {
+            flag_id: 'flag-1',
+            environment_id: 'env-dev',
+            enabled: false,
+            value: 'false',
+          },
+        ],
+      }),
+    }),
+  );
+  await context.route('**/api/v1/flags/flag-1', (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 'flag-1',
+        project_id: 'proj-1',
+        application_id: null,
+        key: 'checkout_v2',
+        name: 'Checkout v2',
+        flag_type: 'boolean',
+        category: 'release',
+        is_permanent: false,
+        expires_at: '2026-12-31T00:00:00Z',
+        default_value: 'false',
+        enabled: true,
+        archived: false,
+        owners: ['alice'],
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+      }),
+    }),
+  );
+  await context.route('**/api/v1/audit-log**', (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ entries: [], total: 0 }),
+    }),
+  );
+
+  await page.goto('/m/orgs/acme/flags/payments/flag-1');
+  await page.getByText('checkout_v2').waitFor({ state: 'visible' });
+
+  // Flip the page context offline. The api client checks navigator.onLine
+  // synchronously and throws OfflineWriteBlockedError before fetch fires,
+  // so no PUT will be issued.
+  await context.setOffline(true);
+  await page.getByRole('switch', { name: /Toggle Development/i }).click();
+
+  // The modal renders an alertdialog with the "You're offline" heading.
+  await expect(page.getByRole('heading', { name: "You're offline" })).toBeVisible();
+
+  // Restore online state, then dismiss with "Got it".
+  await context.setOffline(false);
+  await page.getByRole('button', { name: 'Got it' }).click();
+  await expect(page.getByRole('heading', { name: "You're offline" })).toBeHidden();
+});

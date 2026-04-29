@@ -1,7 +1,19 @@
 # syntax=docker/dockerfile:1
 
 # ---------------------------------------------------------------------------
-# Stage 1: Build the Go binary
+# Stage 1: Build the Mobile PWA static assets
+# ---------------------------------------------------------------------------
+FROM node:20-alpine AS pwa-builder
+
+WORKDIR /pwa
+COPY mobile-pwa/package.json mobile-pwa/package-lock.json* ./
+RUN npm ci --no-audit --no-fund
+
+COPY mobile-pwa/ ./
+RUN npm run build
+
+# ---------------------------------------------------------------------------
+# Stage 2: Build the Go binary (embeds the PWA dist)
 # ---------------------------------------------------------------------------
 FROM golang:1.22-alpine AS builder
 
@@ -13,8 +25,11 @@ WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 
-# Copy the full source tree and build.
+# Copy the full source tree.
 COPY . .
+
+# Stage the freshly-built PWA into the embed location so go:embed picks it up.
+COPY --from=pwa-builder /pwa/dist/ ./internal/mobilepwa/dist/
 
 ARG VERSION=dev
 ARG COMMIT=unknown
@@ -27,7 +42,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
     ./cmd/api
 
 # ---------------------------------------------------------------------------
-# Stage 2: Minimal runtime image
+# Stage 3: Minimal runtime image
 # ---------------------------------------------------------------------------
 FROM gcr.io/distroless/static-debian12:nonroot
 

@@ -41,6 +41,13 @@ build/Release
 .next/
 out/
 
+# Mobile PWA dist is staged into internal/mobilepwa/dist/ before `go build`
+# so it can be embedded. Keep the placeholder so the embed always has a
+# directory to attach to in dev builds; ignore the rest of the staged tree.
+!internal/mobilepwa/dist/
+internal/mobilepwa/dist/*
+!internal/mobilepwa/dist/.gitkeep
+
 # Logs
 logs/
 *.log

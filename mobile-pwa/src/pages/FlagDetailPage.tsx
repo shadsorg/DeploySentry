@@ -83,6 +83,75 @@ interface EnvSectionProps {
     patch: { enabled?: boolean; value?: unknown },
     prev: FlagEnvironmentState | undefined,
   ) => Promise<void>;
+  onCommitRule: (
+    ruleId: string,
+    envId: string,
+    patch: { enabled: boolean },
+    prev: RuleEnvironmentState | undefined,
+  ) => Promise<void>;
+}
+
+interface RuleRowProps {
+  rule: TargetingRule;
+  envId: string;
+  envName: string;
+  ruleState: RuleEnvironmentState | undefined;
+  onCommitRule: EnvSectionProps['onCommitRule'];
+}
+
+function RuleRow({ rule, envId, envName, ruleState, onCommitRule }: RuleRowProps) {
+  const enabled = ruleState?.enabled === true;
+  const [error, setError] = useState<string | null>(null);
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    };
+  }, []);
+
+  function flashError(msg: string) {
+    setError(msg);
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    errorTimerRef.current = setTimeout(() => setError(null), 4000);
+  }
+
+  async function handleToggle(next: boolean) {
+    try {
+      await onCommitRule(rule.id, envId, { enabled: next }, ruleState);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'unknown error';
+      flashError(`couldn't save: ${msg}`);
+    }
+  }
+
+  return (
+    <li
+      className="m-flag-rule-row"
+      data-rule-disabled={enabled ? undefined : 'true'}
+      style={enabled ? undefined : { opacity: 0.5 }}
+    >
+      <span className="m-flag-rule-priority">{rule.priority}</span>
+      <span className="m-flag-rule-type">{rule.rule_type ?? 'rule'}</span>
+      <span className="m-flag-rule-summary">{ruleSummary(rule)}</span>
+      <span
+        className="m-flag-rule-toggle-wrap"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ToggleSwitch
+          checked={enabled}
+          onChange={(next) => void handleToggle(next)}
+          ariaLabel={`Toggle rule ${rule.priority} in ${envName}`}
+          size="sm"
+        />
+      </span>
+      {error ? (
+        <div className="m-flag-rule-error" role="alert">
+          {error}
+        </div>
+      ) : null}
+    </li>
+  );
 }
 
 function EnvSection({
@@ -93,6 +162,7 @@ function EnvSection({
   rules,
   ruleEnvStates,
   onCommit,
+  onCommitRule,
 }: EnvSectionProps) {
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -121,16 +191,9 @@ function EnvSection({
     errorTimerRef.current = setTimeout(() => setError(null), 4000);
   }, []);
 
-  const visibleRules = useMemo(() => {
-    return rules
-      .filter((rule) => {
-        const rs = ruleEnvStates.find(
-          (s) => s.rule_id === rule.id && s.environment_id === env.id,
-        );
-        return rs?.enabled === true;
-      })
-      .sort((a, b) => a.priority - b.priority);
-  }, [rules, ruleEnvStates, env.id]);
+  const sortedRules = useMemo(() => {
+    return [...rules].sort((a, b) => a.priority - b.priority);
+  }, [rules]);
 
   async function commit(patch: { enabled?: boolean; value?: unknown }) {
     try {
@@ -239,19 +302,27 @@ function EnvSection({
             )}
           </div>
 
-          {visibleRules.length === 0 ? (
+          {sortedRules.length === 0 ? (
             <p className="m-muted" style={{ fontSize: 12, margin: '8px 0' }}>
-              No active rules for this environment.
+              No rules configured.
             </p>
           ) : (
             <ol className="m-flag-rule-list">
-              {visibleRules.map((rule) => (
-                <li key={rule.id} className="m-flag-rule-row">
-                  <span className="m-flag-rule-priority">{rule.priority}</span>
-                  <span className="m-flag-rule-type">{rule.rule_type ?? 'rule'}</span>
-                  <span className="m-flag-rule-summary">{ruleSummary(rule)}</span>
-                </li>
-              ))}
+              {sortedRules.map((rule) => {
+                const rs = ruleEnvStates.find(
+                  (s) => s.rule_id === rule.id && s.environment_id === env.id,
+                );
+                return (
+                  <RuleRow
+                    key={rule.id}
+                    rule={rule}
+                    envId={env.id}
+                    envName={env.name}
+                    ruleState={rs}
+                    onCommitRule={onCommitRule}
+                  />
+                );
+              })}
             </ol>
           )}
         </div>
@@ -400,6 +471,71 @@ export function FlagDetailPage() {
     [flagId],
   );
 
+  // Optimistic per-rule per-env state commit. Apply locally, fire PUT, sync
+  // with response on success or revert on failure. Throws on failure so the
+  // rule row can surface an inline error.
+  const commitRuleEnvState = useCallback(
+    async (
+      ruleId: string,
+      envId: string,
+      patch: { enabled: boolean },
+      prev: RuleEnvironmentState | undefined,
+    ): Promise<void> => {
+      if (!flagId) return;
+      // Apply optimistically.
+      setRuleEnvStates((prevStates) => {
+        const idx = prevStates.findIndex(
+          (s) => s.rule_id === ruleId && s.environment_id === envId,
+        );
+        if (idx === -1) {
+          const stub: RuleEnvironmentState = {
+            rule_id: ruleId,
+            environment_id: envId,
+            enabled: patch.enabled,
+          };
+          return [...prevStates, stub];
+        }
+        const next = { ...prevStates[idx], ...patch };
+        const copy = prevStates.slice();
+        copy[idx] = next;
+        return copy;
+      });
+
+      try {
+        const res = await flagsApi.setRuleEnvState(flagId, ruleId, envId, patch);
+        // Sync local state with server response.
+        setRuleEnvStates((prevStates) => {
+          const idx = prevStates.findIndex(
+            (s) => s.rule_id === ruleId && s.environment_id === envId,
+          );
+          if (idx === -1) return [...prevStates, res];
+          const copy = prevStates.slice();
+          copy[idx] = res;
+          return copy;
+        });
+      } catch (err) {
+        // Revert.
+        setRuleEnvStates((prevStates) => {
+          const idx = prevStates.findIndex(
+            (s) => s.rule_id === ruleId && s.environment_id === envId,
+          );
+          if (prev === undefined) {
+            if (idx === -1) return prevStates;
+            const copy = prevStates.slice();
+            copy.splice(idx, 1);
+            return copy;
+          }
+          if (idx === -1) return [...prevStates, prev];
+          const copy = prevStates.slice();
+          copy[idx] = prev;
+          return copy;
+        });
+        throw err;
+      }
+    },
+    [flagId],
+  );
+
   const sortedEnvironments = useMemo(() => {
     return [...environments].sort((a, b) => {
       const ao = a.sort_order ?? 0;
@@ -511,6 +647,7 @@ export function FlagDetailPage() {
                 rules={rules}
                 ruleEnvStates={ruleEnvStates}
                 onCommit={commitEnvState}
+                onCommitRule={commitRuleEnvState}
               />
             );
           })}

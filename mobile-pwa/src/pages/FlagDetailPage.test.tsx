@@ -189,7 +189,7 @@ describe('FlagDetailPage', () => {
     expect(screen.queryByText(/25% rollout/)).not.toBeInTheDocument();
   });
 
-  it('only shows rules with RuleEnvironmentState.enabled === true for the env', async () => {
+  it('shows all rules in expanded section, with disabled ones marked via data-rule-disabled', async () => {
     const rules: TargetingRule[] = [
       {
         id: 'rule-on',
@@ -221,8 +221,11 @@ describe('FlagDetailPage', () => {
     await screen.findByText('checkout_v2');
 
     await userEvent.click(screen.getByRole('button', { name: /Development/ }));
-    expect(await screen.findByText('10% rollout')).toBeInTheDocument();
-    expect(screen.queryByText('90% rollout')).not.toBeInTheDocument();
+    // Both rules are now visible in Phase 5 (was filtered in Phase 4).
+    const onRow = (await screen.findByText('10% rollout')).closest('li');
+    const offRow = (await screen.findByText('90% rollout')).closest('li');
+    expect(onRow).not.toHaveAttribute('data-rule-disabled');
+    expect(offRow).toHaveAttribute('data-rule-disabled', 'true');
   });
 
   it('renders percentage rule summary as <n>% rollout', async () => {
@@ -583,5 +586,195 @@ describe('FlagDetailPage', () => {
     const link = await screen.findByRole('link', { name: /Edit JSON on desktop/i });
     expect(link).toBeInTheDocument();
     expect(link.getAttribute('href')).toContain('/flags/flag-1');
+  });
+
+  // ------------------------------------------------------------------
+  // Phase 5 — write-path tests (per-rule per-env toggle)
+  // ------------------------------------------------------------------
+
+  /**
+   * Wrap defaultHandler with PUT support for both env-state and rule-env-state
+   * routes:
+   *   PUT /flags/:id/environments/:envId
+   *   PUT /flags/:id/rules/:ruleId/environments/:envId
+   */
+  function defaultHandlerWithRulePut(
+    opts: DefaultHandlerOpts & {
+      rulePutStatus?: number;
+      rulePutBody?: unknown;
+      onRulePut?: (ruleId: string, envId: string, body: unknown) => void;
+    } = {},
+  ): MethodAwareHandler {
+    const readHandler = defaultHandler(opts);
+    return (url, init) => {
+      const method = (init?.method ?? 'GET').toUpperCase();
+      const ruleEnvMatch = url.match(
+        /\/flags\/[^/]+\/rules\/([^/]+)\/environments\/([^/?#]+)$/,
+      );
+      if (method === 'PUT' && ruleEnvMatch) {
+        const ruleId = ruleEnvMatch[1];
+        const envId = ruleEnvMatch[2];
+        let body: unknown = {};
+        try {
+          body = init?.body ? JSON.parse(String(init.body)) : {};
+        } catch {
+          body = {};
+        }
+        opts.onRulePut?.(ruleId, envId, body);
+        if (opts.rulePutStatus && opts.rulePutStatus !== 200) {
+          return jsonResponse(opts.rulePutBody ?? { error: 'rule boom' }, opts.rulePutStatus);
+        }
+        const patch = body as { enabled: boolean };
+        const row: RuleEnvironmentState = {
+          rule_id: ruleId,
+          environment_id: envId,
+          enabled: patch.enabled,
+        };
+        return jsonResponse(row);
+      }
+      return readHandler(url);
+    };
+  }
+
+  function makePercentageRule(id: string, percentage: number, priority: number): TargetingRule {
+    return {
+      id,
+      flag_id: 'flag-1',
+      rule_type: 'percentage',
+      percentage,
+      value: 'true',
+      priority,
+      created_at: '',
+      updated_at: '',
+    };
+  }
+
+  it('Phase 5: a rule with RuleEnvironmentState.enabled=false is visible with data-rule-disabled', async () => {
+    const rules = [makePercentageRule('rule-off', 90, 1)];
+    const ruleEnvStates: RuleEnvironmentState[] = [
+      { rule_id: 'rule-off', environment_id: 'env-dev', enabled: false },
+    ];
+    setFetch(
+      makeFetchMockMethodAware(defaultHandlerWithRulePut({ rules, ruleEnvStates })),
+    );
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+    await userEvent.click(screen.getByRole('button', { name: /Development/ }));
+
+    const summary = await screen.findByText('90% rollout');
+    const row = summary.closest('li');
+    expect(row).toBeInTheDocument();
+    expect(row).toHaveAttribute('data-rule-disabled', 'true');
+  });
+
+  it('Phase 5: tapping a disabled rule toggle calls setRuleEnvState with enabled:true and clears data-rule-disabled', async () => {
+    const calls: Array<{ ruleId: string; envId: string; body: unknown }> = [];
+    const rules = [makePercentageRule('rule-off', 90, 1)];
+    const ruleEnvStates: RuleEnvironmentState[] = [
+      { rule_id: 'rule-off', environment_id: 'env-dev', enabled: false },
+    ];
+    setFetch(
+      makeFetchMockMethodAware(
+        defaultHandlerWithRulePut({
+          rules,
+          ruleEnvStates,
+          onRulePut: (ruleId, envId, body) => calls.push({ ruleId, envId, body }),
+        }),
+      ),
+    );
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+    await userEvent.click(screen.getByRole('button', { name: /Development/ }));
+
+    const toggle = await screen.findByRole('switch', {
+      name: /Toggle rule 1 in Development/,
+    });
+    expect(toggle).not.toBeChecked();
+    await userEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(calls).toContainEqual({
+        ruleId: 'rule-off',
+        envId: 'env-dev',
+        body: { enabled: true },
+      });
+    });
+
+    await waitFor(() => {
+      const row = screen.getByText('90% rollout').closest('li');
+      expect(row).not.toHaveAttribute('data-rule-disabled');
+    });
+  });
+
+  it('Phase 5: tapping an enabled rule toggle calls setRuleEnvState with enabled:false', async () => {
+    const calls: Array<{ ruleId: string; envId: string; body: unknown }> = [];
+    const rules = [makePercentageRule('rule-on', 25, 1)];
+    const ruleEnvStates: RuleEnvironmentState[] = [
+      { rule_id: 'rule-on', environment_id: 'env-dev', enabled: true },
+    ];
+    setFetch(
+      makeFetchMockMethodAware(
+        defaultHandlerWithRulePut({
+          rules,
+          ruleEnvStates,
+          onRulePut: (ruleId, envId, body) => calls.push({ ruleId, envId, body }),
+        }),
+      ),
+    );
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+    await userEvent.click(screen.getByRole('button', { name: /Development/ }));
+
+    const toggle = await screen.findByRole('switch', {
+      name: /Toggle rule 1 in Development/,
+    });
+    await waitFor(() => expect(toggle).toBeChecked());
+    await userEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(calls).toContainEqual({
+        ruleId: 'rule-on',
+        envId: 'env-dev',
+        body: { enabled: false },
+      });
+    });
+  });
+
+  it('Phase 5: on rule PUT 500, toggle reverts and an inline error renders for that row', async () => {
+    const rules = [makePercentageRule('rule-off', 90, 1)];
+    const ruleEnvStates: RuleEnvironmentState[] = [
+      { rule_id: 'rule-off', environment_id: 'env-dev', enabled: false },
+    ];
+    setFetch(
+      makeFetchMockMethodAware(
+        defaultHandlerWithRulePut({
+          rules,
+          ruleEnvStates,
+          rulePutStatus: 500,
+          rulePutBody: { error: 'rule server boom' },
+        }),
+      ),
+    );
+    renderAt('/m/orgs/acme/flags/payments/flag-1');
+    await screen.findByText('checkout_v2');
+    await userEvent.click(screen.getByRole('button', { name: /Development/ }));
+
+    const toggle = await screen.findByRole('switch', {
+      name: /Toggle rule 1 in Development/,
+    });
+    expect(toggle).not.toBeChecked();
+    await userEvent.click(toggle);
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('switch', { name: /Toggle rule 1 in Development/ }),
+      ).not.toBeChecked();
+    });
+    expect(
+      await screen.findByText(/couldn't save: rule server boom/),
+    ).toBeInTheDocument();
+    // Row is still marked disabled (the revert undid the optimistic enable).
+    const row = screen.getByText('90% rollout').closest('li');
+    expect(row).toHaveAttribute('data-rule-disabled', 'true');
   });
 });

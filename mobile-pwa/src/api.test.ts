@@ -1,5 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { authApi, orgsApi, orgStatusApi, orgDeploymentsApi, projectsApi, setFetch } from './api';
+import {
+  authApi,
+  orgsApi,
+  orgStatusApi,
+  orgDeploymentsApi,
+  projectsApi,
+  flagsApi,
+  flagEnvStateApi,
+  envApi,
+  appsApi,
+  auditApi,
+  setFetch,
+} from './api';
 
 describe('api', () => {
   let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
@@ -112,5 +124,118 @@ describe('api', () => {
     const res = await projectsApi.list('acme');
     expect(res.projects[0].slug).toBe('pay');
     expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/orgs/acme/projects');
+  });
+
+  it('flagsApi.list builds /flags?project_id=<id> with Bearer token', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ flags: [] }), { status: 200 }));
+    await flagsApi.list('proj-1');
+    const url = fetchMock.mock.calls[0][0] as string;
+    expect(url).toBe('/api/v1/flags?project_id=proj-1');
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer header.payload.sig');
+  });
+
+  it('flagsApi.list includes category and archived query params when provided', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ flags: [] }), { status: 200 }));
+    await flagsApi.list('proj-1', { category: 'release', archived: false });
+    const url = fetchMock.mock.calls[0][0] as string;
+    expect(url).toContain('/api/v1/flags?');
+    expect(url).toContain('project_id=proj-1');
+    expect(url).toContain('category=release');
+    expect(url).toContain('archived=false');
+  });
+
+  it('flagsApi.list includes application_id when applicationId is provided', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ flags: [] }), { status: 200 }));
+    await flagsApi.list('proj-1', { applicationId: 'app-9' });
+    const url = fetchMock.mock.calls[0][0] as string;
+    expect(url).toContain('project_id=proj-1');
+    expect(url).toContain('application_id=app-9');
+  });
+
+  it('flagsApi.get fetches /flags/:id', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ id: 'f1', key: 'k', name: 'n' }), { status: 200 }),
+    );
+    await flagsApi.get('f1');
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/flags/f1');
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer header.payload.sig');
+  });
+
+  it('flagsApi.listRules fetches /flags/:flagId/rules', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ rules: [] }), { status: 200 }));
+    await flagsApi.listRules('f1');
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/flags/f1/rules');
+  });
+
+  it('flagsApi.listRuleEnvStates fetches /flags/:flagId/rules/environment-states', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ rule_environment_states: [] }), { status: 200 }),
+    );
+    await flagsApi.listRuleEnvStates('f1');
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/flags/f1/rules/environment-states');
+  });
+
+  it('flagEnvStateApi.list fetches /flags/:flagId/environments', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ environment_states: [] }), { status: 200 }),
+    );
+    await flagEnvStateApi.list('f1');
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/flags/f1/environments');
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer header.payload.sig');
+  });
+
+  it('envApi.listOrg fetches /orgs/:slug/environments', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ environments: [] }), { status: 200 }));
+    await envApi.listOrg('acme');
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/orgs/acme/environments');
+  });
+
+  it('appsApi.list fetches /orgs/:slug/projects/:proj/apps', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ applications: [] }), { status: 200 }));
+    await appsApi.list('acme', 'pay');
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/orgs/acme/projects/pay/apps');
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer header.payload.sig');
+  });
+
+  it('auditApi.listForFlag builds /audit-log query with flag scope, limit, offset', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ entries: [], total: 0 }), { status: 200 }),
+    );
+    await auditApi.listForFlag('f1', { limit: 20, offset: 40 });
+    const url = fetchMock.mock.calls[0][0] as string;
+    expect(url).toContain('/api/v1/audit-log?');
+    expect(url).toContain('resource_type=flag');
+    expect(url).toContain('resource_id=f1');
+    expect(url).toContain('limit=20');
+    expect(url).toContain('offset=40');
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer header.payload.sig');
+  });
+
+  it('auditApi.listForFlag omits limit and offset when not provided', async () => {
+    localStorage.setItem('ds_token', 'header.payload.sig');
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ entries: [], total: 0 }), { status: 200 }),
+    );
+    await auditApi.listForFlag('f1');
+    const url = fetchMock.mock.calls[0][0] as string;
+    expect(url).toContain('resource_type=flag');
+    expect(url).toContain('resource_id=f1');
+    expect(url).not.toContain('limit=');
+    expect(url).not.toContain('offset=');
   });
 });

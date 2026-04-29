@@ -131,3 +131,97 @@ export interface Project {
   org_id: string;
   description?: string;
 }
+
+export interface Application {
+  id: string;
+  slug: string;
+  name: string;
+  project_id: string;
+}
+
+export interface OrgEnvironment {
+  id: string;
+  slug: string;
+  name: string;
+  is_production?: boolean;
+  sort_order?: number;
+}
+
+export type FlagCategory = 'release' | 'feature' | 'experiment' | 'ops' | 'permission';
+export type FlagType = 'boolean' | 'string' | 'number' | 'json';
+
+export interface Flag {
+  id: string;
+  project_id: string;
+  application_id?: string | null;
+  environment_id?: string;
+  key: string;
+  name: string;
+  description?: string;
+  flag_type: FlagType;
+  category: FlagCategory;
+  purpose?: string;
+  owners?: string[];
+  tags?: string[];
+  is_permanent: boolean;
+  expires_at?: string | null;
+  default_value: string;
+  enabled: boolean;
+  archived: boolean;
+  created_by?: string;
+  created_by_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type RuleType = 'percentage' | 'user_target' | 'attribute' | 'segment' | 'schedule' | 'compound';
+
+export interface TargetingRule {
+  id: string;
+  flag_id: string;
+  rule_type?: RuleType;
+  attribute?: string;
+  operator?: string;
+  target_values?: string[];
+  value: string;
+  priority: number;
+  percentage?: number | null;
+  user_ids?: string[] | null;
+  segment_id?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FlagEnvironmentState {
+  id?: string;
+  flag_id: string;
+  environment_id: string;
+  enabled: boolean;
+  value?: unknown;
+  updated_by?: string;
+  updated_at?: string;
+}
+
+export interface RuleEnvironmentState {
+  id?: string;
+  rule_id: string;
+  environment_id: string;
+  enabled: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  resource_type: string;
+  resource_id: string;
+  action: string;
+  actor_id?: string;
+  actor_name?: string;
+  old_value?: string | null;
+  new_value?: string | null;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+}

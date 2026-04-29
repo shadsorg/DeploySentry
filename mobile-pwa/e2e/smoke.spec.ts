@@ -110,3 +110,50 @@ test('authenticated history page smoke (API mocked at browser level)', async ({ 
   await page.getByText('v9.9.9').waitFor({ state: 'visible' });
   await page.getByRole('button', { name: 'Failed' }).click();
 });
+
+test('authenticated flags page smoke (API mocked at browser level)', async ({ page, context }) => {
+  await context.addInitScript(() => {
+    const toB64u = (s: string) =>
+      btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const payload = { exp: Math.floor(Date.now() / 1000) + 3600 };
+    const token = `${toB64u('{"alg":"HS256"}')}.${toB64u(JSON.stringify(payload))}.sig`;
+    localStorage.setItem('ds_token', token);
+  });
+  await context.route('**/api/v1/users/me', (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ id: '1', email: 'a@b.c', name: 'A' }),
+    }),
+  );
+  await context.route('**/api/v1/orgs/acme/projects', (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        projects: [{ id: 'p1', slug: 'payments', name: 'Payments' }],
+      }),
+    }),
+  );
+  await context.route('**/api/v1/orgs/acme/environments', (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ environments: [] }),
+    }),
+  );
+  await context.route('**/api/v1/flags**', (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ flags: [] }),
+    }),
+  );
+
+  // Single-project org auto-redirects from /flags to /flags/:projectSlug,
+  // so the FlagListPage renders. With zero flags we expect the empty state.
+  await page.goto('/m/orgs/acme/flags');
+  const flagRow = page.locator('a[href*="/flags/payments/"]').first();
+  const emptyState = page.getByText('No flags in this project.');
+  await expect(flagRow.or(emptyState)).toBeVisible();
+});

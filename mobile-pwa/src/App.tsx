@@ -7,6 +7,8 @@ import { StatusPage } from './pages/StatusPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { DeploymentDetailPage } from './pages/DeploymentDetailPage';
 import { FlagProjectPickerPage } from './pages/FlagProjectPickerPage';
+import { FlagListPage } from './pages/FlagListPage';
+import { FlagDetailPage } from './pages/FlagDetailPage';
 import { SettingsPage } from './pages/SettingsPage';
 
 export function AppRoutes() {
@@ -25,6 +27,10 @@ export function AppRoutes() {
           <Route path="history" element={<HistoryPage />} />
           <Route path="history/:deploymentId" element={<DeploymentDetailPage />} />
           <Route path="flags" element={<FlagProjectPickerPage />} />
+          <Route path="flags/:projectSlug" element={<FlagListPage />} />
+          <Route path="flags/:projectSlug/apps/:appSlug" element={<FlagListPage />} />
+          <Route path="flags/:projectSlug/:flagId" element={<FlagDetailPage />} />
+          <Route path="flags/:projectSlug/apps/:appSlug/:flagId" element={<FlagDetailPage />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

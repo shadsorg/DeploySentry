@@ -1,17 +1,42 @@
 import { registerSW } from 'virtual:pwa-register';
 
+export interface ServiceWorkerState {
+  needRefresh: boolean;
+  offlineReady: boolean;
+}
+
+type Listener = (state: ServiceWorkerState) => void;
+
+const listeners = new Set<Listener>();
+let state: ServiceWorkerState = { needRefresh: false, offlineReady: false };
+let updateFn: ((reload?: boolean) => Promise<void>) | null = null;
+
+function emit() {
+  for (const l of listeners) l(state);
+}
+
+export function subscribeServiceWorker(l: Listener): () => void {
+  listeners.add(l);
+  l(state);
+  return () => {
+    listeners.delete(l);
+  };
+}
+
+export function applyServiceWorkerUpdate(): Promise<void> {
+  return updateFn ? updateFn(true) : Promise.resolve();
+}
+
 export function initServiceWorker() {
-  // autoUpdate: Workbox installs the new SW automatically on next nav.
-  // Phase 1 prompts for immediate reload via a console log; a proper banner
-  // UI replaces this in phase 6.
-  const update = registerSW({
+  updateFn = registerSW({
     immediate: true,
     onNeedRefresh() {
-      console.info('[pwa] update available — reloading');
-      void update(true);
+      state = { ...state, needRefresh: true };
+      emit();
     },
     onOfflineReady() {
-      console.info('[pwa] offline-ready');
+      state = { ...state, offlineReady: true };
+      emit();
     },
   });
 }

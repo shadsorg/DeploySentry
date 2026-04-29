@@ -10,30 +10,34 @@ import { FlagProjectPickerPage } from './pages/FlagProjectPickerPage';
 import { FlagListPage } from './pages/FlagListPage';
 import { FlagDetailPage } from './pages/FlagDetailPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { SwUpdateBanner } from './components/SwUpdateBanner';
 
 export function AppRoutes() {
   return (
-    <Routes>
-      <Route element={<RedirectIfAuth />}>
-        <Route path="/login" element={<LoginPage />} />
-      </Route>
-      <Route element={<RequireAuth />}>
-        <Route path="/" element={<Navigate to="/orgs" replace />} />
-        <Route path="/orgs" element={<OrgPickerPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/orgs/:orgSlug" element={<MobileLayout />}>
-          <Route index element={<Navigate to="status" replace />} />
-          <Route path="status" element={<StatusPage />} />
-          <Route path="history" element={<HistoryPage />} />
-          <Route path="history/:deploymentId" element={<DeploymentDetailPage />} />
-          <Route path="flags" element={<FlagProjectPickerPage />} />
-          <Route path="flags/:projectSlug" element={<FlagListPage />} />
-          <Route path="flags/:projectSlug/apps/:appSlug" element={<FlagListPage />} />
-          <Route path="flags/:projectSlug/:flagId" element={<FlagDetailPage />} />
-          <Route path="flags/:projectSlug/apps/:appSlug/:flagId" element={<FlagDetailPage />} />
+    <>
+      <SwUpdateBanner />
+      <Routes>
+        <Route element={<RedirectIfAuth />}>
+          <Route path="/login" element={<LoginPage />} />
         </Route>
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route element={<RequireAuth />}>
+          <Route path="/" element={<Navigate to="/orgs" replace />} />
+          <Route path="/orgs" element={<OrgPickerPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/orgs/:orgSlug" element={<MobileLayout />}>
+            <Route index element={<Navigate to="status" replace />} />
+            <Route path="status" element={<StatusPage />} />
+            <Route path="history" element={<HistoryPage />} />
+            <Route path="history/:deploymentId" element={<DeploymentDetailPage />} />
+            <Route path="flags" element={<FlagProjectPickerPage />} />
+            <Route path="flags/:projectSlug" element={<FlagListPage />} />
+            <Route path="flags/:projectSlug/apps/:appSlug" element={<FlagListPage />} />
+            <Route path="flags/:projectSlug/:flagId" element={<FlagDetailPage />} />
+            <Route path="flags/:projectSlug/apps/:appSlug/:flagId" element={<FlagDetailPage />} />
+          </Route>
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   );
 }

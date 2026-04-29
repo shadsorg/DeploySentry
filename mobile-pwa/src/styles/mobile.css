@@ -285,3 +285,19 @@ a {
   border-color: var(--color-primary, #6366f1);
   color: #fff;
 }
+
+.m-cat-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 99px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: var(--font-display, system-ui);
+}
+.m-cat-badge[data-category='release']    { background: rgba(251,146,60,0.12); color: #fb923c; }
+.m-cat-badge[data-category='feature']    { background: rgba(99,102,241,0.12); color: #818cf8; }
+.m-cat-badge[data-category='experiment'] { background: rgba(168,85,247,0.12); color: #c084fc; }
+.m-cat-badge[data-category='ops']        { background: rgba(34,197,94,0.12);  color: #4ade80; }
+.m-cat-badge[data-category='permission'] { background: rgba(239,68,68,0.12);  color: #f87171; }

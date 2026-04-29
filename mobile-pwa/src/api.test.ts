@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   authApi,
   orgsApi,
@@ -12,6 +12,7 @@ import {
   auditApi,
   setFetch,
 } from './api';
+import { OfflineWriteBlockedError } from './lib/offlineError';
 
 describe('api', () => {
   let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
@@ -344,5 +345,83 @@ describe('api', () => {
     expect(init.body).toBe(
       JSON.stringify({ attribute: 'plan', operator: 'eq', value: 'enterprise' }),
     );
+  });
+
+  describe('offline write guard', () => {
+    let onLineSpy: ReturnType<typeof vi.spyOn> | null = null;
+
+    function setOnline(value: boolean) {
+      onLineSpy = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(value);
+    }
+
+    afterEach(() => {
+      if (onLineSpy) {
+        onLineSpy.mockRestore();
+        onLineSpy = null;
+      }
+    });
+
+    it('flagEnvStateApi.set throws OfflineWriteBlockedError synchronously when offline; fetch NOT called', async () => {
+      localStorage.setItem('ds_token', 'header.payload.sig');
+      setOnline(false);
+      await expect(
+        flagEnvStateApi.set('f1', 'e1', { enabled: true }),
+      ).rejects.toBeInstanceOf(OfflineWriteBlockedError);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('flagEnvStateApi.set fires fetch when online and PUT body matches', async () => {
+      localStorage.setItem('ds_token', 'header.payload.sig');
+      setOnline(true);
+      fetchMock.mockResolvedValue(
+        new Response(
+          JSON.stringify({ flag_id: 'f1', environment_id: 'e1', enabled: true }),
+          { status: 200 },
+        ),
+      );
+      await flagEnvStateApi.set('f1', 'e1', { enabled: true });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const init = fetchMock.mock.calls[0][1] as RequestInit;
+      expect(init.method).toBe('PUT');
+      expect(init.body).toBe(JSON.stringify({ enabled: true }));
+    });
+
+    it('flagsApi.setRuleEnvState throws OfflineWriteBlockedError when offline', async () => {
+      localStorage.setItem('ds_token', 'header.payload.sig');
+      setOnline(false);
+      await expect(
+        flagsApi.setRuleEnvState('f1', 'r1', 'e1', { enabled: false }),
+      ).rejects.toBeInstanceOf(OfflineWriteBlockedError);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('flagsApi.updateRule throws OfflineWriteBlockedError when offline', async () => {
+      localStorage.setItem('ds_token', 'header.payload.sig');
+      setOnline(false);
+      await expect(
+        flagsApi.updateRule('f1', 'r1', { priority: 2 }),
+      ).rejects.toBeInstanceOf(OfflineWriteBlockedError);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('flagsApi.list does NOT throw OfflineWriteBlockedError when offline (read GET)', async () => {
+      localStorage.setItem('ds_token', 'header.payload.sig');
+      setOnline(false);
+      fetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ flags: [] }), { status: 200 }),
+      );
+      await expect(flagsApi.list('proj-1')).resolves.toEqual({ flags: [] });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('flagsApi.get does NOT throw OfflineWriteBlockedError when offline (read GET)', async () => {
+      localStorage.setItem('ds_token', 'header.payload.sig');
+      setOnline(false);
+      fetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ id: 'f1', key: 'k', name: 'n' }), { status: 200 }),
+      );
+      await expect(flagsApi.get('f1')).resolves.toMatchObject({ id: 'f1' });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
   });
 });

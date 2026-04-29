@@ -13,6 +13,9 @@ import type {
   RuleEnvironmentState,
   TargetingRule,
 } from './types';
+import { OfflineWriteBlockedError } from './lib/offlineError';
+
+const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 const BASE = '/api/v1';
 
@@ -32,6 +35,15 @@ function handleUnauthorized() {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const method = init?.method?.toUpperCase();
+  if (
+    method &&
+    WRITE_METHODS.has(method) &&
+    typeof navigator !== 'undefined' &&
+    navigator.onLine === false
+  ) {
+    throw new OfflineWriteBlockedError();
+  }
   const token = localStorage.getItem('ds_token') ?? '';
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

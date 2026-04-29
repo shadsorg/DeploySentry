@@ -764,6 +764,43 @@ a {
   color: var(--color-danger, #ef4444);
 }
 
+/* StaleBadge — small pill shown on read screens when displayed data is older
+   than the freshness threshold (default 30s). When a refresh fetch is in
+   flight, [data-refreshing="true"] enables a subtle pulsing dot. */
+.m-stale-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--color-warning-bg, rgba(245, 158, 11, 0.12));
+  color: var(--color-warning, #f59e0b);
+  border: 1px solid var(--color-warning, #f59e0b);
+}
+
+.m-stale-badge[data-refreshing='true']::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: m-stale-badge-pulse 1200ms ease-in-out infinite;
+}
+
+@keyframes m-stale-badge-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .m-sw-banner {
   position: fixed;
   top: calc(env(safe-area-inset-top) + 8px);

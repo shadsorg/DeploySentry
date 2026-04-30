@@ -41,11 +41,7 @@ export default function ConfirmDialog({
           <button className="btn btn-secondary" onClick={onCancel} disabled={loading}>
             Cancel
           </button>
-          <button
-            className={`btn btn-${confirmVariant}`}
-            onClick={onConfirm}
-            disabled={loading}
-          >
+          <button className={`btn btn-${confirmVariant}`} onClick={onConfirm} disabled={loading}>
             {loading ? 'Working...' : confirmLabel}
           </button>
         </div>

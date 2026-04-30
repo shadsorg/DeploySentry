@@ -44,15 +44,33 @@ export default function CreateAppPage() {
     <div>
       <div className="page-header-row" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: 'var(--color-primary-bg)', border: '1px solid rgba(99,102,241,0.25)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          }}>
-            <span className="ms" style={{ fontSize: 20, color: 'var(--color-primary)' }}>apps</span>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              background: 'var(--color-primary-bg)',
+              border: '1px solid rgba(99,102,241,0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <span className="ms" style={{ fontSize: 20, color: 'var(--color-primary)' }}>
+              apps
+            </span>
           </div>
           <div className="page-header" style={{ marginBottom: 0 }}>
-            <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, letterSpacing: '-0.02em' }}>Create Application</h1>
+            <h1
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontWeight: 800,
+                letterSpacing: '-0.02em',
+              }}
+            >
+              Create Application
+            </h1>
             <p>Add a new application to this project.</p>
           </div>
         </div>
@@ -115,12 +133,26 @@ export default function CreateAppPage() {
             </div>
           )}
           <div style={{ display: 'flex', gap: 8 }}>
-            <button type="submit" className="btn btn-primary" disabled={submitting} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span className="ms" style={{ fontSize: 16 }}>{submitting ? 'hourglass_empty' : 'add_circle'}</span>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={submitting}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <span className="ms" style={{ fontSize: 16 }}>
+                {submitting ? 'hourglass_empty' : 'add_circle'}
+              </span>
               {submitting ? 'Creating...' : 'Create Application'}
             </button>
-            <button type="button" className="btn btn-secondary" onClick={() => navigate(backPath)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span className="ms" style={{ fontSize: 16 }}>close</span>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => navigate(backPath)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <span className="ms" style={{ fontSize: 16 }}>
+                close
+              </span>
               Cancel
             </button>
           </div>

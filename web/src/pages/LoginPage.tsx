@@ -9,9 +9,7 @@ export default function LoginPage() {
   const location = useLocation();
   const nextParam = new URLSearchParams(location.search).get('next');
   const from =
-    nextParam ||
-    (location.state as { from?: { pathname: string } })?.from?.pathname ||
-    '/portal';
+    nextParam || (location.state as { from?: { pathname: string } })?.from?.pathname || '/portal';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,57 +33,57 @@ export default function LoginPage() {
 
   return (
     <>
-    <SiteHeader variant="landing" size="large" />
-    <div className="auth-page">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h1>Sign in</h1>
-          <p>Welcome back — sign in to continue.</p>
-        </div>
-
-        {error && <div className="auth-error">{error}</div>}
-
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              required
-              autoFocus
-              autoComplete="email"
-            />
+      <SiteHeader variant="landing" size="large" />
+      <div className="auth-page">
+        <div className="auth-card">
+          <div className="auth-header">
+            <h1>Sign in</h1>
+            <p>Welcome back — sign in to continue.</p>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              required
-              minLength={8}
-              autoComplete="current-password"
-            />
+          {error && <div className="auth-error">{error}</div>}
+
+          <form onSubmit={handleSubmit} className="auth-form">
+            <div className="form-group">
+              <label htmlFor="email">Email</label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                required
+                autoFocus
+                autoComplete="email"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+                minLength={8}
+                autoComplete="current-password"
+              />
+            </div>
+
+            <button type="submit" className="btn btn-primary btn-full" disabled={submitting}>
+              {submitting ? 'Signing in...' : 'Sign in'}
+            </button>
+          </form>
+
+          <div className="auth-footer">
+            <p>
+              Don't have an account? <Link to="/register">Create one</Link>
+            </p>
           </div>
-
-          <button type="submit" className="btn btn-primary btn-full" disabled={submitting}>
-            {submitting ? 'Signing in...' : 'Sign in'}
-          </button>
-        </form>
-
-        <div className="auth-footer">
-          <p>
-            Don't have an account? <Link to="/register">Create one</Link>
-          </p>
         </div>
       </div>
-    </div>
     </>
   );
 }

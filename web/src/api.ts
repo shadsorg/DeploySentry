@@ -114,15 +114,23 @@ export const flagsApi = {
       body: JSON.stringify(data),
     }),
   listRuleEnvStates: (flagId: string) =>
-    request<{ rule_environment_states: RuleEnvironmentState[] }>(`/flags/${flagId}/rules/environment-states`),
+    request<{ rule_environment_states: RuleEnvironmentState[] }>(
+      `/flags/${flagId}/rules/environment-states`,
+    ),
   // Lifecycle layer — the backend accepts either a UUID or a flag key for :id
   // on these endpoints.
-  recordSmokeTest: (flagIdOrKey: string, body: { status: 'pass' | 'fail'; notes?: string; test_run_url?: string }) =>
+  recordSmokeTest: (
+    flagIdOrKey: string,
+    body: { status: 'pass' | 'fail'; notes?: string; test_run_url?: string },
+  ) =>
     request<Flag>(`/flags/${flagIdOrKey}/smoke-test-result`, {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  recordUserTest: (flagIdOrKey: string, body: { status: 'pass' | 'fail'; notes?: string; userId: string }) =>
+  recordUserTest: (
+    flagIdOrKey: string,
+    body: { status: 'pass' | 'fail'; notes?: string; userId: string },
+  ) =>
     request<Flag>(`/flags/${flagIdOrKey}/user-test-result`, {
       method: 'POST',
       body: JSON.stringify(body),
@@ -138,11 +146,14 @@ export const flagsApi = {
     request<Flag>(`/flags/${flagIdOrKey}/mark-exhausted`, { method: 'POST' }),
   exportFlags: async (projectId: string, application: string, format: 'yaml' | 'json' = 'yaml') => {
     const token = localStorage.getItem('ds_token') || '';
-    const res = await fetch(`${BASE}/flags/export?project_id=${projectId}&application=${application}&format=${format}`, {
-      headers: {
-        Authorization: token.startsWith('ds_') ? `ApiKey ${token}` : `Bearer ${token}`,
+    const res = await fetch(
+      `${BASE}/flags/export?project_id=${projectId}&application=${application}&format=${format}`,
+      {
+        headers: {
+          Authorization: token.startsWith('ds_') ? `ApiKey ${token}` : `Bearer ${token}`,
+        },
       },
-    });
+    );
     if (!res.ok) throw new Error(`Export failed: ${res.status}`);
     return res.text();
   },
@@ -168,14 +179,14 @@ export const deploymentsApi = {
   cancel: (id: string) => request<Deployment>(`/deployments/${id}/cancel`, { method: 'POST' }),
   advance: (id: string) => request<Deployment>(`/deployments/${id}/advance`, { method: 'POST' }),
   desiredState: (id: string) => request<any>(`/deployments/${id}/desired-state`),
-  rollbackHistory: (id: string) => request<{ rollbacks: any[] }>(`/deployments/${id}/rollback-history`),
+  rollbackHistory: (id: string) =>
+    request<{ rollbacks: any[] }>(`/deployments/${id}/rollback-history`),
   phases: (id: string) => request<{ phases: DeploymentPhase[] }>(`/deployments/${id}/phases`),
 };
 
 // Agents
 export const agentsApi = {
-  listByApp: (appId: string) =>
-    request<{ agents: Agent[] }>(`/applications/${appId}/agents`),
+  listByApp: (appId: string) => request<{ agents: Agent[] }>(`/applications/${appId}/agents`),
   heartbeats: (agentId: string, deploymentId?: string) => {
     const qs = deploymentId ? `?deployment_id=${deploymentId}` : '';
     return request<{ heartbeats: AgentHeartbeat[] }>(`/agents/${agentId}/heartbeats${qs}`);
@@ -307,8 +318,7 @@ export const authApi = {
 
   me: () => request<AuthUser>('/users/me'),
 
-  extend: () =>
-    request<{ token: string }>('/auth/extend', { method: 'POST' }),
+  extend: () => request<{ token: string }>('/auth/extend', { method: 'POST' }),
 
   logout: () => {
     localStorage.removeItem('ds_token');
@@ -412,12 +422,18 @@ export const entitiesApi = {
 
   // Projects
   listProjects: (orgSlug: string, includeDeleted = false) =>
-    request<{ projects: Project[] }>(`/orgs/${orgSlug}/projects${includeDeleted ? '?include_deleted=true' : ''}`),
+    request<{ projects: Project[] }>(
+      `/orgs/${orgSlug}/projects${includeDeleted ? '?include_deleted=true' : ''}`,
+    ),
   getProject: (orgSlug: string, projectSlug: string) =>
     request<Project>(`/orgs/${orgSlug}/projects/${projectSlug}`),
   createProject: (orgSlug: string, data: { name: string; slug: string }) =>
     request<Project>(`/orgs/${orgSlug}/projects`, { method: 'POST', body: JSON.stringify(data) }),
-  updateProject: (orgSlug: string, projectSlug: string, data: { name?: string; description?: string; repo_url?: string }) =>
+  updateProject: (
+    orgSlug: string,
+    projectSlug: string,
+    data: { name?: string; description?: string; repo_url?: string },
+  ) =>
     request<Project>(`/orgs/${orgSlug}/projects/${projectSlug}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -431,7 +447,9 @@ export const entitiesApi = {
 
   // Apps
   listApps: (orgSlug: string, projectSlug: string, includeDeleted = false) =>
-    request<{ applications: Application[] }>(`/orgs/${orgSlug}/projects/${projectSlug}/apps${includeDeleted ? '?include_deleted=true' : ''}`),
+    request<{ applications: Application[] }>(
+      `/orgs/${orgSlug}/projects/${projectSlug}/apps${includeDeleted ? '?include_deleted=true' : ''}`,
+    ),
   getApp: (orgSlug: string, projectSlug: string, appSlug: string) =>
     request<Application>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}`),
   createApp: (
@@ -454,7 +472,9 @@ export const entitiesApi = {
       body: JSON.stringify(data),
     }),
   deleteApp: (orgSlug: string, projectSlug: string, appSlug: string) =>
-    request<DeleteResult>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}`, { method: 'DELETE' }),
+    request<DeleteResult>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}`, {
+      method: 'DELETE',
+    }),
   updateAppMonitoringLinks: (
     orgSlug: string,
     projectSlug: string,
@@ -466,9 +486,13 @@ export const entitiesApi = {
       { method: 'PUT', body: JSON.stringify({ monitoring_links: links }) },
     ),
   hardDeleteApp: (orgSlug: string, projectSlug: string, appSlug: string) =>
-    request<void>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/permanent`, { method: 'DELETE' }),
+    request<void>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/permanent`, {
+      method: 'DELETE',
+    }),
   restoreApp: (orgSlug: string, projectSlug: string, appSlug: string) =>
-    request<Application>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/restore`, { method: 'POST' }),
+    request<Application>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/restore`, {
+      method: 'POST',
+    }),
 
   // Environments (app-level, legacy)
   listEnvironments: (orgSlug: string, projectSlug: string, appSlug: string) =>
@@ -479,12 +503,19 @@ export const entitiesApi = {
   // Org-level environments
   listOrgEnvironments: (orgSlug: string) =>
     request<{ environments: OrgEnvironment[] }>(`/orgs/${orgSlug}/environments`),
-  createEnvironment: (orgSlug: string, data: { name: string; slug: string; is_production: boolean }) =>
+  createEnvironment: (
+    orgSlug: string,
+    data: { name: string; slug: string; is_production: boolean },
+  ) =>
     request<OrgEnvironment>(`/orgs/${orgSlug}/environments`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-  updateEnvironment: (orgSlug: string, envSlug: string, data: Partial<{ name: string; slug: string; is_production: boolean; sort_order: number }>) =>
+  updateEnvironment: (
+    orgSlug: string,
+    envSlug: string,
+    data: Partial<{ name: string; slug: string; is_production: boolean; sort_order: number }>,
+  ) =>
     request<OrgEnvironment>(`/orgs/${orgSlug}/environments/${envSlug}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -521,13 +552,21 @@ export const groupsApi = {
   create: (orgSlug: string, data: { name: string; description?: string }) =>
     request<Group>(`/orgs/${orgSlug}/groups`, { method: 'POST', body: JSON.stringify(data) }),
   update: (orgSlug: string, groupSlug: string, data: { name: string; description?: string }) =>
-    request<Group>(`/orgs/${orgSlug}/groups/${groupSlug}`, { method: 'PUT', body: JSON.stringify(data) }),
+    request<Group>(`/orgs/${orgSlug}/groups/${groupSlug}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
   delete: (orgSlug: string, groupSlug: string) =>
     request<void>(`/orgs/${orgSlug}/groups/${groupSlug}`, { method: 'DELETE' }),
   listMembers: (orgSlug: string, groupSlug: string) =>
-    request<{ members: GroupMember[] }>(`/orgs/${orgSlug}/groups/${groupSlug}/members`).then((r) => r.members),
+    request<{ members: GroupMember[] }>(`/orgs/${orgSlug}/groups/${groupSlug}/members`).then(
+      (r) => r.members,
+    ),
   addMember: (orgSlug: string, groupSlug: string, userId: string) =>
-    request<void>(`/orgs/${orgSlug}/groups/${groupSlug}/members`, { method: 'POST', body: JSON.stringify({ user_id: userId }) }),
+    request<void>(`/orgs/${orgSlug}/groups/${groupSlug}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId }),
+    }),
   removeMember: (orgSlug: string, groupSlug: string, userId: string) =>
     request<void>(`/orgs/${orgSlug}/groups/${groupSlug}/members/${userId}`, { method: 'DELETE' }),
 };
@@ -548,13 +587,32 @@ export interface ResourceGrant {
 
 export const grantsApi = {
   listProjectGrants: (orgSlug: string, projectSlug: string) =>
-    request<{ grants: ResourceGrant[] }>(`/orgs/${orgSlug}/projects/${projectSlug}/grants`).then((r) => r.grants),
-  createProjectGrant: (orgSlug: string, projectSlug: string, data: { user_id?: string; group_id?: string; permission: string }) =>
-    request<ResourceGrant>(`/orgs/${orgSlug}/projects/${projectSlug}/grants`, { method: 'POST', body: JSON.stringify(data) }),
+    request<{ grants: ResourceGrant[] }>(`/orgs/${orgSlug}/projects/${projectSlug}/grants`).then(
+      (r) => r.grants,
+    ),
+  createProjectGrant: (
+    orgSlug: string,
+    projectSlug: string,
+    data: { user_id?: string; group_id?: string; permission: string },
+  ) =>
+    request<ResourceGrant>(`/orgs/${orgSlug}/projects/${projectSlug}/grants`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   listAppGrants: (orgSlug: string, projectSlug: string, appSlug: string) =>
-    request<{ grants: ResourceGrant[] }>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/grants`).then((r) => r.grants),
-  createAppGrant: (orgSlug: string, projectSlug: string, appSlug: string, data: { user_id?: string; group_id?: string; permission: string }) =>
-    request<ResourceGrant>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/grants`, { method: 'POST', body: JSON.stringify(data) }),
+    request<{ grants: ResourceGrant[] }>(
+      `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/grants`,
+    ).then((r) => r.grants),
+  createAppGrant: (
+    orgSlug: string,
+    projectSlug: string,
+    appSlug: string,
+    data: { user_id?: string; group_id?: string; permission: string },
+  ) =>
+    request<ResourceGrant>(`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/grants`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
   deleteGrant: (orgSlug: string, projectSlug: string, grantId: string, appSlug?: string) => {
     const base = appSlug
       ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/grants/${grantId}`
@@ -586,14 +644,12 @@ export const webhooksApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
-  delete: (id: string) =>
-    request<{ deleted: boolean }>(`/webhooks/${id}`, { method: 'DELETE' }),
+  delete: (id: string) => request<{ deleted: boolean }>(`/webhooks/${id}`, { method: 'DELETE' }),
   test: (id: string) =>
     request<{ success: boolean; status_code: number }>(`/webhooks/${id}/test`, {
       method: 'POST',
     }),
-  deliveries: (id: string) =>
-    request<{ deliveries: unknown[] }>(`/webhooks/${id}/deliveries`),
+  deliveries: (id: string) => request<{ deliveries: unknown[] }>(`/webhooks/${id}/deliveries`),
 };
 
 // Notifications
@@ -616,8 +672,7 @@ export interface NotificationPreferences {
 }
 
 export const notificationsApi = {
-  getPreferences: () =>
-    request<NotificationPreferences>('/notifications/preferences'),
+  getPreferences: () => request<NotificationPreferences>('/notifications/preferences'),
   savePreferences: (data: {
     channels?: Record<string, Partial<ChannelConfig>>;
     event_routing?: Record<string, string[]>;
@@ -634,7 +689,12 @@ export const notificationsApi = {
 
 // Audit Log
 export const auditApi = {
-  query: (params: { resource_type?: string; resource_id?: string; limit?: number; offset?: number }) => {
+  query: (params: {
+    resource_type?: string;
+    resource_id?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
     const qs = new URLSearchParams();
     if (params.resource_type) qs.set('resource_type', params.resource_type);
     if (params.resource_id) qs.set('resource_id', params.resource_id);
@@ -646,23 +706,39 @@ export const auditApi = {
 
 // ---- Strategies ----
 export const strategiesApi = {
-  list: (orgSlug: string) =>
-    request<{ items: EffectiveStrategy[] }>(`/orgs/${orgSlug}/strategies`),
-  get: (orgSlug: string, name: string) =>
-    request<Strategy>(`/orgs/${orgSlug}/strategies/${name}`),
-  create: (orgSlug: string, body: {
-    name: string; description: string; target_type: TargetType;
-    steps: Step[]; default_health_threshold: number; default_rollback_on_failure: boolean;
-  }) => request<Strategy>(`/orgs/${orgSlug}/strategies`, {
-    method: 'POST', body: JSON.stringify(body),
-  }),
-  update: (orgSlug: string, name: string, body: {
-    description: string; target_type: TargetType; steps: Step[];
-    default_health_threshold: number; default_rollback_on_failure: boolean;
-    expected_version: number;
-  }) => request<Strategy>(`/orgs/${orgSlug}/strategies/${name}`, {
-    method: 'PUT', body: JSON.stringify(body),
-  }),
+  list: (orgSlug: string) => request<{ items: EffectiveStrategy[] }>(`/orgs/${orgSlug}/strategies`),
+  get: (orgSlug: string, name: string) => request<Strategy>(`/orgs/${orgSlug}/strategies/${name}`),
+  create: (
+    orgSlug: string,
+    body: {
+      name: string;
+      description: string;
+      target_type: TargetType;
+      steps: Step[];
+      default_health_threshold: number;
+      default_rollback_on_failure: boolean;
+    },
+  ) =>
+    request<Strategy>(`/orgs/${orgSlug}/strategies`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  update: (
+    orgSlug: string,
+    name: string,
+    body: {
+      description: string;
+      target_type: TargetType;
+      steps: Step[];
+      default_health_threshold: number;
+      default_rollback_on_failure: boolean;
+      expected_version: number;
+    },
+  ) =>
+    request<Strategy>(`/orgs/${orgSlug}/strategies/${name}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
   delete: (orgSlug: string, name: string) =>
     request<void>(`/orgs/${orgSlug}/strategies/${name}`, { method: 'DELETE' }),
   importYAML: (orgSlug: string, yaml: string) =>
@@ -688,35 +764,53 @@ export const strategiesApi = {
 export const strategyDefaultsApi = {
   list: (orgSlug: string) =>
     request<{ items: StrategyDefault[] }>(`/orgs/${orgSlug}/strategy-defaults`),
-  set: (orgSlug: string, body: {
-    environment?: string; target_type?: TargetType; strategy_name?: string; strategy_id?: string;
-  }) => request<StrategyDefault>(`/orgs/${orgSlug}/strategy-defaults`, {
-    method: 'PUT', body: JSON.stringify(body),
-  }),
+  set: (
+    orgSlug: string,
+    body: {
+      environment?: string;
+      target_type?: TargetType;
+      strategy_name?: string;
+      strategy_id?: string;
+    },
+  ) =>
+    request<StrategyDefault>(`/orgs/${orgSlug}/strategy-defaults`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
   delete: (orgSlug: string, id: string) =>
     request<void>(`/orgs/${orgSlug}/strategy-defaults/${id}`, { method: 'DELETE' }),
 };
 
 export const rolloutPolicyApi = {
-  list: (orgSlug: string) =>
-    request<{ items: RolloutPolicy[] }>(`/orgs/${orgSlug}/rollout-policy`),
-  set: (orgSlug: string, body: {
-    environment?: string; target_type?: TargetType; enabled: boolean; policy: PolicyKind;
-  }) => request<RolloutPolicy>(`/orgs/${orgSlug}/rollout-policy`, {
-    method: 'PUT', body: JSON.stringify(body),
-  }),
+  list: (orgSlug: string) => request<{ items: RolloutPolicy[] }>(`/orgs/${orgSlug}/rollout-policy`),
+  set: (
+    orgSlug: string,
+    body: {
+      environment?: string;
+      target_type?: TargetType;
+      enabled: boolean;
+      policy: PolicyKind;
+    },
+  ) =>
+    request<RolloutPolicy>(`/orgs/${orgSlug}/rollout-policy`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
 };
 
 // ---- Rollouts (runtime control) ----
 export const rolloutsApi = {
-  list: (orgSlug: string, opts?: {
-    status?: RolloutStatus;
-    target_type?: 'deploy' | 'config' | '';
-    limit?: number;
-    include_terminal?: boolean;
-    include_stale?: boolean;
-    since_hours?: number;
-  }) => {
+  list: (
+    orgSlug: string,
+    opts?: {
+      status?: RolloutStatus;
+      target_type?: 'deploy' | 'config' | '';
+      limit?: number;
+      include_terminal?: boolean;
+      include_stale?: boolean;
+      since_hours?: number;
+    },
+  ) => {
     const params = new URLSearchParams();
     if (opts?.status) params.set('status', opts.status);
     if (opts?.target_type) params.set('target_type', opts.target_type);
@@ -737,31 +831,36 @@ export const rolloutsApi = {
       };
     }>(`/orgs/${orgSlug}/rollouts${qs ? '?' + qs : ''}`);
   },
-  get: (orgSlug: string, id: string) =>
-    request<Rollout>(`/orgs/${orgSlug}/rollouts/${id}`),
+  get: (orgSlug: string, id: string) => request<Rollout>(`/orgs/${orgSlug}/rollouts/${id}`),
   pause: (orgSlug: string, id: string, reason?: string) =>
     request<{ ok: boolean }>(`/orgs/${orgSlug}/rollouts/${id}/pause`, {
-      method: 'POST', body: JSON.stringify({ reason: reason || '' }),
+      method: 'POST',
+      body: JSON.stringify({ reason: reason || '' }),
     }),
   resume: (orgSlug: string, id: string, reason?: string) =>
     request<{ ok: boolean }>(`/orgs/${orgSlug}/rollouts/${id}/resume`, {
-      method: 'POST', body: JSON.stringify({ reason: reason || '' }),
+      method: 'POST',
+      body: JSON.stringify({ reason: reason || '' }),
     }),
   promote: (orgSlug: string, id: string, reason?: string) =>
     request<{ ok: boolean }>(`/orgs/${orgSlug}/rollouts/${id}/promote`, {
-      method: 'POST', body: JSON.stringify({ reason: reason || '' }),
+      method: 'POST',
+      body: JSON.stringify({ reason: reason || '' }),
     }),
   approve: (orgSlug: string, id: string, reason?: string) =>
     request<{ ok: boolean }>(`/orgs/${orgSlug}/rollouts/${id}/approve`, {
-      method: 'POST', body: JSON.stringify({ reason: reason || '' }),
+      method: 'POST',
+      body: JSON.stringify({ reason: reason || '' }),
     }),
   rollback: (orgSlug: string, id: string, reason: string) =>
     request<{ ok: boolean }>(`/orgs/${orgSlug}/rollouts/${id}/rollback`, {
-      method: 'POST', body: JSON.stringify({ reason }),
+      method: 'POST',
+      body: JSON.stringify({ reason }),
     }),
   forcePromote: (orgSlug: string, id: string, reason: string) =>
     request<{ ok: boolean }>(`/orgs/${orgSlug}/rollouts/${id}/force-promote`, {
-      method: 'POST', body: JSON.stringify({ reason }),
+      method: 'POST',
+      body: JSON.stringify({ reason }),
     }),
   events: (orgSlug: string, id: string, limit = 100) =>
     request<{ items: RolloutEvent[] }>(`/orgs/${orgSlug}/rollouts/${id}/events?limit=${limit}`),
@@ -771,21 +870,30 @@ export const rolloutsApi = {
 
 // ---- Rollout groups ----
 export const rolloutGroupsApi = {
-  list: (orgSlug: string) =>
-    request<{ items: RolloutGroup[] }>(`/orgs/${orgSlug}/rollout-groups`),
+  list: (orgSlug: string) => request<{ items: RolloutGroup[] }>(`/orgs/${orgSlug}/rollout-groups`),
   get: (orgSlug: string, id: string) =>
     request<{ group: RolloutGroup; members: Rollout[] }>(`/orgs/${orgSlug}/rollout-groups/${id}`),
-  create: (orgSlug: string, body: { name: string; description?: string; coordination_policy?: CoordinationPolicy }) =>
+  create: (
+    orgSlug: string,
+    body: { name: string; description?: string; coordination_policy?: CoordinationPolicy },
+  ) =>
     request<RolloutGroup>(`/orgs/${orgSlug}/rollout-groups`, {
-      method: 'POST', body: JSON.stringify(body),
+      method: 'POST',
+      body: JSON.stringify(body),
     }),
-  update: (orgSlug: string, id: string, body: { name: string; description: string; coordination_policy: CoordinationPolicy }) =>
+  update: (
+    orgSlug: string,
+    id: string,
+    body: { name: string; description: string; coordination_policy: CoordinationPolicy },
+  ) =>
     request<RolloutGroup>(`/orgs/${orgSlug}/rollout-groups/${id}`, {
-      method: 'PUT', body: JSON.stringify(body),
+      method: 'PUT',
+      body: JSON.stringify(body),
     }),
   attach: (orgSlug: string, id: string, rolloutId: string) =>
     request<{ ok: boolean }>(`/orgs/${orgSlug}/rollout-groups/${id}/attach`, {
-      method: 'POST', body: JSON.stringify({ rollout_id: rolloutId }),
+      method: 'POST',
+      body: JSON.stringify({ rollout_id: rolloutId }),
     }),
 };
 
@@ -813,8 +921,7 @@ function buildQueryString(params: Record<string, string | number | undefined>): 
 }
 
 export const orgStatusApi = {
-  get: (orgSlug: string) =>
-    request<OrgStatusResponse>(`/orgs/${orgSlug}/status`),
+  get: (orgSlug: string) => request<OrgStatusResponse>(`/orgs/${orgSlug}/status`),
   listDeployments: (orgSlug: string, filters: OrgDeploymentsFilters = {}) =>
     request<OrgDeploymentsResponse>(
       `/orgs/${orgSlug}/deployments${buildQueryString(filters as Record<string, string | number | undefined>)}`,

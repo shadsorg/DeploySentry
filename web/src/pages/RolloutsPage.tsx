@@ -62,7 +62,7 @@ export default function RolloutsPage() {
   // include_stale, without permanently flipping the checkboxes (so the user
   // can still see the effective state and switch back).
   const isAll = filter === STATUS_ALL;
-  const effectiveStatus = isAll ? undefined : (filter || undefined);
+  const effectiveStatus = isAll ? undefined : filter || undefined;
   const effectiveIncludeTerminal = includeTerminal || isAll;
   const effectiveIncludeStale = includeStale || isAll;
 
@@ -82,9 +82,18 @@ export default function RolloutsPage() {
     } finally {
       setLoading(false);
     }
-  }, [orgSlug, effectiveStatus, targetType, sinceHours, effectiveIncludeTerminal, effectiveIncludeStale]);
+  }, [
+    orgSlug,
+    effectiveStatus,
+    targetType,
+    sinceHours,
+    effectiveIncludeTerminal,
+    effectiveIncludeStale,
+  ]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // Auto-refresh to keep active rollouts current.
   useEffect(() => {
@@ -117,11 +126,7 @@ export default function RolloutsPage() {
 
   // `filter !== ''` covers both explicit statuses and the "All" sentinel.
   const anyFilterActive =
-    filter !== '' ||
-    targetType !== '' ||
-    sinceHours !== 0 ||
-    includeTerminal ||
-    includeStale;
+    filter !== '' || targetType !== '' || sinceHours !== 0 || includeTerminal || includeStale;
 
   const totalHidden =
     (filterEcho?.hidden_terminal_count ?? 0) + (filterEcho?.hidden_stale_count ?? 0);
@@ -141,7 +146,9 @@ export default function RolloutsPage() {
             onChange={(e) => setFilter(e.target.value as RolloutStatus | '' | typeof STATUS_ALL)}
           >
             {STATUS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
             ))}
           </select>
         </div>
@@ -152,7 +159,9 @@ export default function RolloutsPage() {
             onChange={(e) => setTargetType(e.target.value as 'deploy' | 'config' | '')}
           >
             {TARGET_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
             ))}
           </select>
         </div>
@@ -160,7 +169,9 @@ export default function RolloutsPage() {
           <label className="filter-label">Age</label>
           <select value={sinceHours} onChange={(e) => setSinceHours(Number(e.target.value))}>
             {AGE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
             ))}
           </select>
         </div>
@@ -197,14 +208,34 @@ export default function RolloutsPage() {
 
       {loading && (
         <div className="empty-state" style={{ padding: '40px 0' }}>
-          <span className="ms" style={{ fontSize: 32, color: 'var(--color-primary)', marginBottom: 12, display: 'block' }}>sync</span>
+          <span
+            className="ms"
+            style={{
+              fontSize: 32,
+              color: 'var(--color-primary)',
+              marginBottom: 12,
+              display: 'block',
+            }}
+          >
+            sync
+          </span>
           Loading rollouts…
         </div>
       )}
 
       {!loading && items.length === 0 && (
         <div className="empty-state card" style={{ padding: '48px 24px' }}>
-          <span className="ms" style={{ fontSize: 40, color: 'var(--color-text-muted)', marginBottom: 12, display: 'block' }}>dynamic_feed</span>
+          <span
+            className="ms"
+            style={{
+              fontSize: 40,
+              color: 'var(--color-text-muted)',
+              marginBottom: 12,
+              display: 'block',
+            }}
+          >
+            dynamic_feed
+          </span>
           <h3>No rollouts match the filter</h3>
           {!includeTerminal && !includeStale && filter === '' && (
             <p>Try "Include completed" or "Include stale pending" to see historical rows.</p>
@@ -215,13 +246,44 @@ export default function RolloutsPage() {
       {items.length > 0 && (
         <>
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid var(--color-border)', gap: 8 }}>
-              <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>monitoring</span>
-              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15 }}>Active Rollouts</span>
-              <span className="badge" style={{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)', marginLeft: 4 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '14px 20px',
+                borderBottom: '1px solid var(--color-border)',
+                gap: 8,
+              }}
+            >
+              <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>
+                monitoring
+              </span>
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15 }}>
+                Active Rollouts
+              </span>
+              <span
+                className="badge"
+                style={{
+                  background: 'var(--color-primary-bg)',
+                  color: 'var(--color-primary)',
+                  marginLeft: 4,
+                }}
+              >
                 {items.length}
               </span>
-              {loading && <span className="ms" style={{ fontSize: 16, color: 'var(--color-text-muted)', marginLeft: 'auto', animation: 'spin 1s linear infinite' }}>sync</span>}
+              {loading && (
+                <span
+                  className="ms"
+                  style={{
+                    fontSize: 16,
+                    color: 'var(--color-text-muted)',
+                    marginLeft: 'auto',
+                    animation: 'spin 1s linear infinite',
+                  }}
+                >
+                  sync
+                </span>
+              )}
             </div>
             <div className="table-container">
               <table className="rollouts-table">
@@ -252,7 +314,10 @@ export default function RolloutsPage() {
                     const isInFlight = r.status === 'active' || r.status === 'pending';
                     const progressPct =
                       steps.length > 0
-                        ? Math.min(100, Math.round(((r.current_phase_index + 1) / steps.length) * 100))
+                        ? Math.min(
+                            100,
+                            Math.round(((r.current_phase_index + 1) / steps.length) * 100),
+                          )
                         : 0;
                     return (
                       <tr key={r.id}>
@@ -274,7 +339,14 @@ export default function RolloutsPage() {
                           )}
                         </td>
                         <td>
-                          <span className="badge" style={{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)', borderRadius: 4 }}>
+                          <span
+                            className="badge"
+                            style={{
+                              background: 'var(--color-primary-bg)',
+                              color: 'var(--color-primary)',
+                              borderRadius: 4,
+                            }}
+                          >
                             {r.strategy_snapshot.name}
                           </span>
                         </td>
@@ -282,18 +354,31 @@ export default function RolloutsPage() {
                           {r.current_phase_index + 1}/{steps.length || '—'}
                           {currentPct !== undefined && <> · {currentPct}%</>}
                           {isInFlight && steps.length > 0 && (
-                            <div className="rollout-progress" title={`${progressPct}% through rollout`}>
-                              <div className="rollout-progress-fill" style={{ width: `${progressPct}%` }} />
+                            <div
+                              className="rollout-progress"
+                              title={`${progressPct}% through rollout`}
+                            >
+                              <div
+                                className="rollout-progress-fill"
+                                style={{ width: `${progressPct}%` }}
+                              />
                             </div>
                           )}
                         </td>
-                        <td><RolloutStatusBadge status={r.status} /></td>
+                        <td>
+                          <RolloutStatusBadge status={r.status} />
+                        </td>
                         <td>
                           <div>{new Date(r.created_at).toLocaleString()}</div>
                           <div className="row-subtitle">{formatAge(r.age_seconds)} ago</div>
                         </td>
                         <td>
-                          <Link to={`/orgs/${orgSlug}/rollouts/${r.id}`} className="btn btn-secondary btn-sm">Details</Link>
+                          <Link
+                            to={`/orgs/${orgSlug}/rollouts/${r.id}`}
+                            className="btn btn-secondary btn-sm"
+                          >
+                            Details
+                          </Link>
                         </td>
                       </tr>
                     );

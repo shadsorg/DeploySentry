@@ -14,7 +14,14 @@ import MonitoringLinksEditor from '../components/MonitoringLinksEditor';
 // Types
 // ---------------------------------------------------------------------------
 
-type SettingsTab = 'environments' | 'webhooks' | 'notifications' | 'rollout-policy' | 'general' | 'authorization' | 'danger';
+type SettingsTab =
+  | 'environments'
+  | 'webhooks'
+  | 'notifications'
+  | 'rollout-policy'
+  | 'general'
+  | 'authorization'
+  | 'danger';
 
 interface SettingsPageProps {
   level?: 'org' | 'project' | 'app';
@@ -164,7 +171,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
 
   useEffect(() => {
     if (!orgSlug) return;
-    membersApi.listByOrg(orgSlug).then((r) => setOrgMembers(r.members)).catch(() => {});
+    membersApi
+      .listByOrg(orgSlug)
+      .then((r) => setOrgMembers(r.members))
+      .catch(() => {});
   }, [orgSlug]);
 
   // Hydrate app-level form state + monitoring links when viewing app settings.
@@ -473,7 +483,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
       {/* Page header */}
       <div className="page-header">
         <h1>{headingMap[level]}</h1>
-        <p>Configure {level === 'org' ? 'organization-wide' : level === 'project' ? 'project' : 'application'} settings and integrations.</p>
+        <p>
+          Configure{' '}
+          {level === 'org' ? 'organization-wide' : level === 'project' ? 'project' : 'application'}{' '}
+          settings and integrations.
+        </p>
       </div>
 
       {/* Tabs */}
@@ -494,7 +508,12 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
               className={`tab${activeTab === t.key ? ' active' : ''}`}
               onClick={() => setActiveTab(t.key)}
             >
-              <span className="ms" style={{ fontSize: 15, verticalAlign: 'middle', marginRight: 5 }}>{iconMap[t.key] ?? 'settings'}</span>
+              <span
+                className="ms"
+                style={{ fontSize: 15, verticalAlign: 'middle', marginRight: 5 }}
+              >
+                {iconMap[t.key] ?? 'settings'}
+              </span>
               {t.label}
             </button>
           );
@@ -646,16 +665,35 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
 
             <div style={{ marginBottom: 24 }}>
               <p className="text-muted" style={{ maxWidth: 600 }}>
-                Webhooks send HTTP POST notifications to your endpoints when events occur in DeploySentry.
-                Use them to trigger CI/CD pipelines, update monitoring dashboards, or sync with external tools.
+                Webhooks send HTTP POST notifications to your endpoints when events occur in
+                DeploySentry. Use them to trigger CI/CD pipelines, update monitoring dashboards, or
+                sync with external tools.
               </p>
-              <details style={{ marginTop: 12, color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+              <details
+                style={{
+                  marginTop: 12,
+                  color: 'var(--color-text-secondary)',
+                  fontSize: '0.875rem',
+                }}
+              >
                 <summary style={{ cursor: 'pointer', marginBottom: 8 }}>Example use cases</summary>
                 <ul style={{ marginLeft: 16, lineHeight: 1.8 }}>
-                  <li><strong>CI/CD integration</strong> — Trigger deployments when a release is promoted</li>
-                  <li><strong>Slack notifications</strong> — Alert your team when feature flags are toggled</li>
-                  <li><strong>Audit logging</strong> — Record flag and deployment changes to an external system</li>
-                  <li><strong>Monitoring</strong> — Update dashboards when deployments start or complete</li>
+                  <li>
+                    <strong>CI/CD integration</strong> — Trigger deployments when a release is
+                    promoted
+                  </li>
+                  <li>
+                    <strong>Slack notifications</strong> — Alert your team when feature flags are
+                    toggled
+                  </li>
+                  <li>
+                    <strong>Audit logging</strong> — Record flag and deployment changes to an
+                    external system
+                  </li>
+                  <li>
+                    <strong>Monitoring</strong> — Update dashboards when deployments start or
+                    complete
+                  </li>
                 </ul>
               </details>
             </div>
@@ -688,7 +726,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                   <label className="form-label">Events</label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {WEBHOOK_EVENT_OPTIONS.map((evt) => (
-                      <label key={evt} className="flex items-center gap-2" style={{ cursor: 'pointer' }}>
+                      <label
+                        key={evt}
+                        className="flex items-center gap-2"
+                        style={{ cursor: 'pointer' }}
+                      >
                         <input
                           type="checkbox"
                           checked={webhookEvents.includes(evt)}
@@ -715,7 +757,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                     onClick={handleSaveWebhook}
                     disabled={!webhookUrl.trim() || webhookSaving}
                   >
-                    {webhookSaving ? 'Saving…' : editingWebhookId ? 'Update Webhook' : 'Create Webhook'}
+                    {webhookSaving
+                      ? 'Saving…'
+                      : editingWebhookId
+                        ? 'Update Webhook'
+                        : 'Create Webhook'}
                   </button>
                   <button className="btn btn-sm" onClick={cancelWebhookForm}>
                     Cancel
@@ -754,7 +800,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                           </div>
                         </td>
                         <td>
-                          <span className={`badge ${wh.is_active ? 'badge-active' : 'badge-disabled'}`}>
+                          <span
+                            className={`badge ${wh.is_active ? 'badge-active' : 'badge-disabled'}`}
+                          >
                             {wh.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </td>
@@ -789,7 +837,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                               className={`text-sm ${testResult.success ? 'text-success' : 'text-danger'}`}
                               style={{ display: 'block', marginTop: 4 }}
                             >
-                              {testResult.success ? 'Test delivered successfully' : 'Test delivery failed'}
+                              {testResult.success
+                                ? 'Test delivered successfully'
+                                : 'Test delivery failed'}
                             </span>
                           )}
                         </td>
@@ -835,7 +885,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                   </div>
                   {config.source === 'config' ? (
                     <p className="text-muted text-sm">
-                      This channel is configured via the server config file and cannot be edited here.
+                      This channel is configured via the server config file and cannot be edited
+                      here.
                     </p>
                   ) : (
                     <p className="text-muted text-sm">
@@ -878,16 +929,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                 >
                   {notifSaving ? 'Saving…' : 'Save Notification Settings'}
                 </button>
-                <button
-                  className="btn btn-sm"
-                  onClick={resetNotifPrefs}
-                  disabled={notifSaving}
-                >
+                <button className="btn btn-sm" onClick={resetNotifPrefs} disabled={notifSaving}>
                   Reset to Defaults
                 </button>
-                {notifSuccess && (
-                  <span className="text-sm text-success">Settings saved.</span>
-                )}
+                {notifSuccess && <span className="text-sm text-success">Settings saved.</span>}
               </div>
             </>
           )}
@@ -1044,10 +1089,13 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             />
           )}
 
-          <div style={{ marginTop: 24, borderTop: '1px solid var(--color-border)', paddingTop: 24 }}>
+          <div
+            style={{ marginTop: 24, borderTop: '1px solid var(--color-border)', paddingTop: 24 }}
+          >
             <h3>Export Flag Config</h3>
             <p className="text-muted" style={{ marginBottom: 8 }}>
-              Download a YAML snapshot of all flags for this application. Use it for offline SDK mode.
+              Download a YAML snapshot of all flags for this application. Use it for offline SDK
+              mode.
             </p>
             <button className="btn btn-secondary" onClick={handleExportFlags}>
               Export flags.yaml
@@ -1076,7 +1124,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             <>
               {grants.length > 0 && (
                 <div className="alert alert-warning" style={{ marginBottom: 16 }}>
-                  Access to this {level === 'app' ? 'app' : 'project'} is restricted. Only users and groups listed below (and org owners) can access it.
+                  Access to this {level === 'app' ? 'app' : 'project'} is restricted. Only users and
+                  groups listed below (and org owners) can access it.
                 </div>
               )}
               <table className="data-table">
@@ -1093,10 +1142,14 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                     <tr key={grant.id}>
                       <td>{grant.grantee_name}</td>
                       <td>
-                        <span className={`badge badge-${grant.grantee_type}`}>{grant.grantee_type}</span>
+                        <span className={`badge badge-${grant.grantee_type}`}>
+                          {grant.grantee_type}
+                        </span>
                       </td>
                       <td>
-                        <span className={`badge badge-${grant.permission}`}>{grant.permission}</span>
+                        <span className={`badge badge-${grant.permission}`}>
+                          {grant.permission}
+                        </span>
                       </td>
                       <td>
                         {confirmDeleteGrant === grant.id ? (
@@ -1107,7 +1160,12 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                               onClick={async () => {
                                 if (!orgSlug || !projectSlug) return;
                                 try {
-                                  await grantsApi.deleteGrant(orgSlug, projectSlug, grant.id, level === 'app' ? appSlug : undefined);
+                                  await grantsApi.deleteGrant(
+                                    orgSlug,
+                                    projectSlug,
+                                    grant.id,
+                                    level === 'app' ? appSlug : undefined,
+                                  );
                                   setConfirmDeleteGrant(null);
                                   refreshGrants();
                                 } catch (err) {
@@ -1118,7 +1176,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
                             >
                               Yes
                             </button>{' '}
-                            <button className="btn btn-sm" onClick={() => setConfirmDeleteGrant(null)}>
+                            <button
+                              className="btn btn-sm"
+                              onClick={() => setConfirmDeleteGrant(null)}
+                            >
                               No
                             </button>
                           </span>
@@ -1143,7 +1204,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
             <select
               className="form-select"
               value={grantType}
-              onChange={(e) => { setGrantType(e.target.value as 'user' | 'group'); setGrantId(''); }}
+              onChange={(e) => {
+                setGrantType(e.target.value as 'user' | 'group');
+                setGrantId('');
+              }}
             >
               <option value="user">User</option>
               <option value="group">Group</option>
@@ -1217,7 +1281,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
           {deleteError && <p className="text-danger text-sm">{deleteError}</p>}
           {activeFlags.length > 0 && (
             <div style={{ marginBottom: 12 }}>
-              <p className="text-sm" style={{ fontWeight: 500 }}>Active flags:</p>
+              <p className="text-sm" style={{ fontWeight: 500 }}>
+                Active flags:
+              </p>
               <ul className="text-sm">
                 {activeFlags.map((f) => (
                   <li key={f.key}>
@@ -1257,7 +1323,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
           {deleteError && <p className="text-danger text-sm">{deleteError}</p>}
           {activeFlags.length > 0 && (
             <div style={{ marginBottom: 12 }}>
-              <p className="text-sm" style={{ fontWeight: 500 }}>Active flags:</p>
+              <p className="text-sm" style={{ fontWeight: 500 }}>
+                Active flags:
+              </p>
               <ul className="text-sm">
                 {activeFlags.map((f) => (
                   <li key={f.key}>

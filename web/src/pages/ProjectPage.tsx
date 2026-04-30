@@ -32,16 +32,29 @@ export default function ProjectPage() {
         ← Back to Projects
       </NavLink>
       <div className="tabs">
-        <NavLink to={`${base}/apps`} className={({ isActive }) => `tab${isActive ? ' active' : ''}`} end>
+        <NavLink
+          to={`${base}/apps`}
+          className={({ isActive }) => `tab${isActive ? ' active' : ''}`}
+          end
+        >
           Applications
         </NavLink>
-        <NavLink to={`${base}/flags`} className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
+        <NavLink
+          to={`${base}/flags`}
+          className={({ isActive }) => `tab${isActive ? ' active' : ''}`}
+        >
           Flags
         </NavLink>
-        <NavLink to={`${base}/analytics`} className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
+        <NavLink
+          to={`${base}/analytics`}
+          className={({ isActive }) => `tab${isActive ? ' active' : ''}`}
+        >
           Analytics
         </NavLink>
-        <NavLink to={`${base}/settings`} className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
+        <NavLink
+          to={`${base}/settings`}
+          className={({ isActive }) => `tab${isActive ? ' active' : ''}`}
+        >
           Settings
         </NavLink>
       </div>

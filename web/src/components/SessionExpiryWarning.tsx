@@ -35,17 +35,34 @@ export default function SessionExpiryWarning() {
   }
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="session-expiry-title">
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="session-expiry-title"
+    >
       <div className="modal" style={{ maxWidth: 440 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-            background: 'var(--color-warning-bg)', border: '1px solid rgba(245,158,11,0.3)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <span className="ms" style={{ fontSize: 20, color: 'var(--color-warning)' }}>schedule</span>
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              flexShrink: 0,
+              background: 'var(--color-warning-bg)',
+              border: '1px solid rgba(245,158,11,0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <span className="ms" style={{ fontSize: 20, color: 'var(--color-warning)' }}>
+              schedule
+            </span>
           </div>
-          <h3 id="session-expiry-title" style={{ margin: 0 }}>Your session is about to expire</h3>
+          <h3 id="session-expiry-title" style={{ margin: 0 }}>
+            Your session is about to expire
+          </h3>
         </div>
 
         <p style={{ color: 'var(--color-text-secondary)', fontSize: 14, marginBottom: 16 }}>
@@ -56,13 +73,22 @@ export default function SessionExpiryWarning() {
           . Stay signed in to keep working.
         </p>
 
-        {error && <div className="form-error" style={{ marginBottom: 12 }}>{error}</div>}
+        {error && (
+          <div className="form-error" style={{ marginBottom: 12 }}>
+            {error}
+          </div>
+        )}
 
         <div className="modal-actions">
           <button type="button" className="btn btn-secondary" onClick={logout} disabled={extending}>
             Sign out
           </button>
-          <button type="button" className="btn btn-primary" onClick={handleExtend} disabled={extending}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={handleExtend}
+            disabled={extending}
+          >
             <span className="ms" style={{ fontSize: 16 }}>
               {extending ? 'hourglass_empty' : 'refresh'}
             </span>

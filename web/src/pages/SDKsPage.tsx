@@ -359,7 +359,9 @@ const SDKsPage: React.FC = () => {
                 title="Copy install command"
                 onClick={() => handleCopy(sdk.installCmd)}
               >
-                <span className="ms" style={{ fontSize: 16 }}>content_copy</span>
+                <span className="ms" style={{ fontSize: 16 }}>
+                  content_copy
+                </span>
               </button>
             </div>
             <a href="#quick-start" className="btn btn-secondary btn-sm">

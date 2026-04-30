@@ -46,7 +46,17 @@ export default function AnalyticsPage() {
           <h1>{projectName ? `${projectName} — Analytics` : 'Analytics'}</h1>
           <p>Aggregated insights for this project.</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--color-bg-elevated)', border: '1px solid var(--color-border)', borderRadius: 8, padding: 4 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            background: 'var(--color-bg-elevated)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 8,
+            padding: 4,
+          }}
+        >
           {(['24h', '7d', '30d'] as TimeRange[]).map((r) => (
             <button
               key={r}
@@ -57,7 +67,8 @@ export default function AnalyticsPage() {
                 fontSize: 12,
                 fontWeight: 600,
                 borderRadius: 6,
-                border: timeRange === r ? '1px solid rgba(99,102,241,0.3)' : '1px solid transparent',
+                border:
+                  timeRange === r ? '1px solid rgba(99,102,241,0.3)' : '1px solid transparent',
                 background: timeRange === r ? 'var(--color-primary-bg)' : 'transparent',
                 color: timeRange === r ? 'var(--color-primary)' : 'var(--color-text-muted)',
                 cursor: 'pointer',
@@ -71,18 +82,22 @@ export default function AnalyticsPage() {
 
       {/* Tab Navigation */}
       <div className="tabs">
-        {([
-          { key: 'overview', icon: 'insights', label: 'Overview' },
-          { key: 'flags', icon: 'toggle_on', label: 'Flag Analytics' },
-          { key: 'deployments', icon: 'rocket_launch', label: 'Deployments' },
-          { key: 'system', icon: 'monitor_heart', label: 'System Health' },
-        ] as { key: TabType; icon: string; label: string }[]).map(({ key, icon, label }) => (
+        {(
+          [
+            { key: 'overview', icon: 'insights', label: 'Overview' },
+            { key: 'flags', icon: 'toggle_on', label: 'Flag Analytics' },
+            { key: 'deployments', icon: 'rocket_launch', label: 'Deployments' },
+            { key: 'system', icon: 'monitor_heart', label: 'System Health' },
+          ] as { key: TabType; icon: string; label: string }[]
+        ).map(({ key, icon, label }) => (
           <button
             key={key}
             className={`tab${activeTab === key ? ' active' : ''}`}
             onClick={() => handleTabChange(key)}
           >
-            <span className="ms" style={{ fontSize: 15, verticalAlign: 'middle', marginRight: 6 }}>{icon}</span>
+            <span className="ms" style={{ fontSize: 15, verticalAlign: 'middle', marginRight: 6 }}>
+              {icon}
+            </span>
             {label}
           </button>
         ))}

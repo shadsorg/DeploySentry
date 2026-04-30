@@ -1,13 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { entitiesApi, orgStatusApi } from '@/api';
-import type {
-  Application,
-  DeployStatus,
-  OrgDeploymentRow,
-  OrgEnvironment,
-  Project,
-} from '@/types';
+import type { Application, DeployStatus, OrgDeploymentRow, OrgEnvironment, Project } from '@/types';
 
 const STATUS_OPTIONS: (DeployStatus | '')[] = [
   '',
@@ -117,7 +111,7 @@ export default function OrgDeploymentsPage() {
           limit: PAGE_SIZE,
         });
         setRows((prev) =>
-          append ? [...prev, ...(resp.deployments ?? [])] : resp.deployments ?? [],
+          append ? [...prev, ...(resp.deployments ?? [])] : (resp.deployments ?? []),
         );
         setCursor(resp.next_cursor || undefined);
       } catch (err) {
@@ -166,7 +160,9 @@ export default function OrgDeploymentsPage() {
         <aside className="org-deployments-filters">
           <div className="org-deployments-filters-head">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="ms" style={{ fontSize: 16, color: 'var(--color-primary)' }}>filter_list</span>
+              <span className="ms" style={{ fontSize: 16, color: 'var(--color-primary)' }}>
+                filter_list
+              </span>
               <span style={{ fontWeight: 600 }}>Filters</span>
             </div>
             {activeFilterCount > 0 && (
@@ -267,16 +263,45 @@ export default function OrgDeploymentsPage() {
         <main className="org-deployments-main">
           {error && <div className="page-error">Error: {error}</div>}
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-            <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>history</span>
-              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>Activity Stream</span>
+            <div
+              style={{
+                padding: '12px 20px',
+                borderBottom: '1px solid var(--color-border)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>
+                history
+              </span>
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>
+                Activity Stream
+              </span>
               {rows.length > 0 && (
-                <span className="badge" style={{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)', marginLeft: 4 }}>
+                <span
+                  className="badge"
+                  style={{
+                    background: 'var(--color-primary-bg)',
+                    color: 'var(--color-primary)',
+                    marginLeft: 4,
+                  }}
+                >
                   {rows.length}
                 </span>
               )}
               {loading && rows.length > 0 && (
-                <span className="ms" style={{ fontSize: 16, color: 'var(--color-text-muted)', marginLeft: 'auto', animation: 'spin 1s linear infinite' }}>sync</span>
+                <span
+                  className="ms"
+                  style={{
+                    fontSize: 16,
+                    color: 'var(--color-text-muted)',
+                    marginLeft: 'auto',
+                    animation: 'spin 1s linear infinite',
+                  }}
+                >
+                  sync
+                </span>
               )}
             </div>
             <div className="org-deployments-table" style={{ margin: 0 }}>
@@ -290,13 +315,33 @@ export default function OrgDeploymentsPage() {
               </div>
               {loading && rows.length === 0 && (
                 <div className="org-deployments-empty">
-                  <span className="ms" style={{ fontSize: 28, display: 'block', marginBottom: 8, color: 'var(--color-primary)' }}>sync</span>
+                  <span
+                    className="ms"
+                    style={{
+                      fontSize: 28,
+                      display: 'block',
+                      marginBottom: 8,
+                      color: 'var(--color-primary)',
+                    }}
+                  >
+                    sync
+                  </span>
                   Loading…
                 </div>
               )}
               {!loading && rows.length === 0 && (
                 <div className="org-deployments-empty">
-                  <span className="ms" style={{ fontSize: 36, display: 'block', marginBottom: 8, color: 'var(--color-text-muted)' }}>history</span>
+                  <span
+                    className="ms"
+                    style={{
+                      fontSize: 36,
+                      display: 'block',
+                      marginBottom: 8,
+                      color: 'var(--color-text-muted)',
+                    }}
+                  >
+                    history
+                  </span>
                   No deployments match the current filters.
                 </div>
               )}

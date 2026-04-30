@@ -219,7 +219,7 @@ func TestListDeployments_FiltersOutNonVisibleProjects(t *testing.T) {
 	resp, err := svc.List(context.Background(), "acme", uuid.Nil, "member", ListParams{})
 	assert.NoError(t, err)
 	assert.Len(t, resp.Deployments, 1)
-	assert.Equal(t, "v1", resp.Deployments[0].Deployment.Version)
+	assert.Equal(t, "v1", resp.Deployments[0].Version)
 }
 
 func TestListDeployments_PassesThroughCursor(t *testing.T) {

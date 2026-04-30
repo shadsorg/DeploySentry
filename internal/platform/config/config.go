@@ -250,14 +250,14 @@ func validateEncryptionKey(cfg *Config) error {
 			return nil
 		}
 		return fmt.Errorf(
-			"DS_SECURITY_ENCRYPTION_KEY is required (32 bytes). Generate one with:\n" +
-				"  openssl rand -hex 16 | head -c 32   # 32 ASCII bytes, safe in env vars\n" +
-				"If you only need a local dev stack, set DS_ENV=development to use a built-in key.",
+			"DS_SECURITY_ENCRYPTION_KEY is required (32 bytes); generate one with " +
+				"`openssl rand -hex 16 | head -c 32` (32 ASCII bytes, safe in env vars), " +
+				"or set DS_ENV=development to use a built-in key for local dev",
 		)
 	}
 	return fmt.Errorf(
-		"DS_SECURITY_ENCRYPTION_KEY must be exactly 32 bytes (got %d). "+
-			"Generate one with `openssl rand -hex 16 | head -c 32`.",
+		"DS_SECURITY_ENCRYPTION_KEY must be exactly 32 bytes (got %d); "+
+			"generate one with `openssl rand -hex 16 | head -c 32`",
 		len(key),
 	)
 }

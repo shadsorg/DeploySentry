@@ -66,7 +66,7 @@ func run() error {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-	var lastCanaryPercent int = -1
+	lastCanaryPercent := -1
 	ticker := time.NewTicker(cfg.PollInterval)
 	defer ticker.Stop()
 
@@ -145,7 +145,7 @@ func pollDesiredState(ctx context.Context, cfg Config) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -205,7 +205,7 @@ func updateNginxConfig(cfg Config, canaryPercent int) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	if err := tmpl.Execute(file, ncfg); err != nil {
 		return err

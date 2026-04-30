@@ -79,7 +79,7 @@ func serve(c *gin.Context, dist fs.FS, fileServer http.Handler) {
 			c.AbortWithStatus(http.StatusInternalServerError)
 			return
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		stat, err := f.Stat()
 		if err != nil {
 			c.AbortWithStatus(http.StatusInternalServerError)

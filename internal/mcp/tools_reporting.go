@@ -126,7 +126,7 @@ func handleCheckDeployIntegration(_ context.Context, req mcp.CallToolRequest) (*
 	}
 	within := 10
 	if v := req.GetString("within_minutes", ""); v != "" {
-		fmt.Sscanf(v, "%d", &within)
+		_, _ = fmt.Sscanf(v, "%d", &within)
 	}
 	data, err := c.get("/api/v1/integrations/deploys/" + id + "/events?limit=5")
 	if err != nil {

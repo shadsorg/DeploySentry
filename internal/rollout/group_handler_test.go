@@ -2,6 +2,7 @@ package rollout
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http/httptest"
 	"testing"
@@ -51,7 +52,7 @@ func TestRolloutGroupHandler_Create_Defaults(t *testing.T) {
 
 func TestRolloutGroupHandler_List_ReturnsShape(t *testing.T) {
 	h, grpRepo, _, orgID := newTestGroupHandler(t)
-	_ = grpRepo.Create(nil, &models.RolloutGroup{ScopeType: models.ScopeOrg, ScopeID: orgID, Name: "v1", CoordinationPolicy: models.CoordinationIndependent})
+	_ = grpRepo.Create(context.Background(), &models.RolloutGroup{ScopeType: models.ScopeOrg, ScopeID: orgID, Name: "v1", CoordinationPolicy: models.CoordinationIndependent})
 	r := gin.New()
 	h.RegisterRoutes(r.Group("/api/v1"))
 
@@ -71,7 +72,7 @@ func TestRolloutGroupHandler_List_ReturnsShape(t *testing.T) {
 func TestRolloutGroupHandler_Attach_SetsRolloutReleaseID(t *testing.T) {
 	h, grpRepo, roRepo, orgID := newTestGroupHandler(t)
 	g := &models.RolloutGroup{ID: uuid.New(), ScopeType: models.ScopeOrg, ScopeID: orgID, Name: "v1", CoordinationPolicy: models.CoordinationIndependent}
-	_ = grpRepo.Create(nil, g)
+	_ = grpRepo.Create(context.Background(), g)
 	ro := &models.Rollout{ID: uuid.New(), TargetType: models.TargetTypeDeploy, Status: models.RolloutActive}
 	roRepo.rows[ro.ID] = ro
 
@@ -93,7 +94,7 @@ func TestRolloutGroupHandler_Attach_SetsRolloutReleaseID(t *testing.T) {
 func TestRolloutGroupHandler_UpdatePolicy(t *testing.T) {
 	h, grpRepo, _, orgID := newTestGroupHandler(t)
 	g := &models.RolloutGroup{ID: uuid.New(), ScopeType: models.ScopeOrg, ScopeID: orgID, Name: "v1", CoordinationPolicy: models.CoordinationIndependent}
-	_ = grpRepo.Create(nil, g)
+	_ = grpRepo.Create(context.Background(), g)
 
 	r := gin.New()
 	h.RegisterRoutes(r.Group("/api/v1"))
@@ -105,7 +106,7 @@ func TestRolloutGroupHandler_UpdatePolicy(t *testing.T) {
 	if w.Code != 200 {
 		t.Fatalf("code=%d body=%s", w.Code, w.Body.String())
 	}
-	got, _ := grpRepo.Get(nil, g.ID)
+	got, _ := grpRepo.Get(context.Background(), g.ID)
 	if got.CoordinationPolicy != models.CoordinationCascadeAbort {
 		t.Fatalf("policy not updated: %s", got.CoordinationPolicy)
 	}

@@ -50,16 +50,9 @@ func (m *mockServer) on(method string, match func(string) bool, respond func(rec
 	m.routes = append(m.routes, routeStub{Method: method, Match: match, Respond: respond})
 }
 
-// onPath stubs an exact-method, exact-path-prefix route. `pathPrefix` is matched
-// against the URL.Path *before* the query string.
-func (m *mockServer) onPath(method, pathPrefix string, status int, body any) {
-	m.on(method, func(p string) bool { return strings.HasPrefix(p, pathPrefix) }, func(recordedRequest) (int, any) {
-		return status, body
-	})
-}
-
-// onPathFunc is like onPath but lets the test inspect the request and return
-// a dynamic response (e.g., echo back posted fields).
+// onPathFunc stubs an exact-method, prefix-matched path and lets the test
+// inspect the request and return a dynamic response (e.g., echo back posted
+// fields). `pathPrefix` is matched against URL.Path *before* the query string.
 func (m *mockServer) onPathFunc(method, pathPrefix string, fn func(recordedRequest) (int, any)) {
 	m.on(method, func(p string) bool { return strings.HasPrefix(p, pathPrefix) }, fn)
 }

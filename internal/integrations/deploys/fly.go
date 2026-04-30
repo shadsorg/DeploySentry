@@ -55,11 +55,12 @@ func (FlyAdapter) ParsePayload(body []byte, integration *models.DeployIntegratio
 	case "release.started", "deploy.started":
 		eventType = models.DeployEventStarted
 	default:
-		if p.Release.Status == "succeeded" {
+		switch p.Release.Status {
+		case "succeeded":
 			eventType = models.DeployEventSucceeded
-		} else if p.Release.Status == "failed" {
+		case "failed":
 			eventType = models.DeployEventFailed
-		} else {
+		default:
 			return models.DeployEvent{}, fmt.Errorf("unsupported Fly event %q", p.Event)
 		}
 	}

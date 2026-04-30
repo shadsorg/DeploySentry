@@ -20,11 +20,6 @@ type stubApplicator struct {
 	errApply, errRevert error
 }
 
-func (s *stubApplicator) setSignal(sc applicator.HealthScore) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.signal = sc
-}
 func (s *stubApplicator) Apply(_ context.Context, _ *models.Rollout, step models.Step) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

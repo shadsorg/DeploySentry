@@ -3,6 +3,7 @@ package flags
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -257,9 +258,12 @@ func (m *mockFlagRepo) MarkFlagRemovalFired(ctx context.Context, id uuid.UUID, f
 	return nil
 }
 
-// mockCache is a test double for Cache.
+// mockCache is a test double for Cache. The mutex matches the real
+// implementations' behavior (Redis-backed caches serialize internally) and
+// keeps -race happy when concurrent evaluators (e.g. BatchEvaluate) hit it.
 type mockCache struct {
-	flags map[string]*models.FeatureFlag   // key: "projectID:envID:key"
+	mu    sync.RWMutex
+	flags map[string]*models.FeatureFlag // key: "projectID:envID:key"
 	rules map[uuid.UUID][]*models.TargetingRule
 }
 
@@ -275,6 +279,8 @@ func cacheKey(projectID, environmentID uuid.UUID, key string) string {
 }
 
 func (c *mockCache) GetFlag(ctx context.Context, projectID, environmentID uuid.UUID, key string) (*models.FeatureFlag, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	f, ok := c.flags[cacheKey(projectID, environmentID, key)]
 	if !ok {
 		return nil, nil
@@ -287,11 +293,15 @@ func (c *mockCache) SetFlag(ctx context.Context, flag *models.FeatureFlag, ttl t
 	if flag.EnvironmentID != nil {
 		envID = *flag.EnvironmentID
 	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.flags[cacheKey(flag.ProjectID, envID, flag.Key)] = flag
 	return nil
 }
 
 func (c *mockCache) GetRules(ctx context.Context, flagID uuid.UUID) ([]*models.TargetingRule, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	r, ok := c.rules[flagID]
 	if !ok {
 		return nil, nil
@@ -300,11 +310,15 @@ func (c *mockCache) GetRules(ctx context.Context, flagID uuid.UUID) ([]*models.T
 }
 
 func (c *mockCache) SetRules(ctx context.Context, flagID uuid.UUID, rules []*models.TargetingRule, ttl time.Duration) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.rules[flagID] = rules
 	return nil
 }
 
 func (c *mockCache) Invalidate(ctx context.Context, flagID uuid.UUID) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	delete(c.rules, flagID)
 	return nil
 }

@@ -988,67 +988,95 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
       {/* General tab — project level — Task 10                               */}
       {/* ------------------------------------------------------------------ */}
       {activeTab === 'general' && level === 'project' && (
-        <div className="card">
-          <div className="card-header">
-            <span className="card-title">Project Settings</span>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Project Name</label>
-            <input
-              type="text"
-              className="form-input"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Description</label>
-            <textarea
-              className="form-input"
-              rows={3}
-              value={projectDescription}
-              onChange={(e) => setProjectDescription(e.target.value)}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Repository URL</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="https://github.com/org/repo"
-              value={projectRepoUrl}
-              onChange={(e) => setProjectRepoUrl(e.target.value)}
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Default Environment</label>
-            <select
-              className="form-select"
-              value={defaultEnv}
-              onChange={(e) => setDefaultEnv(e.target.value)}
-            >
-              <option value="development">Development</option>
-              <option value="staging">Staging</option>
-              <option value="production">Production</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Stale Flag Threshold</label>
-            <input
-              type="text"
-              className="form-input"
-              value={staleThreshold}
-              onChange={(e) => setStaleThreshold(e.target.value)}
-            />
-            <div className="form-hint">
-              Flags with no evaluation activity beyond this threshold will be marked as stale.
-              Examples: 30d, 2w, 90d.
+        <div className="card settings-sectioned">
+          <section className="settings-section">
+            <header className="settings-section-header">
+              <span className="ms" aria-hidden="true">
+                info
+              </span>
+              <h3>General Information</h3>
+            </header>
+            <div className="form-group">
+              <label className="form-label">Project Name</label>
+              <input
+                type="text"
+                className="form-input"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+              />
             </div>
-          </div>
+            <div className="form-group">
+              <label className="form-label">Description</label>
+              <textarea
+                className="form-input"
+                rows={3}
+                value={projectDescription}
+                onChange={(e) => setProjectDescription(e.target.value)}
+              />
+            </div>
+          </section>
+
+          <section className="settings-section">
+            <header className="settings-section-header">
+              <span className="ms" aria-hidden="true">
+                hub
+              </span>
+              <h3>Routing</h3>
+            </header>
+            <div className="form-group">
+              <label className="form-label">Default Environment</label>
+              <select
+                className="form-select"
+                value={defaultEnv}
+                onChange={(e) => setDefaultEnv(e.target.value)}
+              >
+                <option value="development">Development</option>
+                <option value="staging">Staging</option>
+                <option value="production">Production</option>
+              </select>
+            </div>
+          </section>
+
+          <section className="settings-section">
+            <header className="settings-section-header">
+              <span className="ms" aria-hidden="true">
+                cleaning_services
+              </span>
+              <h3>Cleanup</h3>
+            </header>
+            <div className="form-group">
+              <label className="form-label">Stale Flag Threshold</label>
+              <input
+                type="text"
+                className="form-input"
+                value={staleThreshold}
+                onChange={(e) => setStaleThreshold(e.target.value)}
+              />
+              <div className="form-hint">
+                Flags with no evaluation activity beyond this threshold will be marked as stale.
+                Examples: 30d, 2w, 90d.
+              </div>
+            </div>
+          </section>
+
+          <section className="settings-section">
+            <header className="settings-section-header">
+              <span className="ms" aria-hidden="true">
+                source
+              </span>
+              <h3>Repository</h3>
+            </header>
+            <div className="form-group">
+              <label className="form-label">Repository URL</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="https://github.com/org/repo"
+                value={projectRepoUrl}
+                onChange={(e) => setProjectRepoUrl(e.target.value)}
+              />
+            </div>
+          </section>
 
           <div className="flex items-center gap-3">
             <button

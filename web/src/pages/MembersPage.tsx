@@ -25,6 +25,13 @@ export default function MembersPage() {
   const [newEmail, setNewEmail] = useState('');
   const [newRole, setNewRole] = useState<string>('member');
 
+  // Role filter
+  const [roleFilter, setRoleFilter] = useState<'all' | 'owner' | 'admin' | 'member' | 'viewer'>(
+    'all',
+  );
+  const visibleMembers =
+    roleFilter === 'all' ? members : members.filter((m) => m.role === roleFilter);
+
   // Delete confirm
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
@@ -173,6 +180,33 @@ export default function MembersPage() {
             </p>
           )}
 
+          {!loading && members.length > 0 && (
+            <div
+              className="org-status-filter-pills"
+              role="tablist"
+              aria-label="Filter members by role"
+              style={{ marginBottom: 12 }}
+            >
+              {(['all', 'owner', 'admin', 'member', 'viewer'] as const).map((role) => {
+                const count =
+                  role === 'all' ? members.length : members.filter((m) => m.role === role).length;
+                return (
+                  <button
+                    key={role}
+                    type="button"
+                    role="tab"
+                    aria-selected={roleFilter === role}
+                    className={`filter-pill ${roleFilter === role ? 'active' : ''}`}
+                    onClick={() => setRoleFilter(role)}
+                  >
+                    {role === 'all' ? 'All' : role.charAt(0).toUpperCase() + role.slice(1)}{' '}
+                    <span className="dim">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {loading ? (
             <div className="empty-state">Loading members…</div>
           ) : members.length === 0 ? (
@@ -194,7 +228,9 @@ export default function MembersPage() {
                   Team Directory
                 </span>
                 <span className="text-xs text-secondary">
-                  {members.length} member{members.length !== 1 ? 's' : ''}
+                  {visibleMembers.length === members.length
+                    ? `${members.length} member${members.length !== 1 ? 's' : ''}`
+                    : `${visibleMembers.length} of ${members.length} member${members.length !== 1 ? 's' : ''}`}
                 </span>
               </div>
               <table>
@@ -207,7 +243,7 @@ export default function MembersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {members.map((m) => (
+                  {visibleMembers.map((m) => (
                     <tr key={m.id}>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

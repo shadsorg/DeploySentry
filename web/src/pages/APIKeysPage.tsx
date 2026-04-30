@@ -17,6 +17,31 @@ const AVAILABLE_SCOPES = [
   'admin',
 ];
 
+function scopeDescription(scope: string): string {
+  switch (scope) {
+    case 'flags:read':
+      return 'List and evaluate feature flags';
+    case 'flags:write':
+      return 'Create, update, and toggle flags';
+    case 'deploys:read':
+      return 'View deployments and rollouts';
+    case 'deploys:write':
+      return 'Trigger deployments and promote phases';
+    case 'releases:read':
+      return 'List release versions and changelogs';
+    case 'releases:write':
+      return 'Create and update releases';
+    case 'status:write':
+      return 'Push health/status updates from agents and SDKs';
+    case 'apikey:manage':
+      return 'Create and revoke other API keys';
+    case 'admin':
+      return 'Full org-wide access — use sparingly';
+    default:
+      return '';
+  }
+}
+
 function scopeBadgeClass(scope: string): string {
   if (scope === 'admin') return 'badge badge-experiment';
   if (scope === 'apikey:manage') return 'badge badge-permission';
@@ -182,17 +207,22 @@ export default function APIKeysPage() {
 
           <div className="form-group">
             <label>Scopes</label>
-            <div className="checkbox-group">
-              {AVAILABLE_SCOPES.map((scope) => (
-                <label key={scope}>
-                  <input
-                    type="checkbox"
-                    checked={newScopes.includes(scope)}
-                    onChange={() => toggleScope(scope)}
-                  />
-                  {scope}
-                </label>
-              ))}
+            <div className="scope-card-grid">
+              {AVAILABLE_SCOPES.map((scope) => {
+                const checked = newScopes.includes(scope);
+                return (
+                  <label key={scope} className={`scope-card${checked ? ' selected' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleScope(scope)}
+                      className="scope-card-checkbox"
+                    />
+                    <span className={scopeBadgeClass(scope)}>{scope}</span>
+                    <span className="scope-card-hint">{scopeDescription(scope)}</span>
+                  </label>
+                );
+              })}
             </div>
           </div>
 

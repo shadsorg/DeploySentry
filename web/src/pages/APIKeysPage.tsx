@@ -140,6 +140,14 @@ export default function APIKeysPage() {
         </div>
       </div>
 
+      <div className="code-block" style={{ marginBottom: 24 }}>
+        <div className="code-header">
+          <span className="code-lang">CLI</span>
+          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Or use the form below</span>
+        </div>
+        <code style={{ display: 'block' }}>$ deploysentry apikeys create --name &lt;name&gt;</code>
+      </div>
+
       {showCreate && (
         <div className="inline-form">
           <div className="form-group">

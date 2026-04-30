@@ -1,7 +1,10 @@
 # UI Audit — Mockup ↔ Implementation Disparities
 
 **Generated**: 2026-04-24
+**Last addressed**: 2026-04-29 (Batch A polish — see [spec](../superpowers/specs/2026-04-29-ui-audit-disparities-design.md))
 **Scope**: Phase-2 review of the Sentry Dark UI reskin.
+
+> **Batch A status (2026-04-29):** §1 (icon tile portion), §7, §15, §17, §18 ✅ addressed on `feature/ui-audit-batch-a`. §1 (project-card matrix portion), §12, §19 (editor portion) tracked in Batch B. §2 reclassified as docs-mapping (not code). §8, §10, §13, §20 deferred to Batch C pending product input.
 **How this was built**: Each HTML mockup in `newscreens/` was read alongside
 its React counterpart in `web/src/pages/`. Disparities are structural and
 visual gaps a designer would notice on side-by-side review — NOT pixel

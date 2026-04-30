@@ -58,15 +58,34 @@ export default function RolloutGroupsPage() {
         </div>
       )}
       {!loading && items.length === 0 && (
-        <div className="empty-state card" style={{ padding: '48px 24px' }}>
-          <span className="ms" style={{ fontSize: 40, color: 'var(--color-text-muted)', marginBottom: 12, display: 'block' }}>layers</span>
-          <h3>No rollout groups yet</h3>
-          <p>Create a group to coordinate multi-app rollouts with a shared policy.</p>
-          <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => setCreating(true)}>
-            <span className="ms" style={{ fontSize: 16 }}>add</span>
-            New Group
-          </button>
-        </div>
+        <>
+          <div className="empty-state card" style={{ padding: '48px 24px' }}>
+            <span className="ms" style={{ fontSize: 40, color: 'var(--color-text-muted)', marginBottom: 12, display: 'block' }}>layers</span>
+            <h3>No rollout groups yet</h3>
+            <p>Create a group to coordinate multi-app rollouts with a shared policy.</p>
+            <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => setCreating(true)}>
+              <span className="ms" style={{ fontSize: 16 }}>add</span>
+              New Group
+            </button>
+          </div>
+          <div className="bento-grid">
+            <div className="bento-card">
+              <span className="ms bento-icon">target</span>
+              <h4>Smart Targeting</h4>
+              <p>Define groups by rule sets — env, region, customer tier — so rollouts ride the same membership logic as your flags.</p>
+            </div>
+            <div className="bento-card">
+              <span className="ms bento-icon">rocket_launch</span>
+              <h4>Canary Releases</h4>
+              <p>Coordinate phased rollouts across siblings. Pause or cascade-abort the whole group when one app trips a guardrail.</p>
+            </div>
+            <div className="bento-card">
+              <span className="ms bento-icon">extension</span>
+              <h4>SDK Integration</h4>
+              <p>Group membership is delivered to clients via the same SDKs that already evaluate flags — no new wiring required.</p>
+            </div>
+          </div>
+        </>
       )}
 
       {items.length > 0 && (

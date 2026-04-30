@@ -249,6 +249,11 @@ export default function RolloutsPage() {
                   {sorted.map((r) => {
                     const steps = r.strategy_snapshot.steps ?? [];
                     const currentPct = steps[r.current_phase_index]?.percent;
+                    const isInFlight = r.status === 'active' || r.status === 'pending';
+                    const progressPct =
+                      steps.length > 0
+                        ? Math.min(100, Math.round(((r.current_phase_index + 1) / steps.length) * 100))
+                        : 0;
                     return (
                       <tr key={r.id}>
                         <td>
@@ -276,6 +281,11 @@ export default function RolloutsPage() {
                         <td>
                           {r.current_phase_index + 1}/{steps.length || '—'}
                           {currentPct !== undefined && <> · {currentPct}%</>}
+                          {isInFlight && steps.length > 0 && (
+                            <div className="rollout-progress" title={`${progressPct}% through rollout`}>
+                              <div className="rollout-progress-fill" style={{ width: `${progressPct}%` }} />
+                            </div>
+                          )}
                         </td>
                         <td><RolloutStatusBadge status={r.status} /></td>
                         <td>

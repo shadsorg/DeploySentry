@@ -1,6 +1,7 @@
 module github.com/shadsorg/deploysentry
 
 go 1.25.0
+toolchain go1.25.0
 
 require (
 	github.com/envoyproxy/go-control-plane v0.14.0

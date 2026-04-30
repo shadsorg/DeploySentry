@@ -3,6 +3,8 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { auditApi, entitiesApi, membersApi } from '@/api';
 import type { AuditLogEntry, Member, Project } from '@/types';
 import AuditRow from '@/components/audit/AuditRow';
+import RevertConfirmDialog from '@/components/audit/RevertConfirmDialog';
+import RevertToast from '@/components/audit/RevertToast';
 
 const ENTITY_TYPE_OPTIONS = ['', 'flag', 'rule'];
 const PAGE_SIZE = 50;
@@ -45,6 +47,9 @@ export default function OrgAuditPage() {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [revertEntry, setRevertEntry] = useState<AuditLogEntry | null>(null);
+  const [toast, setToast] = useState<{ id: string; action: string } | null>(null);
 
   // Load projects + members once.
   useEffect(() => {
@@ -106,14 +111,16 @@ export default function OrgAuditPage() {
   }
 
   const handleRevert = (entry: AuditLogEntry) => {
-    // Task 3.1 will replace this with the RevertConfirmDialog.
-    if (!window.confirm(`Revert: ${entry.action}? This will be audit-logged.`)) return;
-    auditApi
-      .revert(entry.id, false)
-      .then(() => load(false, 0))
-      .catch((err) => {
-        alert(`Revert failed: ${err.message}`);
-      });
+    setRevertEntry(entry);
+  };
+
+  const handleRevertSuccess = (newId: string, newAction: string) => {
+    setToast({ id: newId, action: newAction });
+    load(false, 0);
+  };
+
+  const handleUndoSuccess = () => {
+    load(false, 0);
   };
 
   if (!orgSlug) return null;
@@ -124,6 +131,7 @@ export default function OrgAuditPage() {
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
 
   return (
+    <>
     <div className="org-audit-page">
       <div className="page-header-row">
         <div className="page-header" style={{ marginBottom: 0 }}>
@@ -325,5 +333,20 @@ export default function OrgAuditPage() {
         </main>
       </div>
     </div>
+
+    <RevertConfirmDialog
+      open={revertEntry !== null}
+      entry={revertEntry}
+      onClose={() => setRevertEntry(null)}
+      onSuccess={handleRevertSuccess}
+    />
+    <RevertToast
+      open={toast !== null}
+      newEntryId={toast?.id ?? ''}
+      newAction={toast?.action ?? ''}
+      onClose={() => setToast(null)}
+      onUndoSuccess={handleUndoSuccess}
+    />
+    </>
   );
 }

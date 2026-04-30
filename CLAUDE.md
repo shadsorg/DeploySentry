@@ -45,7 +45,7 @@ make test          # Run all Go tests
 - `internal/rollback/` — Automated rollback controller
 - `internal/settings/` — Hierarchical settings (org > project > app > environment)
 - `internal/platform/` — Shared infra (database, cache, messaging, config, middleware)
-- `migrations/` — PostgreSQL migrations (deploy schema, currently 032)
+- `migrations/` — PostgreSQL migrations (deploy schema, currently 059)
 - `sdk/` — Client SDKs (go, node, python, java, react, flutter, ruby)
 - `web/` — React + TypeScript dashboard (19 pages)
 - `mobile/` — Flutter mobile app

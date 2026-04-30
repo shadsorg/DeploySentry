@@ -29,9 +29,19 @@ export default function MembersPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   // Groups state
-  const { groups, loading: groupsLoading, error: groupsError, refresh: refreshGroups } = useGroups(orgSlug);
+  const {
+    groups,
+    loading: groupsLoading,
+    error: groupsError,
+    refresh: refreshGroups,
+  } = useGroups(orgSlug);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
-  const { members: groupMembers, loading: groupMembersLoading, error: groupMembersError, refresh: refreshGroupMembers } = useGroupMembers(orgSlug, selectedGroup?.slug);
+  const {
+    members: groupMembers,
+    loading: groupMembersLoading,
+    error: groupMembersError,
+    refresh: refreshGroupMembers,
+  } = useGroupMembers(orgSlug, selectedGroup?.slug);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [newGroupDescription, setNewGroupDescription] = useState('');
@@ -105,7 +115,9 @@ export default function MembersPage() {
           <p>Manage your team's access levels across the organization.</p>
         </div>
         <button className="btn btn-primary" onClick={() => {}}>
-          <span className="ms" style={{ fontSize: 16 }}>person_add</span>
+          <span className="ms" style={{ fontSize: 16 }}>
+            person_add
+          </span>
           Invite Member
         </button>
       </div>
@@ -136,7 +148,11 @@ export default function MembersPage() {
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
             />
-            <select className="form-select" value={newRole} onChange={(e) => setNewRole(e.target.value)}>
+            <select
+              className="form-select"
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value)}
+            >
               <option value="member">Member</option>
               <option value="admin">Admin</option>
               <option value="viewer">Viewer</option>
@@ -160,12 +176,26 @@ export default function MembersPage() {
           {loading ? (
             <div className="empty-state">Loading members…</div>
           ) : members.length === 0 ? (
-            <div className="empty-state card"><p>No members yet. Add one above.</p></div>
+            <div className="empty-state card">
+              <p>No members yet. Add one above.</p>
+            </div>
           ) : (
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-              <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>Team Directory</span>
-                <span className="text-xs text-secondary">{members.length} member{members.length !== 1 ? 's' : ''}</span>
+              <div
+                style={{
+                  padding: '12px 20px',
+                  borderBottom: '1px solid var(--color-border)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>
+                  Team Directory
+                </span>
+                <span className="text-xs text-secondary">
+                  {members.length} member{members.length !== 1 ? 's' : ''}
+                </span>
               </div>
               <table>
                 <thead>
@@ -181,18 +211,36 @@ export default function MembersPage() {
                     <tr key={m.id}>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{
-                            width: 34, height: 34, borderRadius: '50%',
-                            background: 'var(--color-primary-bg)', border: '1px solid var(--color-border)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 11, fontWeight: 700, color: 'var(--color-primary)',
-                            flexShrink: 0,
-                          }}>
-                            {m.name ? m.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() : '?'}
+                          <div
+                            style={{
+                              width: 34,
+                              height: 34,
+                              borderRadius: '50%',
+                              background: 'var(--color-primary-bg)',
+                              border: '1px solid var(--color-border)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: 'var(--color-primary)',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {m.name
+                              ? m.name
+                                  .split(' ')
+                                  .map((n) => n[0])
+                                  .join('')
+                                  .slice(0, 2)
+                                  .toUpperCase()
+                              : '?'}
                           </div>
                           <div>
                             <div style={{ fontWeight: 600, fontSize: 14 }}>{m.name}</div>
-                            <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{m.email}</div>
+                            <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+                              {m.email}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -201,7 +249,14 @@ export default function MembersPage() {
                       </td>
                       <td>{formatDate(m.joined_at)}</td>
                       <td>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            gap: 8,
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                          }}
+                        >
                           {m.role === 'owner' ? (
                             <span className="text-muted">Owner</span>
                           ) : (
@@ -218,12 +273,24 @@ export default function MembersPage() {
                           )}
                           {confirmDelete === m.user_id ? (
                             <span className="inline-confirm">
-                              <button className="btn btn-sm btn-danger" onClick={() => handleRemoveMember(m.user_id)}>Yes</button>
-                              <button className="btn btn-sm" onClick={() => setConfirmDelete(null)}>No</button>
+                              <button
+                                className="btn btn-sm btn-danger"
+                                onClick={() => handleRemoveMember(m.user_id)}
+                              >
+                                Yes
+                              </button>
+                              <button className="btn btn-sm" onClick={() => setConfirmDelete(null)}>
+                                No
+                              </button>
                             </span>
                           ) : (
-                            <button className="btn btn-sm btn-danger" onClick={() => setConfirmDelete(m.user_id)}>
-                              <span className="ms" style={{ fontSize: 14 }}>person_remove</span>
+                            <button
+                              className="btn btn-sm btn-danger"
+                              onClick={() => setConfirmDelete(m.user_id)}
+                            >
+                              <span className="ms" style={{ fontSize: 14 }}>
+                                person_remove
+                              </span>
                             </button>
                           )}
                         </div>
@@ -258,7 +325,9 @@ export default function MembersPage() {
               </button>
               <h3>{selectedGroup.name}</h3>
               {selectedGroup.description && (
-                <p className="text-muted" style={{ marginBottom: 16 }}>{selectedGroup.description}</p>
+                <p className="text-muted" style={{ marginBottom: 16 }}>
+                  {selectedGroup.description}
+                </p>
               )}
 
               {(() => {
@@ -290,7 +359,9 @@ export default function MembersPage() {
                           refreshGroupMembers();
                           refreshGroups();
                         } catch (err) {
-                          setGroupActionError(err instanceof Error ? err.message : 'Failed to add member');
+                          setGroupActionError(
+                            err instanceof Error ? err.message : 'Failed to add member',
+                          );
                         }
                       }}
                     >
@@ -305,7 +376,9 @@ export default function MembersPage() {
               })()}
 
               {groupMembersError && (
-                <p className="form-error" style={{ marginBottom: 8 }}>{groupMembersError}</p>
+                <p className="form-error" style={{ marginBottom: 8 }}>
+                  {groupMembersError}
+                </p>
               )}
 
               {groupMembersLoading ? (
@@ -336,18 +409,29 @@ export default function MembersPage() {
                                   if (!orgSlug) return;
                                   setGroupActionError(null);
                                   try {
-                                    await groupsApi.removeMember(orgSlug, selectedGroup.slug, gm.user_id);
+                                    await groupsApi.removeMember(
+                                      orgSlug,
+                                      selectedGroup.slug,
+                                      gm.user_id,
+                                    );
                                     setConfirmRemoveGroupMember(null);
                                     refreshGroupMembers();
                                   } catch (err) {
-                                    setGroupActionError(err instanceof Error ? err.message : 'Failed to remove member');
+                                    setGroupActionError(
+                                      err instanceof Error
+                                        ? err.message
+                                        : 'Failed to remove member',
+                                    );
                                     setConfirmRemoveGroupMember(null);
                                   }
                                 }}
                               >
                                 Yes
                               </button>{' '}
-                              <button className="btn btn-sm" onClick={() => setConfirmRemoveGroupMember(null)}>
+                              <button
+                                className="btn btn-sm"
+                                onClick={() => setConfirmRemoveGroupMember(null)}
+                              >
                                 No
                               </button>
                             </span>
@@ -410,26 +494,39 @@ export default function MembersPage() {
                         setShowCreateGroup(false);
                         refreshGroups();
                       } catch (err) {
-                        setGroupActionError(err instanceof Error ? err.message : 'Failed to create group');
+                        setGroupActionError(
+                          err instanceof Error ? err.message : 'Failed to create group',
+                        );
                       }
                     }}
                   >
                     Create
                   </button>
-                  <button className="btn btn-sm" onClick={() => { setShowCreateGroup(false); setNewGroupName(''); setNewGroupDescription(''); }}>
+                  <button
+                    className="btn btn-sm"
+                    onClick={() => {
+                      setShowCreateGroup(false);
+                      setNewGroupName('');
+                      setNewGroupDescription('');
+                    }}
+                  >
                     Cancel
                   </button>
                 </div>
               )}
 
               {groupsError && (
-                <p className="form-error" style={{ marginBottom: 8 }}>{groupsError}</p>
+                <p className="form-error" style={{ marginBottom: 8 }}>
+                  {groupsError}
+                </p>
               )}
 
               {groupsLoading ? (
                 <div className="empty-state">Loading groups…</div>
               ) : groups.length === 0 ? (
-                <div className="empty-state card"><p>No groups yet. Create one above.</p></div>
+                <div className="empty-state card">
+                  <p>No groups yet. Create one above.</p>
+                </div>
               ) : (
                 <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
                   <table>
@@ -455,29 +552,54 @@ export default function MembersPage() {
                           </td>
                           <td className="text-secondary">{g.description}</td>
                           <td>
-                            <span className="badge" style={{ background: 'var(--color-bg-elevated)', color: 'var(--color-text-secondary)' }}>
+                            <span
+                              className="badge"
+                              style={{
+                                background: 'var(--color-bg-elevated)',
+                                color: 'var(--color-text-secondary)',
+                              }}
+                            >
                               {g.member_count}
                             </span>
                           </td>
                           <td>
                             {confirmDeleteGroup === g.id ? (
                               <span className="inline-confirm">
-                                <button className="btn btn-sm btn-danger" onClick={async () => {
-                                  if (!orgSlug) return;
-                                  setGroupActionError(null);
-                                  try {
-                                    await groupsApi.delete(orgSlug, g.slug);
-                                    setConfirmDeleteGroup(null);
-                                    refreshGroups();
-                                  } catch (err) {
-                                    setGroupActionError(err instanceof Error ? err.message : 'Failed to delete group');
-                                    setConfirmDeleteGroup(null);
-                                  }
-                                }}>Yes</button>
-                                <button className="btn btn-sm" onClick={() => setConfirmDeleteGroup(null)}>No</button>
+                                <button
+                                  className="btn btn-sm btn-danger"
+                                  onClick={async () => {
+                                    if (!orgSlug) return;
+                                    setGroupActionError(null);
+                                    try {
+                                      await groupsApi.delete(orgSlug, g.slug);
+                                      setConfirmDeleteGroup(null);
+                                      refreshGroups();
+                                    } catch (err) {
+                                      setGroupActionError(
+                                        err instanceof Error
+                                          ? err.message
+                                          : 'Failed to delete group',
+                                      );
+                                      setConfirmDeleteGroup(null);
+                                    }
+                                  }}
+                                >
+                                  Yes
+                                </button>
+                                <button
+                                  className="btn btn-sm"
+                                  onClick={() => setConfirmDeleteGroup(null)}
+                                >
+                                  No
+                                </button>
                               </span>
                             ) : (
-                              <button className="btn btn-sm btn-danger" onClick={() => setConfirmDeleteGroup(g.id)}>Delete</button>
+                              <button
+                                className="btn btn-sm btn-danger"
+                                onClick={() => setConfirmDeleteGroup(g.id)}
+                              >
+                                Delete
+                              </button>
                             )}
                           </td>
                         </tr>

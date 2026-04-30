@@ -81,10 +81,30 @@ export default function OrgStatusPage() {
       </div>
 
       <div className="stat-grid" style={{ marginBottom: 24 }}>
-        <StatCard label="Healthy" value={globalCounts.healthy} color="var(--color-success)" icon="check_circle" />
-        <StatCard label="Degraded" value={globalCounts.degraded} color="var(--color-warning)" icon="warning" />
-        <StatCard label="Unhealthy" value={globalCounts.unhealthy} color="var(--color-danger)" icon="error" />
-        <StatCard label="Unknown" value={globalCounts.unknown} color="var(--color-text-muted)" icon="help" />
+        <StatCard
+          label="Healthy"
+          value={globalCounts.healthy}
+          color="var(--color-success)"
+          icon="check_circle"
+        />
+        <StatCard
+          label="Degraded"
+          value={globalCounts.degraded}
+          color="var(--color-warning)"
+          icon="warning"
+        />
+        <StatCard
+          label="Unhealthy"
+          value={globalCounts.unhealthy}
+          color="var(--color-danger)"
+          icon="error"
+        />
+        <StatCard
+          label="Unknown"
+          value={globalCounts.unknown}
+          color="var(--color-text-muted)"
+          icon="help"
+        />
       </div>
 
       <div className="org-status-summary">
@@ -110,12 +130,12 @@ export default function OrgStatusPage() {
         </div>
         <div className="org-status-refresh" style={{ marginLeft: 'auto' }}>
           {lastFetched && (
-            <span className="org-status-timestamp">
-              Updated {relativeTime(lastFetched)}
-            </span>
+            <span className="org-status-timestamp">Updated {relativeTime(lastFetched)}</span>
           )}
           <button className="btn btn-secondary btn-sm" type="button" onClick={load}>
-            <span className="ms" style={{ fontSize: 14 }}>refresh</span>
+            <span className="ms" style={{ fontSize: 14 }}>
+              refresh
+            </span>
             Refresh
           </button>
         </div>
@@ -140,7 +160,10 @@ export default function OrgStatusPage() {
         {visibleProjects.map((p) => {
           const isCollapsed = !!collapsed[p.project.id];
           return (
-            <section key={p.project.id} className={`org-status-project-card health-${p.aggregate_health}`}>
+            <section
+              key={p.project.id}
+              className={`org-status-project-card health-${p.aggregate_health}`}
+            >
               <button
                 type="button"
                 className={`org-status-project-bar health-${p.aggregate_health}`}
@@ -242,7 +265,8 @@ function EnvCard({ cell }: { cell: OrgStatusEnvCell }) {
   } else {
     classes.push(`health-${cell.health.state}`);
     if (cell.health.staleness === 'stale') classes.push('stale');
-    if (cell.health.staleness === 'missing' && cell.health.state !== 'unknown') classes.push('missing');
+    if (cell.health.staleness === 'missing' && cell.health.state !== 'unknown')
+      classes.push('missing');
   }
   const version = cell.current_deployment?.version;
   const completed = cell.current_deployment?.completed_at;
@@ -253,7 +277,13 @@ function EnvCard({ cell }: { cell: OrgStatusEnvCell }) {
         <span className="env-card-slug">{label}</span>
       </div>
       <div className="env-card-version">
-        {cell.never_deployed ? <span className="dim">no deploys</span> : version ? shortVersion(version) : '—'}
+        {cell.never_deployed ? (
+          <span className="dim">no deploys</span>
+        ) : version ? (
+          shortVersion(version)
+        ) : (
+          '—'
+        )}
       </div>
       {!cell.never_deployed && completed && (
         <div className="env-card-meta">{relativeTime(completed)}</div>
@@ -272,7 +302,11 @@ function MonitoringLinkIcon({ link }: { link: MonitoringLink }) {
       className="org-status-link-icon"
       title={link.label}
     >
-      {link.icon === 'custom' ? <Favicon url={link.url} label={link.label} /> : glyph ?? link.label}
+      {link.icon === 'custom' ? (
+        <Favicon url={link.url} label={link.label} />
+      ) : (
+        (glyph ?? link.label)
+      )}
     </a>
   );
 }
@@ -300,7 +334,17 @@ function Favicon({ url, label }: { url: string; label: string }) {
   );
 }
 
-function StatCard({ label, value, color, icon }: { label: string; value: number; color: string; icon?: string }) {
+function StatCard({
+  label,
+  value,
+  color,
+  icon,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  icon?: string;
+}) {
   return (
     <div className="stat-card stat-card-with-icon">
       {icon && (
@@ -309,7 +353,9 @@ function StatCard({ label, value, color, icon }: { label: string; value: number;
         </span>
       )}
       <div className="stat-label">{label}</div>
-      <div className="stat-value" style={{ color, fontFamily: 'var(--font-display)' }}>{value}</div>
+      <div className="stat-value" style={{ color, fontFamily: 'var(--font-display)' }}>
+        {value}
+      </div>
     </div>
   );
 }
@@ -352,7 +398,8 @@ function shortVersion(v: string): string {
 
 function relativeTime(ts: string | number | Date | null | undefined): string {
   if (!ts) return '—';
-  const then = typeof ts === 'string' || typeof ts === 'number' ? new Date(ts).getTime() : ts.getTime();
+  const then =
+    typeof ts === 'string' || typeof ts === 'number' ? new Date(ts).getTime() : ts.getTime();
   const diff = Date.now() - then;
   if (diff < 0) return 'just now';
   const s = Math.floor(diff / 1000);
@@ -367,7 +414,8 @@ function relativeTime(ts: string | number | Date | null | undefined): string {
 }
 
 function tooltipFor(cell: OrgStatusEnvCell): string {
-  if (cell.never_deployed) return `${cell.environment.name ?? cell.environment.slug}: never deployed`;
+  if (cell.never_deployed)
+    return `${cell.environment.name ?? cell.environment.slug}: never deployed`;
   const envName = cell.environment.name ?? cell.environment.slug ?? '';
   const version = cell.current_deployment?.version ?? '—';
   const health = cell.health.state;
@@ -402,4 +450,3 @@ function iconFor(icon?: string): string | null {
       return null;
   }
 }
-

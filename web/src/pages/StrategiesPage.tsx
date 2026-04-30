@@ -57,7 +57,9 @@ export default function StrategiesPage() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <label className="btn btn-secondary">
-            <span className="ms" style={{ fontSize: 16 }}>upload</span>
+            <span className="ms" style={{ fontSize: 16 }}>
+              upload
+            </span>
             Import YAML
             <input
               type="file"
@@ -67,7 +69,9 @@ export default function StrategiesPage() {
             />
           </label>
           <button className="btn btn-primary" onClick={() => setEditing('new')}>
-            <span className="ms" style={{ fontSize: 16 }}>add</span>
+            <span className="ms" style={{ fontSize: 16 }}>
+              add
+            </span>
             New Strategy
           </button>
         </div>
@@ -75,7 +79,17 @@ export default function StrategiesPage() {
 
       {loading && (
         <div className="empty-state" style={{ padding: '40px 0' }}>
-          <span className="ms" style={{ fontSize: 32, color: 'var(--color-primary)', marginBottom: 12, display: 'block' }}>sync</span>
+          <span
+            className="ms"
+            style={{
+              fontSize: 32,
+              color: 'var(--color-primary)',
+              marginBottom: 12,
+              display: 'block',
+            }}
+          >
+            sync
+          </span>
           Loading strategies…
         </div>
       )}
@@ -83,11 +97,27 @@ export default function StrategiesPage() {
 
       {!loading && items.length === 0 && (
         <div className="empty-state card" style={{ padding: '48px 24px' }}>
-          <span className="ms" style={{ fontSize: 40, color: 'var(--color-text-muted)', marginBottom: 12, display: 'block' }}>architecture</span>
+          <span
+            className="ms"
+            style={{
+              fontSize: 40,
+              color: 'var(--color-text-muted)',
+              marginBottom: 12,
+              display: 'block',
+            }}
+          >
+            architecture
+          </span>
           <h3>No strategies yet</h3>
           <p>Create a strategy to control how deployments and flag changes roll out.</p>
-          <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={() => setEditing('new')}>
-            <span className="ms" style={{ fontSize: 16 }}>add</span>
+          <button
+            className="btn btn-primary"
+            style={{ marginTop: 16 }}
+            onClick={() => setEditing('new')}
+          >
+            <span className="ms" style={{ fontSize: 16 }}>
+              add
+            </span>
             New Strategy
           </button>
         </div>
@@ -95,10 +125,31 @@ export default function StrategiesPage() {
 
       {items.length > 0 && (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>architecture</span>
-            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>Strategies</span>
-            <span className="badge" style={{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)', marginLeft: 4 }}>{items.length}</span>
+          <div
+            style={{
+              padding: '12px 20px',
+              borderBottom: '1px solid var(--color-border)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>
+              architecture
+            </span>
+            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>
+              Strategies
+            </span>
+            <span
+              className="badge"
+              style={{
+                background: 'var(--color-primary-bg)',
+                color: 'var(--color-primary)',
+                marginLeft: 4,
+              }}
+            >
+              {items.length}
+            </span>
           </div>
           <div className="table-container">
             <table>
@@ -117,15 +168,36 @@ export default function StrategiesPage() {
                   <tr key={eff.strategy.id}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{
-                          width: 32, height: 32, borderRadius: 8,
-                          background: 'var(--color-primary-bg)', border: '1px solid rgba(99,102,241,0.2)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                        }}>
-                          <span className="ms" style={{ fontSize: 16, color: 'var(--color-primary)' }}>architecture</span>
+                        <div
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 8,
+                            background: 'var(--color-primary-bg)',
+                            border: '1px solid rgba(99,102,241,0.2)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <span
+                            className="ms"
+                            style={{ fontSize: 16, color: 'var(--color-primary)' }}
+                          >
+                            architecture
+                          </span>
                         </div>
                         <button
-                          style={{ fontWeight: 600, background: 'none', border: 'none', color: 'var(--color-text)', cursor: 'pointer', padding: 0, textAlign: 'left' }}
+                          style={{
+                            fontWeight: 600,
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--color-text)',
+                            cursor: 'pointer',
+                            padding: 0,
+                            textAlign: 'left',
+                          }}
                           onClick={() => setEditing(eff.strategy.name)}
                         >
                           {eff.strategy.name}
@@ -146,7 +218,9 @@ export default function StrategiesPage() {
                       {eff.strategy.is_system ? (
                         <span className="badge badge-permission">system</span>
                       ) : (
-                        <span className="badge" style={{ color: 'var(--color-text-muted)' }}>custom</span>
+                        <span className="badge" style={{ color: 'var(--color-text-muted)' }}>
+                          custom
+                        </span>
                       )}
                     </td>
                     <td>
@@ -167,8 +241,17 @@ export default function StrategiesPage() {
                           Export
                         </button>
                         {!eff.strategy.is_system && !eff.is_inherited && (
-                          <button className="btn-icon" title="Delete" onClick={() => handleDelete(eff.strategy.name)}>
-                            <span className="ms" style={{ fontSize: 16, color: 'var(--color-danger)' }}>delete</span>
+                          <button
+                            className="btn-icon"
+                            title="Delete"
+                            onClick={() => handleDelete(eff.strategy.name)}
+                          >
+                            <span
+                              className="ms"
+                              style={{ fontSize: 16, color: 'var(--color-danger)' }}
+                            >
+                              delete
+                            </span>
                           </button>
                         )}
                       </div>
@@ -185,7 +268,10 @@ export default function StrategiesPage() {
         <StrategyEditor
           orgSlug={orgSlug}
           strategyName={editing === 'new' ? null : editing}
-          onClose={() => { setEditing(null); load(); }}
+          onClose={() => {
+            setEditing(null);
+            load();
+          }}
         />
       )}
     </div>

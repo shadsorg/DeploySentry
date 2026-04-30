@@ -8,10 +8,10 @@ interface JwtPayload {
 }
 
 function base64UrlDecode(input: string): string {
-  const padded = input.replace(/-/g, '+').replace(/_/g, '/').padEnd(
-    input.length + ((4 - (input.length % 4)) % 4),
-    '=',
-  );
+  const padded = input
+    .replace(/-/g, '+')
+    .replace(/_/g, '/')
+    .padEnd(input.length + ((4 - (input.length % 4)) % 4), '=');
   return atob(padded);
 }
 

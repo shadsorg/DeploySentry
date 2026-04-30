@@ -96,7 +96,11 @@ export default function FlagCreatePage() {
           .map((s) => s.trim())
           .filter(Boolean),
         is_permanent: form.is_permanent,
-        expires_at: form.is_permanent ? undefined : form.expires_at ? form.expires_at + ':00Z' : undefined,
+        expires_at: form.is_permanent
+          ? undefined
+          : form.expires_at
+            ? form.expires_at + ':00Z'
+            : undefined,
         default_value: form.default_value,
         tags: form.tags
           .split(',')
@@ -117,21 +121,48 @@ export default function FlagCreatePage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <Link
             to={backPath}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, color: 'var(--color-text-muted)', textDecoration: 'none' }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              fontSize: 13,
+              color: 'var(--color-text-muted)',
+              textDecoration: 'none',
+            }}
           >
-            <span className="ms" style={{ fontSize: 14 }}>arrow_back</span>
+            <span className="ms" style={{ fontSize: 14 }}>
+              arrow_back
+            </span>
             Flags
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: 10,
-              background: 'var(--color-primary-bg)', border: '1px solid rgba(99,102,241,0.25)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}>
-              <span className="ms" style={{ fontSize: 20, color: 'var(--color-primary)' }}>toggle_on</span>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: 'var(--color-primary-bg)',
+                border: '1px solid rgba(99,102,241,0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <span className="ms" style={{ fontSize: 20, color: 'var(--color-primary)' }}>
+                toggle_on
+              </span>
             </div>
             <div className="page-header" style={{ marginBottom: 0 }}>
-              <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, letterSpacing: '-0.02em' }}>Create Feature Flag</h1>
+              <h1
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 800,
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                Create Feature Flag
+              </h1>
               <p>Define a new flag with targeting rules and ownership.</p>
             </div>
           </div>
@@ -310,12 +341,25 @@ export default function FlagCreatePage() {
         </div>
 
         <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
-          <button type="submit" className="btn btn-primary" disabled={submitting} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <span className="ms" style={{ fontSize: 16 }}>{submitting ? 'hourglass_empty' : 'add_circle'}</span>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={submitting}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <span className="ms" style={{ fontSize: 16 }}>
+              {submitting ? 'hourglass_empty' : 'add_circle'}
+            </span>
             {submitting ? 'Creating...' : 'Create Flag'}
           </button>
-          <Link to={backPath} className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <span className="ms" style={{ fontSize: 16 }}>close</span>
+          <Link
+            to={backPath}
+            className="btn btn-secondary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <span className="ms" style={{ fontSize: 16 }}>
+              close
+            </span>
             Cancel
           </Link>
         </div>

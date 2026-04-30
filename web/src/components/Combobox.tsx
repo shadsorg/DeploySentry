@@ -48,9 +48,7 @@ export default function Combobox({
     const q = value.trim().toLowerCase();
     if (!q) return options;
     return options.filter(
-      (o) =>
-        o.value.toLowerCase().includes(q) ||
-        (o.label && o.label.toLowerCase().includes(q)),
+      (o) => o.value.toLowerCase().includes(q) || (o.label && o.label.toLowerCase().includes(q)),
     );
   }, [options, value]);
 
@@ -157,8 +155,7 @@ export default function Combobox({
               style={{
                 padding: '6px 10px',
                 cursor: 'pointer',
-                background:
-                  i === highlight ? 'var(--color-surface-hover, #f2f2f2)' : 'transparent',
+                background: i === highlight ? 'var(--color-surface-hover, #f2f2f2)' : 'transparent',
               }}
             >
               <div style={{ fontWeight: 500 }}>{opt.label ?? opt.value}</div>
@@ -172,10 +169,7 @@ export default function Combobox({
         </ul>
       )}
       {showCreateHint && (
-        <div
-          className="text-sm"
-          style={{ marginTop: 4, color: 'var(--color-text-muted, #888)' }}
-        >
+        <div className="text-sm" style={{ marginTop: 4, color: 'var(--color-text-muted, #888)' }}>
           Will create new: <code>{value}</code>
         </div>
       )}

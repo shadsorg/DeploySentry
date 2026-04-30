@@ -99,12 +99,23 @@ const ReleasesPage: React.FC = () => {
     );
   }
 
-  if (loading) return (
-    <div className="empty-state" style={{ padding: '40px 0' }}>
-      <span className="ms" style={{ fontSize: 32, color: 'var(--color-primary)', marginBottom: 12, display: 'block' }}>sync</span>
-      Loading releases…
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="empty-state" style={{ padding: '40px 0' }}>
+        <span
+          className="ms"
+          style={{
+            fontSize: 32,
+            color: 'var(--color-primary)',
+            marginBottom: 12,
+            display: 'block',
+          }}
+        >
+          sync
+        </span>
+        Loading releases…
+      </div>
+    );
   if (error) return <div className="page-error">Error: {error}</div>;
 
   return (
@@ -115,7 +126,9 @@ const ReleasesPage: React.FC = () => {
           <p>Coordinate flag changes across environments with managed releases</p>
         </div>
         <button className="btn btn-primary">
-          <span className="ms" style={{ fontSize: 16 }}>add</span>
+          <span className="ms" style={{ fontSize: 16 }}>
+            add
+          </span>
           Create Release
         </button>
       </div>
@@ -133,10 +146,31 @@ const ReleasesPage: React.FC = () => {
       </div>
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '12px 20px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>local_shipping</span>
-          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>Releases</span>
-          <span className="badge" style={{ background: 'var(--color-primary-bg)', color: 'var(--color-primary)', marginLeft: 4 }}>{filtered.length}</span>
+        <div
+          style={{
+            padding: '12px 20px',
+            borderBottom: '1px solid var(--color-border)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
+          <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>
+            local_shipping
+          </span>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>
+            Releases
+          </span>
+          <span
+            className="badge"
+            style={{
+              background: 'var(--color-primary-bg)',
+              color: 'var(--color-primary)',
+              marginLeft: 4,
+            }}
+          >
+            {filtered.length}
+          </span>
         </div>
         <div className="table-container">
           <table>
@@ -155,7 +189,17 @@ const ReleasesPage: React.FC = () => {
                 <tr>
                   <td colSpan={6}>
                     <div className="empty-state" style={{ padding: '40px 0' }}>
-                      <span className="ms" style={{ fontSize: 36, display: 'block', marginBottom: 12, color: 'var(--color-text-muted)' }}>local_shipping</span>
+                      <span
+                        className="ms"
+                        style={{
+                          fontSize: 36,
+                          display: 'block',
+                          marginBottom: 12,
+                          color: 'var(--color-text-muted)',
+                        }}
+                      >
+                        local_shipping
+                      </span>
                       <h3>No releases found</h3>
                       <p>There are no releases matching the selected filter.</p>
                     </div>

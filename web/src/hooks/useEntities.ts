@@ -51,7 +51,11 @@ export function useProjects(orgSlug: string | undefined, includeDeleted = false)
   return { projects, loading, error, refresh };
 }
 
-export function useApps(orgSlug: string | undefined, projectSlug: string | undefined, includeDeleted = false) {
+export function useApps(
+  orgSlug: string | undefined,
+  projectSlug: string | undefined,
+  includeDeleted = false,
+) {
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -289,7 +289,7 @@ func (h *Handler) lookupProviderIntegration(ctx context.Context, provider string
 	case models.DeployProviderRailway:
 		serviceID := stringFromPath(raw, "service.id")
 		if serviceID == "" {
-			return nil, fmt.Errorf("Railway payload missing service.id")
+			return nil, fmt.Errorf("railway payload missing service.id")
 		}
 		match = func(cfg map[string]any) bool {
 			if cfg == nil {
@@ -301,7 +301,7 @@ func (h *Handler) lookupProviderIntegration(ctx context.Context, provider string
 	case models.DeployProviderRender:
 		serviceID := stringFromPath(raw, "data.service.id")
 		if serviceID == "" {
-			return nil, fmt.Errorf("Render payload missing data.service.id")
+			return nil, fmt.Errorf("render payload missing data.service.id")
 		}
 		match = func(cfg map[string]any) bool {
 			if cfg == nil {
@@ -313,7 +313,7 @@ func (h *Handler) lookupProviderIntegration(ctx context.Context, provider string
 	case models.DeployProviderHeroku:
 		appName := stringFromPath(raw, "data.app.name")
 		if appName == "" {
-			return nil, fmt.Errorf("Heroku payload missing data.app.name")
+			return nil, fmt.Errorf("heroku payload missing data.app.name")
 		}
 		match = func(cfg map[string]any) bool {
 			if cfg == nil {
@@ -325,7 +325,7 @@ func (h *Handler) lookupProviderIntegration(ctx context.Context, provider string
 	case models.DeployProviderVercel:
 		projectID := stringFromPath(raw, "payload.project.id")
 		if projectID == "" {
-			return nil, fmt.Errorf("Vercel payload missing payload.project.id")
+			return nil, fmt.Errorf("vercel payload missing payload.project.id")
 		}
 		match = func(cfg map[string]any) bool {
 			if cfg == nil {
@@ -337,7 +337,7 @@ func (h *Handler) lookupProviderIntegration(ctx context.Context, provider string
 	case models.DeployProviderNetlify:
 		siteID := stringFromPath(raw, "site_id")
 		if siteID == "" {
-			return nil, fmt.Errorf("Netlify payload missing site_id")
+			return nil, fmt.Errorf("netlify payload missing site_id")
 		}
 		match = func(cfg map[string]any) bool {
 			if cfg == nil {
@@ -349,7 +349,7 @@ func (h *Handler) lookupProviderIntegration(ctx context.Context, provider string
 	case models.DeployProviderGitHubActions:
 		repoFull := stringFromPath(raw, "repository.full_name")
 		if repoFull == "" {
-			return nil, fmt.Errorf("GitHub Actions payload missing repository.full_name")
+			return nil, fmt.Errorf("github actions payload missing repository.full_name")
 		}
 		match = func(cfg map[string]any) bool {
 			if cfg == nil {
@@ -361,7 +361,7 @@ func (h *Handler) lookupProviderIntegration(ctx context.Context, provider string
 	case models.DeployProviderFly:
 		appName := stringFromPath(raw, "app.name")
 		if appName == "" {
-			return nil, fmt.Errorf("Fly payload missing app.name")
+			return nil, fmt.Errorf("fly payload missing app.name")
 		}
 		match = func(cfg map[string]any) bool {
 			if cfg == nil {

@@ -81,7 +81,7 @@ func TestHandler_CreateStrategy_ValidationError(t *testing.T) {
 
 func TestHandler_List_ReturnsEffective(t *testing.T) {
 	h, repo, orgID := newTestHandler(t)
-	_ = repo.Create(nil, &models.Strategy{
+	_ = repo.Create(context.Background(), &models.Strategy{
 		ScopeType: models.ScopeOrg, ScopeID: orgID, Name: "std", TargetType: models.TargetTypeDeploy,
 		Steps: []models.Step{{Percent: 100}}, DefaultHealthThreshold: 0.95, DefaultRollbackOnFailure: true,
 	})

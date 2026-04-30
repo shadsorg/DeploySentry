@@ -16,7 +16,6 @@ import (
 func TestLifecycleScheduler_Tick_MarksFiredOnce(t *testing.T) {
 	repo := newMockFlagRepo()
 	cache := newMockCache()
-	svc := NewFlagService(repo, cache, nil)
 
 	flag := &models.FeatureFlag{
 		ID:        uuid.New(),
@@ -29,14 +28,12 @@ func TestLifecycleScheduler_Tick_MarksFiredOnce(t *testing.T) {
 	flag.ScheduledRemovalAt = &due
 	repo.flags[flag.ID] = flag
 
-	sched := NewLifecycleScheduler(svc, nil, time.Minute)
-
 	// Override the fire-marker mock: once marked, subsequent ticks must skip.
 	var markCalls int
 	originalRepo := repo
 	wrappedRepo := &markCountingRepo{mockFlagRepo: originalRepo, markCount: &markCalls}
-	svc = NewFlagService(wrappedRepo, cache, nil)
-	sched = NewLifecycleScheduler(svc, nil, time.Minute)
+	svc := NewFlagService(wrappedRepo, cache, nil)
+	sched := NewLifecycleScheduler(svc, nil, time.Minute)
 
 	require.NoError(t, sched.Tick(context.Background()))
 	require.NoError(t, sched.Tick(context.Background()))
@@ -65,7 +62,7 @@ func (r *markCountingRepo) MarkFlagRemovalFired(ctx context.Context, id uuid.UUI
 	*r.markCount++
 	r.fired[id] = true
 	// Flip the flag's scheduled_removal so ListFlagsDueForRemoval also excludes it.
-	if f, ok := r.mockFlagRepo.flags[id]; ok {
+	if f, ok := r.flags[id]; ok {
 		f.ScheduledRemovalAt = nil
 	}
 	return nil

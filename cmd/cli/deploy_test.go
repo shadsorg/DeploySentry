@@ -32,16 +32,6 @@ func resetDeployListFlags(t *testing.T) {
 	})
 }
 
-func resetDeployRollbackFlags(t *testing.T) {
-	t.Helper()
-	t.Cleanup(func() {
-		if f := deployRollbackCmd.Flags().Lookup("reason"); f != nil {
-			f.Changed = false
-			_ = f.Value.Set(f.DefValue)
-		}
-	})
-}
-
 // stubAppLookup stubs the GET that resolveAppID issues. It must be called
 // BEFORE any stub that registers a more-general /api/v1/orgs/acme/projects
 // prefix, since the mock server matches by registration order.

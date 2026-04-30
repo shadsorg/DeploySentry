@@ -16,8 +16,7 @@ func TestEvaluateAbortConditions_Trips(t *testing.T) {
 	got := EvaluateAbortConditions(step, score)
 	if got == nil {
 		t.Fatalf("expected trip, got nil")
-	}
-	if got.Metric != "error_rate" {
+	} else if got.Metric != "error_rate" {
 		t.Fatalf("wrong metric: %+v", got)
 	}
 }

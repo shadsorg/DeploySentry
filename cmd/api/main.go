@@ -431,7 +431,8 @@ func run() error {
 	auth.NewUserHandler(userRepo).RegisterRoutes(api)
 	auth.NewLoginHandler(userRepo, cfg.Auth).RegisterAuthenticatedRoutes(api)
 	auth.NewAPIKeyHandler(apiKeyService).RegisterRoutes(api)
-	auth.NewAuditHandler(auditRepo).RegisterRoutes(api)
+	// TODO Task 1.6: replace nil with the actual revert registry once flag handlers are wired.
+	auth.NewAuditHandler(auditRepo, nil).RegisterRoutes(api)
 	entities.NewHandler(entityService, rbacChecker, grantService).RegisterRoutes(api)
 	settings.NewHandler(settingService, rbacChecker).RegisterRoutes(api)
 	members.NewHandler(memberService, entityService, rbacChecker).RegisterRoutes(api)

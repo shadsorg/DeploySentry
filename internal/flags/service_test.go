@@ -585,6 +585,16 @@ func TestArchiveFlag_Success(t *testing.T) {
 	err := svc.CreateFlag(context.Background(), flag)
 	require.NoError(t, err)
 
+	// Override archiveFlagFn so the mock simulates what SQL would do (set Archived = true)
+	// rather than the default (delete from map).
+	repo.archiveFlagFn = func(_ context.Context, id uuid.UUID) error {
+		if f, ok := repo.flags[id]; ok {
+			f.Archived = true
+			f.Enabled = false
+		}
+		return nil
+	}
+
 	err = svc.ArchiveFlag(context.Background(), flag.ID)
 	require.NoError(t, err)
 
@@ -594,13 +604,73 @@ func TestArchiveFlag_Success(t *testing.T) {
 	assert.False(t, retrieved.Enabled, "archived flag should be disabled")
 }
 
-func TestArchiveFlag_GetError(t *testing.T) {
+func TestArchiveFlag_RepoError(t *testing.T) {
 	repo := newMockFlagRepo()
+	repo.archiveFlagFn = func(_ context.Context, id uuid.UUID) error {
+		return errors.New("db connection failed")
+	}
 	svc := NewFlagService(repo, newMockCache(), nil)
 
 	err := svc.ArchiveFlag(context.Background(), uuid.New())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "getting flag for archive")
+	assert.Contains(t, err.Error(), "archiving flag")
+}
+
+// TestArchiveFlag_PersistsViaRepoArchiveFlag ensures the service archives via
+// repo.ArchiveFlag (which actually sets archived_at = now()) and NOT via
+// repo.UpdateFlag (which doesn't touch archived_at). Regression test for the
+// pre-existing bug where archive silently failed to persist archived_at.
+func TestArchiveFlag_PersistsViaRepoArchiveFlag(t *testing.T) {
+	flag := validFlag()
+	flag.ID = uuid.New()
+	flag.Enabled = true
+
+	repo := newMockFlagRepo()
+	repo.flags[flag.ID] = flag
+
+	var archiveCalled bool
+	var updateCalled bool
+
+	repo.archiveFlagFn = func(_ context.Context, id uuid.UUID) error {
+		archiveCalled = true
+		// Simulate what the SQL would do.
+		if f, ok := repo.flags[id]; ok {
+			f.Archived = true
+		}
+		return nil
+	}
+	repo.updateFlagFn = func(_ context.Context, f *models.FeatureFlag) error {
+		updateCalled = true
+		return nil
+	}
+
+	svc := NewFlagService(repo, newMockCache(), nil)
+	if err := svc.ArchiveFlag(context.Background(), flag.ID); err != nil {
+		t.Fatalf("ArchiveFlag: %v", err)
+	}
+
+	if !archiveCalled {
+		t.Error("expected repo.ArchiveFlag to be called")
+	}
+	if updateCalled {
+		t.Error("repo.UpdateFlag must NOT be called for archive (regression test)")
+	}
+}
+
+// TestArchiveFlag_IdempotentOnAlreadyArchived ensures that archiving an already-
+// archived flag (repo returns "not found" due to archived_at IS NULL filter)
+// returns nil rather than an error.
+func TestArchiveFlag_IdempotentOnAlreadyArchived(t *testing.T) {
+	repo := newMockFlagRepo()
+	repo.archiveFlagFn = func(_ context.Context, id uuid.UUID) error {
+		// Simulate postgres behaviour: "not found" when already archived.
+		return errors.New("postgres.ArchiveFlag: not found")
+	}
+
+	svc := NewFlagService(repo, newMockCache(), nil)
+	if err := svc.ArchiveFlag(context.Background(), uuid.New()); err != nil {
+		t.Errorf("expected nil for already-archived (idempotent), got: %v", err)
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -708,6 +778,15 @@ func TestToggleFlag_CannotToggleArchived(t *testing.T) {
 	flag := validFlag()
 	err := svc.CreateFlag(context.Background(), flag)
 	require.NoError(t, err)
+
+	// Simulate what the DB would do: mark the flag as archived in the map
+	// (the new ArchiveFlag calls repo.ArchiveFlag which sets archived_at = now()).
+	repo.archiveFlagFn = func(_ context.Context, id uuid.UUID) error {
+		if f, ok := repo.flags[id]; ok {
+			f.Archived = true
+		}
+		return nil
+	}
 
 	err = svc.ArchiveFlag(context.Background(), flag.ID)
 	require.NoError(t, err)

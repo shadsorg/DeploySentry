@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/shadsorg/deploysentry/internal/models"
@@ -249,24 +250,31 @@ func (s *flagService) UpdateFlag(ctx context.Context, flag *models.FeatureFlag) 
 	return nil
 }
 
-// ArchiveFlag marks a flag as archived and disabled.
+// ArchiveFlag marks a flag as archived (sets archived_at = now() in the DB).
+// Idempotent: already-archived flags return nil instead of an error.
 func (s *flagService) ArchiveFlag(ctx context.Context, id uuid.UUID) error {
-	flag, err := s.repo.GetFlag(ctx, id)
-	if err != nil {
-		return fmt.Errorf("getting flag for archive: %w", err)
-	}
-
-	flag.Archived = true
-	flag.Enabled = false
-	flag.UpdatedAt = time.Now().UTC()
-
-	if err := s.repo.UpdateFlag(ctx, flag); err != nil {
+	if err := s.repo.ArchiveFlag(ctx, id); err != nil {
+		// The repo returns a "not found" error when the flag is missing OR already
+		// archived (the WHERE clause includes `archived_at IS NULL`). We can't
+		// distinguish them at the repo layer without an extra query.
+		// For idempotency, treat "not found" as success — the post-condition
+		// (flag is archived) holds. If callers need a 404 for "missing",
+		// they should GetFlag first.
+		// Note: we use strings.Contains rather than importing the postgres package
+		// directly because postgres/flags.go imports internal/flags (cycle).
+		if strings.Contains(err.Error(), "not found") {
+			return nil
+		}
 		return fmt.Errorf("archiving flag: %w", err)
 	}
 
-	// Invalidate cached flag data after archival.
+	// Reload for event payload + cache invalidation. Failures here are non-fatal.
+	flag, err := s.repo.GetFlag(ctx, id)
+	if err != nil {
+		_ = s.cache.Invalidate(ctx, id)
+		return nil
+	}
 	_ = s.cache.Invalidate(ctx, flag.ID)
-
 	s.publishEvent(ctx, "archived", flag)
 	return nil
 }

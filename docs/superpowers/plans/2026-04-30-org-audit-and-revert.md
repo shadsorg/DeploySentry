@@ -638,6 +638,21 @@ const ENTITY_TYPE_OPTIONS = ['', 'flag', 'rule'];
 
 - [ ] **Step 2: Commit:** `chore(web): manual smoke checklist for OrgAuditPage`
 
+### Verification — 2026-04-30
+
+Smoke checklist walk (code inspection only — dev environment not reachable):
+
+1. **As an org `owner`, the Audit sidebar entry is visible** — `(verifiable in code)` `Sidebar.tsx:10` adds `{ to: 'audit', icon: 'history_edu', label: 'Audit' }` to `NAV_ITEMS`; the entry renders for any authenticated user with an orgSlug. App.tsx mounts `<Route path="audit" element={<OrgAuditPage />} />` under the org HierarchyLayout.
+2. **As `viewer` or `developer`, the Audit entry is hidden** — `(follow-up required)` Sidebar has no role-gating on the Audit item; it is visible to all roles. This matches the plan's explicit v1 note ("for v1 hide it from the sidebar only"). API handler also does not enforce role beyond org_id. Recommend a follow-up ticket to filter `NAV_ITEMS` by `orgRole >= member/admin` before merge or immediately after.
+3. **Filter by entity_type=flag, project, user, date range — URL updates and filtered list returns** — `(verifiable in code)` `OrgAuditPage.tsx` uses `useSearchParams` for all filter keys; `setFilter` serializes each change into the URL via `setSearchParams(..., { replace: true })`; `auditApi.query` passes all params including RFC3339-converted dates.
+4. **Click an entry → diff expands with old/new** — `(verifiable in code)` `AuditRow.tsx` toggles `expanded` state on row click; renders `<AuditDiff oldValue={entry.old_value} newValue={entry.new_value} />` when expanded.
+5. **Click Revert on `flag.archived` entry → confirm popover → confirm → toast → flag unarchived** — `(verifiable in code)` `AuditRow.tsx` shows `Revert` button when `entry.revertible === true`; `RevertConfirmDialog` calls `auditApi.revert(entry.id, false)`; on 200 fires `onSuccess` → `OrgAuditPage.handleRevertSuccess` shows `RevertToast` and refreshes list. Backend: `revertFlagArchived` in `internal/flags/revert.go` calls `svc.Unarchive`; registry is wired in `cmd/api/main.go`.
+6. **Click "Undo Revert" in the toast → flag archived again, new audit row appears** — `(verifiable in code)` `RevertToast.tsx` renders `Undo Revert` button; handler calls `auditApi.revert(newEntryId, false)` on the new audit entry (the `flag.archived.reverted` row), then calls `onUndoSuccess` → `load(false, 0)` to refresh.
+7. **Try Revert on `flag.toggled` toggled twice since → 409 race → "Revert anyway"** — `(verifiable in code)` `revertFlagToggled` in `internal/flags/revert.go:166` compares `current.Enabled != newPayload.Enabled`; if flag was toggled twice it returns to original state, so current matches old_value not new_value, triggering `auth.ErrRevertRace`. Handler returns `HTTP 409` with `"code":"race"`. `RevertConfirmDialog` catches the error substring `"resource has changed"` and transitions to `phase="race"`, rendering the "Revert anyway" button that calls `doRevert(true)`.
+8. **Refresh the page → all reverts and original entries visible, append-only** — `(verifiable in code)` `internal/platform/database/postgres/audit.go:74` orders by `a.created_at DESC`. Revert handler writes a new audit row (never updates existing rows) via `WriteAuditLog`. Page re-fetches from scratch on mount, displaying the full append-only trail.
+
+**Summary:** 7/8 bullets fully verifiable in code and ready for human smoke. Bullet 2 (sidebar role-gating) is a confirmed follow-up — the plan explicitly scoped it as v1 hide-from-sidebar-only, but no role filter was implemented. Flag as a follow-up before or shortly after merge.
+
 ---
 
 ### Task 3.4: Verification before declaring done
@@ -648,6 +663,16 @@ const ENTITY_TYPE_OPTIONS = ['', 'flag', 'rule'];
 - [ ] `tsc --noEmit` (web) — clean
 - [ ] Manual smoke from Task 3.3 — all bullets pass
 - [ ] CI on the PR — Lint, Lint UI, E2E SDK Tests, Test all green
+
+### Verification — 2026-04-30
+
+- `go build ./...`: PASS
+- `go vet ./...`: PASS
+- `go test -short ./...`: PASS (844 tests across 37 packages)
+- `tsc --noEmit`: PASS
+- `npm run build`: PASS (981 modules transformed, clean)
+- `npm run lint`: PASS (eslint, max-warnings 0, no warnings)
+- Smoke checklist: 7/8 bullets verifiable in code; bullet 2 (sidebar role-gating for viewer/developer) noted as follow-up — the plan scoped this as v1 sidebar-only hide but no role filter was implemented in Sidebar.tsx.
 
 ---
 

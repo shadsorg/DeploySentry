@@ -938,6 +938,37 @@ const handleHardDelete = async () => {
 
 ---
 
+### Verification — 2026-04-30
+
+- `go build ./...`: PASS
+- `go vet ./...`: PASS
+- `go test -short ./...`: PASS — 37 packages, 0 failures
+- `tsc --noEmit`: PASS
+- `npm run build`: PASS
+- `npm run lint`: PASS — max-warnings 0
+- Smoke checklist: 10/10 bullets verifiable in code; none blocked
+
+#### Smoke checklist detail
+
+1. **`ArchiveFlag` persists `archived_at`** — `service.ArchiveFlag` calls `repo.ArchiveFlag` (line 274 service.go); `postgres.ArchiveFlag` runs `UPDATE feature_flags SET archived_at = now() WHERE id = $1 AND archived_at IS NULL` (line 494 postgres/flags.go). Wired end-to-end. (verifiable in code)
+2. **FlagDetailPage lifecycle states** — `lifecycleState` derivation at line 340 covers `tombstoned` (deleted_at set), `active` (no archived_at), `within` (archived but retention not elapsed), `elapsed` (retention elapsed). All four have distinct JSX branches at lines 1202, 1217, 1255, 1283. (verifiable in code)
+3. **`POST /flags/:id/queue-deletion` sets `delete_after`** — Route mounted at line 134 handler.go; handler calls `h.service.QueueDeletion(id, RetentionWindow)` at line 607. (verifiable in code)
+4. **Audit log records `flag.queued_for_deletion`** — `h.writeAudit(c, "flag.queued_for_deletion", ...)` at line 612 handler.go. `revertFlagQueuedForDeletion` is registered in `FlagRevertHandlers` (line 33 revert.go); `IsRevertible` returns `true` for registered actions via the registry lookup (revert_registry.go:36); audit handler populates `Revertible` field via `h.registry.IsRevertible(...)` (audit_handler.go:136). (verifiable in code)
+5. **Reverting `flag.queued_for_deletion` clears only `delete_after`** — `revertFlagQueuedForDeletion` calls `svc.ClearDeleteAfter` (revert.go:294), NOT `svc.RestoreFlag`. `archived_at` is not touched. (verifiable in code)
+6. **Sweep job tombstones elapsed flags** — `RetentionSweeper.sweepOnce` calls `s.repo.ListFlagsToHardDelete` then `s.svc.HardDeleteFlag` per ID (retention_sweep.go:52–63). Wired in `cmd/api/main.go` at line 647 as `go retentionSweeper.Run(ctx)`. (verifiable in code)
+7. **`DELETE /flags/:id?force=true` with `X-Confirm-Slug`** — Route mounted at line 135 handler.go. Guards: invalid id → 400 (line 622), missing `?force=true` → 400 (line 626), slug mismatch → 400 (line 637), not archived → 422 (line 641), retention not elapsed (repo returns ErrNotFound) → 422 with message including eligible date (lines 646–651). Success → 204 (line 660). (verifiable in code)
+8. **Reverting `flag.restored` re-archives** — `revertFlagRestored` calls `svc.ArchiveFlag` (revert.go:314) and is registered in `FlagRevertHandlers` (line 34 revert.go). (verifiable in code)
+9. **`flag.hard_deleted` is non-revertible** — `flag.hard_deleted` does NOT appear in `FlagRevertHandlers`; only `flag.queued_for_deletion` and `flag.restored` are registered (revert.go lines 33–34). Registry's "no handler" path returns `ErrNotRevertible`; `IsRevertible` returns `false`; audit list reports `revertible: false`. (verifiable in code)
+10. **Tombstoned flags show read-only banner** — `lifecycleState === 'tombstoned'` branch at line 1283 renders a `.lifecycle-panel` `<div>` with descriptive text only — no action buttons. (verifiable in code)
+
+#### Branch summary
+
+- Total commits since `04b5915` (origin/main, post-#77): 13
+- Files changed: 20
+- Lines added/deleted: +2341 / −56
+
+---
+
 ## Out of scope (call out and don't do)
 
 - **Quarterly compaction job** that actually `DELETE`s tombstoned flags older than the audit retention window. Tombstones live forever in this PR.

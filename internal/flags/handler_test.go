@@ -78,6 +78,10 @@ func (m *mockFlagService) ArchiveFlag(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
+func (m *mockFlagService) UnarchiveFlag(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+
 func (m *mockFlagService) ToggleFlag(ctx context.Context, id uuid.UUID, enabled bool) error {
 	if m.toggleFlagFn != nil {
 		return m.toggleFlagFn(ctx, id, enabled)

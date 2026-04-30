@@ -44,6 +44,9 @@ type FlagService interface {
 	// ArchiveFlag marks a flag as archived, disabling it.
 	ArchiveFlag(ctx context.Context, id uuid.UUID) error
 
+	// UnarchiveFlag restores an archived flag to active status.
+	UnarchiveFlag(ctx context.Context, id uuid.UUID) error
+
 	// ToggleFlag toggles the enabled state of a flag.
 	ToggleFlag(ctx context.Context, id uuid.UUID, enabled bool) error
 
@@ -265,6 +268,23 @@ func (s *flagService) ArchiveFlag(ctx context.Context, id uuid.UUID) error {
 	_ = s.cache.Invalidate(ctx, flag.ID)
 
 	s.publishEvent(ctx, "archived", flag)
+	return nil
+}
+
+// UnarchiveFlag restores an archived flag to active status by clearing archived_at.
+func (s *flagService) UnarchiveFlag(ctx context.Context, id uuid.UUID) error {
+	if err := s.repo.Unarchive(ctx, id); err != nil {
+		return fmt.Errorf("unarchiving flag: %w", err)
+	}
+
+	// Reload the flag so the event payload is accurate.
+	flag, err := s.repo.GetFlag(ctx, id)
+	if err != nil {
+		return fmt.Errorf("getting flag after unarchive: %w", err)
+	}
+
+	_ = s.cache.Invalidate(ctx, id)
+	s.publishEvent(ctx, "unarchived", flag)
 	return nil
 }
 

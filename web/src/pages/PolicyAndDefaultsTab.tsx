@@ -32,10 +32,13 @@ export default function PolicyAndDefaultsTab({ orgSlug }: Props) {
       strategyDefaultsApi.list(orgSlug),
       strategiesApi.list(orgSlug),
     ]);
-    setPolicies(pol.items);
-    setDefaults(def.items);
-    setStrategies(strat.items);
-    const top = pol.items.find((p) => !p.environment && !p.target_type);
+    const polItems = pol.items ?? [];
+    const defItems = def.items ?? [];
+    const stratItems = strat.items ?? [];
+    setPolicies(polItems);
+    setDefaults(defItems);
+    setStrategies(stratItems);
+    const top = polItems.find((p) => !p.environment && !p.target_type);
     if (top) {
       setTopPolicy(top.policy);
       setTopEnabled(top.enabled);

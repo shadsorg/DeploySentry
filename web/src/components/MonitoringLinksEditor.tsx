@@ -176,12 +176,7 @@ export default function MonitoringLinksEditor({
       </div>
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12 }}>
-        <button
-          className="btn"
-          type="button"
-          onClick={add}
-          disabled={links.length >= MAX_LINKS}
-        >
+        <button className="btn" type="button" onClick={add} disabled={links.length >= MAX_LINKS}>
           + Add link
         </button>
         <button className="btn btn-primary" type="button" onClick={save} disabled={saving}>

@@ -3,7 +3,14 @@ import { useParams, Link } from 'react-router-dom';
 import ActionBar from '@/components/ActionBar';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { deploymentsApi, agentsApi } from '@/api';
-import type { Deployment, DeployStatus, DeploymentPhase, PhaseStatus, Agent, HeartbeatPayload } from '@/types';
+import type {
+  Deployment,
+  DeployStatus,
+  DeploymentPhase,
+  PhaseStatus,
+  Agent,
+  HeartbeatPayload,
+} from '@/types';
 
 type ActionKey = 'promote' | 'rollback' | 'pause' | 'cancel' | 'advance' | 'resume';
 
@@ -196,7 +203,9 @@ export default function DeploymentDetailPage() {
         };
       case 'promoting':
         return {
-          secondaryActions: [{ label: 'Rollback', onClick: trigger('rollback'), variant: 'danger' as const }],
+          secondaryActions: [
+            { label: 'Rollback', onClick: trigger('rollback'), variant: 'danger' as const },
+          ],
         };
       case 'paused':
         return {
@@ -209,7 +218,11 @@ export default function DeploymentDetailPage() {
         };
       case 'failed':
         return {
-          primaryAction: { label: 'Rollback', onClick: trigger('rollback'), variant: 'danger' as const },
+          primaryAction: {
+            label: 'Rollback',
+            onClick: trigger('rollback'),
+            variant: 'danger' as const,
+          },
         };
       default:
         return {};
@@ -224,7 +237,10 @@ export default function DeploymentDetailPage() {
     if (terminalStatuses.includes(dep.status)) return;
 
     const interval = setInterval(() => {
-      deploymentsApi.get(id).then(setDep).catch(() => {});
+      deploymentsApi
+        .get(id)
+        .then(setDep)
+        .catch(() => {});
     }, 5000);
 
     return () => clearInterval(interval);
@@ -233,26 +249,32 @@ export default function DeploymentDetailPage() {
   // Fetch agents when deployment loads
   useEffect(() => {
     if (!dep?.application_id) return;
-    agentsApi.listByApp(dep.application_id).then(res => {
-      setAgents(res.agents);
-      const connected = res.agents.find(a => a.status === 'connected');
-      if (connected) {
-        agentsApi.heartbeats(connected.id, dep.id).then(hbRes => {
-          if (hbRes.heartbeats.length > 0) setLatestHeartbeat(hbRes.heartbeats[0].payload);
-        });
-      }
-    }).catch(() => {});
+    agentsApi
+      .listByApp(dep.application_id)
+      .then((res) => {
+        setAgents(res.agents);
+        const connected = res.agents.find((a) => a.status === 'connected');
+        if (connected) {
+          agentsApi.heartbeats(connected.id, dep.id).then((hbRes) => {
+            if (hbRes.heartbeats.length > 0) setLatestHeartbeat(hbRes.heartbeats[0].payload);
+          });
+        }
+      })
+      .catch(() => {});
   }, [dep?.application_id, dep?.id]);
 
   // Poll heartbeats every 5s
   useEffect(() => {
     if (!agents.length || !dep?.id) return;
-    const connected = agents.find(a => a.status === 'connected');
+    const connected = agents.find((a) => a.status === 'connected');
     if (!connected) return;
     const interval = setInterval(() => {
-      agentsApi.heartbeats(connected.id, dep.id).then(res => {
-        if (res.heartbeats.length > 0) setLatestHeartbeat(res.heartbeats[0].payload);
-      }).catch(() => {});
+      agentsApi
+        .heartbeats(connected.id, dep.id)
+        .then((res) => {
+          if (res.heartbeats.length > 0) setLatestHeartbeat(res.heartbeats[0].payload);
+        })
+        .catch(() => {});
     }, 5000);
     return () => clearInterval(interval);
   }, [agents, dep?.id]);
@@ -275,8 +297,21 @@ export default function DeploymentDetailPage() {
   return (
     <div className="page">
       <div className="detail-header">
-        <Link to={backPath} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, color: 'var(--color-text-muted)', textDecoration: 'none', marginBottom: 12 }}>
-          <span className="ms" style={{ fontSize: 14 }}>arrow_back</span>
+        <Link
+          to={backPath}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            fontSize: 13,
+            color: 'var(--color-text-muted)',
+            textDecoration: 'none',
+            marginBottom: 12,
+          }}
+        >
+          <span className="ms" style={{ fontSize: 14 }}>
+            arrow_back
+          </span>
           Deployments
         </Link>
         <div className="detail-header-top">
@@ -337,14 +372,21 @@ export default function DeploymentDetailPage() {
               .slice()
               .sort((a, b) => a.sort_order - b.sort_order)
               .map((phase) => (
-                <div
-                  key={phase.id}
-                  className={`phase-item phase-${phase.status}`}
-                >
+                <div key={phase.id} className={`phase-item phase-${phase.status}`}>
                   <div className="phase-header">
                     <span>{phaseStatusIcon(phase.status)}</span>
                     <span className="phase-name">{phase.name}</span>
-                    <span className={statusBadgeClass(phase.status === 'active' ? 'running' : phase.status === 'passed' ? 'completed' : phase.status === 'failed' ? 'failed' : 'pending')}>
+                    <span
+                      className={statusBadgeClass(
+                        phase.status === 'active'
+                          ? 'running'
+                          : phase.status === 'passed'
+                            ? 'completed'
+                            : phase.status === 'failed'
+                              ? 'failed'
+                              : 'pending',
+                      )}
+                    >
                       {phase.status}
                     </span>
                   </div>
@@ -384,147 +426,247 @@ export default function DeploymentDetailPage() {
         </p>
       </div>
 
-      {latestHeartbeat && (() => {
-        const connectedAgent = agents.find(a => a.status === 'connected');
-        const upstreamColors: Record<string, string> = { blue: '#3b82f6', green: '#10b981' };
-        const upstreamFallback = '#6366f1';
-        const upstreamNames = Object.keys(latestHeartbeat.upstreams);
+      {latestHeartbeat &&
+        (() => {
+          const connectedAgent = agents.find((a) => a.status === 'connected');
+          const upstreamColors: Record<string, string> = { blue: '#3b82f6', green: '#10b981' };
+          const upstreamFallback = '#6366f1';
+          const upstreamNames = Object.keys(latestHeartbeat.upstreams);
 
-        return (
-          <>
-            {/* Agent Status */}
-            {connectedAgent && (
-              <div className="info-cards" style={{ marginTop: '1.5rem' }}>
-                <div className="info-card">
-                  <div className="info-card-label">Agent Status</div>
-                  <div className="info-card-value" style={{ color: connectedAgent.status === 'connected' ? 'var(--color-success)' : connectedAgent.status === 'stale' ? 'var(--color-warning)' : 'var(--color-danger)' }}>
-                    {connectedAgent.status}
-                  </div>
-                </div>
-                <div className="info-card">
-                  <div className="info-card-label">Last Seen</div>
-                  <div className="info-card-value" style={{ fontSize: '0.85rem' }}>
-                    {new Date(connectedAgent.last_seen_at).toLocaleTimeString()}
-                  </div>
-                </div>
-                <div className="info-card">
-                  <div className="info-card-label">Envoy Health</div>
-                  <div className="info-card-value" style={{ color: latestHeartbeat.envoy_healthy ? 'var(--color-success)' : 'var(--color-danger)' }}>
-                    {latestHeartbeat.envoy_healthy ? 'Healthy' : 'Unhealthy'}
-                  </div>
-                </div>
-                <div className="info-card">
-                  <div className="info-card-label">Config Version</div>
-                  <div className="info-card-value">{latestHeartbeat.config_version}</div>
-                </div>
-              </div>
-            )}
-
-            {/* Traffic Distribution */}
-            <div className="phases-section" style={{ marginTop: '1.5rem' }}>
-              <h2 className="phases-title">Traffic Distribution</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {upstreamNames.map(name => {
-                  const desired = latestHeartbeat.active_rules.weights[name] ?? 0;
-                  const actual = latestHeartbeat.actual_traffic[name] ?? 0;
-                  const color = upstreamColors[name] || upstreamFallback;
-                  return (
-                    <div key={name} style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                        <span style={{ color, fontWeight: 600 }}>{name}</span>
-                        <span style={{ color: 'var(--color-text-muted)' }}>
-                          desired {desired}% / actual {actual.toFixed(1)}%
-                        </span>
-                      </div>
-                      <div style={{ position: 'relative', height: '8px', borderRadius: '4px', background: 'var(--color-bg-secondary)' }}>
-                        <div style={{ position: 'absolute', height: '100%', borderRadius: '4px', width: `${desired}%`, background: `${color}33`, transition: 'width 0.3s' }} />
-                        <div style={{ position: 'absolute', height: '100%', borderRadius: '4px', width: `${actual}%`, background: `linear-gradient(90deg, ${color}, ${color}cc)`, transition: 'width 0.3s' }} />
-                      </div>
+          return (
+            <>
+              {/* Agent Status */}
+              {connectedAgent && (
+                <div className="info-cards" style={{ marginTop: '1.5rem' }}>
+                  <div className="info-card">
+                    <div className="info-card-label">Agent Status</div>
+                    <div
+                      className="info-card-value"
+                      style={{
+                        color:
+                          connectedAgent.status === 'connected'
+                            ? 'var(--color-success)'
+                            : connectedAgent.status === 'stale'
+                              ? 'var(--color-warning)'
+                              : 'var(--color-danger)',
+                      }}
+                    >
+                      {connectedAgent.status}
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                  </div>
+                  <div className="info-card">
+                    <div className="info-card-label">Last Seen</div>
+                    <div className="info-card-value" style={{ fontSize: '0.85rem' }}>
+                      {new Date(connectedAgent.last_seen_at).toLocaleTimeString()}
+                    </div>
+                  </div>
+                  <div className="info-card">
+                    <div className="info-card-label">Envoy Health</div>
+                    <div
+                      className="info-card-value"
+                      style={{
+                        color: latestHeartbeat.envoy_healthy
+                          ? 'var(--color-success)'
+                          : 'var(--color-danger)',
+                      }}
+                    >
+                      {latestHeartbeat.envoy_healthy ? 'Healthy' : 'Unhealthy'}
+                    </div>
+                  </div>
+                  <div className="info-card">
+                    <div className="info-card-label">Config Version</div>
+                    <div className="info-card-value">{latestHeartbeat.config_version}</div>
+                  </div>
+                </div>
+              )}
 
-            {/* Per-Version Metrics */}
-            <div className="phases-section" style={{ marginTop: '1.5rem' }}>
-              <h2 className="phases-title">Per-Version Metrics</h2>
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(upstreamNames.length, 3)}, 1fr)`, gap: '1rem' }}>
-                {upstreamNames.map(name => {
-                  const m = latestHeartbeat.upstreams[name];
-                  const color = upstreamColors[name] || upstreamFallback;
-                  const errColor = m.error_rate < 1 ? 'var(--color-success)' : 'var(--color-danger)';
-                  return (
-                    <div key={name} style={{ background: 'var(--color-bg-secondary)', borderRadius: '8px', padding: '1rem', borderLeft: `3px solid ${color}` }}>
-                      <div style={{ fontWeight: 600, color, marginBottom: '0.75rem' }}>{name}</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
-                        <div>
-                          <div style={{ color: 'var(--color-text-muted)' }}>RPS</div>
-                          <div style={{ fontWeight: 600 }}>{m.rps.toFixed(1)}</div>
+              {/* Traffic Distribution */}
+              <div className="phases-section" style={{ marginTop: '1.5rem' }}>
+                <h2 className="phases-title">Traffic Distribution</h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {upstreamNames.map((name) => {
+                    const desired = latestHeartbeat.active_rules.weights[name] ?? 0;
+                    const actual = latestHeartbeat.actual_traffic[name] ?? 0;
+                    const color = upstreamColors[name] || upstreamFallback;
+                    return (
+                      <div
+                        key={name}
+                        style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            fontSize: '0.85rem',
+                          }}
+                        >
+                          <span style={{ color, fontWeight: 600 }}>{name}</span>
+                          <span style={{ color: 'var(--color-text-muted)' }}>
+                            desired {desired}% / actual {actual.toFixed(1)}%
+                          </span>
                         </div>
-                        <div>
-                          <div style={{ color: 'var(--color-text-muted)' }}>Error Rate</div>
-                          <div style={{ fontWeight: 600, color: errColor }}>{m.error_rate.toFixed(2)}%</div>
-                        </div>
-                        <div>
-                          <div style={{ color: 'var(--color-text-muted)' }}>P99</div>
-                          <div style={{ fontWeight: 600 }}>{m.p99_ms}ms</div>
-                        </div>
-                        <div>
-                          <div style={{ color: 'var(--color-text-muted)' }}>P50</div>
-                          <div style={{ fontWeight: 600 }}>{m.p50_ms}ms</div>
+                        <div
+                          style={{
+                            position: 'relative',
+                            height: '8px',
+                            borderRadius: '4px',
+                            background: 'var(--color-bg-secondary)',
+                          }}
+                        >
+                          <div
+                            style={{
+                              position: 'absolute',
+                              height: '100%',
+                              borderRadius: '4px',
+                              width: `${desired}%`,
+                              background: `${color}33`,
+                              transition: 'width 0.3s',
+                            }}
+                          />
+                          <div
+                            style={{
+                              position: 'absolute',
+                              height: '100%',
+                              borderRadius: '4px',
+                              width: `${actual}%`,
+                              background: `linear-gradient(90deg, ${color}, ${color}cc)`,
+                              transition: 'width 0.3s',
+                            }}
+                          />
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Traffic Rules */}
-            <div className="phases-section" style={{ marginTop: '1.5rem' }}>
-              <h2 className="phases-title">Traffic Rules</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.85rem' }}>
-                <div>
-                  <span style={{ color: 'var(--color-text-muted)' }}>Weights: </span>
-                  {Object.entries(latestHeartbeat.active_rules.weights).map(([k, v]) => (
-                    <span key={k} style={{ marginRight: '0.75rem' }}>
-                      <span style={{ color: upstreamColors[k] || upstreamFallback, fontWeight: 600 }}>{k}</span> {v}%
-                    </span>
-                  ))}
+                    );
+                  })}
                 </div>
-                {latestHeartbeat.active_rules.header_overrides && latestHeartbeat.active_rules.header_overrides.length > 0 && (
+              </div>
+
+              {/* Per-Version Metrics */}
+              <div className="phases-section" style={{ marginTop: '1.5rem' }}>
+                <h2 className="phases-title">Per-Version Metrics</h2>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(${Math.min(upstreamNames.length, 3)}, 1fr)`,
+                    gap: '1rem',
+                  }}
+                >
+                  {upstreamNames.map((name) => {
+                    const m = latestHeartbeat.upstreams[name];
+                    const color = upstreamColors[name] || upstreamFallback;
+                    const errColor =
+                      m.error_rate < 1 ? 'var(--color-success)' : 'var(--color-danger)';
+                    return (
+                      <div
+                        key={name}
+                        style={{
+                          background: 'var(--color-bg-secondary)',
+                          borderRadius: '8px',
+                          padding: '1rem',
+                          borderLeft: `3px solid ${color}`,
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, color, marginBottom: '0.75rem' }}>
+                          {name}
+                        </div>
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 1fr',
+                            gap: '0.5rem',
+                            fontSize: '0.85rem',
+                          }}
+                        >
+                          <div>
+                            <div style={{ color: 'var(--color-text-muted)' }}>RPS</div>
+                            <div style={{ fontWeight: 600 }}>{m.rps.toFixed(1)}</div>
+                          </div>
+                          <div>
+                            <div style={{ color: 'var(--color-text-muted)' }}>Error Rate</div>
+                            <div style={{ fontWeight: 600, color: errColor }}>
+                              {m.error_rate.toFixed(2)}%
+                            </div>
+                          </div>
+                          <div>
+                            <div style={{ color: 'var(--color-text-muted)' }}>P99</div>
+                            <div style={{ fontWeight: 600 }}>{m.p99_ms}ms</div>
+                          </div>
+                          <div>
+                            <div style={{ color: 'var(--color-text-muted)' }}>P50</div>
+                            <div style={{ fontWeight: 600 }}>{m.p50_ms}ms</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Traffic Rules */}
+              <div className="phases-section" style={{ marginTop: '1.5rem' }}>
+                <h2 className="phases-title">Traffic Rules</h2>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.75rem',
+                    fontSize: '0.85rem',
+                  }}
+                >
                   <div>
-                    <span style={{ color: 'var(--color-text-muted)' }}>Header Overrides: </span>
-                    {latestHeartbeat.active_rules.header_overrides.map((h, i) => (
-                      <span key={i} style={{ marginRight: '0.75rem' }}>
-                        <code style={{ background: 'var(--color-bg-tertiary)', padding: '0.1rem 0.3rem', borderRadius: '3px' }}>
-                          {h.header}: {h.value}
-                        </code>
-                        {' → '}{h.upstream}
+                    <span style={{ color: 'var(--color-text-muted)' }}>Weights: </span>
+                    {Object.entries(latestHeartbeat.active_rules.weights).map(([k, v]) => (
+                      <span key={k} style={{ marginRight: '0.75rem' }}>
+                        <span
+                          style={{ color: upstreamColors[k] || upstreamFallback, fontWeight: 600 }}
+                        >
+                          {k}
+                        </span>{' '}
+                        {v}%
                       </span>
                     ))}
                   </div>
-                )}
-                {latestHeartbeat.active_rules.sticky_sessions && (
-                  <div>
-                    <span style={{ color: 'var(--color-text-muted)' }}>Sticky Sessions: </span>
-                    {latestHeartbeat.active_rules.sticky_sessions.enabled ? (
-                      <span>
-                        Enabled
-                        {latestHeartbeat.active_rules.sticky_sessions.strategy && ` (${latestHeartbeat.active_rules.sticky_sessions.strategy})`}
-                        {latestHeartbeat.active_rules.sticky_sessions.ttl && `, TTL: ${latestHeartbeat.active_rules.sticky_sessions.ttl}`}
-                      </span>
-                    ) : (
-                      <span>Disabled</span>
+                  {latestHeartbeat.active_rules.header_overrides &&
+                    latestHeartbeat.active_rules.header_overrides.length > 0 && (
+                      <div>
+                        <span style={{ color: 'var(--color-text-muted)' }}>Header Overrides: </span>
+                        {latestHeartbeat.active_rules.header_overrides.map((h, i) => (
+                          <span key={i} style={{ marginRight: '0.75rem' }}>
+                            <code
+                              style={{
+                                background: 'var(--color-bg-tertiary)',
+                                padding: '0.1rem 0.3rem',
+                                borderRadius: '3px',
+                              }}
+                            >
+                              {h.header}: {h.value}
+                            </code>
+                            {' → '}
+                            {h.upstream}
+                          </span>
+                        ))}
+                      </div>
                     )}
-                  </div>
-                )}
+                  {latestHeartbeat.active_rules.sticky_sessions && (
+                    <div>
+                      <span style={{ color: 'var(--color-text-muted)' }}>Sticky Sessions: </span>
+                      {latestHeartbeat.active_rules.sticky_sessions.enabled ? (
+                        <span>
+                          Enabled
+                          {latestHeartbeat.active_rules.sticky_sessions.strategy &&
+                            ` (${latestHeartbeat.active_rules.sticky_sessions.strategy})`}
+                          {latestHeartbeat.active_rules.sticky_sessions.ttl &&
+                            `, TTL: ${latestHeartbeat.active_rules.sticky_sessions.ttl}`}
+                        </span>
+                      ) : (
+                        <span>Disabled</span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </>
-        );
-      })()}
+            </>
+          );
+        })()}
 
       {dep.flag_test_key && (
         <div
@@ -565,7 +707,8 @@ export default function DeploymentDetailPage() {
           </div>
           <div style={{ marginTop: 8, fontSize: 12, color: 'var(--color-text-muted)' }}>
             Blue (stable) receives the flag's default value. Green (canary) receives the flag with{' '}
-            <code style={{ color: 'var(--color-warning)' }}>service_color eq green</code> targeting rule.
+            <code style={{ color: 'var(--color-warning)' }}>service_color eq green</code> targeting
+            rule.
           </div>
           {latestHeartbeat && (
             <div
@@ -585,7 +728,8 @@ export default function DeploymentDetailPage() {
                   border: '1px solid var(--color-border)',
                 }}
               >
-                <span style={{ color: 'var(--color-info)', fontWeight: 600 }}>blue</span>: flag off (baseline)
+                <span style={{ color: 'var(--color-info)', fontWeight: 600 }}>blue</span>: flag off
+                (baseline)
               </div>
               <div
                 style={{
@@ -595,7 +739,8 @@ export default function DeploymentDetailPage() {
                   border: '1px solid var(--color-border)',
                 }}
               >
-                <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>green</span>: flag on (testing)
+                <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>green</span>: flag
+                on (testing)
               </div>
             </div>
           )}

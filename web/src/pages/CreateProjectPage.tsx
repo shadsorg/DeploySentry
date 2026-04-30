@@ -42,19 +42,45 @@ export default function CreateProjectPage() {
     <div className="page-center">
       <div className="form-card">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-            background: 'var(--color-primary-bg)', border: '1px solid rgba(99,102,241,0.25)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <span className="ms" style={{ fontSize: 22, color: 'var(--color-primary)' }}>account_tree</span>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              flexShrink: 0,
+              background: 'var(--color-primary-bg)',
+              border: '1px solid rgba(99,102,241,0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <span className="ms" style={{ fontSize: 22, color: 'var(--color-primary)' }}>
+              account_tree
+            </span>
           </div>
           <div>
-            <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 22, letterSpacing: '-0.02em', margin: 0 }}>Create Project</h1>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 13, marginTop: 2 }}>Group your apps and feature flags.</p>
+            <h1
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontWeight: 800,
+                fontSize: 22,
+                letterSpacing: '-0.02em',
+                margin: 0,
+              }}
+            >
+              Create Project
+            </h1>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: 13, marginTop: 2 }}>
+              Group your apps and feature flags.
+            </p>
           </div>
         </div>
-        {error && <div className="form-error" style={{ marginBottom: 16 }}>{error}</div>}
+        {error && (
+          <div className="form-error" style={{ marginBottom: 16 }}>
+            {error}
+          </div>
+        )}
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label">Project Name</label>
@@ -84,7 +110,9 @@ export default function CreateProjectPage() {
             disabled={submitting}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
           >
-            <span className="ms" style={{ fontSize: 16 }}>{submitting ? 'hourglass_empty' : 'add_circle'}</span>
+            <span className="ms" style={{ fontSize: 16 }}>
+              {submitting ? 'hourglass_empty' : 'add_circle'}
+            </span>
             {submitting ? 'Creating...' : 'Create Project'}
           </button>
         </form>

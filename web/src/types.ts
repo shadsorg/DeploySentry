@@ -83,7 +83,16 @@ export interface RuleEnvironmentState {
   updated_at: string;
 }
 
-export type RuleOperator = 'equals' | 'not_equals' | 'in' | 'not_in' | 'contains' | 'starts_with' | 'ends_with' | 'greater_than' | 'less_than';
+export type RuleOperator =
+  | 'equals'
+  | 'not_equals'
+  | 'in'
+  | 'not_in'
+  | 'contains'
+  | 'starts_with'
+  | 'ends_with'
+  | 'greater_than'
+  | 'less_than';
 
 export interface Deployment {
   id: string;
@@ -389,7 +398,14 @@ export interface OrgEnvironment {
   updated_at: string;
 }
 
-export type PhaseStatus = 'pending' | 'active' | 'passed' | 'failed' | 'skipped' | 'awaiting_approval' | 'rolled_back';
+export type PhaseStatus =
+  | 'pending'
+  | 'active'
+  | 'passed'
+  | 'failed'
+  | 'skipped'
+  | 'awaiting_approval'
+  | 'rolled_back';
 
 export interface DeploymentPhase {
   id: string;
@@ -470,7 +486,7 @@ export type PolicyKind = 'off' | 'prompt' | 'mandate';
 
 export interface Step {
   percent: number;
-  min_duration: number;    // nanoseconds
+  min_duration: number; // nanoseconds
   max_duration: number;
   bake_time_healthy: number;
   health_threshold?: number;

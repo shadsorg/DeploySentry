@@ -2,15 +2,15 @@ import { NavLink, useParams } from 'react-router-dom';
 import OrgSwitcher from './OrgSwitcher';
 
 const NAV_ITEMS = [
-  { to: 'status',         icon: 'dashboard',     label: 'Status' },
-  { to: 'deployments',    icon: 'history',       label: 'Deploy History' },
-  { to: 'projects',       icon: 'account_tree',  label: 'Projects' },
-  { to: 'members',        icon: 'group',         label: 'Members' },
-  { to: 'api-keys',       icon: 'vpn_key',       label: 'API Keys' },
-  { to: 'strategies',     icon: 'architecture',  label: 'Strategies' },
-  { to: 'rollouts',       icon: 'dynamic_feed',  label: 'Rollouts' },
-  { to: 'rollout-groups', icon: 'layers',        label: 'Rollout Groups' },
-  { to: 'settings',       icon: 'settings',      label: 'Settings' },
+  { to: 'status', icon: 'dashboard', label: 'Status' },
+  { to: 'deployments', icon: 'history', label: 'Deploy History' },
+  { to: 'projects', icon: 'account_tree', label: 'Projects' },
+  { to: 'members', icon: 'group', label: 'Members' },
+  { to: 'api-keys', icon: 'vpn_key', label: 'API Keys' },
+  { to: 'strategies', icon: 'architecture', label: 'Strategies' },
+  { to: 'rollouts', icon: 'dynamic_feed', label: 'Rollouts' },
+  { to: 'rollout-groups', icon: 'layers', label: 'Rollout Groups' },
+  { to: 'settings', icon: 'settings', label: 'Settings' },
 ];
 
 export default function Sidebar() {
@@ -23,23 +23,27 @@ export default function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        {orgSlug && NAV_ITEMS.map(({ to, icon, label }) => (
-          <NavLink
-            key={to}
-            to={`/orgs/${orgSlug}/${to}`}
-            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-          >
-            <span className="ms nav-icon" style={{ fontSize: 18 }}>{icon}</span>
-            {label}
-          </NavLink>
-        ))}
+        {orgSlug &&
+          NAV_ITEMS.map(({ to, icon, label }) => (
+            <NavLink
+              key={to}
+              to={`/orgs/${orgSlug}/${to}`}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <span className="ms nav-icon" style={{ fontSize: 18 }}>
+                {icon}
+              </span>
+              {label}
+            </NavLink>
+          ))}
 
-        <div className="sidebar-section" style={{ marginTop: 20 }}>Help</div>
-        <NavLink
-          to="/docs"
-          className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-        >
-          <span className="ms nav-icon" style={{ fontSize: 18 }}>description</span>
+        <div className="sidebar-section" style={{ marginTop: 20 }}>
+          Help
+        </div>
+        <NavLink to="/docs" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
+          <span className="ms nav-icon" style={{ fontSize: 18 }}>
+            description
+          </span>
           Documentation
         </NavLink>
       </nav>

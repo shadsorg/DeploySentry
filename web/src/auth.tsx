@@ -143,7 +143,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-
 export function RequireAuth() {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -154,7 +153,9 @@ export function RequireAuth() {
 
   if (!user) {
     const next = location.pathname + location.search;
-    return <Navigate to={`/login?next=${encodeURIComponent(next)}`} state={{ from: location }} replace />;
+    return (
+      <Navigate to={`/login?next=${encodeURIComponent(next)}`} state={{ from: location }} replace />
+    );
   }
 
   return <Outlet />;

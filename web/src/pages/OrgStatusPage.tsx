@@ -62,6 +62,13 @@ export default function OrgStatusPage() {
 
   const globalCounts = useMemo(() => countStates(data), [data]);
 
+  const [healthFilter, setHealthFilter] = useState<'all' | 'degraded'>('all');
+  const visibleProjects = useMemo(() => {
+    if (!data) return [];
+    if (healthFilter === 'all') return data.projects;
+    return data.projects.filter((p) => p.aggregate_health !== 'healthy');
+  }, [data, healthFilter]);
+
   if (!orgSlug) return null;
   if (loading && !data) return <div className="page-loading">Loading status…</div>;
   if (error && !data) return <div className="page-error">Error: {error}</div>;
@@ -74,21 +81,61 @@ export default function OrgStatusPage() {
       </div>
 
       <div className="stat-grid" style={{ marginBottom: 24 }}>
-        <StatCard label="Healthy" value={globalCounts.healthy} color="var(--color-success)" icon="check_circle" />
-        <StatCard label="Degraded" value={globalCounts.degraded} color="var(--color-warning)" icon="warning" />
-        <StatCard label="Unhealthy" value={globalCounts.unhealthy} color="var(--color-danger)" icon="error" />
-        <StatCard label="Unknown" value={globalCounts.unknown} color="var(--color-text-muted)" icon="help" />
+        <StatCard
+          label="Healthy"
+          value={globalCounts.healthy}
+          color="var(--color-success)"
+          icon="check_circle"
+        />
+        <StatCard
+          label="Degraded"
+          value={globalCounts.degraded}
+          color="var(--color-warning)"
+          icon="warning"
+        />
+        <StatCard
+          label="Unhealthy"
+          value={globalCounts.unhealthy}
+          color="var(--color-danger)"
+          icon="error"
+        />
+        <StatCard
+          label="Unknown"
+          value={globalCounts.unknown}
+          color="var(--color-text-muted)"
+          icon="help"
+        />
       </div>
 
       <div className="org-status-summary">
-        <div className="org-status-refresh" style={{ marginLeft: 0 }}>
+        <div className="org-status-filter-pills" role="tablist" aria-label="Filter projects">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={healthFilter === 'all'}
+            className={`filter-pill ${healthFilter === 'all' ? 'active' : ''}`}
+            onClick={() => setHealthFilter('all')}
+          >
+            All Projects
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={healthFilter === 'degraded'}
+            className={`filter-pill ${healthFilter === 'degraded' ? 'active' : ''}`}
+            onClick={() => setHealthFilter('degraded')}
+          >
+            Degraded Only
+          </button>
+        </div>
+        <div className="org-status-refresh" style={{ marginLeft: 'auto' }}>
           {lastFetched && (
-            <span className="org-status-timestamp">
-              Updated {relativeTime(lastFetched)}
-            </span>
+            <span className="org-status-timestamp">Updated {relativeTime(lastFetched)}</span>
           )}
           <button className="btn btn-secondary btn-sm" type="button" onClick={load}>
-            <span className="ms" style={{ fontSize: 14 }}>refresh</span>
+            <span className="ms" style={{ fontSize: 14 }}>
+              refresh
+            </span>
             Refresh
           </button>
         </div>
@@ -103,40 +150,51 @@ export default function OrgStatusPage() {
         </div>
       )}
 
-      {data?.projects.map((p) => {
-        const isCollapsed = !!collapsed[p.project.id];
-        return (
-          <section key={p.project.id} className="org-status-project">
-            <button
-              type="button"
-              className={`org-status-project-bar health-${p.aggregate_health}`}
-              onClick={() => toggle(p.project.id)}
+      {data && data.projects.length > 0 && visibleProjects.length === 0 && (
+        <div className="empty-state">
+          <p>All projects are healthy. Nothing degraded.</p>
+        </div>
+      )}
+
+      <div className="org-status-grid">
+        {visibleProjects.map((p) => {
+          const isCollapsed = !!collapsed[p.project.id];
+          return (
+            <section
+              key={p.project.id}
+              className={`org-status-project-card health-${p.aggregate_health}`}
             >
-              <span className="ms org-status-caret" style={{ fontSize: 16 }}>
-                {isCollapsed ? 'chevron_right' : 'expand_more'}
-              </span>
-              <span className="org-status-project-name">{p.project.name}</span>
-              <span className="org-status-project-count">
-                {p.applications.length} app{p.applications.length === 1 ? '' : 's'}
-              </span>
-              <span className={`health-pill health-${p.aggregate_health}`}>
-                {p.aggregate_health}
-              </span>
-            </button>
-            {!isCollapsed && (
-              <div className="org-status-app-list">
-                {p.applications.length === 0 ? (
-                  <div className="org-status-empty">No applications in this project.</div>
-                ) : (
-                  p.applications.map((a) => (
-                    <AppRow key={a.application.id} orgSlug={orgSlug} project={p} app={a} />
-                  ))
-                )}
-              </div>
-            )}
-          </section>
-        );
-      })}
+              <button
+                type="button"
+                className={`org-status-project-bar health-${p.aggregate_health}`}
+                onClick={() => toggle(p.project.id)}
+              >
+                <span className="ms org-status-caret" style={{ fontSize: 16 }}>
+                  {isCollapsed ? 'chevron_right' : 'expand_more'}
+                </span>
+                <span className="org-status-project-name">{p.project.name}</span>
+                <span className="org-status-project-count">
+                  {p.applications.length} app{p.applications.length === 1 ? '' : 's'}
+                </span>
+                <span className={`health-pill health-${p.aggregate_health}`}>
+                  {p.aggregate_health}
+                </span>
+              </button>
+              {!isCollapsed && (
+                <div className="org-status-app-list">
+                  {p.applications.length === 0 ? (
+                    <div className="org-status-empty">No applications in this project.</div>
+                  ) : (
+                    p.applications.map((a) => (
+                      <AppRow key={a.application.id} orgSlug={orgSlug} project={p} app={a} />
+                    ))
+                  )}
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -176,9 +234,9 @@ function AppRow({
         </div>
       </div>
 
-      <div className="org-status-chips">
+      <div className="org-status-env-cards">
         {app.environments.map((cell) => (
-          <EnvChip key={cell.environment.id} cell={cell} />
+          <EnvCard key={cell.environment.id} cell={cell} />
         ))}
       </div>
 
@@ -198,21 +256,39 @@ function AppRow({
   );
 }
 
-function EnvChip({ cell }: { cell: OrgStatusEnvCell }) {
+function EnvCard({ cell }: { cell: OrgStatusEnvCell }) {
   const label = cell.environment.slug ?? '??';
   const tooltip = tooltipFor(cell);
-  const classes = ['env-chip'];
+  const classes = ['env-card'];
   if (cell.never_deployed) {
-    classes.push('env-chip-faded');
+    classes.push('env-card-faded');
   } else {
     classes.push(`health-${cell.health.state}`);
     if (cell.health.staleness === 'stale') classes.push('stale');
-    if (cell.health.staleness === 'missing' && cell.health.state !== 'unknown') classes.push('missing');
+    if (cell.health.staleness === 'missing' && cell.health.state !== 'unknown')
+      classes.push('missing');
   }
+  const version = cell.current_deployment?.version;
+  const completed = cell.current_deployment?.completed_at;
   return (
-    <span className={classes.join(' ')} title={tooltip}>
-      {label}
-    </span>
+    <div className={classes.join(' ')} title={tooltip}>
+      <div className="env-card-header">
+        <span className={`env-card-pulse health-${cell.health.state}`} aria-hidden="true" />
+        <span className="env-card-slug">{label}</span>
+      </div>
+      <div className="env-card-version">
+        {cell.never_deployed ? (
+          <span className="dim">no deploys</span>
+        ) : version ? (
+          shortVersion(version)
+        ) : (
+          '—'
+        )}
+      </div>
+      {!cell.never_deployed && completed && (
+        <div className="env-card-meta">{relativeTime(completed)}</div>
+      )}
+    </div>
   );
 }
 
@@ -226,7 +302,11 @@ function MonitoringLinkIcon({ link }: { link: MonitoringLink }) {
       className="org-status-link-icon"
       title={link.label}
     >
-      {link.icon === 'custom' ? <Favicon url={link.url} label={link.label} /> : glyph ?? link.label}
+      {link.icon === 'custom' ? (
+        <Favicon url={link.url} label={link.label} />
+      ) : (
+        (glyph ?? link.label)
+      )}
     </a>
   );
 }
@@ -254,7 +334,17 @@ function Favicon({ url, label }: { url: string; label: string }) {
   );
 }
 
-function StatCard({ label, value, color, icon }: { label: string; value: number; color: string; icon?: string }) {
+function StatCard({
+  label,
+  value,
+  color,
+  icon,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  icon?: string;
+}) {
   return (
     <div className="stat-card stat-card-with-icon">
       {icon && (
@@ -263,7 +353,9 @@ function StatCard({ label, value, color, icon }: { label: string; value: number;
         </span>
       )}
       <div className="stat-label">{label}</div>
-      <div className="stat-value" style={{ color, fontFamily: 'var(--font-display)' }}>{value}</div>
+      <div className="stat-value" style={{ color, fontFamily: 'var(--font-display)' }}>
+        {value}
+      </div>
     </div>
   );
 }
@@ -306,7 +398,8 @@ function shortVersion(v: string): string {
 
 function relativeTime(ts: string | number | Date | null | undefined): string {
   if (!ts) return '—';
-  const then = typeof ts === 'string' || typeof ts === 'number' ? new Date(ts).getTime() : ts.getTime();
+  const then =
+    typeof ts === 'string' || typeof ts === 'number' ? new Date(ts).getTime() : ts.getTime();
   const diff = Date.now() - then;
   if (diff < 0) return 'just now';
   const s = Math.floor(diff / 1000);
@@ -321,7 +414,8 @@ function relativeTime(ts: string | number | Date | null | undefined): string {
 }
 
 function tooltipFor(cell: OrgStatusEnvCell): string {
-  if (cell.never_deployed) return `${cell.environment.name ?? cell.environment.slug}: never deployed`;
+  if (cell.never_deployed)
+    return `${cell.environment.name ?? cell.environment.slug}: never deployed`;
   const envName = cell.environment.name ?? cell.environment.slug ?? '';
   const version = cell.current_deployment?.version ?? '—';
   const health = cell.health.state;
@@ -356,4 +450,3 @@ function iconFor(icon?: string): string | null {
       return null;
   }
 }
-

@@ -137,22 +137,30 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
       <div className="modal modal-wide strategy-editor" onClick={(e) => e.stopPropagation()}>
         <div className="strategy-editor-head">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: 8,
-              background: 'var(--color-primary-bg)', border: '1px solid rgba(99,102,241,0.25)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>architecture</span>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: 'var(--color-primary-bg)',
+                border: '1px solid rgba(99,102,241,0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>
+                architecture
+              </span>
             </div>
-            <h3 style={{ margin: 0 }}>{strategyName ? `Edit Strategy: ${strategyName}` : 'New Strategy'}</h3>
+            <h3 style={{ margin: 0 }}>
+              {strategyName ? `Edit Strategy: ${strategyName}` : 'New Strategy'}
+            </h3>
           </div>
-          <button
-            type="button"
-            className="btn-icon"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <span className="ms" style={{ fontSize: 16 }}>close</span>
+          <button type="button" className="btn-icon" onClick={onClose} aria-label="Close">
+            <span className="ms" style={{ fontSize: 16 }}>
+              close
+            </span>
           </button>
         </div>
 
@@ -160,7 +168,9 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
 
         <section className="strategy-editor-section">
           <div className="strategy-editor-section-title">
-            <span className="ms" style={{ fontSize: 16, color: 'var(--color-primary)' }}>tune</span>
+            <span className="ms" style={{ fontSize: 16, color: 'var(--color-primary)' }}>
+              tune
+            </span>
             General
           </div>
           <div className="strategy-editor-grid">
@@ -210,20 +220,26 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
                 value={healthThreshold}
                 onChange={(e) => setHealthThreshold(Number(e.target.value))}
               />
-              <p className="form-hint">Rollouts abort when the health score drops below this value.</p>
+              <p className="form-hint">
+                Rollouts abort when the health score drops below this value.
+              </p>
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Rollback on failure</label>
-              <label style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '9px 12px',
-                background: 'var(--color-bg)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-md)',
-                cursor: 'pointer',
-                fontSize: 13,
-                color: 'var(--color-text)',
-              }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '9px 12px',
+                  background: 'var(--color-bg)',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-md)',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  color: 'var(--color-text)',
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={rollbackOnFailure}
@@ -237,13 +253,20 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
 
         <section className="strategy-editor-section">
           <div className="strategy-editor-section-title">
-            <span className="ms" style={{ fontSize: 16, color: 'var(--color-primary)' }}>steps</span>
+            <span className="ms" style={{ fontSize: 16, color: 'var(--color-primary)' }}>
+              steps
+            </span>
             Steps
-            <span className="badge" style={{
-              background: 'var(--color-primary-bg)',
-              color: 'var(--color-primary)',
-              marginLeft: 'auto',
-            }}>{steps.length}</span>
+            <span
+              className="badge"
+              style={{
+                background: 'var(--color-primary-bg)',
+                color: 'var(--color-primary)',
+                marginLeft: 'auto',
+              }}
+            >
+              {steps.length}
+            </span>
           </div>
 
           <div className="strategy-editor-steps">
@@ -259,7 +282,9 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
                       title="Remove step"
                       onClick={() => removeStep(idx)}
                     >
-                      <span className="ms" style={{ fontSize: 14, color: 'var(--color-danger)' }}>delete</span>
+                      <span className="ms" style={{ fontSize: 14, color: 'var(--color-danger)' }}>
+                        delete
+                      </span>
                     </button>
                   )}
                 </div>
@@ -280,7 +305,9 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
                       className="form-input"
                       type="number"
                       value={s.min_duration / MS}
-                      onChange={(e) => updateStep(idx, { min_duration: Number(e.target.value) * MS })}
+                      onChange={(e) =>
+                        updateStep(idx, { min_duration: Number(e.target.value) * MS })
+                      }
                     />
                   </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
@@ -289,7 +316,9 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
                       className="form-input"
                       type="number"
                       value={s.max_duration / MS}
-                      onChange={(e) => updateStep(idx, { max_duration: Number(e.target.value) * MS })}
+                      onChange={(e) =>
+                        updateStep(idx, { max_duration: Number(e.target.value) * MS })
+                      }
                     />
                   </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
@@ -298,19 +327,25 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
                       className="form-input"
                       type="number"
                       value={s.bake_time_healthy / MS}
-                      onChange={(e) => updateStep(idx, { bake_time_healthy: Number(e.target.value) * MS })}
+                      onChange={(e) =>
+                        updateStep(idx, { bake_time_healthy: Number(e.target.value) * MS })
+                      }
                     />
                   </div>
                 </div>
 
                 <details className="step-advanced">
                   <summary>
-                    <span className="ms" style={{ fontSize: 14, verticalAlign: 'middle' }}>tune</span>
-                    {' '}Advanced: approval, abort conditions, per-step health threshold
+                    <span className="ms" style={{ fontSize: 14, verticalAlign: 'middle' }}>
+                      tune
+                    </span>{' '}
+                    Advanced: approval, abort conditions, per-step health threshold
                   </summary>
 
                   <div className="form-group">
-                    <label className="form-label">Health threshold (leave blank for strategy default)</label>
+                    <label className="form-label">
+                      Health threshold (leave blank for strategy default)
+                    </label>
                     <input
                       className="form-input"
                       type="number"
@@ -320,7 +355,8 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
                       value={s.health_threshold ?? ''}
                       onChange={(e) =>
                         updateStep(idx, {
-                          health_threshold: e.target.value === '' ? undefined : Number(e.target.value),
+                          health_threshold:
+                            e.target.value === '' ? undefined : Number(e.target.value),
                         } as Partial<Step>)
                       }
                     />
@@ -328,13 +364,23 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
 
                   <fieldset>
                     <legend>Approval (optional)</legend>
-                    <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, marginBottom: 8 }}>
+                    <label
+                      style={{
+                        display: 'flex',
+                        gap: 8,
+                        alignItems: 'center',
+                        fontSize: 13,
+                        marginBottom: 8,
+                      }}
+                    >
                       <input
                         type="checkbox"
                         checked={!!s.approval}
                         onChange={(e) =>
                           updateStep(idx, {
-                            approval: e.target.checked ? { required_role: '', timeout: 0 } : undefined,
+                            approval: e.target.checked
+                              ? { required_role: '', timeout: 0 }
+                              : undefined,
                           } as Partial<Step>)
                         }
                       />
@@ -349,7 +395,9 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
                             type="text"
                             value={s.approval.required_role}
                             onChange={(e) =>
-                              updateStep(idx, { approval: { ...s.approval!, required_role: e.target.value } })
+                              updateStep(idx, {
+                                approval: { ...s.approval!, required_role: e.target.value },
+                              })
                             }
                           />
                         </div>
@@ -360,7 +408,9 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
                             type="number"
                             value={s.approval.timeout / MS}
                             onChange={(e) =>
-                              updateStep(idx, { approval: { ...s.approval!, timeout: Number(e.target.value) * MS } })
+                              updateStep(idx, {
+                                approval: { ...s.approval!, timeout: Number(e.target.value) * MS },
+                              })
                             }
                           />
                         </div>
@@ -404,23 +454,35 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
                           onChange={(e) => updateAbort(idx, acIdx, { operator: e.target.value })}
                         >
                           {(['>', '>=', '<', '<=', '==', '!='] as const).map((op) => (
-                            <option key={op} value={op}>{op}</option>
+                            <option key={op} value={op}>
+                              {op}
+                            </option>
                           ))}
                         </select>
                         <input
                           type="number"
                           step="any"
                           value={ac.threshold}
-                          onChange={(e) => updateAbort(idx, acIdx, { threshold: Number(e.target.value) })}
+                          onChange={(e) =>
+                            updateAbort(idx, acIdx, { threshold: Number(e.target.value) })
+                          }
                           placeholder="threshold"
                         />
                         <input
                           type="number"
                           value={ac.window / MS}
-                          onChange={(e) => updateAbort(idx, acIdx, { window: Number(e.target.value) * MS })}
+                          onChange={(e) =>
+                            updateAbort(idx, acIdx, { window: Number(e.target.value) * MS })
+                          }
                           placeholder="window (ms)"
                         />
-                        <button type="button" onClick={() => removeAbort(idx, acIdx)} aria-label="Remove">×</button>
+                        <button
+                          type="button"
+                          onClick={() => removeAbort(idx, acIdx)}
+                          aria-label="Remove"
+                        >
+                          ×
+                        </button>
                       </div>
                     ))}
                     <button
@@ -429,7 +491,9 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
                       onClick={() => addAbort(idx)}
                       style={{ marginTop: 6 }}
                     >
-                      <span className="ms" style={{ fontSize: 14 }}>add</span>
+                      <span className="ms" style={{ fontSize: 14 }}>
+                        add
+                      </span>
                       Add abort condition
                     </button>
                   </fieldset>
@@ -444,13 +508,17 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
             onClick={addStep}
             style={{ marginTop: 12, width: '100%', justifyContent: 'center' }}
           >
-            <span className="ms" style={{ fontSize: 16 }}>add</span>
+            <span className="ms" style={{ fontSize: 16 }}>
+              add
+            </span>
             Add Step
           </button>
         </section>
 
         <div className="modal-actions">
-          <button type="button" onClick={onClose} disabled={submitting}>Cancel</button>
+          <button type="button" onClick={onClose} disabled={submitting}>
+            Cancel
+          </button>
           <button type="button" onClick={submit} disabled={submitting} className="btn-primary">
             {submitting ? 'Saving…' : strategyName ? 'Save' : 'Create'}
           </button>

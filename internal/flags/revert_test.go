@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -36,11 +37,11 @@ type fakeFlagService struct {
 	setRuleEnvErr error
 
 	// capture calls
-	archivedID   uuid.UUID
-	unarchivedID uuid.UUID
-	toggledID    uuid.UUID
-	toggledVal   bool
-	updatedFlag  *models.FeatureFlag
+	archivedID    uuid.UUID
+	unarchivedID  uuid.UUID
+	toggledID     uuid.UUID
+	toggledVal    bool
+	updatedFlag   *models.FeatureFlag
 	deletedRuleID uuid.UUID
 	addedRule     *models.TargetingRule
 }
@@ -163,19 +164,48 @@ func TestRevertFlagArchived(t *testing.T) {
 	})
 }
 
+func TestRevertFlagCreated(t *testing.T) {
+	flagID := uuid.New()
+
+	t.Run("success: archives active flag", func(t *testing.T) {
+		svc := &fakeFlagService{flag: &models.FeatureFlag{ID: flagID, Archived: false}}
+		handler := revertFlagCreated(svc)
+		newAction, err := handler(context.Background(), makeEntry(flagID, "flag.created", "", ""), false)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if newAction != "flag.created.reverted" {
+			t.Errorf("expected %q, got %q", "flag.created.reverted", newAction)
+		}
+		if svc.archivedID != flagID {
+			t.Errorf("expected ArchiveFlag called with %s, got %s", flagID, svc.archivedID)
+		}
+	})
+
+	t.Run("race: flag already archived", func(t *testing.T) {
+		svc := &fakeFlagService{flag: &models.FeatureFlag{ID: flagID, Archived: true}}
+		handler := revertFlagCreated(svc)
+		_, err := handler(context.Background(), makeEntry(flagID, "flag.created", "", ""), false)
+		if !errors.Is(err, auth.ErrRevertRace) {
+			t.Errorf("expected ErrRevertRace, got %v", err)
+		}
+	})
+}
+
 func TestRevertFlagUpdated(t *testing.T) {
 	flagID := uuid.New()
 
 	t.Run("malformed JSON in OldValue", func(t *testing.T) {
-		svc := &fakeFlagService{flag: &models.FeatureFlag{ID: flagID}}
+		// Use force=true so race detection is skipped and the handler reaches the OldValue parse.
+		svc := &fakeFlagService{flag: &models.FeatureFlag{ID: flagID, Name: "new"}}
 		handler := revertFlagUpdated(svc)
 		entry := makeEntry(flagID, "flag.updated", "{not json", `{"name":"new"}`)
-		_, err := handler(context.Background(), entry, false)
+		_, err := handler(context.Background(), entry, true)
 		if err == nil {
 			t.Fatal("expected error for malformed payload")
 		}
-		if !contains(err.Error(), "malformed payload") {
-			t.Errorf("expected 'malformed payload' in error, got: %v", err)
+		if !strings.Contains(err.Error(), "malformed") {
+			t.Errorf("expected 'malformed' in error, got: %v", err)
 		}
 	})
 
@@ -187,7 +217,7 @@ func TestRevertFlagUpdated(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for malformed payload")
 		}
-		if !contains(err.Error(), "malformed payload") {
+		if !strings.Contains(err.Error(), "malformed payload") {
 			t.Errorf("expected 'malformed payload' in error, got: %v", err)
 		}
 	})
@@ -199,6 +229,152 @@ func TestRevertFlagUpdated(t *testing.T) {
 		_, err := handler(context.Background(), entry, false)
 		if err == nil {
 			t.Fatal("expected error for empty payload")
+		}
+	})
+
+	t.Run("success_path_restores_old_values", func(t *testing.T) {
+		// Current flag has name="new", description="new desc"
+		currentFlag := &models.FeatureFlag{
+			ID:          flagID,
+			Name:        "new",
+			Description: "new desc",
+			Category:    models.FlagCategoryFeature,
+		}
+		svc := &fakeFlagService{flag: currentFlag}
+		handler := revertFlagUpdated(svc)
+
+		oldFlag := models.FeatureFlag{
+			ID:          flagID,
+			Name:        "old",
+			Description: "old desc",
+			Category:    models.FlagCategoryFeature,
+		}
+		oldJSON, _ := json.Marshal(oldFlag)
+		newFlag := models.FeatureFlag{
+			ID:          flagID,
+			Name:        "new",
+			Description: "new desc",
+			Category:    models.FlagCategoryFeature,
+		}
+		newJSON, _ := json.Marshal(newFlag)
+
+		entry := makeEntry(flagID, "flag.updated", string(oldJSON), string(newJSON))
+		newAction, err := handler(context.Background(), entry, false)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if newAction != "flag.updated.reverted" {
+			t.Errorf("expected %q, got %q", "flag.updated.reverted", newAction)
+		}
+		if svc.updatedFlag == nil {
+			t.Fatal("expected UpdateFlag to be called")
+		}
+		if svc.updatedFlag.Name != "old" {
+			t.Errorf("expected Name=%q, got %q", "old", svc.updatedFlag.Name)
+		}
+		if svc.updatedFlag.Description != "old desc" {
+			t.Errorf("expected Description=%q, got %q", "old desc", svc.updatedFlag.Description)
+		}
+		// Identifying fields must be preserved from current
+		if svc.updatedFlag.ID != flagID {
+			t.Errorf("expected ID=%s preserved, got %s", flagID, svc.updatedFlag.ID)
+		}
+	})
+
+	t.Run("success_restores_expires_at", func(t *testing.T) {
+		// Regression test for the critical bug: expires_at must round-trip.
+		expiresAt := time.Date(2026, 12, 31, 0, 0, 0, 0, time.UTC)
+
+		// Current flag has no expires_at (it was cleared in the "new" edit)
+		currentFlag := &models.FeatureFlag{
+			ID:       flagID,
+			Name:     "myflag",
+			Category: models.FlagCategoryFeature,
+			// ExpiresAt is nil
+		}
+		svc := &fakeFlagService{flag: currentFlag}
+		handler := revertFlagUpdated(svc)
+
+		// Old value had an expires_at
+		oldFlag := models.FeatureFlag{
+			ID:        flagID,
+			Name:      "myflag",
+			Category:  models.FlagCategoryFeature,
+			ExpiresAt: &expiresAt,
+		}
+		oldJSON, _ := json.Marshal(oldFlag)
+		// New value cleared expires_at
+		newFlag := models.FeatureFlag{
+			ID:       flagID,
+			Name:     "myflag",
+			Category: models.FlagCategoryFeature,
+			// ExpiresAt is nil
+		}
+		newJSON, _ := json.Marshal(newFlag)
+
+		entry := makeEntry(flagID, "flag.updated", string(oldJSON), string(newJSON))
+		_, err := handler(context.Background(), entry, false)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if svc.updatedFlag == nil {
+			t.Fatal("expected UpdateFlag to be called")
+		}
+		if svc.updatedFlag.ExpiresAt == nil {
+			t.Fatal("expected ExpiresAt to be restored, got nil")
+		}
+		if !svc.updatedFlag.ExpiresAt.Equal(expiresAt) {
+			t.Errorf("expected ExpiresAt=%v, got %v", expiresAt, *svc.updatedFlag.ExpiresAt)
+		}
+	})
+
+	t.Run("race_detected_when_field_differs_from_new_value", func(t *testing.T) {
+		// current.Name="something_else" but new_value says name="intermediate"
+		currentFlag := &models.FeatureFlag{
+			ID:       flagID,
+			Name:     "something_else",
+			Category: models.FlagCategoryFeature,
+		}
+		svc := &fakeFlagService{flag: currentFlag}
+		handler := revertFlagUpdated(svc)
+
+		oldFlag := models.FeatureFlag{ID: flagID, Name: "original", Category: models.FlagCategoryFeature}
+		oldJSON, _ := json.Marshal(oldFlag)
+		newFlag := models.FeatureFlag{ID: flagID, Name: "intermediate", Category: models.FlagCategoryFeature}
+		newJSON, _ := json.Marshal(newFlag)
+
+		entry := makeEntry(flagID, "flag.updated", string(oldJSON), string(newJSON))
+		_, err := handler(context.Background(), entry, false)
+		if !errors.Is(err, auth.ErrRevertRace) {
+			t.Errorf("expected ErrRevertRace, got %v", err)
+		}
+	})
+
+	t.Run("force_overrides_race", func(t *testing.T) {
+		// Same setup as race test but force=true
+		currentFlag := &models.FeatureFlag{
+			ID:       flagID,
+			Name:     "something_else",
+			Category: models.FlagCategoryFeature,
+		}
+		svc := &fakeFlagService{flag: currentFlag}
+		handler := revertFlagUpdated(svc)
+
+		oldFlag := models.FeatureFlag{ID: flagID, Name: "original", Category: models.FlagCategoryFeature}
+		oldJSON, _ := json.Marshal(oldFlag)
+		newFlag := models.FeatureFlag{ID: flagID, Name: "intermediate", Category: models.FlagCategoryFeature}
+		newJSON, _ := json.Marshal(newFlag)
+
+		entry := makeEntry(flagID, "flag.updated", string(oldJSON), string(newJSON))
+		newAction, err := handler(context.Background(), entry, true)
+		if err != nil {
+			t.Fatalf("expected no error with force=true, got %v", err)
+		}
+		if newAction != "flag.updated.reverted" {
+			t.Errorf("expected %q, got %q", "flag.updated.reverted", newAction)
+		}
+		if svc.updatedFlag == nil {
+			t.Fatal("expected UpdateFlag to be called")
 		}
 	})
 }
@@ -277,7 +453,7 @@ func TestRevertFlagRuleCreated(t *testing.T) {
 			t.Fatal("expected error for transient DB error, got nil")
 		}
 		// Error should contain the original message
-		if !contains(err.Error(), "connection refused") {
+		if !strings.Contains(err.Error(), "connection refused") {
 			t.Errorf("expected error to mention 'connection refused', got: %v", err)
 		}
 		// DeleteRule should NOT have been called (error occurred before deletion)
@@ -317,7 +493,7 @@ func TestRevertFlagRuleDeleted(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for malformed payload")
 		}
-		if !contains(err.Error(), "malformed payload") {
+		if !strings.Contains(err.Error(), "malformed payload") {
 			t.Errorf("expected 'malformed payload' in error, got: %v", err)
 		}
 	})
@@ -343,6 +519,160 @@ func TestRevertFlagRuleDeleted(t *testing.T) {
 		}
 		if svc.addedRule == nil || svc.addedRule.ID != ruleID {
 			t.Errorf("expected AddRule called with rule.ID=%s", ruleID)
+		}
+	})
+
+	t.Run("transient_error_propagates", func(t *testing.T) {
+		rule := &models.TargetingRule{
+			ID:       ruleID,
+			FlagID:   flagID,
+			RuleType: models.RuleTypePercentage,
+			Value:    "true",
+		}
+		oldVal, _ := json.Marshal(rule)
+		svc := &fakeFlagService{ruleErr: errors.New("connection refused")}
+		handler := revertFlagRuleDeleted(svc)
+		entry := makeEntry(flagID, "flag.rule.deleted", string(oldVal), "")
+		_, err := handler(context.Background(), entry, false)
+		if err == nil {
+			t.Fatal("expected error for transient DB error, got nil")
+		}
+		if !strings.Contains(err.Error(), "connection refused") {
+			t.Errorf("expected 'connection refused' in error, got: %v", err)
+		}
+		// AddRule should NOT have been called
+		if svc.addedRule != nil {
+			t.Error("expected AddRule NOT to be called when GetRule fails with transient error")
+		}
+	})
+
+	t.Run("race_detected_when_rule_exists", func(t *testing.T) {
+		rule := &models.TargetingRule{
+			ID:       ruleID,
+			FlagID:   flagID,
+			RuleType: models.RuleTypePercentage,
+			Value:    "true",
+		}
+		oldVal, _ := json.Marshal(rule)
+		// GetRule returns the rule (it still exists → someone re-created it)
+		svc := &fakeFlagService{rule: rule}
+		handler := revertFlagRuleDeleted(svc)
+		entry := makeEntry(flagID, "flag.rule.deleted", string(oldVal), "")
+		_, err := handler(context.Background(), entry, false)
+		if !errors.Is(err, auth.ErrRevertRace) {
+			t.Errorf("expected ErrRevertRace, got %v", err)
+		}
+	})
+}
+
+func TestRevertFlagRuleEnvStateUpdated(t *testing.T) {
+	flagID := uuid.New()
+	ruleID := uuid.New()
+	envID := uuid.New()
+
+	oldPayload, _ := json.Marshal(map[string]interface{}{
+		"rule_id": ruleID, "environment_id": envID, "enabled": true,
+	})
+	newPayload, _ := json.Marshal(map[string]interface{}{
+		"rule_id": ruleID, "environment_id": envID, "enabled": false,
+	})
+
+	t.Run("success: restores old enabled state", func(t *testing.T) {
+		// current state matches new_value (enabled=false) → no race; restore old (enabled=true)
+		svc := &fakeFlagService{
+			ruleEnvStates: []*models.RuleEnvironmentState{
+				{RuleID: ruleID, EnvironmentID: envID, Enabled: false},
+			},
+		}
+		handler := revertFlagRuleEnvStateUpdated(svc)
+		entry := makeEntry(flagID, "flag.rule.env_state.updated", string(oldPayload), string(newPayload))
+		newAction, err := handler(context.Background(), entry, false)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if newAction != "flag.rule.env_state.updated.reverted" {
+			t.Errorf("expected %q, got %q", "flag.rule.env_state.updated.reverted", newAction)
+		}
+	})
+
+	t.Run("race: current state differs from new_value", func(t *testing.T) {
+		// current enabled=true but new_value says enabled=false → race
+		svc := &fakeFlagService{
+			ruleEnvStates: []*models.RuleEnvironmentState{
+				{RuleID: ruleID, EnvironmentID: envID, Enabled: true},
+			},
+		}
+		handler := revertFlagRuleEnvStateUpdated(svc)
+		entry := makeEntry(flagID, "flag.rule.env_state.updated", string(oldPayload), string(newPayload))
+		_, err := handler(context.Background(), entry, false)
+		if !errors.Is(err, auth.ErrRevertRace) {
+			t.Errorf("expected ErrRevertRace, got %v", err)
+		}
+	})
+}
+
+func TestRevertFlagEnvStateUpdated(t *testing.T) {
+	flagID := uuid.New()
+	envID := uuid.New()
+
+	rawTrue := json.RawMessage(`true`)
+	rawFalse := json.RawMessage(`false`)
+
+	type envPayload struct {
+		EnvironmentID uuid.UUID        `json:"environment_id"`
+		Enabled       bool             `json:"enabled"`
+		Value         *json.RawMessage `json:"value"`
+	}
+
+	oldEnvPayload, _ := json.Marshal(envPayload{EnvironmentID: envID, Enabled: true, Value: &rawTrue})
+	newEnvPayload, _ := json.Marshal(envPayload{EnvironmentID: envID, Enabled: false, Value: &rawFalse})
+
+	t.Run("success: restores old state", func(t *testing.T) {
+		// current state matches new_value (enabled=false, value=false) → no race; restore old
+		svc := &fakeFlagService{
+			flagEnvStates: []*models.FlagEnvironmentState{
+				{FlagID: flagID, EnvironmentID: envID, Enabled: false, Value: &rawFalse},
+			},
+		}
+		handler := revertFlagEnvStateUpdated(svc)
+		entry := makeEntry(flagID, "flag.env_state.updated", string(oldEnvPayload), string(newEnvPayload))
+		newAction, err := handler(context.Background(), entry, false)
+		if err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+		if newAction != "flag.env_state.updated.reverted" {
+			t.Errorf("expected %q, got %q", "flag.env_state.updated.reverted", newAction)
+		}
+	})
+
+	t.Run("race: enabled differs from new_value", func(t *testing.T) {
+		// current enabled=true but new_value says enabled=false → race
+		svc := &fakeFlagService{
+			flagEnvStates: []*models.FlagEnvironmentState{
+				{FlagID: flagID, EnvironmentID: envID, Enabled: true, Value: &rawFalse},
+			},
+		}
+		handler := revertFlagEnvStateUpdated(svc)
+		entry := makeEntry(flagID, "flag.env_state.updated", string(oldEnvPayload), string(newEnvPayload))
+		_, err := handler(context.Background(), entry, false)
+		if !errors.Is(err, auth.ErrRevertRace) {
+			t.Errorf("expected ErrRevertRace, got %v", err)
+		}
+	})
+
+	t.Run("race: value differs from new_value", func(t *testing.T) {
+		rawOther := json.RawMessage(`"something_else"`)
+		// enabled matches but value differs → race
+		svc := &fakeFlagService{
+			flagEnvStates: []*models.FlagEnvironmentState{
+				{FlagID: flagID, EnvironmentID: envID, Enabled: false, Value: &rawOther},
+			},
+		}
+		handler := revertFlagEnvStateUpdated(svc)
+		entry := makeEntry(flagID, "flag.env_state.updated", string(oldEnvPayload), string(newEnvPayload))
+		_, err := handler(context.Background(), entry, false)
+		if !errors.Is(err, auth.ErrRevertRace) {
+			t.Errorf("expected ErrRevertRace, got %v", err)
 		}
 	})
 }
@@ -375,17 +705,4 @@ func TestFlagRevertHandlersConstructor(t *testing.T) {
 			t.Errorf("tuple[%d]: handler is nil", i)
 		}
 	}
-}
-
-// contains is a simple substring check for error message assertions.
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-		func() bool {
-			for i := 0; i <= len(s)-len(substr); i++ {
-				if s[i:i+len(substr)] == substr {
-					return true
-				}
-			}
-			return false
-		}())
 }

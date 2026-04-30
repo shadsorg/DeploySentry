@@ -67,19 +67,6 @@ func revertFlagCreated(svc FlagService) auth.RevertHandler {
 	}
 }
 
-// flagUpdatedPayload matches the keys written by the flag.updated audit call.
-type flagUpdatedPayload struct {
-	Name         *string      `json:"name"`
-	Description  *string      `json:"description"`
-	Category     *string      `json:"category"`
-	Purpose      *string      `json:"purpose"`
-	Owners       []string     `json:"owners"`
-	IsPermanent  *bool        `json:"is_permanent"`
-	ExpiresAt    *interface{} `json:"expires_at"`
-	DefaultValue *string      `json:"default_value"`
-	Tags         []string     `json:"tags"`
-}
-
 // revertFlagUpdated undoes a flag.updated action by restoring old field values.
 // Race detection compares the new_value payload against the current flag state.
 // If any field set in new_value has since changed, we detect a race.
@@ -91,10 +78,6 @@ func revertFlagUpdated(svc FlagService) auth.RevertHandler {
 
 		var newPayload map[string]interface{}
 		if err := json.Unmarshal([]byte(entry.NewValue), &newPayload); err != nil {
-			return "", fmt.Errorf("flag.updated revert: malformed payload: %w", err)
-		}
-		var oldPayload map[string]interface{}
-		if err := json.Unmarshal([]byte(entry.OldValue), &oldPayload); err != nil {
 			return "", fmt.Errorf("flag.updated revert: malformed payload: %w", err)
 		}
 
@@ -139,49 +122,21 @@ func revertFlagUpdated(svc FlagService) auth.RevertHandler {
 			}
 		}
 
-		// Apply: load old values onto the current flag (preserves ID, ProjectID, etc.)
-		if v, ok := oldPayload["name"].(string); ok {
-			current.Name = v
+		// Apply: re-marshal old payload through the FeatureFlag struct so typed fields
+		// (notably expires_at *time.Time) round-trip correctly. We only restore fields
+		// that handler.go's update path itself supports.
+		var oldFlag models.FeatureFlag
+		if err := json.Unmarshal([]byte(entry.OldValue), &oldFlag); err != nil {
+			return "", fmt.Errorf("flag.updated revert: malformed old_value payload: %w", err)
 		}
-		if v, ok := oldPayload["description"].(string); ok {
-			current.Description = v
-		}
-		if v, ok := oldPayload["category"].(string); ok {
-			current.Category = models.FlagCategory(v)
-		}
-		if v, ok := oldPayload["purpose"].(string); ok {
-			current.Purpose = v
-		}
-		if v, ok := oldPayload["owners"]; ok && v != nil {
-			if arr, ok := v.([]interface{}); ok {
-				owners := make([]string, 0, len(arr))
-				for _, item := range arr {
-					if s, ok := item.(string); ok {
-						owners = append(owners, s)
-					}
-				}
-				current.Owners = owners
-			}
-		}
-		if v, ok := oldPayload["is_permanent"].(bool); ok {
-			current.IsPermanent = v
-		}
-		if v, ok := oldPayload["default_value"].(string); ok {
-			current.DefaultValue = v
-		}
-		if v, ok := oldPayload["tags"]; ok && v != nil {
-			if arr, ok := v.([]interface{}); ok {
-				tags := make([]string, 0, len(arr))
-				for _, item := range arr {
-					if s, ok := item.(string); ok {
-						tags = append(tags, s)
-					}
-				}
-				current.Tags = tags
-			}
-		}
+		// Preserve identifying fields from current (don't let revert change them).
+		oldFlag.ID = current.ID
+		oldFlag.ProjectID = current.ProjectID
+		oldFlag.Key = current.Key
+		oldFlag.CreatedAt = current.CreatedAt
+		oldFlag.CreatedBy = current.CreatedBy
 
-		if err := svc.UpdateFlag(ctx, current); err != nil {
+		if err := svc.UpdateFlag(ctx, &oldFlag); err != nil {
 			return "", fmt.Errorf("flag.updated revert: update: %w", err)
 		}
 		return "flag.updated.reverted", nil
@@ -230,8 +185,7 @@ func revertFlagRuleCreated(svc FlagService) auth.RevertHandler {
 			return "", fmt.Errorf("flag.rule.created revert: malformed payload: %w", err)
 		}
 
-		rule, err := svc.GetRule(ctx, payload.RuleID)
-		if err != nil {
+		if _, err := svc.GetRule(ctx, payload.RuleID); err != nil {
 			// Only treat "not found" as idempotent success; propagate other errors.
 			// The postgres layer returns its ErrNotFound sentinel unwrapped,
 			// so it survives the service-layer wrapping and we check for it here.
@@ -244,7 +198,6 @@ func revertFlagRuleCreated(svc FlagService) auth.RevertHandler {
 		if err := svc.DeleteRule(ctx, payload.RuleID); err != nil {
 			return "", fmt.Errorf("flag.rule.created revert: delete rule: %w", err)
 		}
-		_ = rule // rule loaded successfully; explicit acknowledge to avoid unused var lint
 		return "flag.rule.created.reverted", nil
 	}
 }
@@ -262,7 +215,10 @@ func revertFlagRuleDeleted(svc FlagService) auth.RevertHandler {
 		}
 
 		existing, err := svc.GetRule(ctx, rule.ID)
-		if err == nil && existing != nil && !force {
+		if err != nil && !strings.Contains(err.Error(), "not found") {
+			return "", fmt.Errorf("flag.rule.deleted revert: load rule: %w", err)
+		}
+		if existing != nil && !force {
 			// Rule already exists — someone re-created it since the delete.
 			return "", auth.ErrRevertRace
 		}

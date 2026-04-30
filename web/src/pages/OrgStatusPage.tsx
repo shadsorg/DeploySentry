@@ -74,10 +74,10 @@ export default function OrgStatusPage() {
       </div>
 
       <div className="stat-grid" style={{ marginBottom: 24 }}>
-        <StatCard label="Healthy" value={globalCounts.healthy} color="var(--color-success)" />
-        <StatCard label="Degraded" value={globalCounts.degraded} color="var(--color-warning)" />
-        <StatCard label="Unhealthy" value={globalCounts.unhealthy} color="var(--color-danger)" />
-        <StatCard label="Unknown" value={globalCounts.unknown} color="var(--color-text-muted)" />
+        <StatCard label="Healthy" value={globalCounts.healthy} color="var(--color-success)" icon="check_circle" />
+        <StatCard label="Degraded" value={globalCounts.degraded} color="var(--color-warning)" icon="warning" />
+        <StatCard label="Unhealthy" value={globalCounts.unhealthy} color="var(--color-danger)" icon="error" />
+        <StatCard label="Unknown" value={globalCounts.unknown} color="var(--color-text-muted)" icon="help" />
       </div>
 
       <div className="org-status-summary">
@@ -254,9 +254,14 @@ function Favicon({ url, label }: { url: string; label: string }) {
   );
 }
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+function StatCard({ label, value, color, icon }: { label: string; value: number; color: string; icon?: string }) {
   return (
-    <div className="stat-card">
+    <div className="stat-card stat-card-with-icon">
+      {icon && (
+        <span className="ms stat-card-icon" style={{ color }} aria-hidden="true">
+          {icon}
+        </span>
+      )}
       <div className="stat-label">{label}</div>
       <div className="stat-value" style={{ color, fontFamily: 'var(--font-display)' }}>{value}</div>
     </div>

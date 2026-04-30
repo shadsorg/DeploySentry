@@ -88,6 +88,10 @@ type FlagRepository interface {
 	// for archived flags) or already tombstoned.
 	QueueDeletion(ctx context.Context, id uuid.UUID, retention time.Duration) error
 
+	// ClearDeleteAfter sets delete_after = NULL. Idempotent. Used when reverting
+	// flag.queued_for_deletion without otherwise unarchiving the flag.
+	ClearDeleteAfter(ctx context.Context, id uuid.UUID) error
+
 	// HardDeleteFlag tombstones the flag (sets deleted_at = now()) provided
 	// retention has elapsed (archived_at + retention < now()). Returns
 	// ErrNotFound when the SQL guard rejects the call (not archived,

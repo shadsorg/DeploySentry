@@ -157,6 +157,10 @@ type FlagService interface {
 	// RestoreFlag clears archived_at, delete_after, and deleted_at on a
 	// flag, returning it to active state. Idempotent on already-active flags.
 	RestoreFlag(ctx context.Context, id uuid.UUID) error
+
+	// ClearDeleteAfter sets delete_after = NULL. Idempotent. Used when
+	// reverting flag.queued_for_deletion without otherwise unarchiving the flag.
+	ClearDeleteAfter(ctx context.Context, id uuid.UUID) error
 }
 
 // flagService is the concrete implementation of FlagService.
@@ -754,6 +758,15 @@ func (s *flagService) RestoreFlag(ctx context.Context, id uuid.UUID) error {
 	if err == nil {
 		s.publishEvent(ctx, "restored", flag)
 	}
+	return nil
+}
+
+// ClearDeleteAfter sets delete_after = NULL, invalidates the cache entry.
+func (s *flagService) ClearDeleteAfter(ctx context.Context, id uuid.UUID) error {
+	if err := s.repo.ClearDeleteAfter(ctx, id); err != nil {
+		return fmt.Errorf("clear delete_after: %w", err)
+	}
+	_ = s.cache.Invalidate(ctx, id)
 	return nil
 }
 

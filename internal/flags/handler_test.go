@@ -38,6 +38,7 @@ type mockFlagService struct {
 	queueDeletionFn     func(ctx context.Context, id uuid.UUID, retention time.Duration) error
 	hardDeleteFlagFn    func(ctx context.Context, id uuid.UUID, retention time.Duration) error
 	restoreFlagFn       func(ctx context.Context, id uuid.UUID) error
+	clearDeleteAfterFn  func(ctx context.Context, id uuid.UUID) error
 	// Segment stubs
 	createSegmentFn func(ctx context.Context, segment *models.Segment) error
 	getSegmentFn    func(ctx context.Context, id uuid.UUID) (*models.Segment, error)
@@ -264,6 +265,13 @@ func (m *mockFlagService) HardDeleteFlag(ctx context.Context, id uuid.UUID, rete
 func (m *mockFlagService) RestoreFlag(ctx context.Context, id uuid.UUID) error {
 	if m.restoreFlagFn != nil {
 		return m.restoreFlagFn(ctx, id)
+	}
+	return nil
+}
+
+func (m *mockFlagService) ClearDeleteAfter(ctx context.Context, id uuid.UUID) error {
+	if m.clearDeleteAfterFn != nil {
+		return m.clearDeleteAfterFn(ctx, id)
 	}
 	return nil
 }

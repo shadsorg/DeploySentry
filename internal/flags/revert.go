@@ -30,6 +30,8 @@ func FlagRevertHandlers(svc FlagService) []RevertTuple {
 		{"flag", "flag.rule.deleted", revertFlagRuleDeleted(svc)},
 		{"flag", "flag.rule.env_state.updated", revertFlagRuleEnvStateUpdated(svc)},
 		{"flag", "flag.env_state.updated", revertFlagEnvStateUpdated(svc)},
+		{"flag", "flag.queued_for_deletion", revertFlagQueuedForDeletion(svc)},
+		{"flag", "flag.restored", revertFlagRestored(svc)},
 	}
 }
 
@@ -273,6 +275,45 @@ func revertFlagRuleEnvStateUpdated(svc FlagService) auth.RevertHandler {
 			return "", fmt.Errorf("flag.rule.env_state.updated revert: set state: %w", err)
 		}
 		return "flag.rule.env_state.updated.reverted", nil
+	}
+}
+
+// revertFlagQueuedForDeletion undoes a flag.queued_for_deletion action by
+// clearing the delete_after column. Race-detected: if delete_after is already
+// nil, the entry was already reverted (or cleared by Restore) and we race
+// unless force=true.
+func revertFlagQueuedForDeletion(svc FlagService) auth.RevertHandler {
+	return func(ctx context.Context, entry *models.AuditLogEntry, force bool) (string, error) {
+		flag, err := svc.GetFlag(ctx, entry.EntityID)
+		if err != nil {
+			return "", fmt.Errorf("flag.queued_for_deletion revert: load flag: %w", err)
+		}
+		if flag.DeleteAfter == nil && !force {
+			return "", auth.ErrRevertRace
+		}
+		if err := svc.ClearDeleteAfter(ctx, entry.EntityID); err != nil {
+			return "", fmt.Errorf("flag.queued_for_deletion revert: clear: %w", err)
+		}
+		return "flag.queued_for_deletion.reverted", nil
+	}
+}
+
+// revertFlagRestored undoes a flag.restored action by re-archiving the flag.
+// Race-detected: if the flag is already archived, it was re-archived elsewhere
+// and reverting would be a no-op or worse.
+func revertFlagRestored(svc FlagService) auth.RevertHandler {
+	return func(ctx context.Context, entry *models.AuditLogEntry, force bool) (string, error) {
+		flag, err := svc.GetFlag(ctx, entry.EntityID)
+		if err != nil {
+			return "", fmt.Errorf("flag.restored revert: load flag: %w", err)
+		}
+		if flag.Archived && !force {
+			return "", auth.ErrRevertRace
+		}
+		if err := svc.ArchiveFlag(ctx, entry.EntityID); err != nil {
+			return "", fmt.Errorf("flag.restored revert: archive: %w", err)
+		}
+		return "flag.restored.reverted", nil
 	}
 }
 

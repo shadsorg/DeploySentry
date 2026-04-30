@@ -536,6 +536,17 @@ func (r *FlagRepository) QueueDeletion(ctx context.Context, id uuid.UUID, retent
 	return nil
 }
 
+// ClearDeleteAfter sets delete_after = NULL. Idempotent. Used when reverting
+// flag.queued_for_deletion without otherwise unarchiving the flag.
+func (r *FlagRepository) ClearDeleteAfter(ctx context.Context, id uuid.UUID) error {
+	const q = `UPDATE feature_flags SET delete_after = NULL, updated_at = now() WHERE id = $1`
+	_, err := r.pool.Exec(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("postgres.ClearDeleteAfter: %w", err)
+	}
+	return nil
+}
+
 // HardDeleteFlag tombstones the flag (sets deleted_at = now()) when
 // retention has elapsed. Also forces enabled = false. Returns ErrNotFound
 // if the row is missing OR the SQL retention guard fails.

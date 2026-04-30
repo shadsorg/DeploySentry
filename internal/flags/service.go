@@ -273,7 +273,7 @@ func (s *flagService) ArchiveFlag(ctx context.Context, id uuid.UUID) error {
 
 // UnarchiveFlag restores an archived flag to active status by clearing archived_at.
 func (s *flagService) UnarchiveFlag(ctx context.Context, id uuid.UUID) error {
-	if err := s.repo.Unarchive(ctx, id); err != nil {
+	if err := s.repo.UnarchiveFlag(ctx, id); err != nil {
 		return fmt.Errorf("unarchiving flag: %w", err)
 	}
 

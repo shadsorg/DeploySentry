@@ -23,11 +23,11 @@ type mockFlagRepo struct {
 	rules map[uuid.UUID][]*models.TargetingRule // keyed by flag ID
 
 	// Optional hooks to inject custom behaviour.
-	createFlagFn  func(ctx context.Context, flag *models.FeatureFlag) error
-	getFlagFn     func(ctx context.Context, id uuid.UUID) (*models.FeatureFlag, error)
-	updateFlagFn  func(ctx context.Context, flag *models.FeatureFlag) error
-	deleteFlagFn  func(ctx context.Context, id uuid.UUID) error
-	unarchiveFn   func(ctx context.Context, id uuid.UUID) error
+	createFlagFn     func(ctx context.Context, flag *models.FeatureFlag) error
+	getFlagFn        func(ctx context.Context, id uuid.UUID) (*models.FeatureFlag, error)
+	updateFlagFn     func(ctx context.Context, flag *models.FeatureFlag) error
+	deleteFlagFn     func(ctx context.Context, id uuid.UUID) error
+	unarchiveFlagFn  func(ctx context.Context, id uuid.UUID) error
 	createRuleFn  func(ctx context.Context, rule *models.TargetingRule) error
 	updateRuleFn  func(ctx context.Context, rule *models.TargetingRule) error
 	deleteRuleFn  func(ctx context.Context, id uuid.UUID) error
@@ -94,9 +94,9 @@ func (m *mockFlagRepo) DeleteFlag(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (m *mockFlagRepo) Unarchive(ctx context.Context, id uuid.UUID) error {
-	if m.unarchiveFn != nil {
-		return m.unarchiveFn(ctx, id)
+func (m *mockFlagRepo) UnarchiveFlag(ctx context.Context, id uuid.UUID) error {
+	if m.unarchiveFlagFn != nil {
+		return m.unarchiveFlagFn(ctx, id)
 	}
 	f, ok := m.flags[id]
 	if !ok {
@@ -631,7 +631,7 @@ func TestUnarchiveFlag_Success(t *testing.T) {
 
 func TestUnarchiveFlag_RepoErrorPropagates(t *testing.T) {
 	repo := newMockFlagRepo()
-	repo.unarchiveFn = func(ctx context.Context, id uuid.UUID) error {
+	repo.unarchiveFlagFn = func(ctx context.Context, id uuid.UUID) error {
 		return errors.New("db gone")
 	}
 	svc := NewFlagService(repo, newMockCache(), nil)

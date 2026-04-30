@@ -497,13 +497,15 @@ func (r *FlagRepository) DeleteFlag(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-// Unarchive clears archived_at on a feature flag, restoring it to active.
-// Idempotent: returns nil if the flag is already active.
-func (r *FlagRepository) Unarchive(ctx context.Context, id uuid.UUID) error {
+// UnarchiveFlag clears archived_at on a feature flag, restoring it to active.
+// Returns ErrNotFound when no row matches the given id. Calling this on an
+// already-active flag is a no-op (the SQL still matches by id and rewrites
+// archived_at = NULL).
+func (r *FlagRepository) UnarchiveFlag(ctx context.Context, id uuid.UUID) error {
 	const q = `UPDATE feature_flags SET archived_at = NULL, updated_at = now() WHERE id = $1`
 	tag, err := r.pool.Exec(ctx, q, id)
 	if err != nil {
-		return fmt.Errorf("postgres.Unarchive: %w", err)
+		return fmt.Errorf("postgres.UnarchiveFlag: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return ErrNotFound

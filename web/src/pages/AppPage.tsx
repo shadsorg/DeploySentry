@@ -1,12 +1,13 @@
 import { NavLink, Outlet, useParams } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-import { entitiesApi } from '@/api';
-import type { Application } from '@/types';
+import { useEffect, useMemo, useState } from 'react';
+import { entitiesApi, orgStatusApi } from '@/api';
+import type { Application, OrgStatusEnvCell, OrgStatusResponse } from '@/types';
 
 export default function AppPage() {
   const { orgSlug, projectSlug, appSlug } = useParams();
   const [app, setApp] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<OrgStatusResponse | null>(null);
 
   useEffect(() => {
     if (!orgSlug || !projectSlug || !appSlug) return;
@@ -16,6 +17,24 @@ export default function AppPage() {
       .catch(() => setApp(null))
       .finally(() => setLoading(false));
   }, [orgSlug, projectSlug, appSlug]);
+
+  useEffect(() => {
+    if (!orgSlug) return;
+    orgStatusApi
+      .get(orgSlug)
+      .then(setStatus)
+      .catch(() => setStatus(null));
+  }, [orgSlug]);
+
+  const envCells = useMemo<OrgStatusEnvCell[]>(() => {
+    if (!status || !app) return [];
+    for (const p of status.projects) {
+      for (const a of p.applications) {
+        if (a.application.id === app.id) return a.environments;
+      }
+    }
+    return [];
+  }, [status, app]);
 
   if (!orgSlug || !projectSlug || !appSlug) return null;
   if (loading) return <div className="page-loading">Loading application...</div>;
@@ -66,6 +85,47 @@ export default function AppPage() {
           </div>
         </div>
       </div>
+      {envCells.length > 0 && (
+        <div className="app-env-summary" style={{ marginTop: 16 }}>
+          {envCells.slice(0, 3).map((cell) => {
+            const ver = cell.current_deployment?.version;
+            const slug = cell.environment.slug ?? cell.environment.name ?? '?';
+            const cls = cell.never_deployed
+              ? 'env-card env-card-faded'
+              : `env-card health-${cell.health.state}`;
+            return (
+              <div key={cell.environment.id} className={cls}>
+                <div className="env-card-header">
+                  <span
+                    className={`env-card-pulse health-${cell.health.state}`}
+                    aria-hidden="true"
+                  />
+                  <span className="env-card-slug">{slug}</span>
+                </div>
+                <div className="env-card-version">
+                  {cell.never_deployed ? (
+                    <span className="dim">no deploys</span>
+                  ) : ver ? (
+                    ver.length > 10 ? (
+                      `${ver.slice(0, 10)}…`
+                    ) : (
+                      ver
+                    )
+                  ) : (
+                    '—'
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {envCells.length > 3 && (
+            <NavLink to={`${base}/settings`} className="env-card env-card-more">
+              + {envCells.length - 3} more
+            </NavLink>
+          )}
+        </div>
+      )}
+
       <div className="tabs" style={{ marginTop: 16 }}>
         {[
           { to: `${base}/flags`, icon: 'toggle_on', label: 'Flags' },

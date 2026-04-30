@@ -1,11 +1,13 @@
 # UI Audit — Mockup ↔ Implementation Disparities
 
 **Generated**: 2026-04-24
-**Last addressed**: 2026-04-29 (Batch A polish — see [spec](../superpowers/specs/2026-04-29-ui-audit-disparities-design.md))
+**Last addressed**: 2026-04-30 (Batch B+ — see [spec](../superpowers/specs/2026-04-29-ui-audit-disparities-design.md))
 **Scope**: Phase-2 review of the Sentry Dark UI reskin.
 
-> **Batch A status (2026-04-29):** §1 (icon tile portion), §7, §15, §17, §18 ✅ merged via PR #67.
-> **Batch B status (2026-04-29):** §1 (project-card matrix), §12 (inheritance breadcrumb), §19 (editor stepper) ✅ addressed on `feature/ui-audit-batch-b` (PR #68). §2 reclassified as docs-mapping (not code). §8, §10, §13, §20 deferred to Batch C pending product input.
+> **Batch A (2026-04-29):** §1 (icon tile portion), §7, §15, §17, §18 ✅ merged via PR #67.
+> **Batch B (2026-04-29):** §1 (project-card matrix), §12 (inheritance breadcrumb), §19 (editor stepper) ✅ merged via PR #68. §2 reclassified as docs-mapping (not code).
+> **Batch B+ (2026-04-30):** §3 (Critical Events sidebar), §6 (AppPage env summary), §11 (project Settings sectioning), §14 (MembersPage role pills), §16 (APIKeysPage scope cards) ✅ on `feature/ui-audit-batch-b-plus`.
+> **Batch C — needs product input:** §4 per-row latency/error chips (data not surfaced), §8 FlagDetailPage 2-col rewrite, §9 targeting "Active Rules Hierarchy" (needs stats API), §10 AnalyticsPage quota banner (needs quota API), §13 MembersPage security feed (needs audit-log API), §19 StrategiesPage list+builder, §20 DocsPage landing.
 **How this was built**: Each HTML mockup in `newscreens/` was read alongside
 its React counterpart in `web/src/pages/`. Disparities are structural and
 visual gaps a designer would notice on side-by-side review — NOT pixel

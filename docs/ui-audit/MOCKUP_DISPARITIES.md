@@ -6,6 +6,7 @@
 
 > **Batch A status (2026-04-29):** §1 (icon tile portion), §7, §15, §17, §18 ✅ merged via PR #67.
 > **Batch B status (2026-04-29):** §1 (project-card matrix), §12 (inheritance breadcrumb), §19 (editor stepper) ✅ addressed on `feature/ui-audit-batch-b` (PR #68). §2 reclassified as docs-mapping (not code). §8, §10, §13, §20 deferred to Batch C pending product input.
+> **§20 DocsPage status (2026-04-30):** ✅ shipped — `/docs` no-slug now renders a category-organized TOC. Marketing-landing direction rejected by product.
 **How this was built**: Each HTML mockup in `newscreens/` was read alongside
 its React counterpart in `web/src/pages/`. Disparities are structural and
 visual gaps a designer would notice on side-by-side review — NOT pixel

@@ -23,13 +23,14 @@ type mockFlagRepo struct {
 	rules map[uuid.UUID][]*models.TargetingRule // keyed by flag ID
 
 	// Optional hooks to inject custom behaviour.
-	createFlagFn func(ctx context.Context, flag *models.FeatureFlag) error
-	getFlagFn    func(ctx context.Context, id uuid.UUID) (*models.FeatureFlag, error)
-	updateFlagFn func(ctx context.Context, flag *models.FeatureFlag) error
-	deleteFlagFn func(ctx context.Context, id uuid.UUID) error
-	createRuleFn func(ctx context.Context, rule *models.TargetingRule) error
-	updateRuleFn func(ctx context.Context, rule *models.TargetingRule) error
-	deleteRuleFn func(ctx context.Context, id uuid.UUID) error
+	createFlagFn     func(ctx context.Context, flag *models.FeatureFlag) error
+	getFlagFn        func(ctx context.Context, id uuid.UUID) (*models.FeatureFlag, error)
+	updateFlagFn     func(ctx context.Context, flag *models.FeatureFlag) error
+	deleteFlagFn     func(ctx context.Context, id uuid.UUID) error
+	unarchiveFlagFn  func(ctx context.Context, id uuid.UUID) error
+	createRuleFn  func(ctx context.Context, rule *models.TargetingRule) error
+	updateRuleFn  func(ctx context.Context, rule *models.TargetingRule) error
+	deleteRuleFn  func(ctx context.Context, id uuid.UUID) error
 }
 
 func newMockFlagRepo() *mockFlagRepo {
@@ -90,6 +91,18 @@ func (m *mockFlagRepo) DeleteFlag(ctx context.Context, id uuid.UUID) error {
 		return m.deleteFlagFn(ctx, id)
 	}
 	delete(m.flags, id)
+	return nil
+}
+
+func (m *mockFlagRepo) UnarchiveFlag(ctx context.Context, id uuid.UUID) error {
+	if m.unarchiveFlagFn != nil {
+		return m.unarchiveFlagFn(ctx, id)
+	}
+	f, ok := m.flags[id]
+	if !ok {
+		return errors.New("flag not found")
+	}
+	f.Archived = false
 	return nil
 }
 
@@ -588,6 +601,66 @@ func TestArchiveFlag_GetError(t *testing.T) {
 	err := svc.ArchiveFlag(context.Background(), uuid.New())
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "getting flag for archive")
+}
+
+// ---------------------------------------------------------------------------
+// UnarchiveFlag
+// ---------------------------------------------------------------------------
+
+func TestUnarchiveFlag_Success(t *testing.T) {
+	repo := newMockFlagRepo()
+	cache := newMockCache()
+	svc := NewFlagService(repo, cache, nil)
+
+	flag := validFlag()
+	flag.Archived = true
+	flag.Enabled = false
+	err := svc.CreateFlag(context.Background(), flag)
+	require.NoError(t, err)
+	// Manually mark as archived in the mock (CreateFlag goes through validation
+	// which doesn't set Archived, so we set it directly).
+	repo.flags[flag.ID].Archived = true
+
+	err = svc.UnarchiveFlag(context.Background(), flag.ID)
+	require.NoError(t, err)
+
+	retrieved, err := svc.GetFlag(context.Background(), flag.ID)
+	require.NoError(t, err)
+	assert.False(t, retrieved.Archived, "flag should no longer be archived")
+}
+
+func TestUnarchiveFlag_RepoErrorPropagates(t *testing.T) {
+	repo := newMockFlagRepo()
+	repo.unarchiveFlagFn = func(ctx context.Context, id uuid.UUID) error {
+		return errors.New("db gone")
+	}
+	svc := NewFlagService(repo, newMockCache(), nil)
+
+	err := svc.UnarchiveFlag(context.Background(), uuid.New())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unarchiving flag")
+}
+
+func TestUnarchiveFlag_CacheInvalidated(t *testing.T) {
+	repo := newMockFlagRepo()
+	cache := newMockCache()
+	svc := NewFlagService(repo, cache, nil)
+
+	flag := validFlag()
+	err := svc.CreateFlag(context.Background(), flag)
+	require.NoError(t, err)
+
+	// Prime the cache with a rules entry so we can verify invalidation.
+	cache.rules[flag.ID] = []*models.TargetingRule{}
+
+	err = svc.UnarchiveFlag(context.Background(), flag.ID)
+	require.NoError(t, err)
+
+	// Invalidate deletes from the rules map; confirm it was called.
+	cache.mu.RLock()
+	_, stillCached := cache.rules[flag.ID]
+	cache.mu.RUnlock()
+	assert.False(t, stillCached, "cache should be invalidated after unarchive")
 }
 
 // ---------------------------------------------------------------------------

@@ -231,7 +231,7 @@ export default function FlagDetailPage() {
     if (activeTab !== 'history' || !id) return;
     setHistoryLoading(true);
     auditApi
-      .query({ resource_type: 'flag', resource_id: id, limit: 50 })
+      .query({ entity_type: 'flag', resource_id: id, limit: 50 })
       .then((res) => setHistory(res.entries ?? []))
       .catch(() => setHistory([]))
       .finally(() => setHistoryLoading(false));

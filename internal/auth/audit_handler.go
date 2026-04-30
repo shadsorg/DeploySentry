@@ -16,7 +16,7 @@ type AuditLogFilter struct {
 	ProjectID    *uuid.UUID `json:"project_id,omitempty"`
 	UserID       *uuid.UUID `json:"user_id,omitempty"`
 	Action       string     `json:"action,omitempty"`
-	ResourceType string     `json:"resource_type,omitempty"`
+	EntityType   string     `json:"entity_type,omitempty"`
 	ResourceID   *uuid.UUID `json:"resource_id,omitempty"`
 	StartDate    *time.Time `json:"start_date,omitempty"`
 	EndDate      *time.Time `json:"end_date,omitempty"`
@@ -32,12 +32,13 @@ type AuditLogRepository interface {
 
 // AuditHandler provides HTTP endpoints for querying audit logs.
 type AuditHandler struct {
-	repo AuditLogRepository
+	repo     AuditLogRepository
+	registry *RevertRegistry
 }
 
 // NewAuditHandler creates a new AuditHandler.
-func NewAuditHandler(repo AuditLogRepository) *AuditHandler {
-	return &AuditHandler{repo: repo}
+func NewAuditHandler(repo AuditLogRepository, registry *RevertRegistry) *AuditHandler {
+	return &AuditHandler{repo: repo, registry: registry}
 }
 
 // RegisterRoutes mounts all audit log query routes on the given router group.
@@ -66,8 +67,8 @@ func (h *AuditHandler) queryAuditLog(c *gin.Context) {
 
 	filter := AuditLogFilter{
 		OrgID:        orgID,
-		Action:       c.Query("action"),
-		ResourceType: c.Query("resource_type"),
+		Action:     c.Query("action"),
+		EntityType: c.Query("entity_type"),
 	}
 
 	// Parse optional project_id filter.
@@ -128,6 +129,12 @@ func (h *AuditHandler) queryAuditLog(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to query audit logs"})
 		return
+	}
+
+	if h.registry != nil {
+		for _, e := range entries {
+			e.Revertible = h.registry.IsRevertible(e.EntityType, e.Action)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

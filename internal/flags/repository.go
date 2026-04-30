@@ -79,6 +79,9 @@ type FlagRepository interface {
 	// DeleteFlag removes a feature flag. Typically flags are archived, not deleted.
 	DeleteFlag(ctx context.Context, id uuid.UUID) error
 
+	// UnarchiveFlag clears archived_at on a feature flag, restoring it to active.
+	UnarchiveFlag(ctx context.Context, id uuid.UUID) error
+
 	// CreateRule persists a new targeting rule.
 	CreateRule(ctx context.Context, rule *models.TargetingRule) error
 

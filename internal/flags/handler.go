@@ -1065,12 +1065,20 @@ func (h *Handler) deleteRule(c *gin.Context) {
 		return
 	}
 
+	// Capture the rule state before deletion so the audit entry can be reverted.
+	oldRuleVal := fmt.Sprintf(`{"rule_id":"%s"}`, ruleID)
+	if existingRule, rErr := h.service.GetRule(c.Request.Context(), ruleID); rErr == nil {
+		if b, mErr := json.Marshal(existingRule); mErr == nil {
+			oldRuleVal = string(b)
+		}
+	}
+
 	if err := h.service.DeleteRule(c.Request.Context(), ruleID); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
 
-	h.writeAudit(c, "flag.rule.deleted", "flag", flagID, fmt.Sprintf(`{"rule_id":"%s"}`, ruleID), "")
+	h.writeAudit(c, "flag.rule.deleted", "flag", flagID, oldRuleVal, "")
 
 	h.broadcastEvent("rule.deleted", flagID, "")
 
@@ -1117,17 +1125,34 @@ func (h *Handler) setRuleEnvState(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	flagID, _ := uuid.Parse(c.Param("id"))
+
+	// Capture prior state so the audit entry can be reverted.
+	oldRuleEnvVal := ""
+	if priorStates, lErr := h.service.ListRuleEnvironmentStates(c.Request.Context(), flagID); lErr == nil {
+		for _, s := range priorStates {
+			if s.RuleID == ruleID && s.EnvironmentID == envID {
+				if b, mErr := json.Marshal(map[string]interface{}{
+					"rule_id": ruleID, "environment_id": envID, "enabled": s.Enabled,
+				}); mErr == nil {
+					oldRuleEnvVal = string(b)
+				}
+				break
+			}
+		}
+	}
+
 	state, err := h.service.SetRuleEnvironmentState(c.Request.Context(), ruleID, envID, req.Enabled)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	flagID, _ := uuid.Parse(c.Param("id"))
 	newVal, _ := json.Marshal(map[string]interface{}{
 		"rule_id": ruleID, "environment_id": envID, "enabled": req.Enabled,
 	})
-	h.writeAudit(c, "flag.rule.env_state.updated", "flag", flagID, "", string(newVal))
+	h.writeAudit(c, "flag.rule.env_state.updated", "flag", flagID, oldRuleEnvVal, string(newVal))
 
 	h.broadcastEvent("rule.updated", flagID, "")
 
@@ -1188,6 +1213,21 @@ func (h *Handler) setFlagEnvState(c *gin.Context) {
 		return
 	}
 
+	// Capture prior state so the audit entry can be reverted.
+	oldFlagEnvVal := ""
+	if priorStates, lErr := h.service.ListFlagEnvStates(c.Request.Context(), flagID); lErr == nil {
+		for _, s := range priorStates {
+			if s.EnvironmentID == envID {
+				if b, mErr := json.Marshal(map[string]interface{}{
+					"environment_id": envID, "enabled": s.Enabled, "value": s.Value,
+				}); mErr == nil {
+					oldFlagEnvVal = string(b)
+				}
+				break
+			}
+		}
+	}
+
 	state := &models.FlagEnvironmentState{
 		FlagID:        flagID,
 		EnvironmentID: envID,
@@ -1209,7 +1249,7 @@ func (h *Handler) setFlagEnvState(c *gin.Context) {
 	newVal, _ := json.Marshal(map[string]interface{}{
 		"environment_id": envID, "enabled": req.Enabled, "value": req.Value,
 	})
-	h.writeAudit(c, "flag.env_state.updated", "flag", flagID, "", string(newVal))
+	h.writeAudit(c, "flag.env_state.updated", "flag", flagID, oldFlagEnvVal, string(newVal))
 
 	h.broadcastEvent("flag.updated", flagID, "")
 

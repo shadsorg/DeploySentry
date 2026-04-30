@@ -22,4 +22,5 @@ type AuditLogEntry struct {
 	IPAddress  string    `json:"ip_address,omitempty" db:"ip_address"`
 	UserAgent  string    `json:"user_agent,omitempty" db:"user_agent"`
 	CreatedAt  time.Time `json:"created_at" db:"created_at"`
+	Revertible bool      `json:"revertible" db:"-"`
 }

@@ -258,6 +258,14 @@ func run() error {
 	// -------------------------------------------------------------------------
 	flagCache := flagcache.NewFlagCache(rdb)
 	flagService := flags.NewFlagService(flagRepo, flagCache, nc)
+
+	// Revert registry: maps (entity_type, action) -> handler. Future entity
+	// domains (members, env, apikey) can register their handlers the same way.
+	revertRegistry := auth.NewRevertRegistry()
+	for _, t := range flags.FlagRevertHandlers(flagService) {
+		revertRegistry.Register(t.EntityType, t.Action, t.Handler)
+	}
+
 	deployService := deploy.NewDeployService(deployRepo, nc)
 	releaseService := releases.NewReleaseServiceWithPublisher(releaseRepo, nc)
 	apiKeyService := auth.NewAPIKeyService(apiKeyRepo)
@@ -431,7 +439,8 @@ func run() error {
 	auth.NewUserHandler(userRepo).RegisterRoutes(api)
 	auth.NewLoginHandler(userRepo, cfg.Auth).RegisterAuthenticatedRoutes(api)
 	auth.NewAPIKeyHandler(apiKeyService).RegisterRoutes(api)
-	auth.NewAuditHandler(auditRepo).RegisterRoutes(api)
+	auth.NewAuditHandler(auditRepo, revertRegistry).RegisterRoutes(api)
+	auth.NewRevertHandler(revertRegistry, auditRepo).RegisterRoutes(api)
 	entities.NewHandler(entityService, rbacChecker, grantService).RegisterRoutes(api)
 	settings.NewHandler(settingService, rbacChecker).RegisterRoutes(api)
 	members.NewHandler(memberService, entityService, rbacChecker).RegisterRoutes(api)

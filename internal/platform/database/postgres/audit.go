@@ -35,8 +35,8 @@ func (r *AuditLogRepository) QueryAuditLogs(ctx context.Context, filter auth.Aud
 	if filter.Action != "" {
 		wb.Add("a.action = $%d", filter.Action)
 	}
-	if filter.ResourceType != "" {
-		wb.Add("a.resource_type = $%d", filter.ResourceType)
+	if filter.EntityType != "" {
+		wb.Add("a.resource_type = $%d", filter.EntityType)
 	}
 	if filter.ResourceID != nil {
 		wb.Add("a.resource_id = $%d", *filter.ResourceID)
@@ -106,6 +106,34 @@ func (r *AuditLogRepository) QueryAuditLogs(ctx context.Context, filter auth.Aud
 	}
 
 	return entries, total, nil
+}
+
+// GetAuditLogEntry retrieves a single audit log entry by id.
+func (r *AuditLogRepository) GetAuditLogEntry(ctx context.Context, id uuid.UUID) (*models.AuditLogEntry, error) {
+	const q = `
+		SELECT
+			a.id, a.org_id,
+			COALESCE(a.project_id, '00000000-0000-0000-0000-000000000000'::uuid),
+			a.user_id, COALESCE(u.name, ''), a.action, a.resource_type,
+			COALESCE(a.resource_id, '00000000-0000-0000-0000-000000000000'::uuid),
+			COALESCE(a.old_value::text, ''),
+			COALESCE(a.new_value::text, ''),
+			COALESCE(a.ip_address::text, ''),
+			COALESCE(a.user_agent, ''),
+			a.created_at
+		FROM audit_log a
+		LEFT JOIN users u ON u.id = a.user_id
+		WHERE a.id = $1`
+	row := r.pool.QueryRow(ctx, q, id)
+	var e models.AuditLogEntry
+	if err := row.Scan(
+		&e.ID, &e.OrgID, &e.ProjectID, &e.ActorID, &e.ActorName,
+		&e.Action, &e.EntityType, &e.EntityID,
+		&e.OldValue, &e.NewValue, &e.IPAddress, &e.UserAgent, &e.CreatedAt,
+	); err != nil {
+		return nil, fmt.Errorf("postgres.GetAuditLogEntry: %w", err)
+	}
+	return &e, nil
 }
 
 // WriteAuditLog inserts a single audit log entry.

@@ -4181,3 +4181,210 @@ tbody tr:last-child td {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ─── OrgAuditPage ───────────────────────────────────────────── */
+
+.org-audit-page {
+  max-width: 1400px;
+}
+
+.org-audit-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 1024px) {
+  .org-audit-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.org-audit-filters {
+  position: sticky;
+  top: 16px;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  height: fit-content;
+}
+
+.org-audit-filters-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.org-audit-main {
+  min-width: 0;
+}
+
+.audit-table {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--color-bg-surface);
+}
+
+.audit-row {
+  display: grid;
+  grid-template-columns: 110px 180px 1fr 180px 80px;
+  gap: 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  align-items: center;
+  font-size: 13px;
+  color: var(--color-text);
+  transition: background 0.12s ease;
+}
+.audit-row:last-child {
+  border-bottom: 0;
+}
+.audit-row:hover {
+  background: var(--color-bg-hover, rgba(255, 255, 255, 0.03));
+}
+.audit-row.expanded {
+  background: var(--color-bg-hover, rgba(255, 255, 255, 0.05));
+}
+
+.audit-row-head {
+  cursor: default;
+  background: var(--color-bg-elevated);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  padding: 8px 20px;
+}
+.audit-row-head:hover {
+  background: var(--color-bg-elevated);
+}
+
+.audit-row-when {
+  color: var(--color-text-muted);
+}
+.audit-row-who {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.audit-row-what {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.audit-row-where {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+.audit-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.audit-row-diff {
+  border-bottom: 1px solid var(--color-border);
+  padding: 12px 20px;
+  background: var(--color-bg-subtle, rgba(0, 0, 0, 0.15));
+}
+
+.audit-diff {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 768px) {
+  .audit-diff {
+    grid-template-columns: 1fr;
+  }
+}
+
+.audit-diff-pane-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin-bottom: 6px;
+}
+
+.audit-diff-pre {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 1.45;
+  background: var(--color-bg-input, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  white-space: pre;
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0;
+}
+
+.audit-empty {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.audit-revert-btn {
+  white-space: nowrap;
+}
+
+.audit-revert-disabled {
+  display: inline-block;
+}
+
+/* Revert dialog + toast */
+.revert-dialog-preview {
+  margin: 12px 0 16px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg-subtle, rgba(0,0,0,0.15));
+}
+.revert-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  font-size: 14px;
+  z-index: 1000;
+}
+.revert-toast-undo {
+  background: transparent;
+  border: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0;
+  text-decoration: underline;
+}
+.revert-toast-close {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 16px;
+}

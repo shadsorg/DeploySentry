@@ -32,6 +32,7 @@ import ProjectAppsTab from './pages/ProjectAppsTab';
 import CreateProjectPage from './pages/CreateProjectPage';
 import OrgStatusPage from './pages/OrgStatusPage';
 import OrgDeploymentsPage from './pages/OrgDeploymentsPage';
+import OrgAuditPage from './pages/OrgAuditPage';
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const DocsPage = lazy(() => import('./pages/DocsPage'));
 
@@ -66,6 +67,7 @@ export default function App() {
               <Route path="projects/new" element={<CreateProjectPage />} />
               <Route path="members" element={<MembersPage />} />
               <Route path="api-keys" element={<APIKeysPage />} />
+              <Route path="audit" element={<OrgAuditPage />} />
               <Route path="strategies" element={<StrategiesPage />} />
               <Route path="rollouts" element={<RolloutsPage />} />
               <Route path="rollouts/:id" element={<RolloutDetailPage />} />

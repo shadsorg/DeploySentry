@@ -28,6 +28,10 @@ type mockFlagRepo struct {
 	updateFlagFn     func(ctx context.Context, flag *models.FeatureFlag) error
 	archiveFlagFn    func(ctx context.Context, id uuid.UUID) error
 	unarchiveFlagFn  func(ctx context.Context, id uuid.UUID) error
+	queueDeletionFn         func(ctx context.Context, id uuid.UUID, retention time.Duration) error
+	hardDeleteFlagFn        func(ctx context.Context, id uuid.UUID, retention time.Duration) error
+	restoreFlagFn           func(ctx context.Context, id uuid.UUID) error
+	listFlagsToHardDeleteFn func(ctx context.Context, limit int) ([]uuid.UUID, error)
 	createRuleFn  func(ctx context.Context, rule *models.TargetingRule) error
 	updateRuleFn  func(ctx context.Context, rule *models.TargetingRule) error
 	deleteRuleFn  func(ctx context.Context, id uuid.UUID) error
@@ -104,6 +108,52 @@ func (m *mockFlagRepo) UnarchiveFlag(ctx context.Context, id uuid.UUID) error {
 	}
 	f.Archived = false
 	return nil
+}
+
+func (m *mockFlagRepo) QueueDeletion(ctx context.Context, id uuid.UUID, retention time.Duration) error {
+	if m.queueDeletionFn != nil {
+		return m.queueDeletionFn(ctx, id, retention)
+	}
+	if f, ok := m.flags[id]; ok && f.Archived {
+		deleteAfter := time.Now().Add(retention)
+		f.DeleteAfter = &deleteAfter
+		return nil
+	}
+	return errors.New("postgres.QueueDeletion: not found")
+}
+
+func (m *mockFlagRepo) HardDeleteFlag(ctx context.Context, id uuid.UUID, retention time.Duration) error {
+	if m.hardDeleteFlagFn != nil {
+		return m.hardDeleteFlagFn(ctx, id, retention)
+	}
+	// Default: succeed, set deleted_at.
+	if f, ok := m.flags[id]; ok {
+		now := time.Now()
+		f.DeletedAt = &now
+		f.Enabled = false
+		return nil
+	}
+	return errors.New("postgres.HardDeleteFlag: not found")
+}
+
+func (m *mockFlagRepo) RestoreFlag(ctx context.Context, id uuid.UUID) error {
+	if m.restoreFlagFn != nil {
+		return m.restoreFlagFn(ctx, id)
+	}
+	if f, ok := m.flags[id]; ok {
+		f.Archived = false
+		f.DeleteAfter = nil
+		f.DeletedAt = nil
+		return nil
+	}
+	return errors.New("postgres.RestoreFlag: not found")
+}
+
+func (m *mockFlagRepo) ListFlagsToHardDelete(ctx context.Context, limit int) ([]uuid.UUID, error) {
+	if m.listFlagsToHardDeleteFn != nil {
+		return m.listFlagsToHardDeleteFn(ctx, limit)
+	}
+	return nil, nil
 }
 
 func (m *mockFlagRepo) CreateRule(ctx context.Context, rule *models.TargetingRule) error {

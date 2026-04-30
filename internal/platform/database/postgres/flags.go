@@ -518,6 +518,88 @@ func (r *FlagRepository) UnarchiveFlag(ctx context.Context, id uuid.UUID) error 
 	return nil
 }
 
+// QueueDeletion sets delete_after = archived_at + retention.
+// Idempotent: re-queueing an already-queued flag overwrites delete_after.
+func (r *FlagRepository) QueueDeletion(ctx context.Context, id uuid.UUID, retention time.Duration) error {
+	const q = `
+        UPDATE feature_flags
+        SET delete_after = archived_at + $2::interval, updated_at = now()
+        WHERE id = $1 AND archived_at IS NOT NULL AND deleted_at IS NULL`
+	interval := fmt.Sprintf("%d seconds", int(retention.Seconds()))
+	tag, err := r.pool.Exec(ctx, q, id, interval)
+	if err != nil {
+		return fmt.Errorf("postgres.QueueDeletion: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// HardDeleteFlag tombstones the flag (sets deleted_at = now()) when
+// retention has elapsed. Also forces enabled = false. Returns ErrNotFound
+// if the row is missing OR the SQL retention guard fails.
+func (r *FlagRepository) HardDeleteFlag(ctx context.Context, id uuid.UUID, retention time.Duration) error {
+	const q = `
+        UPDATE feature_flags
+        SET deleted_at = now(), enabled = false, updated_at = now()
+        WHERE id = $1
+          AND archived_at IS NOT NULL
+          AND archived_at + $2::interval < now()
+          AND deleted_at IS NULL`
+	interval := fmt.Sprintf("%d seconds", int(retention.Seconds()))
+	tag, err := r.pool.Exec(ctx, q, id, interval)
+	if err != nil {
+		return fmt.Errorf("postgres.HardDeleteFlag: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// RestoreFlag clears archived_at, delete_after, and deleted_at.
+func (r *FlagRepository) RestoreFlag(ctx context.Context, id uuid.UUID) error {
+	const q = `
+        UPDATE feature_flags
+        SET archived_at = NULL, delete_after = NULL, deleted_at = NULL, updated_at = now()
+        WHERE id = $1`
+	tag, err := r.pool.Exec(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("postgres.RestoreFlag: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// ListFlagsToHardDelete returns ids of flags where delete_after < now()
+// and deleted_at IS NULL. Ordered by delete_after ASC, capped at `limit`.
+func (r *FlagRepository) ListFlagsToHardDelete(ctx context.Context, limit int) ([]uuid.UUID, error) {
+	const q = `
+        SELECT id FROM feature_flags
+        WHERE delete_after IS NOT NULL
+          AND delete_after < now()
+          AND deleted_at IS NULL
+        ORDER BY delete_after ASC
+        LIMIT $1`
+	rows, err := r.pool.Query(ctx, q, limit)
+	if err != nil {
+		return nil, fmt.Errorf("postgres.ListFlagsToHardDelete: %w", err)
+	}
+	defer rows.Close()
+	var ids []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("postgres.ListFlagsToHardDelete scan: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
 // ---------------------------------------------------------------------------
 // TargetingRule methods
 // ---------------------------------------------------------------------------

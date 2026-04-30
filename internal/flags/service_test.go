@@ -26,7 +26,7 @@ type mockFlagRepo struct {
 	createFlagFn     func(ctx context.Context, flag *models.FeatureFlag) error
 	getFlagFn        func(ctx context.Context, id uuid.UUID) (*models.FeatureFlag, error)
 	updateFlagFn     func(ctx context.Context, flag *models.FeatureFlag) error
-	deleteFlagFn     func(ctx context.Context, id uuid.UUID) error
+	archiveFlagFn    func(ctx context.Context, id uuid.UUID) error
 	unarchiveFlagFn  func(ctx context.Context, id uuid.UUID) error
 	createRuleFn  func(ctx context.Context, rule *models.TargetingRule) error
 	updateRuleFn  func(ctx context.Context, rule *models.TargetingRule) error
@@ -86,9 +86,9 @@ func (m *mockFlagRepo) UpdateFlag(ctx context.Context, flag *models.FeatureFlag)
 	return nil
 }
 
-func (m *mockFlagRepo) DeleteFlag(ctx context.Context, id uuid.UUID) error {
-	if m.deleteFlagFn != nil {
-		return m.deleteFlagFn(ctx, id)
+func (m *mockFlagRepo) ArchiveFlag(ctx context.Context, id uuid.UUID) error {
+	if m.archiveFlagFn != nil {
+		return m.archiveFlagFn(ctx, id)
 	}
 	delete(m.flags, id)
 	return nil

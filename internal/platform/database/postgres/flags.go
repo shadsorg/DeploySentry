@@ -484,12 +484,13 @@ func (r *FlagRepository) MarkFlagRemovalFired(ctx context.Context, id uuid.UUID,
 	return nil
 }
 
-// DeleteFlag soft-deletes a feature flag by setting archived_at.
-func (r *FlagRepository) DeleteFlag(ctx context.Context, id uuid.UUID) error {
+// ArchiveFlag soft-archives a feature flag by setting archived_at = now().
+// Returns ErrNotFound if the flag is already archived (archived_at IS NOT NULL).
+func (r *FlagRepository) ArchiveFlag(ctx context.Context, id uuid.UUID) error {
 	const q = `UPDATE feature_flags SET archived_at = now() WHERE id = $1 AND archived_at IS NULL`
 	tag, err := r.pool.Exec(ctx, q, id)
 	if err != nil {
-		return fmt.Errorf("postgres.DeleteFlag: %w", err)
+		return fmt.Errorf("postgres.ArchiveFlag: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
 		return ErrNotFound

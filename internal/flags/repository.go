@@ -76,8 +76,9 @@ type FlagRepository interface {
 	// UpdateFlag persists changes to an existing feature flag.
 	UpdateFlag(ctx context.Context, flag *models.FeatureFlag) error
 
-	// DeleteFlag removes a feature flag. Typically flags are archived, not deleted.
-	DeleteFlag(ctx context.Context, id uuid.UUID) error
+	// ArchiveFlag soft-archives a feature flag by setting archived_at = now().
+	// Returns ErrNotFound if the flag is already archived (archived_at IS NOT NULL).
+	ArchiveFlag(ctx context.Context, id uuid.UUID) error
 
 	// UnarchiveFlag clears archived_at on a feature flag, restoring it to active.
 	UnarchiveFlag(ctx context.Context, id uuid.UUID) error

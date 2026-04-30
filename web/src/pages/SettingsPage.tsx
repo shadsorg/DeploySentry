@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useEnvironments } from '../hooks/useEntities';
 import { useWebhooks } from '../hooks/useWebhooks';
 import { useNotifications } from '../hooks/useNotifications';
@@ -470,6 +470,45 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ level = 'org', tab }) => {
 
   return (
     <div>
+      {/* Inheritance breadcrumb */}
+      <nav className="settings-inheritance" aria-label="Settings scope">
+        <Link to={`/orgs/${orgSlug}`} className={`crumb${level === 'org' ? ' current' : ''}`}>
+          <span className="ms" style={{ fontSize: 14 }}>domain</span>
+          {orgSlug}
+        </Link>
+        {projectSlug && (
+          <>
+            <span className="crumb-sep">›</span>
+            <Link
+              to={`/orgs/${orgSlug}/projects/${projectSlug}`}
+              className={`crumb${level === 'project' ? ' current' : ''}`}
+            >
+              <span className="ms" style={{ fontSize: 14 }}>folder</span>
+              {projectSlug}
+            </Link>
+          </>
+        )}
+        {appSlug && (
+          <>
+            <span className="crumb-sep">›</span>
+            <Link
+              to={`/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}`}
+              className={`crumb${level === 'app' ? ' current' : ''}`}
+            >
+              <span className="ms" style={{ fontSize: 14 }}>apps</span>
+              {appSlug}
+            </Link>
+          </>
+        )}
+        <span className="crumb-hint">
+          {level === 'org'
+            ? 'Org-level settings — inherited by all projects and apps unless overridden.'
+            : level === 'project'
+              ? 'Project-level settings — inherits from org, overrides cascade to apps.'
+              : 'App-level settings — inherits from project, then org.'}
+        </span>
+      </nav>
+
       {/* Page header */}
       <div className="page-header">
         <h1>{headingMap[level]}</h1>

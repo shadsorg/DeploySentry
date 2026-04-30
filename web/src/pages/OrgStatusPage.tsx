@@ -62,6 +62,13 @@ export default function OrgStatusPage() {
 
   const globalCounts = useMemo(() => countStates(data), [data]);
 
+  const [healthFilter, setHealthFilter] = useState<'all' | 'degraded'>('all');
+  const visibleProjects = useMemo(() => {
+    if (!data) return [];
+    if (healthFilter === 'all') return data.projects;
+    return data.projects.filter((p) => p.aggregate_health !== 'healthy');
+  }, [data, healthFilter]);
+
   if (!orgSlug) return null;
   if (loading && !data) return <div className="page-loading">Loading status…</div>;
   if (error && !data) return <div className="page-error">Error: {error}</div>;
@@ -81,7 +88,27 @@ export default function OrgStatusPage() {
       </div>
 
       <div className="org-status-summary">
-        <div className="org-status-refresh" style={{ marginLeft: 0 }}>
+        <div className="org-status-filter-pills" role="tablist" aria-label="Filter projects">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={healthFilter === 'all'}
+            className={`filter-pill ${healthFilter === 'all' ? 'active' : ''}`}
+            onClick={() => setHealthFilter('all')}
+          >
+            All Projects
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={healthFilter === 'degraded'}
+            className={`filter-pill ${healthFilter === 'degraded' ? 'active' : ''}`}
+            onClick={() => setHealthFilter('degraded')}
+          >
+            Degraded Only
+          </button>
+        </div>
+        <div className="org-status-refresh" style={{ marginLeft: 'auto' }}>
           {lastFetched && (
             <span className="org-status-timestamp">
               Updated {relativeTime(lastFetched)}
@@ -103,40 +130,48 @@ export default function OrgStatusPage() {
         </div>
       )}
 
-      {data?.projects.map((p) => {
-        const isCollapsed = !!collapsed[p.project.id];
-        return (
-          <section key={p.project.id} className="org-status-project">
-            <button
-              type="button"
-              className={`org-status-project-bar health-${p.aggregate_health}`}
-              onClick={() => toggle(p.project.id)}
-            >
-              <span className="ms org-status-caret" style={{ fontSize: 16 }}>
-                {isCollapsed ? 'chevron_right' : 'expand_more'}
-              </span>
-              <span className="org-status-project-name">{p.project.name}</span>
-              <span className="org-status-project-count">
-                {p.applications.length} app{p.applications.length === 1 ? '' : 's'}
-              </span>
-              <span className={`health-pill health-${p.aggregate_health}`}>
-                {p.aggregate_health}
-              </span>
-            </button>
-            {!isCollapsed && (
-              <div className="org-status-app-list">
-                {p.applications.length === 0 ? (
-                  <div className="org-status-empty">No applications in this project.</div>
-                ) : (
-                  p.applications.map((a) => (
-                    <AppRow key={a.application.id} orgSlug={orgSlug} project={p} app={a} />
-                  ))
-                )}
-              </div>
-            )}
-          </section>
-        );
-      })}
+      {data && data.projects.length > 0 && visibleProjects.length === 0 && (
+        <div className="empty-state">
+          <p>All projects are healthy. Nothing degraded.</p>
+        </div>
+      )}
+
+      <div className="org-status-grid">
+        {visibleProjects.map((p) => {
+          const isCollapsed = !!collapsed[p.project.id];
+          return (
+            <section key={p.project.id} className={`org-status-project-card health-${p.aggregate_health}`}>
+              <button
+                type="button"
+                className={`org-status-project-bar health-${p.aggregate_health}`}
+                onClick={() => toggle(p.project.id)}
+              >
+                <span className="ms org-status-caret" style={{ fontSize: 16 }}>
+                  {isCollapsed ? 'chevron_right' : 'expand_more'}
+                </span>
+                <span className="org-status-project-name">{p.project.name}</span>
+                <span className="org-status-project-count">
+                  {p.applications.length} app{p.applications.length === 1 ? '' : 's'}
+                </span>
+                <span className={`health-pill health-${p.aggregate_health}`}>
+                  {p.aggregate_health}
+                </span>
+              </button>
+              {!isCollapsed && (
+                <div className="org-status-app-list">
+                  {p.applications.length === 0 ? (
+                    <div className="org-status-empty">No applications in this project.</div>
+                  ) : (
+                    p.applications.map((a) => (
+                      <AppRow key={a.application.id} orgSlug={orgSlug} project={p} app={a} />
+                    ))
+                  )}
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -176,9 +211,9 @@ function AppRow({
         </div>
       </div>
 
-      <div className="org-status-chips">
+      <div className="org-status-env-cards">
         {app.environments.map((cell) => (
-          <EnvChip key={cell.environment.id} cell={cell} />
+          <EnvCard key={cell.environment.id} cell={cell} />
         ))}
       </div>
 
@@ -198,21 +233,32 @@ function AppRow({
   );
 }
 
-function EnvChip({ cell }: { cell: OrgStatusEnvCell }) {
+function EnvCard({ cell }: { cell: OrgStatusEnvCell }) {
   const label = cell.environment.slug ?? '??';
   const tooltip = tooltipFor(cell);
-  const classes = ['env-chip'];
+  const classes = ['env-card'];
   if (cell.never_deployed) {
-    classes.push('env-chip-faded');
+    classes.push('env-card-faded');
   } else {
     classes.push(`health-${cell.health.state}`);
     if (cell.health.staleness === 'stale') classes.push('stale');
     if (cell.health.staleness === 'missing' && cell.health.state !== 'unknown') classes.push('missing');
   }
+  const version = cell.current_deployment?.version;
+  const completed = cell.current_deployment?.completed_at;
   return (
-    <span className={classes.join(' ')} title={tooltip}>
-      {label}
-    </span>
+    <div className={classes.join(' ')} title={tooltip}>
+      <div className="env-card-header">
+        <span className={`env-card-pulse health-${cell.health.state}`} aria-hidden="true" />
+        <span className="env-card-slug">{label}</span>
+      </div>
+      <div className="env-card-version">
+        {cell.never_deployed ? <span className="dim">no deploys</span> : version ? shortVersion(version) : '—'}
+      </div>
+      {!cell.never_deployed && completed && (
+        <div className="env-card-meta">{relativeTime(completed)}</div>
+      )}
+    </div>
   );
 }
 

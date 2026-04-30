@@ -63,6 +63,8 @@ func scanFeatureFlag(row pgx.Row) (*models.FeatureFlag, error) {
 		&f.IterationExhausted,
 		&f.LastSmokeTestNotes,
 		&f.LastUserTestNotes,
+		&f.DeleteAfter,
+		&f.DeletedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -156,7 +158,9 @@ const flagSelectCols = `
 	COALESCE(iteration_count, 0),
 	COALESCE(iteration_exhausted, false),
 	last_smoke_test_notes,
-	last_user_test_notes`
+	last_user_test_notes,
+	delete_after,
+	deleted_at`
 
 const ruleSelectCols = `
 	id, flag_id, rule_type, priority,

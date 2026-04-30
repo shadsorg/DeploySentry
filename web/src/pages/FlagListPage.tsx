@@ -82,9 +82,10 @@ export default function FlagListPage() {
   }, [orgSlug, projectSlug, appSlug]);
 
   const filtered = useMemo(() => {
+    // ⚡ Bolt: Hoist search.toLowerCase() outside the filter loop to prevent O(N) redundant string operations
+    const q = search?.toLowerCase() ?? '';
     return flags.filter((flag) => {
-      if (search) {
-        const q = search.toLowerCase();
+      if (q) {
         if (!flag.name.toLowerCase().includes(q) && !flag.key.toLowerCase().includes(q)) {
           return false;
         }

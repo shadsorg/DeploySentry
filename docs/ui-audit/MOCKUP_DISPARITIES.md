@@ -6,8 +6,16 @@
 
 > **Batch A (2026-04-29):** §1 (icon tile portion), §7, §15, §17, §18 ✅ merged via PR #67.
 > **Batch B (2026-04-29):** §1 (project-card matrix), §12 (inheritance breadcrumb), §19 (editor stepper) ✅ merged via PR #68. §2 reclassified as docs-mapping (not code).
-> **Batch B+ (2026-04-30):** §3 (Critical Events sidebar), §6 (AppPage env summary), §11 (project Settings sectioning), §14 (MembersPage role pills), §16 (APIKeysPage scope cards) ✅ on `feature/ui-audit-batch-b-plus`.
-> **Batch C — needs product input:** §4 per-row latency/error chips (data not surfaced), §8 FlagDetailPage 2-col rewrite, §9 targeting "Active Rules Hierarchy" (needs stats API), §10 AnalyticsPage quota banner (needs quota API), §13 MembersPage security feed (needs audit-log API), §19 StrategiesPage list+builder, §20 DocsPage landing.
+> **Batch B+ (2026-04-30):** §3, §6, §11, §14, §16 ✅ on PR #72.
+>
+> **Batch C (2026-04-30 — product input received):**
+> - §4 latency/error chips → **future spec** at [`../superpowers/specs/2026-04-30-deploy-metrics-chips-design.md`](../superpowers/specs/2026-04-30-deploy-metrics-chips-design.md). UI placeholder uses `?` chips until ready.
+> - §8 FlagDetailPage → **mockup direction rejected**, keeping tabs. 2-person approval extracted as future org-level option ([spec](../superpowers/specs/2026-04-30-two-person-approval-design.md)). Bigger product call: every dashboard mutation should go through a per-user staging layer with a "Deploy" review step before commit ([spec](../superpowers/specs/2026-04-30-staged-changes-and-deploy-workflow-design.md)).
+> - §9 Active Rules Hierarchy stat strip → blocked on telemetry; ship `evaluations_24h` only when the read endpoint exists, dim `propagation` and `logic_failures` with "Coming soon".
+> - §10 quota banner → **dropped**, no quota model planned.
+> - §13 Recent Security Events feed → confirmed scope: login/logout + access changes (member.added/removed/role_changed, apikey.created/revoked, auth.login_failed/session_revoked). Implementation depends on the org-audit deliverable in [`../superpowers/specs/2026-04-30-flag-lifecycle-and-org-audit-design.md`](../superpowers/specs/2026-04-30-flag-lifecycle-and-org-audit-design.md).
+> - §19 StrategiesPage list+builder → leave as-is for now.
+> - §20 DocsPage → **TOC, not marketing landing**. Plan filed at [`../superpowers/plans/2026-04-30-docs-index-toc.md`](../superpowers/plans/2026-04-30-docs-index-toc.md), ready to implement.
 **How this was built**: Each HTML mockup in `newscreens/` was read alongside
 its React counterpart in `web/src/pages/`. Disparities are structural and
 visual gaps a designer would notice on side-by-side review — NOT pixel

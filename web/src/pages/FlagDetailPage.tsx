@@ -13,6 +13,7 @@ import type {
 import { flagsApi, entitiesApi, flagEnvStateApi, auditApi, rolloutPolicyApi } from '@/api';
 import type { Application } from '@/types';
 import { StrategyPicker } from '@/components/rollout/StrategyPicker';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { GroupPicker } from '@/components/rollout/GroupPicker';
 import { resolvePolicy } from '@/lib/policyResolver';
 
@@ -183,6 +184,8 @@ export default function FlagDetailPage() {
   const [ruleGroupID, setRuleGroupID] = useState('');
   const [ruleSaveMsg, setRuleSaveMsg] = useState<string | null>(null);
   const [policies, setPolicies] = useState<RolloutPolicy[]>([]);
+  const [confirmArchiveOpen, setConfirmArchiveOpen] = useState(false);
+  const [archiving, setArchiving] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -437,8 +440,19 @@ export default function FlagDetailPage() {
     saveEnvState(envId, { value: newValue });
   };
 
-  const handleArchive = () => {
-    setFlag((prev) => (prev ? { ...prev, archived: true } : prev));
+  const handleArchive = async () => {
+    if (!id) return;
+    setArchiving(true);
+    setError(null);
+    try {
+      await flagsApi.archive(id);
+      setFlag((prev) => (prev ? { ...prev, archived: true } : prev));
+      setConfirmArchiveOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to archive flag');
+    } finally {
+      setArchiving(false);
+    }
   };
 
   const handleSettingsSave = async () => {
@@ -1127,8 +1141,47 @@ export default function FlagDetailPage() {
               </span>
             )}
           </div>
+
+          {/* Danger Zone — Settings tab only */}
+          <div className="danger-zone" style={{ marginTop: 32 }}>
+            <h2>Danger Zone</h2>
+            <p className="text-muted">
+              Archiving a flag disables it for all environments and removes it from the active flag
+              list. Archived flags can be restored from the audit log within the retention window.
+              After 30 days, archived flags become eligible for permanent deletion.
+            </p>
+            <button
+              className="btn btn-danger"
+              onClick={() => setConfirmArchiveOpen(true)}
+              disabled={flag.archived}
+            >
+              <span className="ms" style={{ fontSize: 16 }}>
+                archive
+              </span>
+              {flag.archived ? 'Archived' : 'Archive Flag'}
+            </button>
+            {flag.archived && (
+              <p className="text-muted" style={{ marginTop: 12, fontSize: 13 }} aria-live="polite">
+                This flag is archived. Permanent deletion and restore are tracked through the org
+                audit log (coming in a follow-up).
+              </p>
+            )}
+          </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmArchiveOpen}
+        title="Archive this flag?"
+        message={`This will disable "${flag.name}" everywhere it is evaluated. SDKs will fall through to default values. The flag stays in the audit log and can be restored within 30 days.`}
+        confirmLabel="Archive Flag"
+        confirmVariant="danger"
+        loading={archiving}
+        requireTypedConfirm={flag.key}
+        acknowledgement={`I confirm that "${flag.key}" is no longer in use or needed.`}
+        onConfirm={handleArchive}
+        onCancel={() => setConfirmArchiveOpen(false)}
+      />
 
       {/* Tab: Lifecycle */}
       {activeTab === 'lifecycle' && (
@@ -1291,18 +1344,6 @@ export default function FlagDetailPage() {
           )}
         </div>
       )}
-
-      {/* Danger Zone */}
-      <div className="danger-zone">
-        <h2>Danger Zone</h2>
-        <p className="text-muted">
-          Archiving a flag disables it permanently and removes it from active use. This action
-          cannot be easily undone.
-        </p>
-        <button className="btn btn-danger" onClick={handleArchive} disabled={flag.archived}>
-          {flag.archived ? 'Archived' : 'Archive Flag'}
-        </button>
-      </div>
     </div>
   );
 }

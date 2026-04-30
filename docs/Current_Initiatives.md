@@ -14,7 +14,7 @@
 | Org Status — Phase 4 polish | Design | [Spec](./superpowers/specs/2026-04-23-org-status-and-deploy-history-design.md) / [Phase 4 Plan](./superpowers/plans/2026-04-29-org-status-phase4-polish.md) | Phases 1–3 shipped on main. Phase 4 deferred items split out: ETag client caching on `/orgs/:slug/status`, CSV export on `OrgDeploymentsPage`, org-default monitoring-link templates. |
 | Build Status — deferred follow-ups | Design | [Plan](./superpowers/plans/2026-04-29-build-status-deferred-followups.md) | Parent initiative complete; non-blocking follow-ups: handler unit tests, Combobox Vitest, Playwright smoke, MCP `deploy_create` tool update, stale-build sweep. |
 | Mobile PWA Production Serve | Implementation | [Plan](./superpowers/plans/2026-04-29-mobile-pwa-prod-serve.md) | PR #65 open on `feature/mobile-pwa-prod-serve` — embeds built PWA into API binary at `/m/*`. CI failing on Lint, Lint UI, E2E SDK Tests; needs diagnosis before merge. |
-| UI Audit Quick Wins | Design | [Audit doc](./ui-audit/MOCKUP_DISPARITIES.md) | 2026-04-24 audit identified 4 high / 10 medium / 4 low disparities between `newscreens/*.html` mockups and React pages. None addressed yet. Suggest filing a spec/plan and starting with Batch A (~3 h of polish). |
+| UI Audit Disparities | Implementation (Batch A) | [Spec](./superpowers/specs/2026-04-29-ui-audit-disparities-design.md) / [Batch A Plan](./superpowers/plans/2026-04-29-ui-audit-batch-a-polish.md) / [Batch B Plan](./superpowers/plans/2026-04-29-ui-audit-batch-b-layout.md) / [Audit doc](./ui-audit/MOCKUP_DISPARITIES.md) | Addresses 2026-04-24 audit (4 high / 10 medium / 4 low). Batch A = 5 polish quick wins (~3h); Batch B = 3 layout items (~6h); Batch C = product decisions, deferred. |
 
 ## Archived (recently)
 

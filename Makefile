@@ -78,6 +78,14 @@ run-mobile:
 build-mobile:
 	cd mobile-pwa && npm install && npm run build
 
+## embed-mobile-pwa: Build the PWA and stage its dist into internal/mobilepwa/dist
+## so the API binary can embed it. Run before any go build target that ships the PWA.
+embed-mobile-pwa: build-mobile
+	rm -rf internal/mobilepwa/dist
+	mkdir -p internal/mobilepwa/dist
+	cp -R mobile-pwa/dist/. internal/mobilepwa/dist/
+	@touch internal/mobilepwa/dist/.gitkeep
+
 ## test: Run all tests
 test:
 	go test ./... -race -cover -count=1
@@ -90,8 +98,8 @@ test-unit:
 test-int:
 	go test -run Integration ./... -race -count=1
 
-## build: Build Go binaries for all platforms
-build: build-linux build-darwin-amd64 build-darwin-arm64
+## build: Build Go binaries for all platforms (PWA embedded)
+build: embed-mobile-pwa build-linux build-darwin-amd64 build-darwin-arm64
 	@echo "Build complete. Binaries in bin/"
 
 build-linux:

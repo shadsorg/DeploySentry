@@ -34,6 +34,7 @@ import (
 	deployintegrations "github.com/shadsorg/deploysentry/internal/integrations/deploys"
 	githubint "github.com/shadsorg/deploysentry/internal/integrations/github"
 	"github.com/shadsorg/deploysentry/internal/members"
+	"github.com/shadsorg/deploysentry/internal/mobilepwa"
 	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/shadsorg/deploysentry/internal/orgstate"
 	"github.com/shadsorg/deploysentry/internal/notifications"
@@ -222,6 +223,10 @@ func run() error {
 		c.Header("Content-Type", "text/plain; charset=utf-8")
 		c.File("scripts/install.sh")
 	})
+
+	// Mobile PWA static assets at /m/* (no-op in dev builds where the
+	// embedded dist is empty — only the built artefacts are served).
+	mobilepwa.RegisterRoutes(router)
 
 	// Prometheus metrics endpoint (no authentication required for scraping).
 	router.GET("/metrics", metrics.Handler())

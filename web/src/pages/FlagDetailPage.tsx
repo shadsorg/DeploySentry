@@ -1,5 +1,5 @@
-import { useState, useEffect, Fragment } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState, useEffect, useMemo, Fragment } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import type {
   Flag,
   TargetingRule,
@@ -139,6 +139,7 @@ function generateFlagYaml(
 
 export default function FlagDetailPage() {
   const { id, orgSlug, projectSlug, appSlug } = useParams();
+  const navigate = useNavigate();
   const backPath = appSlug
     ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags`
     : `/orgs/${orgSlug}/projects/${projectSlug}/flags`;
@@ -186,6 +187,11 @@ export default function FlagDetailPage() {
   const [policies, setPolicies] = useState<RolloutPolicy[]>([]);
   const [confirmArchiveOpen, setConfirmArchiveOpen] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [confirmQueueOpen, setConfirmQueueOpen] = useState(false);
+  const [confirmHardDeleteOpen, setConfirmHardDeleteOpen] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [queueing, setQueueing] = useState(false);
+  const [hardDeleting, setHardDeleting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -331,6 +337,14 @@ export default function FlagDetailPage() {
     }
   };
 
+  const lifecycleState = useMemo(() => {
+    if (!flag) return 'active';
+    if (flag.deleted_at) return 'tombstoned';
+    if (!flag.archived_at) return 'active';
+    const elapsedAt = new Date(flag.archived_at).getTime() + 30 * 24 * 3600 * 1000;
+    return Date.now() >= elapsedAt ? 'elapsed' : 'within';
+  }, [flag?.archived_at, flag?.deleted_at]);
+
   if (loading)
     return (
       <div className="empty-state" style={{ padding: '40px 0' }}>
@@ -452,6 +466,48 @@ export default function FlagDetailPage() {
       setError(err instanceof Error ? err.message : 'Failed to archive flag');
     } finally {
       setArchiving(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    if (!id) return;
+    setRestoring(true);
+    setError(null);
+    try {
+      const updated = await flagsApi.restore(id);
+      setFlag(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to restore flag');
+    } finally {
+      setRestoring(false);
+    }
+  };
+
+  const handleQueueDeletion = async () => {
+    if (!id) return;
+    setQueueing(true);
+    setError(null);
+    try {
+      const updated = await flagsApi.queueDeletion(id);
+      setFlag(updated);
+      setConfirmQueueOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to queue for deletion');
+    } finally {
+      setQueueing(false);
+    }
+  };
+
+  const handleHardDelete = async () => {
+    if (!id || !flag) return;
+    setHardDeleting(true);
+    setError(null);
+    try {
+      await flagsApi.hardDelete(id, flag.key);
+      navigate(-1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete flag');
+      setHardDeleting(false);
     }
   };
 
@@ -1142,31 +1198,98 @@ export default function FlagDetailPage() {
             )}
           </div>
 
-          {/* Danger Zone — Settings tab only */}
-          <div className="danger-zone" style={{ marginTop: 32 }}>
-            <h2>Danger Zone</h2>
-            <p className="text-muted">
-              Archiving a flag disables it for all environments and removes it from the active flag
-              list. Archived flags can be restored from the audit log within the retention window.
-              After 30 days, archived flags become eligible for permanent deletion.
-            </p>
-            <button
-              className="btn btn-danger"
-              onClick={() => setConfirmArchiveOpen(true)}
-              disabled={flag.archived}
-            >
-              <span className="ms" style={{ fontSize: 16 }}>
-                archive
-              </span>
-              {flag.archived ? 'Archived' : 'Archive Flag'}
-            </button>
-            {flag.archived && (
-              <p className="text-muted" style={{ marginTop: 12, fontSize: 13 }} aria-live="polite">
-                This flag is archived. Permanent deletion and restore are tracked through the org
-                audit log (coming in a follow-up).
+          {/* Lifecycle panel — state-driven */}
+          {lifecycleState === 'active' && (
+            <div className="danger-zone" style={{ marginTop: 32 }}>
+              <h2>Danger Zone</h2>
+              <p className="text-muted">
+                Archiving a flag disables it for all environments and removes it from the active flag
+                list. Archived flags can be restored at any time. After 30 days, they become
+                eligible for permanent deletion.
               </p>
-            )}
-          </div>
+              <button className="btn btn-danger" onClick={() => setConfirmArchiveOpen(true)}>
+                <span className="ms" style={{ fontSize: 16 }}>archive</span>
+                Archive Flag
+              </button>
+            </div>
+          )}
+
+          {lifecycleState === 'within' && (
+            <div className="lifecycle-panel" style={{ marginTop: 32 }}>
+              <h2>Archived</h2>
+              <p>
+                Archived on{' '}
+                <strong>{new Date(flag.archived_at!).toLocaleDateString()}</strong> — eligible for
+                permanent deletion on{' '}
+                <strong>
+                  {new Date(
+                    new Date(flag.archived_at!).getTime() + 30 * 24 * 3600 * 1000,
+                  ).toLocaleDateString()}
+                </strong>
+                .
+              </p>
+              {flag.delete_after && (
+                <p style={{ color: 'var(--color-warning, #d97706)' }}>
+                  ⚠ Queued for permanent deletion at{' '}
+                  <strong>{new Date(flag.delete_after).toLocaleString()}</strong>. It will be
+                  tombstoned by the next retention sweep after that time.
+                </p>
+              )}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleRestore}
+                  disabled={restoring}
+                >
+                  {restoring ? 'Restoring…' : 'Restore Flag'}
+                </button>
+                {!flag.delete_after && (
+                  <button className="btn btn-danger" onClick={() => setConfirmQueueOpen(true)}>
+                    Queue for Deletion
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {lifecycleState === 'elapsed' && (
+            <div className="lifecycle-panel danger-zone" style={{ marginTop: 32 }}>
+              <h2>Eligible for permanent deletion</h2>
+              <p>
+                The 30-day retention window elapsed on{' '}
+                <strong>
+                  {new Date(
+                    new Date(flag.archived_at!).getTime() + 30 * 24 * 3600 * 1000,
+                  ).toLocaleDateString()}
+                </strong>
+                . This flag will be tombstoned by the next retention sweep, or you can permanently
+                delete it now.
+              </p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleRestore}
+                  disabled={restoring}
+                >
+                  {restoring ? 'Restoring…' : 'Restore Flag'}
+                </button>
+                <button className="btn btn-danger" onClick={() => setConfirmHardDeleteOpen(true)}>
+                  Permanently Delete
+                </button>
+              </div>
+            </div>
+          )}
+
+          {lifecycleState === 'tombstoned' && (
+            <div className="lifecycle-panel" style={{ marginTop: 32 }}>
+              <h2>Tombstoned</h2>
+              <p className="text-muted">
+                Permanently deleted on{' '}
+                <strong>{new Date(flag.deleted_at!).toLocaleString()}</strong>. The flag's audit
+                history remains visible but the flag itself can no longer be modified.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -1181,6 +1304,32 @@ export default function FlagDetailPage() {
         acknowledgement={`I confirm that "${flag.key}" is no longer in use or needed.`}
         onConfirm={handleArchive}
         onCancel={() => setConfirmArchiveOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmQueueOpen}
+        title="Queue this flag for permanent deletion?"
+        message={`After the retention window (${flag.archived_at ? new Date(new Date(flag.archived_at).getTime() + 30 * 24 * 3600 * 1000).toLocaleDateString() : 'archived_at + 30 days'}), the flag will be permanently tombstoned by the retention sweep. You can revert this from the Audit page until the sweep fires.`}
+        confirmLabel="Queue for Deletion"
+        confirmVariant="danger"
+        loading={queueing}
+        requireTypedConfirm={flag.key}
+        acknowledgement={`I understand "${flag.key}" will be tombstoned automatically after the retention window.`}
+        onConfirm={handleQueueDeletion}
+        onCancel={() => setConfirmQueueOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={confirmHardDeleteOpen}
+        title="Permanently delete this flag?"
+        message={`This is irreversible. "${flag.name}" and all its rules, ratings, and per-environment states will be removed. Audit history is preserved but the flag itself cannot be recovered.`}
+        confirmLabel="Permanently Delete"
+        confirmVariant="danger"
+        loading={hardDeleting}
+        requireTypedConfirm={flag.key}
+        acknowledgement={`I have verified "${flag.key}" is no longer needed and accept that this action cannot be undone.`}
+        onConfirm={handleHardDelete}
+        onCancel={() => setConfirmHardDeleteOpen(false)}
       />
 
       {/* Tab: Lifecycle */}

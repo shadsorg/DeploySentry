@@ -6,6 +6,13 @@ export default function DocsSidebar() {
     <aside className="docs-sidebar">
       <div className="docs-sidebar-heading">DOCUMENTATION</div>
       <nav className="docs-sidebar-nav">
+        <NavLink
+          to="/docs"
+          end
+          className={({ isActive }) => `docs-sidebar-link${isActive ? ' active' : ''}`}
+        >
+          All Docs
+        </NavLink>
         {docsManifest.map((doc) => (
           <NavLink
             key={doc.slug}

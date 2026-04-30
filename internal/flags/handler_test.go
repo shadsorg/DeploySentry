@@ -35,6 +35,9 @@ type mockFlagService struct {
 	listRulesFn         func(ctx context.Context, flagID uuid.UUID) ([]*models.TargetingRule, error)
 	listFlagEnvStatesFn func(ctx context.Context, flagID uuid.UUID) ([]*models.FlagEnvironmentState, error)
 	setFlagEnvStateFn   func(ctx context.Context, state *models.FlagEnvironmentState) error
+	queueDeletionFn     func(ctx context.Context, id uuid.UUID, retention time.Duration) error
+	hardDeleteFlagFn    func(ctx context.Context, id uuid.UUID, retention time.Duration) error
+	restoreFlagFn       func(ctx context.Context, id uuid.UUID) error
 	// Segment stubs
 	createSegmentFn func(ctx context.Context, segment *models.Segment) error
 	getSegmentFn    func(ctx context.Context, id uuid.UUID) (*models.Segment, error)
@@ -245,14 +248,23 @@ func (m *mockFlagService) MarkFlagRemovalFired(ctx context.Context, flagID uuid.
 }
 
 func (m *mockFlagService) QueueDeletion(ctx context.Context, id uuid.UUID, retention time.Duration) error {
+	if m.queueDeletionFn != nil {
+		return m.queueDeletionFn(ctx, id, retention)
+	}
 	return nil
 }
 
 func (m *mockFlagService) HardDeleteFlag(ctx context.Context, id uuid.UUID, retention time.Duration) error {
+	if m.hardDeleteFlagFn != nil {
+		return m.hardDeleteFlagFn(ctx, id, retention)
+	}
 	return nil
 }
 
 func (m *mockFlagService) RestoreFlag(ctx context.Context, id uuid.UUID) error {
+	if m.restoreFlagFn != nil {
+		return m.restoreFlagFn(ctx, id)
+	}
 	return nil
 }
 
@@ -1225,4 +1237,197 @@ func TestUpdateRule_WithRolloutField_AttacherCalled(t *testing.T) {
 	assert.True(t, attacher.called, "expected AttachFromRuleRequest to be called")
 	// previousPercentage is currently assumed 0 (GetRule not yet on FlagService)
 	assert.Equal(t, 0, attacher.lastPrev)
+}
+
+// ---------------------------------------------------------------------------
+// POST /flags/:id/queue-deletion  (queueFlagDeletion)
+// ---------------------------------------------------------------------------
+
+func TestHandler_QueueFlagDeletion_ArchivedFlag(t *testing.T) {
+	flagID := uuid.New()
+	callCount := 0
+	svc := &mockFlagService{
+		getFlagFn: func(_ context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
+			callCount++
+			return &models.FeatureFlag{ID: id, Key: "my-flag", Archived: true}, nil
+		},
+		queueDeletionFn: func(_ context.Context, _ uuid.UUID, _ time.Duration) error {
+			return nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/flags/"+flagID.String()+"/queue-deletion", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestHandler_QueueFlagDeletion_NotArchived(t *testing.T) {
+	flagID := uuid.New()
+	svc := &mockFlagService{
+		getFlagFn: func(_ context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
+			return &models.FeatureFlag{ID: id, Key: "active-flag", Archived: false}, nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/flags/"+flagID.String()+"/queue-deletion", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+}
+
+func TestHandler_QueueFlagDeletion_InvalidID(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/flags/bad-id/queue-deletion", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// DELETE /flags/:id?force=true  (hardDeleteFlag)
+// ---------------------------------------------------------------------------
+
+func TestHandler_HardDeleteFlag_Success(t *testing.T) {
+	flagID := uuid.New()
+	svc := &mockFlagService{
+		getFlagFn: func(_ context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
+			return &models.FeatureFlag{ID: id, Key: "my-flag", Archived: true}, nil
+		},
+		hardDeleteFlagFn: func(_ context.Context, _ uuid.UUID, _ time.Duration) error {
+			return nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/flags/"+flagID.String()+"?force=true", nil)
+	req.Header.Set("X-Confirm-Slug", "my-flag")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNoContent, w.Code)
+}
+
+func TestHandler_HardDeleteFlag_MissingForce(t *testing.T) {
+	flagID := uuid.New()
+	router := setupFlagRouter(&mockFlagService{})
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/flags/"+flagID.String(), nil)
+	req.Header.Set("X-Confirm-Slug", "my-flag")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestHandler_HardDeleteFlag_SlugMismatch(t *testing.T) {
+	flagID := uuid.New()
+	svc := &mockFlagService{
+		getFlagFn: func(_ context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
+			return &models.FeatureFlag{ID: id, Key: "my-flag", Archived: true}, nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/flags/"+flagID.String()+"?force=true", nil)
+	req.Header.Set("X-Confirm-Slug", "wrong-slug")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestHandler_HardDeleteFlag_RetentionNotElapsed(t *testing.T) {
+	flagID := uuid.New()
+	svc := &mockFlagService{
+		getFlagFn: func(_ context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
+			return &models.FeatureFlag{ID: id, Key: "my-flag", Archived: true}, nil
+		},
+		hardDeleteFlagFn: func(_ context.Context, _ uuid.UUID, _ time.Duration) error {
+			return errors.New("hard delete: postgres.HardDeleteFlag: not found")
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/flags/"+flagID.String()+"?force=true", nil)
+	req.Header.Set("X-Confirm-Slug", "my-flag")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+}
+
+func TestHandler_HardDeleteFlag_NotArchived(t *testing.T) {
+	flagID := uuid.New()
+	svc := &mockFlagService{
+		getFlagFn: func(_ context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
+			return &models.FeatureFlag{ID: id, Key: "my-flag", Archived: false}, nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/flags/"+flagID.String()+"?force=true", nil)
+	req.Header.Set("X-Confirm-Slug", "my-flag")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// POST /flags/:id/restore  (restoreFlag)
+// ---------------------------------------------------------------------------
+
+func TestHandler_RestoreFlag_Success(t *testing.T) {
+	flagID := uuid.New()
+	callCount := 0
+	svc := &mockFlagService{
+		getFlagFn: func(_ context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
+			callCount++
+			return &models.FeatureFlag{ID: id, Key: "my-flag", Archived: true, DeletedAt: nil}, nil
+		},
+		restoreFlagFn: func(_ context.Context, _ uuid.UUID) error {
+			return nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/flags/"+flagID.String()+"/restore", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestHandler_RestoreFlag_Tombstoned(t *testing.T) {
+	flagID := uuid.New()
+	deletedAt := time.Now()
+	svc := &mockFlagService{
+		getFlagFn: func(_ context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
+			return &models.FeatureFlag{ID: id, Key: "my-flag", DeletedAt: &deletedAt}, nil
+		},
+	}
+	router := setupFlagRouter(svc)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/flags/"+flagID.String()+"/restore", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+}
+
+func TestHandler_RestoreFlag_InvalidID(t *testing.T) {
+	router := setupFlagRouter(&mockFlagService{})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/flags/bad-id/restore", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }

@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +21,10 @@ import (
 	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 )
+
+// RetentionWindow is the period between archive and eligibility for hard-delete.
+// Configurable retention is a follow-up; the constant is fine for v1.
+const RetentionWindow = 30 * 24 * time.Hour
 
 // EntityResolver resolves slugs to entity models for SDK-facing endpoints.
 type EntityResolver interface {
@@ -126,6 +131,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		flags.GET("/:id", auth.RequirePermission(h.rbac, auth.PermFlagRead), h.getFlag)
 		flags.PUT("/:id", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.updateFlag)
 		flags.POST("/:id/archive", auth.RequirePermission(h.rbac, auth.PermFlagArchive), h.archiveFlag)
+		flags.POST("/:id/queue-deletion", auth.RequirePermission(h.rbac, auth.PermFlagArchive), h.queueFlagDeletion)
+		flags.DELETE("/:id", auth.RequirePermission(h.rbac, auth.PermFlagArchive), h.hardDeleteFlag)
+		flags.POST("/:id/restore", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.restoreFlag)
 		flags.POST("/:id/toggle", auth.RequirePermission(h.rbac, auth.PermFlagToggle), h.toggleFlag)
 
 		rules := flags.Group("/:id/rules")
@@ -577,6 +585,106 @@ func (h *Handler) archiveFlag(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "archived"})
+}
+
+func (h *Handler) queueFlagDeletion(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid flag id"})
+		return
+	}
+
+	flag, err := h.service.GetFlag(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "flag not found"})
+		return
+	}
+	if !flag.Archived {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "flag must be archived first"})
+		return
+	}
+
+	if err := h.service.QueueDeletion(c.Request.Context(), id, RetentionWindow); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.writeAudit(c, "flag.queued_for_deletion", "flag", id, "", "")
+	h.broadcastEvent("flag.queued_for_deletion", id, "")
+
+	flag, _ = h.service.GetFlag(c.Request.Context(), id)
+	c.JSON(http.StatusOK, flag)
+}
+
+func (h *Handler) hardDeleteFlag(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid flag id"})
+		return
+	}
+	if c.Query("force") != "true" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "hard delete requires ?force=true"})
+		return
+	}
+
+	flag, err := h.service.GetFlag(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "flag not found"})
+		return
+	}
+
+	if c.GetHeader("X-Confirm-Slug") != flag.Key {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "X-Confirm-Slug header must match flag key"})
+		return
+	}
+	if !flag.Archived {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "flag must be archived first"})
+		return
+	}
+
+	if err := h.service.HardDeleteFlag(c.Request.Context(), id, RetentionWindow); err != nil {
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "retention") {
+			msg := "retention not elapsed"
+			if flag.DeleteAfter != nil {
+				msg = fmt.Sprintf("retention not elapsed (eligible after %s)", flag.DeleteAfter.Format(time.RFC3339))
+			}
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"error": msg})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.writeAudit(c, "flag.hard_deleted", "flag", id, "", "")
+	h.broadcastEvent("flag.hard_deleted", id, "")
+	c.Status(http.StatusNoContent)
+}
+
+func (h *Handler) restoreFlag(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid flag id"})
+		return
+	}
+	flag, err := h.service.GetFlag(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "flag not found"})
+		return
+	}
+	if flag.DeletedAt != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "flag is tombstoned and cannot be restored"})
+		return
+	}
+	if err := h.service.RestoreFlag(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.writeAudit(c, "flag.restored", "flag", id, "", "")
+	h.broadcastEvent("flag.restored", id, "")
+
+	flag, _ = h.service.GetFlag(c.Request.Context(), id)
+	c.JSON(http.StatusOK, flag)
 }
 
 // toggleFlagRequest is the JSON body for toggling a feature flag.

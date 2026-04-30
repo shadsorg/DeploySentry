@@ -309,11 +309,13 @@ func TestDriveDeployment_CanaryHappyPath(t *testing.T) {
 		handler func([]byte)
 	}
 	var capturedSub subRecord
+	ready := make(chan struct{})
 
 	mockSub := &mockSubscriber{
 		onSubscribe: func(subject string, handler func([]byte)) error {
 			capturedSub = subRecord{subject, handler}
 			capturedHandler = handler
+			close(ready)
 			return nil
 		},
 	}
@@ -325,10 +327,10 @@ func TestDriveDeployment_CanaryHappyPath(t *testing.T) {
 		done <- eng.Start(startCtx, mockSub)
 	}()
 
-	// Wait for subscription to be registered.
-	for capturedHandler == nil {
-		time.Sleep(1 * time.Millisecond)
-	}
+	// Wait for subscription to be registered. The close(ready) inside
+	// onSubscribe synchronizes-with this receive, so the captured fields
+	// below are safe to read without further locking.
+	<-ready
 
 	if capturedSub.subject != "deployments.deployment.created" {
 		t.Fatalf("expected subscription to deployments.deployment.created, got %q", capturedSub.subject)
@@ -473,9 +475,11 @@ func TestDeployEngine_GuardsWhenRolloutExists(t *testing.T) {
 
 	// Wire up the subscriber so we can fire the deployment.created event.
 	var capturedHandler func([]byte)
+	ready := make(chan struct{})
 	mockSub := &mockSubscriber{
 		onSubscribe: func(_ string, handler func([]byte)) error {
 			capturedHandler = handler
+			close(ready)
 			return nil
 		},
 	}
@@ -484,9 +488,7 @@ func TestDeployEngine_GuardsWhenRolloutExists(t *testing.T) {
 	done := make(chan error, 1)
 	go func() { done <- eng.Start(startCtx, mockSub) }()
 
-	for capturedHandler == nil {
-		time.Sleep(1 * time.Millisecond)
-	}
+	<-ready
 
 	eventPayload, _ := json.Marshal(map[string]string{"deployment_id": d.ID.String()})
 	capturedHandler(eventPayload)

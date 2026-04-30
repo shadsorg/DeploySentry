@@ -132,10 +132,7 @@ export default function OrgAuditPage() {
         </div>
       </div>
 
-      <div
-        className="org-audit-layout"
-        style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 24 }}
-      >
+      <div className="org-audit-layout">
         <aside className="org-audit-filters">
           <div
             className="org-audit-filters-head"

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import type { FlagType, FlagCategory } from '@/types';
 import { flagsApi, entitiesApi } from '@/api';
-import { useApps } from '@/hooks/useEntities';
 
 interface FormState {
   key: string;
@@ -48,8 +47,6 @@ export default function FlagCreatePage() {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [appId, setAppId] = useState<string | null>(null);
 
-  const { apps } = useApps(orgSlug, projectSlug);
-
   useEffect(() => {
     if (!orgSlug || !projectSlug) return;
     entitiesApi
@@ -58,17 +55,21 @@ export default function FlagCreatePage() {
       .catch(() => {});
   }, [orgSlug, projectSlug]);
 
+  // Resolve appId only when the URL puts us at app level. Project-level
+  // creation must leave application_id null so the flag is project-scoped
+  // (visible to every app under the project). Earlier code fell back to
+  // the first app, silently turning project-scoped intent into an
+  // app-scoped flag pinned to one sibling.
   useEffect(() => {
-    if (!orgSlug || !projectSlug) return;
-    // Get app ID if we're at app level
-    const targetAppSlug = appSlug || (apps.length > 0 ? apps[0].slug : null);
-    if (targetAppSlug) {
-      entitiesApi
-        .getApp(orgSlug, projectSlug, targetAppSlug)
-        .then((a) => setAppId(a.id))
-        .catch(() => {});
+    if (!orgSlug || !projectSlug || !appSlug) {
+      setAppId(null);
+      return;
     }
-  }, [orgSlug, projectSlug, appSlug, apps]);
+    entitiesApi
+      .getApp(orgSlug, projectSlug, appSlug)
+      .then((a) => setAppId(a.id))
+      .catch(() => setAppId(null));
+  }, [orgSlug, projectSlug, appSlug]);
 
   const set = <K extends keyof FormState>(field: K, value: FormState[K]) =>
     setForm((prev) => ({ ...prev, [field]: value }));

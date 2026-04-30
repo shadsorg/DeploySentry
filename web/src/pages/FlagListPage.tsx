@@ -69,11 +69,13 @@ export default function FlagListPage() {
 
     entitiesApi
       .getProject(orgSlug, projectSlug)
-      .then((project) => flagsApi.list(project.id))
+      .then((project) =>
+        flagsApi.list(project.id, appSlug ? { application: appSlug } : undefined),
+      )
       .then((result) => setFlags(result.flags))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [orgSlug, projectSlug]);
+  }, [orgSlug, projectSlug, appSlug]);
 
   const filtered = useMemo(() => {
     return flags.filter((flag) => {

@@ -1482,3 +1482,101 @@ func TestBatchEvaluate_ErrorField(t *testing.T) {
 	assert.False(t, results[1].Enabled, "failed flag should be disabled")
 	assert.Equal(t, "error", results[1].Reason)
 }
+
+// ---------------------------------------------------------------------------
+// QueueDeletion
+// ---------------------------------------------------------------------------
+
+func TestQueueDeletion_Success(t *testing.T) {
+	flagID := uuid.New()
+	repo := newMockFlagRepo()
+	repo.flags[flagID] = &models.FeatureFlag{ID: flagID, Archived: true}
+
+	var queueCalled bool
+	repo.queueDeletionFn = func(_ context.Context, id uuid.UUID, retention time.Duration) error {
+		queueCalled = true
+		if retention != 30*24*time.Hour {
+			t.Errorf("expected retention 30d, got %v", retention)
+		}
+		return nil
+	}
+
+	svc := NewFlagService(repo, newMockCache(), nil)
+	if err := svc.QueueDeletion(context.Background(), flagID, 30*24*time.Hour); err != nil {
+		t.Fatalf("QueueDeletion: %v", err)
+	}
+	if !queueCalled {
+		t.Error("expected repo.QueueDeletion to be called")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// HardDeleteFlag
+// ---------------------------------------------------------------------------
+
+func TestHardDeleteFlag_Success(t *testing.T) {
+	flagID := uuid.New()
+	repo := newMockFlagRepo()
+	var hardDeleteCalled bool
+	repo.hardDeleteFlagFn = func(_ context.Context, id uuid.UUID, retention time.Duration) error {
+		hardDeleteCalled = true
+		return nil
+	}
+	svc := NewFlagService(repo, newMockCache(), nil)
+	if err := svc.HardDeleteFlag(context.Background(), flagID, 30*24*time.Hour); err != nil {
+		t.Fatalf("HardDeleteFlag: %v", err)
+	}
+	if !hardDeleteCalled {
+		t.Error("expected repo.HardDeleteFlag to be called")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// RestoreFlag
+// ---------------------------------------------------------------------------
+
+func TestRestoreFlag_Success(t *testing.T) {
+	flagID := uuid.New()
+	archivedAt := time.Now().Add(-24 * time.Hour)
+	deleteAfter := time.Now().Add(29 * 24 * time.Hour)
+	repo := newMockFlagRepo()
+	repo.flags[flagID] = &models.FeatureFlag{
+		ID:          flagID,
+		Archived:    true,
+		DeleteAfter: &deleteAfter,
+	}
+	_ = archivedAt // documentation; mock doesn't track ArchivedAt
+
+	var restoreCalled bool
+	repo.restoreFlagFn = func(_ context.Context, id uuid.UUID) error {
+		restoreCalled = true
+		if f, ok := repo.flags[id]; ok {
+			f.Archived = false
+			f.DeleteAfter = nil
+			f.DeletedAt = nil
+		}
+		return nil
+	}
+	svc := NewFlagService(repo, newMockCache(), nil)
+	if err := svc.RestoreFlag(context.Background(), flagID); err != nil {
+		t.Fatalf("RestoreFlag: %v", err)
+	}
+	if !restoreCalled {
+		t.Error("expected repo.RestoreFlag to be called")
+	}
+	if repo.flags[flagID].DeleteAfter != nil {
+		t.Error("expected DeleteAfter to be cleared")
+	}
+}
+
+func TestRestoreFlag_PropagatesNotFound(t *testing.T) {
+	repo := newMockFlagRepo()
+	repo.restoreFlagFn = func(_ context.Context, id uuid.UUID) error {
+		return errors.New("postgres.RestoreFlag: not found")
+	}
+	svc := NewFlagService(repo, newMockCache(), nil)
+	err := svc.RestoreFlag(context.Background(), uuid.New())
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+}

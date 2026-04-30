@@ -244,6 +244,18 @@ func (m *mockFlagService) MarkFlagRemovalFired(ctx context.Context, flagID uuid.
 	return nil
 }
 
+func (m *mockFlagService) QueueDeletion(ctx context.Context, id uuid.UUID, retention time.Duration) error {
+	return nil
+}
+
+func (m *mockFlagService) HardDeleteFlag(ctx context.Context, id uuid.UUID, retention time.Duration) error {
+	return nil
+}
+
+func (m *mockFlagService) RestoreFlag(ctx context.Context, id uuid.UUID) error {
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

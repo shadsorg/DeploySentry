@@ -431,7 +431,10 @@ export interface AuditLogEntry {
   entity_id: string;
   old_value: string;
   new_value: string;
+  ip_address?: string;
+  user_agent?: string;
   created_at: string;
+  revertible: boolean;
 }
 
 export type AgentStatus = 'connected' | 'stale' | 'disconnected';

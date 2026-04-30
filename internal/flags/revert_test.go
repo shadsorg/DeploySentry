@@ -250,7 +250,8 @@ func TestRevertFlagRuleCreated(t *testing.T) {
 	})
 
 	t.Run("already deleted is idempotent success", func(t *testing.T) {
-		svc := &fakeFlagService{ruleErr: errors.New("not found")}
+		// GetRule returns a wrapped "not found" error (service layer wraps postgres.ErrNotFound).
+		svc := &fakeFlagService{ruleErr: errors.New("getting rule: not found")}
 		handler := revertFlagRuleCreated(svc)
 		entry := makeEntry(flagID, "flag.rule.created", "", string(newVal))
 		newAction, err := handler(context.Background(), entry, false)
@@ -263,6 +264,25 @@ func TestRevertFlagRuleCreated(t *testing.T) {
 		// DeleteRule should NOT have been called
 		if svc.deletedRuleID != uuid.Nil {
 			t.Error("expected DeleteRule NOT to be called when rule already gone")
+		}
+	})
+
+	t.Run("transient error propagates (not idempotent)", func(t *testing.T) {
+		// GetRule returns a wrapped transient error that is NOT "not found".
+		svc := &fakeFlagService{ruleErr: errors.New("getting rule: connection refused")}
+		handler := revertFlagRuleCreated(svc)
+		entry := makeEntry(flagID, "flag.rule.created", "", string(newVal))
+		_, err := handler(context.Background(), entry, false)
+		if err == nil {
+			t.Fatal("expected error for transient DB error, got nil")
+		}
+		// Error should contain the original message
+		if !contains(err.Error(), "connection refused") {
+			t.Errorf("expected error to mention 'connection refused', got: %v", err)
+		}
+		// DeleteRule should NOT have been called (error occurred before deletion)
+		if svc.deletedRuleID != uuid.Nil {
+			t.Error("expected DeleteRule NOT to be called when GetRule fails with transient error")
 		}
 	})
 

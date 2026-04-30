@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/shadsorg/deploysentry/internal/auth"
 	"github.com/shadsorg/deploysentry/internal/models"
@@ -218,7 +219,8 @@ func revertFlagToggled(svc FlagService) auth.RevertHandler {
 }
 
 // revertFlagRuleCreated undoes a flag.rule.created action by deleting the rule.
-// If the rule is already gone, this is an idempotent success.
+// If the rule is already gone (not found), this is an idempotent success.
+// Other errors (e.g., transient DB errors) propagate.
 func revertFlagRuleCreated(svc FlagService) auth.RevertHandler {
 	return func(ctx context.Context, entry *models.AuditLogEntry, force bool) (string, error) {
 		var payload struct {
@@ -228,14 +230,21 @@ func revertFlagRuleCreated(svc FlagService) auth.RevertHandler {
 			return "", fmt.Errorf("flag.rule.created revert: malformed payload: %w", err)
 		}
 
-		_, err := svc.GetRule(ctx, payload.RuleID)
+		rule, err := svc.GetRule(ctx, payload.RuleID)
 		if err != nil {
-			// Rule is already gone — idempotent success.
-			return "flag.rule.created.reverted", nil
+			// Only treat "not found" as idempotent success; propagate other errors.
+			// The postgres layer returns its ErrNotFound sentinel unwrapped,
+			// so it survives the service-layer wrapping and we check for it here.
+			if strings.Contains(err.Error(), "not found") {
+				return "flag.rule.created.reverted", nil
+			}
+			return "", fmt.Errorf("flag.rule.created revert: load rule: %w", err)
 		}
+		// Rule still exists; delete it
 		if err := svc.DeleteRule(ctx, payload.RuleID); err != nil {
 			return "", fmt.Errorf("flag.rule.created revert: delete rule: %w", err)
 		}
+		_ = rule // rule loaded successfully; explicit acknowledge to avoid unused var lint
 		return "flag.rule.created.reverted", nil
 	}
 }

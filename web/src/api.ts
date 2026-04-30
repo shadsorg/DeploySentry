@@ -695,7 +695,7 @@ export interface AuditQueryParams {
   user_id?: string;
   resource_id?: string;
   start_date?: string; // RFC3339
-  end_date?: string;   // RFC3339
+  end_date?: string; // RFC3339
   limit?: number;
   offset?: number;
 }

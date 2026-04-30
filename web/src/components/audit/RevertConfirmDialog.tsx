@@ -81,9 +81,12 @@ export default function RevertConfirmDialog({ open, entry, onClose, onSuccess }:
         {phase === 'race' && (
           <>
             <h3 className="confirm-dialog-title">Resource has changed</h3>
-            <p className="confirm-dialog-message" style={{ color: 'var(--color-warning, #d97706)' }}>
-              This entry&apos;s resource has been modified since the change was made.
-              Reverting will overwrite the newer change.
+            <p
+              className="confirm-dialog-message"
+              style={{ color: 'var(--color-warning, #d97706)' }}
+            >
+              This entry&apos;s resource has been modified since the change was made. Reverting will
+              overwrite the newer change.
             </p>
             <div className="confirm-dialog-actions">
               <button className="btn btn-secondary" onClick={onClose} disabled={busy}>

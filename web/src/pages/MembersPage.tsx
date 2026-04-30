@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import type { Member } from '@/types';
 import { membersApi, groupsApi } from '@/api';
@@ -29,8 +29,28 @@ export default function MembersPage() {
   const [roleFilter, setRoleFilter] = useState<'all' | 'owner' | 'admin' | 'member' | 'viewer'>(
     'all',
   );
-  const visibleMembers =
-    roleFilter === 'all' ? members : members.filter((m) => m.role === roleFilter);
+
+  // ⚡ Bolt: Memoize visible members filtering to prevent O(N) recalculations on every render
+  const visibleMembers = useMemo(() => {
+    return roleFilter === 'all' ? members : members.filter((m) => m.role === roleFilter);
+  }, [members, roleFilter]);
+
+  // ⚡ Bolt: Pre-compute role counts in O(N) instead of recalculating O(N) inside the map
+  const roleCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      all: members.length,
+      owner: 0,
+      admin: 0,
+      member: 0,
+      viewer: 0,
+    };
+    members.forEach((m) => {
+      if (counts[m.role] !== undefined) {
+        counts[m.role]++;
+      }
+    });
+    return counts;
+  }, [members]);
 
   // Delete confirm
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -56,6 +76,14 @@ export default function MembersPage() {
   const [newMemberUserId, setNewMemberUserId] = useState('');
   const [confirmRemoveGroupMember, setConfirmRemoveGroupMember] = useState<string | null>(null);
   const [groupActionError, setGroupActionError] = useState<string | null>(null);
+
+  // ⚡ Bolt: Memoize available group members calculation at the top level to avoid
+  // O(N) Set creation and filtering on every render cycle when viewing group details.
+  const availableGroupMembers = useMemo(() => {
+    if (!groupMembers || !members) return [];
+    const groupMemberIds = new Set(groupMembers.map((gm) => gm.user_id));
+    return members.filter((m) => !groupMemberIds.has(m.user_id));
+  }, [members, groupMembers]);
 
   const fetchMembers = useCallback(async () => {
     if (!orgSlug) return;
@@ -188,8 +216,7 @@ export default function MembersPage() {
               style={{ marginBottom: 12 }}
             >
               {(['all', 'owner', 'admin', 'member', 'viewer'] as const).map((role) => {
-                const count =
-                  role === 'all' ? members.length : members.filter((m) => m.role === role).length;
+                const count = roleCounts[role];
                 return (
                   <button
                     key={role}
@@ -367,9 +394,7 @@ export default function MembersPage() {
               )}
 
               {(() => {
-                const groupMemberIds = new Set(groupMembers.map((gm) => gm.user_id));
-                const available = members.filter((m) => !groupMemberIds.has(m.user_id));
-                return available.length > 0 ? (
+                return availableGroupMembers.length > 0 ? (
                   <div className="inline-form-row" style={{ marginBottom: 16 }}>
                     <select
                       className="form-select"
@@ -377,7 +402,7 @@ export default function MembersPage() {
                       onChange={(e) => setNewMemberUserId(e.target.value)}
                     >
                       <option value="">Select a member...</option>
-                      {available.map((m) => (
+                      {availableGroupMembers.map((m) => (
                         <option key={m.user_id} value={m.user_id}>
                           {m.name} ({m.email})
                         </option>

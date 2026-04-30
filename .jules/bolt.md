@@ -1,3 +1,6 @@
 ## 2024-04-05 - Optimize Expensive Array Sorting and Filtering in React Renders
 **Learning:** Found an opportunity to prevent `O(N log N)` sorting and extensive string matching functions from being called sequentially on every React render hook (even due to unrelated state changes). Memoization with `useMemo` avoids redundant re-computation of array sorting and filtering.
 **Action:** When working in React rendering logic with array mutations like sorting, filtering, and `.toLowerCase().includes()`, proactively extract these heavy operations to `useMemo` hooks so they only re-run when their explicit dependent values update.
+## 2026-04-30 - Pre-Compute Repeated Array Calculations in React Iterations
+**Learning:** Performing `array.filter().length` dynamically inside of a `.map()` or iterating over related sets inside React render components creates `O(N*M)` time complexities. This is an anti-pattern as UI scales. Pre-computing counts using `useMemo` creates an `O(N)` map/record and avoids redundant iteration during component generation.
+**Action:** Always pre-compute summary statistics (e.g. counts or maps) using `useMemo` *outside* of `.map()` blocks. Never execute `.filter(...)` inside `.map()` loops when rendering dynamic lists with aggregate states.

@@ -9,7 +9,13 @@ interface Props {
   onUndoSuccess: () => void;
 }
 
-export default function RevertToast({ open, newEntryId, newAction, onClose, onUndoSuccess }: Props) {
+export default function RevertToast({
+  open,
+  newEntryId,
+  newAction,
+  onClose,
+  onUndoSuccess,
+}: Props) {
   useEffect(() => {
     if (!open) return;
     const t = setTimeout(onClose, 6000);

@@ -69,6 +69,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error || `Request failed: ${res.status}`);
   }
+  if (res.status === 204) {
+    return undefined as T;
+  }
   return res.json();
 }
 
@@ -95,6 +98,15 @@ export const flagsApi = {
       body: JSON.stringify({ enabled }),
     }),
   archive: (id: string) => request<{ status: string }>(`/flags/${id}/archive`, { method: 'POST' }),
+  queueDeletion: (id: string) =>
+    request<Flag>(`/flags/${id}/queue-deletion`, { method: 'POST' }),
+  hardDelete: (id: string, slug: string) =>
+    request<void>(`/flags/${id}?force=true`, {
+      method: 'DELETE',
+      headers: { 'X-Confirm-Slug': slug },
+    }),
+  restore: (id: string) =>
+    request<Flag>(`/flags/${id}/restore`, { method: 'POST' }),
   addRule: (flagId: string, rule: Partial<TargetingRule>) =>
     request<TargetingRule>(`/flags/${flagId}/rules`, {
       method: 'POST',

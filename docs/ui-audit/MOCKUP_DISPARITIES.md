@@ -1,7 +1,7 @@
 # UI Audit — Mockup ↔ Implementation Disparities
 
 **Generated**: 2026-04-24
-**Last addressed**: 2026-04-29 (Batch A polish — see [spec](../superpowers/specs/2026-04-29-ui-audit-disparities-design.md))
+**Last addressed**: 2026-04-30 (Batch B+ — see [spec](../superpowers/specs/2026-04-29-ui-audit-disparities-design.md))
 **Scope**: Phase-2 review of the Sentry Dark UI reskin.
 
 > **Batch A (2026-04-29):** §1 (icon tile portion), §7, §15, §17, §18 ✅ merged via PR #67.

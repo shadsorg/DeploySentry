@@ -2856,6 +2856,32 @@ tbody tr:last-child td {
   gap: 0.75rem;
   justify-content: flex-end;
 }
+.confirm-dialog-typed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.confirm-dialog-typed label {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+.confirm-dialog-typed code {
+  background: var(--color-bg-elevated);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono, monospace);
+  color: var(--color-text);
+}
+.confirm-dialog-ack {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
 
 /* Deployment Phases */
 .phases-section {
@@ -3336,9 +3362,75 @@ tbody tr:last-child td {
 
 .org-deployments-layout {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 240px 1fr 240px;
   gap: 20px;
   align-items: start;
+}
+@media (max-width: 1100px) {
+  .org-deployments-layout {
+    grid-template-columns: 240px 1fr;
+  }
+  .org-deployments-critical {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 760px) {
+  .org-deployments-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.org-deployments-critical {
+  position: sticky;
+  top: 16px;
+  padding: 14px;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: var(--color-bg-surface);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+}
+.org-deployments-critical-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--color-danger);
+}
+.org-deployments-critical-head .ms {
+  font-size: 16px;
+}
+.org-deployments-critical a {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--color-bg-elevated);
+  color: var(--color-text);
+  text-decoration: none;
+}
+.org-deployments-critical a:hover {
+  background: var(--color-bg-hover);
+}
+.org-deployments-critical .crit-line1 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 12px;
+}
+.org-deployments-critical .crit-line2 {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+.org-deployments-critical .crit-empty {
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 
 .org-deployments-filters {
@@ -3586,6 +3678,94 @@ tbody tr:last-child td {
   font-size: 11px;
   color: var(--color-text-muted);
   margin-top: 2px;
+}
+
+.app-env-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+.app-env-summary .env-card-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.app-env-summary .env-card-more:hover {
+  color: var(--color-primary);
+}
+
+.scope-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.scope-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-elevated);
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+.scope-card:hover {
+  background: var(--color-bg-hover);
+}
+.scope-card.selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+.scope-card-checkbox {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.scope-card .badge {
+  align-self: flex-start;
+}
+.scope-card-hint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.settings-sectioned .settings-section {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.settings-sectioned .settings-section:first-of-type {
+  padding-top: 0;
+}
+.settings-sectioned .settings-section:last-of-type {
+  border-bottom: 0;
+  padding-bottom: 12px;
+}
+.settings-sectioned .settings-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--color-text);
+}
+.settings-sectioned .settings-section-header .ms {
+  color: var(--color-primary);
+  font-size: 18px;
+}
+.settings-sectioned .settings-section-header h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .settings-inheritance {

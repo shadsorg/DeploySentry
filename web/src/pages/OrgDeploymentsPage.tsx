@@ -364,8 +364,42 @@ export default function OrgDeploymentsPage() {
             </div>
           )}
         </main>
+
+        <CriticalEventsAside orgSlug={orgSlug} rows={rows} />
       </div>
     </div>
+  );
+}
+
+function CriticalEventsAside({ orgSlug, rows }: { orgSlug: string; rows: OrgDeploymentRow[] }) {
+  const failed = rows
+    .filter((r) => r.status === 'failed' || r.status === 'rolled_back')
+    .slice(0, 3);
+  if (failed.length === 0) return null;
+  return (
+    <aside className="org-deployments-critical" aria-label="Critical events">
+      <div className="org-deployments-critical-head">
+        <span className="ms" aria-hidden="true">
+          warning
+        </span>
+        Critical Events
+      </div>
+      {failed.map((row) => {
+        const target = `/orgs/${orgSlug}/projects/${row.project.slug}/apps/${row.application.slug}/deployments/${row.id}`;
+        return (
+          <Link key={row.id} to={target}>
+            <div className="crit-line1">
+              <span className={`status-pill status-${row.status}`}>{row.status}</span>
+              <strong>{row.application.name}</strong>
+            </div>
+            <div className="crit-line2">
+              {row.environment.slug ?? row.environment.name ?? '?'} · {shortVersion(row.version)} ·{' '}
+              {relativeTime(row.created_at)}
+            </div>
+          </Link>
+        );
+      })}
+    </aside>
   );
 }
 

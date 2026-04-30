@@ -16,7 +16,7 @@ type AuditLogFilter struct {
 	ProjectID    *uuid.UUID `json:"project_id,omitempty"`
 	UserID       *uuid.UUID `json:"user_id,omitempty"`
 	Action       string     `json:"action,omitempty"`
-	ResourceType string     `json:"resource_type,omitempty"`
+	EntityType   string     `json:"entity_type,omitempty"`
 	ResourceID   *uuid.UUID `json:"resource_id,omitempty"`
 	StartDate    *time.Time `json:"start_date,omitempty"`
 	EndDate      *time.Time `json:"end_date,omitempty"`
@@ -67,8 +67,8 @@ func (h *AuditHandler) queryAuditLog(c *gin.Context) {
 
 	filter := AuditLogFilter{
 		OrgID:        orgID,
-		Action:       c.Query("action"),
-		ResourceType: c.Query("resource_type"),
+		Action:     c.Query("action"),
+		EntityType: c.Query("entity_type"),
 	}
 
 	// Parse optional project_id filter.

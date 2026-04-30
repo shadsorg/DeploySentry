@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { to: 'projects', icon: 'account_tree', label: 'Projects' },
   { to: 'members', icon: 'group', label: 'Members' },
   { to: 'api-keys', icon: 'vpn_key', label: 'API Keys' },
+  { to: 'audit', icon: 'history_edu', label: 'Audit' },
   { to: 'strategies', icon: 'architecture', label: 'Strategies' },
   { to: 'rollouts', icon: 'dynamic_feed', label: 'Rollouts' },
   { to: 'rollout-groups', icon: 'layers', label: 'Rollout Groups' },

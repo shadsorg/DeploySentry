@@ -35,8 +35,8 @@ func (r *AuditLogRepository) QueryAuditLogs(ctx context.Context, filter auth.Aud
 	if filter.Action != "" {
 		wb.Add("a.action = $%d", filter.Action)
 	}
-	if filter.ResourceType != "" {
-		wb.Add("a.resource_type = $%d", filter.ResourceType)
+	if filter.EntityType != "" {
+		wb.Add("a.resource_type = $%d", filter.EntityType)
 	}
 	if filter.ResourceID != nil {
 		wb.Add("a.resource_id = $%d", *filter.ResourceID)

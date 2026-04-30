@@ -690,7 +690,7 @@ export const notificationsApi = {
 // Audit Log
 export interface AuditQueryParams {
   action?: string;
-  resource_type?: string; // backend currently reads this name; renamed to entity_type in Task 2.3
+  entity_type?: string;
   project_id?: string;
   user_id?: string;
   resource_id?: string;

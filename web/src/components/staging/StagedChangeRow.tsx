@@ -26,16 +26,18 @@ export default function StagedChangeRow({
   onToggleSelected,
   onDiscard,
 }: StagedChangeRowProps) {
-  const oldText = row.old_value === undefined || row.old_value === null
-    ? ''
-    : typeof row.old_value === 'string'
-      ? row.old_value
-      : JSON.stringify(row.old_value);
-  const newText = row.new_value === undefined || row.new_value === null
-    ? ''
-    : typeof row.new_value === 'string'
-      ? row.new_value
-      : JSON.stringify(row.new_value);
+  const oldText =
+    row.old_value === undefined || row.old_value === null
+      ? ''
+      : typeof row.old_value === 'string'
+        ? row.old_value
+        : JSON.stringify(row.old_value);
+  const newText =
+    row.new_value === undefined || row.new_value === null
+      ? ''
+      : typeof row.new_value === 'string'
+        ? row.new_value
+        : JSON.stringify(row.new_value);
 
   const ridLabel = row.resource_id ?? row.provisional_id ?? '—';
 
@@ -58,18 +60,13 @@ export default function StagedChangeRow({
         <span className="staging-row-staged-at">
           staged {new Date(row.created_at).toLocaleString()}
         </span>
-        <button
-          type="button"
-          className="staging-row-discard"
-          onClick={() => onDiscard(row.id)}
-        >
+        <button type="button" className="staging-row-discard" onClick={() => onDiscard(row.id)}>
           Discard
         </button>
       </div>
       {conflict && (
         <div className="staging-row-conflict-banner" role="alert">
-          ⚠ This change may overwrite a newer commit. Review the diff
-          carefully before deploying.
+          ⚠ This change may overwrite a newer commit. Review the diff carefully before deploying.
         </div>
       )}
       <AuditDiff oldValue={oldText} newValue={newText} />

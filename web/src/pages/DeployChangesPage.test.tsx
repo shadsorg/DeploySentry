@@ -110,9 +110,7 @@ describe('DeployChangesPage', () => {
     const user = userEvent.setup();
     renderPage();
     await user.click(await screen.findByTestId('deploy-button'));
-    expect(
-      await screen.findByText(/Commit halted at a/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Commit halted at a/)).toBeInTheDocument();
   });
 });
 

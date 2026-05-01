@@ -4,6 +4,7 @@ import type { Member } from '@/types';
 import { membersApi, groupsApi } from '@/api';
 import type { Group } from '@/api';
 import { useGroups, useGroupMembers } from '@/hooks/useGroups';
+import RecentMemberActivity from '@/components/members/RecentMemberActivity';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -147,6 +148,7 @@ export default function MembersPage() {
       {/* ---- Members Tab ---- */}
       {activeTab === 'members' && (
         <div>
+          {orgSlug && <RecentMemberActivity orgSlug={orgSlug} />}
           <div className="inline-form-row" style={{ marginBottom: 16 }}>
             <input
               type="email"

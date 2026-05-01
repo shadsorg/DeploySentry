@@ -24,6 +24,13 @@ export function actionLabel(entry: AuditLogEntry): string {
     case 'flag.env_state.updated':
       return 'Changed env default value';
 
+    case 'member.added':
+      return 'Added member';
+    case 'member.removed':
+      return 'Removed member';
+    case 'member.role_changed':
+      return 'Changed member role';
+
     // Reverted variants (ship as `<original>.reverted` from the backend).
     case 'flag.created.reverted':
       return 'Reverted: Created flag';

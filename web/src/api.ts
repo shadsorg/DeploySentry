@@ -98,8 +98,7 @@ export const flagsApi = {
       body: JSON.stringify({ enabled }),
     }),
   archive: (id: string) => request<{ status: string }>(`/flags/${id}/archive`, { method: 'POST' }),
-  queueDeletion: (id: string) =>
-    request<Flag>(`/flags/${id}/queue-deletion`, { method: 'POST' }),
+  queueDeletion: (id: string) => request<Flag>(`/flags/${id}/queue-deletion`, { method: 'POST' }),
   cancelQueuedDeletion: (id: string) =>
     request<Flag>(`/flags/${id}/queue-deletion`, { method: 'DELETE' }),
   hardDelete: (id: string, slug: string) =>
@@ -107,8 +106,7 @@ export const flagsApi = {
       method: 'DELETE',
       headers: { 'X-Confirm-Slug': slug },
     }),
-  restore: (id: string) =>
-    request<Flag>(`/flags/${id}/restore`, { method: 'POST' }),
+  restore: (id: string) => request<Flag>(`/flags/${id}/restore`, { method: 'POST' }),
   addRule: (flagId: string, rule: Partial<TargetingRule>) =>
     request<TargetingRule>(`/flags/${flagId}/rules`, {
       method: 'POST',
@@ -709,7 +707,7 @@ export interface AuditQueryParams {
   user_id?: string;
   resource_id?: string;
   start_date?: string; // RFC3339
-  end_date?: string;   // RFC3339
+  end_date?: string; // RFC3339
   limit?: number;
   offset?: number;
 }

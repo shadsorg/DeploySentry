@@ -13,9 +13,9 @@ interface Props {
 function relativeTime(iso: string): string {
   const t = new Date(iso).getTime();
   const diff = Date.now() - t;
-  if (diff < 60_000)         return 'just now';
-  if (diff < 3_600_000)      return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 86_400_000)     return `${Math.floor(diff / 3_600_000)}h ago`;
+  if (diff < 60_000) return 'just now';
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
   if (diff < 7 * 86_400_000) return `${Math.floor(diff / 86_400_000)}d ago`;
   return new Date(iso).toLocaleDateString();
 }
@@ -42,7 +42,9 @@ export default function AuditRow({ entry, where, onRevert }: Props) {
           }
         }}
       >
-        <div className="audit-row-when" title={entry.created_at}>{relativeTime(entry.created_at)}</div>
+        <div className="audit-row-when" title={entry.created_at}>
+          {relativeTime(entry.created_at)}
+        </div>
         <div className="audit-row-who">{entry.actor_name || '(unknown)'}</div>
         <div className="audit-row-what">{actionLabel(entry)}</div>
         <div className="audit-row-where">{where ?? ''}</div>

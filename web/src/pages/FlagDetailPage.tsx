@@ -1216,12 +1216,14 @@ export default function FlagDetailPage() {
             <div className="danger-zone" style={{ marginTop: 32 }}>
               <h2>Danger Zone</h2>
               <p className="text-muted">
-                Archiving a flag disables it for all environments and removes it from the active flag
-                list. Archived flags can be restored at any time. After 30 days, they become
+                Archiving a flag disables it for all environments and removes it from the active
+                flag list. Archived flags can be restored at any time. After 30 days, they become
                 eligible for permanent deletion.
               </p>
               <button className="btn btn-danger" onClick={() => setConfirmArchiveOpen(true)}>
-                <span className="ms" style={{ fontSize: 16 }}>archive</span>
+                <span className="ms" style={{ fontSize: 16 }}>
+                  archive
+                </span>
                 Archive Flag
               </button>
             </div>
@@ -1231,9 +1233,8 @@ export default function FlagDetailPage() {
             <div className="lifecycle-panel" style={{ marginTop: 32 }}>
               <h2>Archived</h2>
               <p>
-                Archived on{' '}
-                <strong>{new Date(flag.archived_at!).toLocaleDateString()}</strong> — eligible for
-                permanent deletion on{' '}
+                Archived on <strong>{new Date(flag.archived_at!).toLocaleDateString()}</strong> —
+                eligible for permanent deletion on{' '}
                 <strong>
                   {new Date(
                     new Date(flag.archived_at!).getTime() + 30 * 24 * 3600 * 1000,
@@ -1249,11 +1250,7 @@ export default function FlagDetailPage() {
                 </p>
               )}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button
-                  className="btn btn-secondary"
-                  onClick={handleRestore}
-                  disabled={restoring}
-                >
+                <button className="btn btn-secondary" onClick={handleRestore} disabled={restoring}>
                   {restoring ? 'Restoring…' : 'Restore Flag'}
                 </button>
                 {!flag.delete_after && (
@@ -1287,11 +1284,7 @@ export default function FlagDetailPage() {
                 . The next retention sweep will permanently delete this flag, or you can do it now.
               </p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button
-                  className="btn btn-secondary"
-                  onClick={handleRestore}
-                  disabled={restoring}
-                >
+                <button className="btn btn-secondary" onClick={handleRestore} disabled={restoring}>
                   {restoring ? 'Restoring…' : 'Restore Flag'}
                 </button>
                 <button className="btn btn-danger" onClick={() => setConfirmHardDeleteOpen(true)}>
@@ -1300,7 +1293,6 @@ export default function FlagDetailPage() {
               </div>
             </div>
           )}
-
         </div>
       )}
 

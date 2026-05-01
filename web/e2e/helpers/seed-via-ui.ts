@@ -63,9 +63,7 @@ interface AuthResponse {
  *   interactions (e.g. first-login consent flows). It's currently unused.
  */
 export async function seedOrgProjectAppViaUI(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _page: Page,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _apiRequest: APIRequestContext,
 ): Promise<SeededContext> {
   const apiUrl = process.env.DS_E2E_API_URL ?? 'http://localhost:18080';

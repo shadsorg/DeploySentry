@@ -17,33 +17,21 @@ export default function SiteHeader({ variant }: SiteHeaderProps) {
 
       {variant === 'landing' && (
         <nav className="site-header-nav">
-          <a href="#pillars" className="site-header-link">
-            Product
-          </a>
-          <Link to="/docs" className="site-header-link">
-            Docs
-          </Link>
-          <Link to="/docs/sdks" className="site-header-link">
-            SDKs
-          </Link>
+          <a href="#pillars" className="site-header-link">Product</a>
+          <Link to="/docs" className="site-header-link">Docs</Link>
+          <Link to="/docs/sdks" className="site-header-link">SDKs</Link>
         </nav>
       )}
 
       <div className="site-header-right">
         {!user && variant === 'landing' && (
           <>
-            <Link to="/login" className="site-header-link">
-              Log in
-            </Link>
-            <Link to="/register" className="btn-primary site-header-cta">
-              Sign up
-            </Link>
+            <Link to="/login" className="site-header-link">Log in</Link>
+            <Link to="/register" className="btn-primary site-header-cta">Sign up</Link>
           </>
         )}
         {user && variant === 'landing' && (
-          <Link to="/portal" className="btn-primary site-header-cta">
-            Portal
-          </Link>
+          <Link to="/portal" className="btn-primary site-header-cta">Portal</Link>
         )}
         {user && <UserMenu />}
       </div>

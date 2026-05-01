@@ -193,9 +193,7 @@ export default function DeploymentDetailPage() {
         };
       case 'promoting':
         return {
-          secondaryActions: [
-            { label: 'Rollback', onClick: trigger('rollback'), variant: 'danger' as const },
-          ],
+          secondaryActions: [{ label: 'Rollback', onClick: trigger('rollback'), variant: 'danger' as const }],
         };
       case 'paused':
         return {
@@ -208,11 +206,7 @@ export default function DeploymentDetailPage() {
         };
       case 'failed':
         return {
-          primaryAction: {
-            label: 'Rollback',
-            onClick: trigger('rollback'),
-            variant: 'danger' as const,
-          },
+          primaryAction: { label: 'Rollback', onClick: trigger('rollback'), variant: 'danger' as const },
         };
       default:
         return {};
@@ -227,10 +221,7 @@ export default function DeploymentDetailPage() {
     if (terminalStatuses.includes(dep.status)) return;
 
     const interval = setInterval(() => {
-      deploymentsApi
-        .get(id)
-        .then(setDep)
-        .catch(() => {});
+      deploymentsApi.get(id).then(setDep).catch(() => {});
     }, 5000);
 
     return () => clearInterval(interval);
@@ -315,21 +306,14 @@ export default function DeploymentDetailPage() {
               .slice()
               .sort((a, b) => a.sort_order - b.sort_order)
               .map((phase) => (
-                <div key={phase.id} className={`phase-item phase-${phase.status}`}>
+                <div
+                  key={phase.id}
+                  className={`phase-item phase-${phase.status}`}
+                >
                   <div className="phase-header">
                     <span>{phaseStatusIcon(phase.status)}</span>
                     <span className="phase-name">{phase.name}</span>
-                    <span
-                      className={statusBadgeClass(
-                        phase.status === 'active'
-                          ? 'running'
-                          : phase.status === 'passed'
-                            ? 'completed'
-                            : phase.status === 'failed'
-                              ? 'failed'
-                              : 'pending',
-                      )}
-                    >
+                    <span className={statusBadgeClass(phase.status === 'active' ? 'running' : phase.status === 'passed' ? 'completed' : phase.status === 'failed' ? 'failed' : 'pending')}>
                       {phase.status}
                     </span>
                   </div>

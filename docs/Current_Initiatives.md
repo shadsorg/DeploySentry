@@ -25,6 +25,8 @@
 
 All initiatives previously listed as "Implementation — pending merge" have shipped. Plans and specs moved to `docs/archives/` on 2026-04-29:
 
+- **Org Audit Page + Revert (Deliverable 3)** — PR #77 merged 2026-04-30. Backend revert registry + `OrgAuditPage` shipped. Sidebar role-gate follow-up on `chore/org-audit-cleanup`.
+
 - **Canary Rollout E2E** — PR #36 merged 2026-04-13.
 - **API Security Hardening** — PR #37 merged 2026-04-13.
 - **Project & App Edit/Delete** — PR #39 merged 2026-04-14, migration 039.

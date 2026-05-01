@@ -283,9 +283,13 @@ func (m *mockFlagService) ClearDeleteAfter(ctx context.Context, id uuid.UUID) er
 func setupFlagRouter(svc FlagService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	// Inject a role into the context so that RBAC middleware passes in tests.
+	// Inject a role + user_id so RBAC middleware passes and createFlag's
+	// non-nil-actor guard is satisfied. Tests that need to exercise the
+	// missing-actor branch should build their own router.
+	testUserID := uuid.New()
 	router.Use(func(c *gin.Context) {
 		c.Set("role", auth.RoleOwner)
+		c.Set("user_id", testUserID)
 		c.Next()
 	})
 	rbac := auth.NewRBACChecker()
@@ -331,6 +335,157 @@ func TestCreateFlag_Valid(t *testing.T) {
 	var resp models.FeatureFlag
 	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	assert.Equal(t, "new-feature", resp.Key)
+}
+
+// mockEntityResolver implements EntityResolver for slug-based tests.
+type mockEntityResolver struct {
+	projectsBySlug map[string]*models.Project
+}
+
+func (m *mockEntityResolver) GetAppBySlug(_ context.Context, _ uuid.UUID, _ string) (*models.Application, error) {
+	return nil, nil
+}
+
+func (m *mockEntityResolver) GetProjectBySlug(_ context.Context, _ uuid.UUID, slug string) (*models.Project, error) {
+	if p, ok := m.projectsBySlug[slug]; ok {
+		return p, nil
+	}
+	return nil, nil
+}
+
+func (m *mockEntityResolver) GetUserName(_ context.Context, _ uuid.UUID) (string, error) {
+	return "", nil
+}
+
+func setupFlagRouterWithEntities(svc FlagService, entityRepo EntityResolver, orgID uuid.UUID) *gin.Engine {
+	return setupFlagRouterWithAuthCtx(svc, entityRepo, orgID, func(c *gin.Context) {
+		c.Set("user_id", uuid.New())
+	})
+}
+
+// setupFlagRouterWithAuthCtx lets a test customize the auth context (e.g. set
+// api_key_created_by instead of user_id, or set neither to exercise the
+// missing-actor 422 path).
+func setupFlagRouterWithAuthCtx(svc FlagService, entityRepo EntityResolver, orgID uuid.UUID, applyAuth func(*gin.Context)) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set("role", auth.RoleOwner)
+		c.Set("org_id", orgID.String())
+		applyAuth(c)
+		c.Next()
+	})
+	rbac := auth.NewRBACChecker()
+	handler := NewHandler(svc, rbac, nil, nil, entityRepo, nil, nil)
+	handler.RegisterRoutes(router.Group("/api"))
+	return router
+}
+
+func TestCreateFlag_ProjectSlug(t *testing.T) {
+	orgID := uuid.New()
+	projectID := uuid.New()
+	svc := &mockFlagService{
+		createFlagFn: func(_ context.Context, f *models.FeatureFlag) error {
+			f.ID = uuid.New()
+			assert.Equal(t, projectID, f.ProjectID)
+			return nil
+		},
+	}
+	entities := &mockEntityResolver{
+		projectsBySlug: map[string]*models.Project{
+			"my-project": {ID: projectID, Slug: "my-project"},
+		},
+	}
+	router := setupFlagRouterWithEntities(svc, entities, orgID)
+
+	body := map[string]interface{}{
+		"project_id": "my-project",
+		"key":        "slug-feature",
+		"name":       "Slug Feature",
+		"flag_type":  "boolean",
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/flags", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	var resp models.FeatureFlag
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, "slug-feature", resp.Key)
+	assert.Equal(t, projectID, resp.ProjectID)
+}
+
+func TestCreateFlag_APIKeyAuth_FallsBackToCreatedBy(t *testing.T) {
+	orgID := uuid.New()
+	projectID := uuid.New()
+	apiKeyOwner := uuid.New()
+	var captured uuid.UUID
+	svc := &mockFlagService{
+		createFlagFn: func(_ context.Context, f *models.FeatureFlag) error {
+			f.ID = uuid.New()
+			captured = f.CreatedBy
+			return nil
+		},
+	}
+	entities := &mockEntityResolver{
+		projectsBySlug: map[string]*models.Project{
+			"my-project": {ID: projectID, Slug: "my-project"},
+		},
+	}
+	router := setupFlagRouterWithAuthCtx(svc, entities, orgID, func(c *gin.Context) {
+		// Mimic API-key middleware: no user_id, only api_key_created_by.
+		c.Set("api_key_created_by", apiKeyOwner.String())
+	})
+
+	body := map[string]interface{}{
+		"project_id": "my-project",
+		"key":        "apikey-feature",
+		"name":       "API Key Feature",
+		"flag_type":  "boolean",
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/flags", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	assert.Equal(t, apiKeyOwner, captured, "created_by should fall back to the api key's minter")
+}
+
+func TestCreateFlag_NoActor_Returns422(t *testing.T) {
+	orgID := uuid.New()
+	projectID := uuid.New()
+	svc := &mockFlagService{
+		createFlagFn: func(_ context.Context, _ *models.FeatureFlag) error {
+			t.Fatal("service should not be called when actor is missing")
+			return nil
+		},
+	}
+	entities := &mockEntityResolver{
+		projectsBySlug: map[string]*models.Project{
+			"my-project": {ID: projectID, Slug: "my-project"},
+		},
+	}
+	router := setupFlagRouterWithAuthCtx(svc, entities, orgID, func(_ *gin.Context) {
+		// Neither user_id nor api_key_created_by set.
+	})
+
+	body := map[string]interface{}{
+		"project_id": "my-project",
+		"key":        "no-actor",
+		"name":       "No Actor",
+		"flag_type":  "boolean",
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/flags", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 }
 
 func TestCreateFlag_InvalidJSON(t *testing.T) {

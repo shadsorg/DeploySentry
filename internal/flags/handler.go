@@ -167,8 +167,9 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 }
 
 // createFlagRequest is the JSON body for creating a new feature flag.
+// ProjectID accepts either a UUID or a project slug, mirroring evaluateRequest.
 type createFlagRequest struct {
-	ProjectID     uuid.UUID  `json:"project_id" binding:"required"`
+	ProjectID     string     `json:"project_id" binding:"required"`
 	EnvironmentID *uuid.UUID `json:"environment_id"`
 	ApplicationID *uuid.UUID `json:"application_id"`
 	Key           string     `json:"key" binding:"required"`
@@ -191,10 +192,21 @@ func (h *Handler) createFlag(c *gin.Context) {
 		return
 	}
 
-	userID, _ := c.Get("user_id")
-	createdBy, ok := userID.(uuid.UUID)
-	if !ok {
-		createdBy = uuid.Nil
+	projectID, err := h.resolveProjectID(c, req.ProjectID)
+	if err != nil {
+		return // response already written
+	}
+
+	// feature_flags.created_by has a FK on users(id), so a zero UUID
+	// rejects with SQLSTATE 23503. ActorUserID falls back to the API
+	// key's "created_by" (the user who minted the key) when auth is via
+	// API key, since API-key requests don't carry a user_id of their own.
+	createdBy := auth.ActorUserID(c)
+	if createdBy == uuid.Nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error": "no actor identity available; if authenticating with an API key, the key has no created_by — re-mint the key from a user session",
+		})
+		return
 	}
 
 	category := models.FlagCategory(req.Category)
@@ -203,7 +215,7 @@ func (h *Handler) createFlag(c *gin.Context) {
 	}
 
 	flag := &models.FeatureFlag{
-		ProjectID:     req.ProjectID,
+		ProjectID:     projectID,
 		EnvironmentID: req.EnvironmentID,	// nil-safe: model field is *uuid.UUID
 		ApplicationID: req.ApplicationID,
 		Key:           req.Key,

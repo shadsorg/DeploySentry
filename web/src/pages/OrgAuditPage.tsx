@@ -54,7 +54,10 @@ export default function OrgAuditPage() {
   // Load projects + members once.
   useEffect(() => {
     if (!orgSlug) return;
-    entitiesApi.listProjects(orgSlug).then((r) => setProjects(r.projects)).catch(() => {});
+    entitiesApi
+      .listProjects(orgSlug)
+      .then((r) => setProjects(r.projects))
+      .catch(() => {});
     membersApi
       .listByOrg(orgSlug)
       .then((r) => setMembers(r.members ?? []))
@@ -79,9 +82,7 @@ export default function OrgAuditPage() {
           limit: PAGE_SIZE,
           offset,
         });
-        setRows((prev) =>
-          append ? [...prev, ...(resp.entries ?? [])] : (resp.entries ?? []),
-        );
+        setRows((prev) => (append ? [...prev, ...(resp.entries ?? [])] : (resp.entries ?? [])));
         setTotal(resp.total ?? 0);
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
@@ -125,228 +126,225 @@ export default function OrgAuditPage() {
 
   if (!orgSlug) return null;
 
-  const projectName = (id: string): string | undefined =>
-    projects.find((p) => p.id === id)?.name;
+  const projectName = (id: string): string | undefined => projects.find((p) => p.id === id)?.name;
 
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
 
   return (
     <>
-    <div className="org-audit-page">
-      <div className="page-header-row">
-        <div className="page-header" style={{ marginBottom: 0 }}>
-          <h1>Audit</h1>
-          <p>Every change across this org, newest first.</p>
+      <div className="org-audit-page">
+        <div className="page-header-row">
+          <div className="page-header" style={{ marginBottom: 0 }}>
+            <h1>Audit</h1>
+            <p>Every change across this org, newest first.</p>
+          </div>
+        </div>
+
+        <div className="org-audit-layout">
+          <aside className="org-audit-filters">
+            <div
+              className="org-audit-filters-head"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 12,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className="ms" style={{ fontSize: 16, color: 'var(--color-primary)' }}>
+                  filter_list
+                </span>
+                <span style={{ fontWeight: 600 }}>Filters</span>
+              </div>
+              {activeFilterCount > 0 && (
+                <button className="btn btn-sm" type="button" onClick={resetFilters}>
+                  Reset
+                </button>
+              )}
+            </div>
+
+            <label className="form-label">Action</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="e.g. flag.archived"
+              value={filters.action}
+              onChange={(e) => setFilter('action', e.target.value)}
+            />
+
+            <label className="form-label">Entity type</label>
+            <select
+              className="form-input"
+              value={filters.entity_type}
+              onChange={(e) => setFilter('entity_type', e.target.value)}
+            >
+              {ENTITY_TYPE_OPTIONS.map((t) => (
+                <option key={t} value={t}>
+                  {t || 'Any'}
+                </option>
+              ))}
+            </select>
+
+            <label className="form-label">Project</label>
+            <select
+              className="form-input"
+              value={filters.project_id}
+              onChange={(e) => setFilter('project_id', e.target.value)}
+            >
+              <option value="">All projects</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+
+            {members.length > 0 && (
+              <>
+                <label className="form-label">User</label>
+                <select
+                  className="form-input"
+                  value={filters.user_id}
+                  onChange={(e) => setFilter('user_id', e.target.value)}
+                >
+                  <option value="">All users</option>
+                  {members.map((m) => (
+                    <option key={m.user_id} value={m.user_id}>
+                      {m.name || m.email}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+
+            <label className="form-label">From</label>
+            <input
+              type="datetime-local"
+              className="form-input"
+              value={filters.start_date}
+              onChange={(e) => setFilter('start_date', e.target.value)}
+            />
+            <label className="form-label">To</label>
+            <input
+              type="datetime-local"
+              className="form-input"
+              value={filters.end_date}
+              onChange={(e) => setFilter('end_date', e.target.value)}
+            />
+          </aside>
+
+          <main className="org-audit-main">
+            {error && <div className="page-error">Error: {error}</div>}
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div
+                style={{
+                  padding: '12px 20px',
+                  borderBottom: '1px solid var(--color-border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>
+                  history_edu
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 700,
+                    fontSize: 14,
+                  }}
+                >
+                  Activity Stream
+                </span>
+                {rows.length > 0 && (
+                  <span
+                    className="badge"
+                    style={{
+                      background: 'var(--color-primary-bg)',
+                      color: 'var(--color-primary)',
+                      marginLeft: 4,
+                    }}
+                  >
+                    {rows.length} / {total}
+                  </span>
+                )}
+                {loading && rows.length > 0 && (
+                  <span
+                    className="ms"
+                    style={{
+                      fontSize: 16,
+                      color: 'var(--color-text-muted)',
+                      marginLeft: 'auto',
+                      animation: 'spin 1s linear infinite',
+                    }}
+                  >
+                    sync
+                  </span>
+                )}
+              </div>
+
+              <div className="audit-table">
+                <div className="audit-row audit-row-head">
+                  <div>When</div>
+                  <div>Who</div>
+                  <div>What</div>
+                  <div>Where</div>
+                  <div></div>
+                </div>
+
+                {loading && rows.length === 0 && <div className="audit-empty">Loading…</div>}
+                {!loading && rows.length === 0 && (
+                  <div className="audit-empty">No audit entries match these filters.</div>
+                )}
+
+                {rows.map((entry) => (
+                  <AuditRow
+                    key={entry.id}
+                    entry={entry}
+                    where={projectName(entry.project_id)}
+                    onRevert={handleRevert}
+                  />
+                ))}
+              </div>
+
+              {rows.length < total && (
+                <div
+                  style={{
+                    padding: 16,
+                    textAlign: 'center',
+                    borderTop: '1px solid var(--color-border)',
+                  }}
+                >
+                  <button
+                    className="btn"
+                    type="button"
+                    disabled={loadingMore}
+                    onClick={() => load(true, rows.length)}
+                  >
+                    {loadingMore ? 'Loading…' : `Load more (${total - rows.length} remaining)`}
+                  </button>
+                </div>
+              )}
+            </div>
+          </main>
         </div>
       </div>
 
-      <div className="org-audit-layout">
-        <aside className="org-audit-filters">
-          <div
-            className="org-audit-filters-head"
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 12,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="ms" style={{ fontSize: 16, color: 'var(--color-primary)' }}>
-                filter_list
-              </span>
-              <span style={{ fontWeight: 600 }}>Filters</span>
-            </div>
-            {activeFilterCount > 0 && (
-              <button className="btn btn-sm" type="button" onClick={resetFilters}>
-                Reset
-              </button>
-            )}
-          </div>
-
-          <label className="form-label">Action</label>
-          <input
-            type="text"
-            className="form-input"
-            placeholder="e.g. flag.archived"
-            value={filters.action}
-            onChange={(e) => setFilter('action', e.target.value)}
-          />
-
-          <label className="form-label">Entity type</label>
-          <select
-            className="form-input"
-            value={filters.entity_type}
-            onChange={(e) => setFilter('entity_type', e.target.value)}
-          >
-            {ENTITY_TYPE_OPTIONS.map((t) => (
-              <option key={t} value={t}>
-                {t || 'Any'}
-              </option>
-            ))}
-          </select>
-
-          <label className="form-label">Project</label>
-          <select
-            className="form-input"
-            value={filters.project_id}
-            onChange={(e) => setFilter('project_id', e.target.value)}
-          >
-            <option value="">All projects</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-
-          {members.length > 0 && (
-            <>
-              <label className="form-label">User</label>
-              <select
-                className="form-input"
-                value={filters.user_id}
-                onChange={(e) => setFilter('user_id', e.target.value)}
-              >
-                <option value="">All users</option>
-                {members.map((m) => (
-                  <option key={m.user_id} value={m.user_id}>
-                    {m.name || m.email}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
-
-          <label className="form-label">From</label>
-          <input
-            type="datetime-local"
-            className="form-input"
-            value={filters.start_date}
-            onChange={(e) => setFilter('start_date', e.target.value)}
-          />
-          <label className="form-label">To</label>
-          <input
-            type="datetime-local"
-            className="form-input"
-            value={filters.end_date}
-            onChange={(e) => setFilter('end_date', e.target.value)}
-          />
-        </aside>
-
-        <main className="org-audit-main">
-          {error && <div className="page-error">Error: {error}</div>}
-          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-            <div
-              style={{
-                padding: '12px 20px',
-                borderBottom: '1px solid var(--color-border)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <span className="ms" style={{ fontSize: 18, color: 'var(--color-primary)' }}>
-                history_edu
-              </span>
-              <span
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontWeight: 700,
-                  fontSize: 14,
-                }}
-              >
-                Activity Stream
-              </span>
-              {rows.length > 0 && (
-                <span
-                  className="badge"
-                  style={{
-                    background: 'var(--color-primary-bg)',
-                    color: 'var(--color-primary)',
-                    marginLeft: 4,
-                  }}
-                >
-                  {rows.length} / {total}
-                </span>
-              )}
-              {loading && rows.length > 0 && (
-                <span
-                  className="ms"
-                  style={{
-                    fontSize: 16,
-                    color: 'var(--color-text-muted)',
-                    marginLeft: 'auto',
-                    animation: 'spin 1s linear infinite',
-                  }}
-                >
-                  sync
-                </span>
-              )}
-            </div>
-
-            <div className="audit-table">
-              <div className="audit-row audit-row-head">
-                <div>When</div>
-                <div>Who</div>
-                <div>What</div>
-                <div>Where</div>
-                <div></div>
-              </div>
-
-              {loading && rows.length === 0 && (
-                <div className="audit-empty">Loading…</div>
-              )}
-              {!loading && rows.length === 0 && (
-                <div className="audit-empty">No audit entries match these filters.</div>
-              )}
-
-              {rows.map((entry) => (
-                <AuditRow
-                  key={entry.id}
-                  entry={entry}
-                  where={projectName(entry.project_id)}
-                  onRevert={handleRevert}
-                />
-              ))}
-            </div>
-
-            {rows.length < total && (
-              <div
-                style={{
-                  padding: 16,
-                  textAlign: 'center',
-                  borderTop: '1px solid var(--color-border)',
-                }}
-              >
-                <button
-                  className="btn"
-                  type="button"
-                  disabled={loadingMore}
-                  onClick={() => load(true, rows.length)}
-                >
-                  {loadingMore ? 'Loading…' : `Load more (${total - rows.length} remaining)`}
-                </button>
-              </div>
-            )}
-          </div>
-        </main>
-      </div>
-    </div>
-
-    <RevertConfirmDialog
-      open={revertEntry !== null}
-      entry={revertEntry}
-      onClose={() => setRevertEntry(null)}
-      onSuccess={handleRevertSuccess}
-    />
-    <RevertToast
-      open={toast !== null}
-      newEntryId={toast?.id ?? ''}
-      newAction={toast?.action ?? ''}
-      onClose={() => setToast(null)}
-      onUndoSuccess={handleUndoSuccess}
-    />
+      <RevertConfirmDialog
+        open={revertEntry !== null}
+        entry={revertEntry}
+        onClose={() => setRevertEntry(null)}
+        onSuccess={handleRevertSuccess}
+      />
+      <RevertToast
+        open={toast !== null}
+        newEntryId={toast?.id ?? ''}
+        newAction={toast?.action ?? ''}
+        onClose={() => setToast(null)}
+        onUndoSuccess={handleUndoSuccess}
+      />
     </>
   );
 }

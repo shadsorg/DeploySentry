@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { Step, TargetType } from '@/types';
 import { strategiesApi } from '@/api';
+import { useStagingEnabled } from '@/hooks/useStagingEnabled';
+import { stageOrCall } from '@/hooks/stageOrCall';
 
 interface Props {
   orgSlug: string;
@@ -20,6 +22,7 @@ function emptyStep(): Step {
 }
 
 export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
+  const stagingEnabled = useStagingEnabled(orgSlug);
   const [name, setName] = useState(strategyName ?? '');
   const [description, setDescription] = useState('');
   const [targetType, setTargetType] = useState<TargetType>('deploy');
@@ -27,6 +30,8 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
   const [rollbackOnFailure, setRollbackOnFailure] = useState(true);
   const [steps, setSteps] = useState<Step[]>([emptyStep()]);
   const [expectedVersion, setExpectedVersion] = useState(1);
+  // Captured from strategiesApi.get on edit-load — staging needs the id.
+  const [strategyId, setStrategyId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +45,7 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
         setRollbackOnFailure(s.default_rollback_on_failure);
         setSteps(s.steps);
         setExpectedVersion(s.version);
+        setStrategyId(s.id);
       });
     }
   }, [orgSlug, strategyName]);
@@ -106,15 +112,41 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
     setError(null);
     try {
       if (strategyName) {
-        await strategiesApi.update(orgSlug, strategyName, {
+        const updateBody = {
           description,
           target_type: targetType,
           steps,
           default_health_threshold: healthThreshold,
           default_rollback_on_failure: rollbackOnFailure,
           expected_version: expectedVersion,
+        };
+        await stageOrCall({
+          staged: stagingEnabled && strategyId !== null,
+          orgSlug,
+          // Phase C-4 commit handler payload: {expected_version, strategy}.
+          // The strategy field carries the full updated Strategy; the
+          // commit handler overrides its id with row.ResourceID.
+          stage: {
+            resource_type: 'strategy',
+            resource_id: strategyId ?? '',
+            action: 'update',
+            new_value: {
+              expected_version: expectedVersion,
+              strategy: {
+                name,
+                description,
+                target_type: targetType,
+                default_health_threshold: healthThreshold,
+                default_rollback_on_failure: rollbackOnFailure,
+                steps,
+                version: expectedVersion,
+              },
+            },
+          },
+          direct: () => strategiesApi.update(orgSlug, strategyName, updateBody),
         });
       } else {
+        // Create stays direct — provisional-id resolution is its own PR.
         await strategiesApi.create(orgSlug, {
           name,
           description,

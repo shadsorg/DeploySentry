@@ -564,29 +564,55 @@ export default function FlagDetailPage() {
   };
 
   const handleSettingsSave = async () => {
-    if (!flag || !settingsForm || !id) return;
+    if (!flag || !settingsForm || !id || !orgSlug) return;
     setSettingsSaving(true);
     setSettingsSuccess(false);
     setError(null);
+    const update = {
+      name: settingsForm.name,
+      description: settingsForm.description,
+      category: settingsForm.category as FlagCategory,
+      purpose: settingsForm.purpose,
+      owners: settingsForm.owners
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+      is_permanent: settingsForm.is_permanent,
+      expires_at: settingsForm.is_permanent
+        ? undefined
+        : settingsForm.expires_at
+          ? settingsForm.expires_at + ':00Z'
+          : undefined,
+      default_value: settingsForm.default_value,
+    };
     try {
-      const updated = await flagsApi.update(id, {
-        name: settingsForm.name,
-        description: settingsForm.description,
-        category: settingsForm.category as FlagCategory,
-        purpose: settingsForm.purpose,
-        owners: settingsForm.owners
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean),
-        is_permanent: settingsForm.is_permanent,
-        expires_at: settingsForm.is_permanent
-          ? undefined
-          : settingsForm.expires_at
-            ? settingsForm.expires_at + ':00Z'
-            : undefined,
-        default_value: settingsForm.default_value,
+      const outcome = await stageOrCall({
+        staged: stagingEnabled,
+        orgSlug,
+        // Phase C-1's commit handler overrides the body's id with
+        // row.ResourceID, so we pass the flag id there. The staged
+        // new_value is the full update body — Phase B's review page
+        // diffs old (the loaded flag snapshot) against new.
+        stage: {
+          resource_type: 'flag',
+          resource_id: id,
+          action: 'update',
+          old_value: flag,
+          new_value: update,
+        },
+        direct: () => flagsApi.update(id, update),
       });
-      setFlag(updated);
+      if (outcome.mode === 'direct') {
+        // Direct path returns the canonical Flag — replace local state.
+        setFlag(outcome.result);
+      } else {
+        // Staged path: optimistic local merge so the user sees their
+        // edits immediately. Banner is the source of truth until Deploy.
+        // Coerce update.expires_at undefined → null to match Flag's shape.
+        setFlag((prev) =>
+          prev ? { ...prev, ...update, expires_at: update.expires_at ?? null } : prev,
+        );
+      }
       setSettingsSuccess(true);
       setTimeout(() => setSettingsSuccess(false), 3000);
     } catch (err) {

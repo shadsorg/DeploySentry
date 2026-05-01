@@ -1,12 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import type {
-  Deployment,
-  DeployStrategy,
-  DeployStatus,
-  OrgEnvironment,
-  RolloutPolicy,
-} from '@/types';
+import type { Deployment, DeployStrategy, DeployStatus, OrgEnvironment, RolloutPolicy } from '@/types';
 import { entitiesApi, deploymentsApi, rolloutPolicyApi } from '@/api';
 import { StrategyPicker } from '@/components/rollout/StrategyPicker';
 import { GroupPicker } from '@/components/rollout/GroupPicker';
@@ -139,29 +133,21 @@ const DeploymentsPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, [orgSlug, projectSlug, appSlug]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   // Load org environments for the create form
   useEffect(() => {
     if (!orgSlug) return;
-    entitiesApi
-      .listOrgEnvironments(orgSlug)
-      .then((r) => {
-        setEnvironments(r.environments ?? []);
-        if (r.environments?.length) setEnvId(r.environments[0].id);
-      })
-      .catch(() => {});
+    entitiesApi.listOrgEnvironments(orgSlug).then((r) => {
+      setEnvironments(r.environments ?? []);
+      if (r.environments?.length) setEnvId(r.environments[0].id);
+    }).catch(() => {});
   }, [orgSlug]);
 
   // Fetch rollout policies when the modal opens
   useEffect(() => {
     if (!creating || !orgSlug) return;
-    rolloutPolicyApi
-      .list(orgSlug)
-      .then((r) => setPolicies(r.items ?? []))
-      .catch(() => {});
+    rolloutPolicyApi.list(orgSlug).then((r) => setPolicies(r.items ?? [])).catch(() => {});
   }, [creating, orgSlug]);
 
   const envName = environments.find((e) => e.id === envId)?.name;
@@ -177,8 +163,7 @@ const DeploymentsPage: React.FC = () => {
     // 'off' or disabled: keep user's choices
   }, [effective.policy, effective.enabled]);
 
-  const mandateBlocked =
-    effective.enabled && effective.policy === 'mandate' && !strategyName && !applyImmediately;
+  const mandateBlocked = effective.enabled && effective.policy === 'mandate' && !strategyName && !applyImmediately;
 
   const openCreateModal = () => {
     setArtifact('');
@@ -210,12 +195,12 @@ const DeploymentsPage: React.FC = () => {
         environment_id: envId,
         artifact: artifact.trim(),
         version: version.trim(),
-        strategy: applyImmediately ? 'rolling' : strategyName || 'rolling',
+        strategy: applyImmediately ? 'rolling' : (strategyName || 'rolling'),
         rollout: applyImmediately
           ? { apply_immediately: true }
           : strategyName
-            ? { strategy_name: strategyName, ...(groupID ? { release_id: groupID } : {}) }
-            : undefined,
+          ? { strategy_name: strategyName, ...(groupID ? { release_id: groupID } : {}) }
+          : undefined,
       });
       setCreating(false);
       load();
@@ -227,11 +212,8 @@ const DeploymentsPage: React.FC = () => {
   };
 
   const filtered = useMemo(() => {
-    // Performance Optimization: Hoist search.toLowerCase() outside the filter loop
-    // to prevent O(N) repetitive string operations on every render.
-    const q = search?.toLowerCase() ?? '';
     return deployments.filter((d) => {
-      if (q && !d.version.toLowerCase().includes(q)) {
+      if (search && !d.version.toLowerCase().includes(search.toLowerCase())) {
         return false;
       }
       if (strategyFilter !== 'all' && d.strategy !== strategyFilter) {
@@ -264,9 +246,7 @@ const DeploymentsPage: React.FC = () => {
           <h1>{appName ? `${appName} — Deployments` : 'Deployments'}</h1>
           <p>Monitor and manage application deployments across environments</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreateModal}>
-          + New Deployment
-        </button>
+        <button className="btn btn-primary" onClick={openCreateModal}>+ New Deployment</button>
       </div>
 
       {creating && (
@@ -302,19 +282,14 @@ const DeploymentsPage: React.FC = () => {
               >
                 {environments.length === 0 && <option value="">No environments found</option>}
                 {environments.map((env) => (
-                  <option key={env.id} value={env.id}>
-                    {env.name}
-                  </option>
+                  <option key={env.id} value={env.id}>{env.name}</option>
                 ))}
               </select>
             </div>
             <div className="form-group">
               <label className="form-label">Rollout Strategy</label>
               {effective.enabled && effective.policy === 'mandate' && (
-                <p
-                  className="helper-text"
-                  style={{ color: 'var(--color-danger)', marginBottom: 6 }}
-                >
+                <p className="helper-text" style={{ color: 'var(--color-danger)', marginBottom: 6 }}>
                   Strategy required for this environment.
                 </p>
               )}
@@ -346,11 +321,7 @@ const DeploymentsPage: React.FC = () => {
               <button className="btn" onClick={() => setCreating(false)} disabled={submitting}>
                 Cancel
               </button>
-              <button
-                className="btn btn-primary"
-                onClick={handleCreate}
-                disabled={submitting || mandateBlocked}
-              >
+              <button className="btn btn-primary" onClick={handleCreate} disabled={submitting || mandateBlocked}>
                 {submitting ? 'Creating…' : 'Create Deployment'}
               </button>
             </div>

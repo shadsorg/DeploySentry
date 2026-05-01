@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import type { EffectiveStrategy } from '@/types';
 import { strategiesApi } from '@/api';
+import { useStagingEnabled } from '@/hooks/useStagingEnabled';
+import { stageOrCall } from '@/hooks/stageOrCall';
 import { StrategyEditor } from './StrategyEditor';
 
 export default function StrategiesPage() {
   const { orgSlug = '' } = useParams();
+  const stagingEnabled = useStagingEnabled(orgSlug);
   const [items, setItems] = useState<EffectiveStrategy[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,8 +33,25 @@ export default function StrategiesPage() {
 
   async function handleDelete(name: string) {
     if (!confirm(`Delete strategy "${name}"?`)) return;
+    // Resolve the strategy id from the loaded list — the staging commit
+    // handler keys by id, but the page only has names in hand.
+    const target = items.find((it) => it.strategy.name === name);
+    if (!target) {
+      alert(`Delete failed: strategy "${name}" not in loaded list`);
+      return;
+    }
     try {
-      await strategiesApi.delete(orgSlug, name);
+      await stageOrCall({
+        staged: stagingEnabled,
+        orgSlug,
+        stage: {
+          resource_type: 'strategy',
+          resource_id: target.strategy.id,
+          action: 'delete',
+          old_value: target.strategy,
+        },
+        direct: () => strategiesApi.delete(orgSlug, name),
+      });
       await load();
     } catch (e) {
       alert(`Delete failed: ${e}`);

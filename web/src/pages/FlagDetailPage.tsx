@@ -339,11 +339,10 @@ export default function FlagDetailPage() {
 
   const lifecycleState = useMemo(() => {
     if (!flag) return 'active';
-    if (flag.deleted_at) return 'tombstoned';
     if (!flag.archived_at) return 'active';
     const elapsedAt = new Date(flag.archived_at).getTime() + 30 * 24 * 3600 * 1000;
     return Date.now() >= elapsedAt ? 'elapsed' : 'within';
-  }, [flag?.archived_at, flag?.deleted_at]);
+  }, [flag?.archived_at]);
 
   if (loading)
     return (
@@ -493,6 +492,20 @@ export default function FlagDetailPage() {
       setConfirmQueueOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to queue for deletion');
+    } finally {
+      setQueueing(false);
+    }
+  };
+
+  const handleCancelQueuedDeletion = async () => {
+    if (!id) return;
+    setQueueing(true);
+    setError(null);
+    try {
+      const updated = await flagsApi.cancelQueuedDeletion(id);
+      setFlag(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to cancel queued deletion');
     } finally {
       setQueueing(false);
     }
@@ -1231,8 +1244,8 @@ export default function FlagDetailPage() {
               {flag.delete_after && (
                 <p style={{ color: 'var(--color-warning, #d97706)' }}>
                   ⚠ Queued for permanent deletion at{' '}
-                  <strong>{new Date(flag.delete_after).toLocaleString()}</strong>. It will be
-                  tombstoned by the next retention sweep after that time.
+                  <strong>{new Date(flag.delete_after).toLocaleString()}</strong>. The retention
+                  sweep will permanently remove this flag and its rules / ratings after that time.
                 </p>
               )}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -1246,6 +1259,15 @@ export default function FlagDetailPage() {
                 {!flag.delete_after && (
                   <button className="btn btn-danger" onClick={() => setConfirmQueueOpen(true)}>
                     Queue for Deletion
+                  </button>
+                )}
+                {flag.delete_after && (
+                  <button
+                    className="btn btn-secondary"
+                    onClick={handleCancelQueuedDeletion}
+                    disabled={queueing}
+                  >
+                    {queueing ? 'Cancelling…' : 'Cancel Queued Deletion'}
                   </button>
                 )}
               </div>
@@ -1262,8 +1284,7 @@ export default function FlagDetailPage() {
                     new Date(flag.archived_at!).getTime() + 30 * 24 * 3600 * 1000,
                   ).toLocaleDateString()}
                 </strong>
-                . This flag will be tombstoned by the next retention sweep, or you can permanently
-                delete it now.
+                . The next retention sweep will permanently delete this flag, or you can do it now.
               </p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button
@@ -1280,16 +1301,6 @@ export default function FlagDetailPage() {
             </div>
           )}
 
-          {lifecycleState === 'tombstoned' && (
-            <div className="lifecycle-panel" style={{ marginTop: 32 }}>
-              <h2>Tombstoned</h2>
-              <p className="text-muted">
-                Permanently deleted on{' '}
-                <strong>{new Date(flag.deleted_at!).toLocaleString()}</strong>. The flag's audit
-                history remains visible but the flag itself can no longer be modified.
-              </p>
-            </div>
-          )}
         </div>
       )}
 

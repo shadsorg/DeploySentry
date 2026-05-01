@@ -132,6 +132,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 		flags.PUT("/:id", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.updateFlag)
 		flags.POST("/:id/archive", auth.RequirePermission(h.rbac, auth.PermFlagArchive), h.archiveFlag)
 		flags.POST("/:id/queue-deletion", auth.RequirePermission(h.rbac, auth.PermFlagArchive), h.queueFlagDeletion)
+		flags.DELETE("/:id/queue-deletion", auth.RequirePermission(h.rbac, auth.PermFlagArchive), h.cancelFlagDeletion)
 		flags.DELETE("/:id", auth.RequirePermission(h.rbac, auth.PermFlagArchive), h.hardDeleteFlag)
 		flags.POST("/:id/restore", auth.RequirePermission(h.rbac, auth.PermFlagUpdate), h.restoreFlag)
 		flags.POST("/:id/toggle", auth.RequirePermission(h.rbac, auth.PermFlagToggle), h.toggleFlag)
@@ -600,7 +601,7 @@ func (h *Handler) queueFlagDeletion(c *gin.Context) {
 		return
 	}
 	if !flag.Archived {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "flag must be archived first"})
+		c.JSON(http.StatusConflict, gin.H{"error": "flag must be archived first"})
 		return
 	}
 
@@ -609,8 +610,40 @@ func (h *Handler) queueFlagDeletion(c *gin.Context) {
 		return
 	}
 
-	h.writeAudit(c, "flag.queued_for_deletion", "flag", id, "", "")
+	flag, _ = h.service.GetFlag(c.Request.Context(), id)
+	deleteAfter := ""
+	if flag != nil && flag.DeleteAfter != nil {
+		deleteAfter = flag.DeleteAfter.Format(time.RFC3339)
+	}
+	newVal, _ := json.Marshal(map[string]string{"delete_after": deleteAfter})
+	h.writeAudit(c, "flag.queued_for_deletion", "flag", id, "", string(newVal))
 	h.broadcastEvent("flag.queued_for_deletion", id, "")
+
+	c.JSON(http.StatusOK, flag)
+}
+
+func (h *Handler) cancelFlagDeletion(c *gin.Context) {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid flag id"})
+		return
+	}
+	flag, err := h.service.GetFlag(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "flag not found"})
+		return
+	}
+	priorDeleteAfter := ""
+	if flag.DeleteAfter != nil {
+		priorDeleteAfter = flag.DeleteAfter.Format(time.RFC3339)
+	}
+	if err := h.service.ClearDeleteAfter(c.Request.Context(), id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	oldVal, _ := json.Marshal(map[string]string{"delete_after": priorDeleteAfter})
+	h.writeAudit(c, "flag.queued_for_deletion.cancelled", "flag", id, string(oldVal), "")
+	h.broadcastEvent("flag.queued_for_deletion.cancelled", id, "")
 
 	flag, _ = h.service.GetFlag(c.Request.Context(), id)
 	c.JSON(http.StatusOK, flag)
@@ -638,26 +671,34 @@ func (h *Handler) hardDeleteFlag(c *gin.Context) {
 		return
 	}
 	if !flag.Archived {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "flag must be archived first"})
+		c.JSON(http.StatusConflict, gin.H{"error": "flag must be archived first"})
 		return
 	}
 
+	// Capture flag state before deletion — the row is about to be gone, so
+	// audit_log.old_value is the only place this content survives.
+	oldValBytes, _ := json.Marshal(flag)
+
 	if err := h.service.HardDeleteFlag(c.Request.Context(), id, RetentionWindow); err != nil {
 		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "retention") {
-			msg := "retention not elapsed"
-			if flag.DeleteAfter != nil {
-				msg = fmt.Sprintf("retention not elapsed (eligible after %s)", flag.DeleteAfter.Format(time.RFC3339))
+			eligibleAt := ""
+			if flag.ArchivedAt != nil {
+				eligibleAt = flag.ArchivedAt.Add(RetentionWindow).Format(time.RFC3339)
 			}
-			c.JSON(http.StatusUnprocessableEntity, gin.H{"error": msg})
+			c.JSON(http.StatusConflict, gin.H{
+				"error":       "retention not elapsed",
+				"code":        "retention_not_elapsed",
+				"eligible_at": eligibleAt,
+			})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	h.writeAudit(c, "flag.hard_deleted", "flag", id, "", "")
+	h.writeAudit(c, "flag.hard_deleted", "flag", id, string(oldValBytes), "")
 	h.broadcastEvent("flag.hard_deleted", id, "")
-	c.Status(http.StatusNoContent)
+	c.JSON(http.StatusOK, gin.H{"deleted": true, "id": id})
 }
 
 func (h *Handler) restoreFlag(c *gin.Context) {
@@ -671,16 +712,23 @@ func (h *Handler) restoreFlag(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "flag not found"})
 		return
 	}
-	if flag.DeletedAt != nil {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "flag is tombstoned and cannot be restored"})
-		return
+	priorDeleteAfter := ""
+	if flag.DeleteAfter != nil {
+		priorDeleteAfter = flag.DeleteAfter.Format(time.RFC3339)
+	}
+	priorArchivedAt := ""
+	if flag.ArchivedAt != nil {
+		priorArchivedAt = flag.ArchivedAt.Format(time.RFC3339)
 	}
 	if err := h.service.RestoreFlag(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
-
-	h.writeAudit(c, "flag.restored", "flag", id, "", "")
+	oldVal, _ := json.Marshal(map[string]string{
+		"archived_at":  priorArchivedAt,
+		"delete_after": priorDeleteAfter,
+	})
+	h.writeAudit(c, "flag.restored", "flag", id, string(oldVal), "")
 	h.broadcastEvent("flag.restored", id, "")
 
 	flag, _ = h.service.GetFlag(c.Request.Context(), id)

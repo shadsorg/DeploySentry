@@ -100,8 +100,10 @@ export const flagsApi = {
   archive: (id: string) => request<{ status: string }>(`/flags/${id}/archive`, { method: 'POST' }),
   queueDeletion: (id: string) =>
     request<Flag>(`/flags/${id}/queue-deletion`, { method: 'POST' }),
+  cancelQueuedDeletion: (id: string) =>
+    request<Flag>(`/flags/${id}/queue-deletion`, { method: 'DELETE' }),
   hardDelete: (id: string, slug: string) =>
-    request<void>(`/flags/${id}?force=true`, {
+    request<{ deleted: true; id: string }>(`/flags/${id}?force=true`, {
       method: 'DELETE',
       headers: { 'X-Confirm-Slug': slug },
     }),

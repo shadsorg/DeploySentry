@@ -1285,7 +1285,7 @@ func TestHandler_QueueFlagDeletion_NotArchived(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Equal(t, http.StatusConflict, w.Code)
 }
 
 func TestHandler_QueueFlagDeletion_InvalidID(t *testing.T) {
@@ -1319,7 +1319,7 @@ func TestHandler_HardDeleteFlag_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestHandler_HardDeleteFlag_MissingForce(t *testing.T) {
@@ -1368,7 +1368,7 @@ func TestHandler_HardDeleteFlag_RetentionNotElapsed(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Equal(t, http.StatusConflict, w.Code)
 }
 
 func TestHandler_HardDeleteFlag_NotArchived(t *testing.T) {
@@ -1385,7 +1385,7 @@ func TestHandler_HardDeleteFlag_NotArchived(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	assert.Equal(t, http.StatusConflict, w.Code)
 }
 
 // ---------------------------------------------------------------------------
@@ -1398,7 +1398,7 @@ func TestHandler_RestoreFlag_Success(t *testing.T) {
 	svc := &mockFlagService{
 		getFlagFn: func(_ context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
 			callCount++
-			return &models.FeatureFlag{ID: id, Key: "my-flag", Archived: true, DeletedAt: nil}, nil
+			return &models.FeatureFlag{ID: id, Key: "my-flag", Archived: true}, nil
 		},
 		restoreFlagFn: func(_ context.Context, _ uuid.UUID) error {
 			return nil
@@ -1411,23 +1411,6 @@ func TestHandler_RestoreFlag_Success(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-}
-
-func TestHandler_RestoreFlag_Tombstoned(t *testing.T) {
-	flagID := uuid.New()
-	deletedAt := time.Now()
-	svc := &mockFlagService{
-		getFlagFn: func(_ context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
-			return &models.FeatureFlag{ID: id, Key: "my-flag", DeletedAt: &deletedAt}, nil
-		},
-	}
-	router := setupFlagRouter(svc)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/flags/"+flagID.String()+"/restore", nil)
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
 }
 
 func TestHandler_RestoreFlag_InvalidID(t *testing.T) {

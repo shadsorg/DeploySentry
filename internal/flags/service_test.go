@@ -127,11 +127,9 @@ func (m *mockFlagRepo) HardDeleteFlag(ctx context.Context, id uuid.UUID, retenti
 	if m.hardDeleteFlagFn != nil {
 		return m.hardDeleteFlagFn(ctx, id, retention)
 	}
-	// Default: succeed, set deleted_at.
-	if f, ok := m.flags[id]; ok {
-		now := time.Now()
-		f.DeletedAt = &now
-		f.Enabled = false
+	// Default: succeed, hard-delete the row.
+	if _, ok := m.flags[id]; ok {
+		delete(m.flags, id)
 		return nil
 	}
 	return errors.New("postgres.HardDeleteFlag: not found")
@@ -143,8 +141,8 @@ func (m *mockFlagRepo) RestoreFlag(ctx context.Context, id uuid.UUID) error {
 	}
 	if f, ok := m.flags[id]; ok {
 		f.Archived = false
+		f.ArchivedAt = nil
 		f.DeleteAfter = nil
-		f.DeletedAt = nil
 		return nil
 	}
 	return errors.New("postgres.RestoreFlag: not found")
@@ -1564,8 +1562,8 @@ func TestRestoreFlag_Success(t *testing.T) {
 		restoreCalled = true
 		if f, ok := repo.flags[id]; ok {
 			f.Archived = false
+			f.ArchivedAt = nil
 			f.DeleteAfter = nil
-			f.DeletedAt = nil
 		}
 		return nil
 	}

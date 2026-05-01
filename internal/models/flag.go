@@ -89,12 +89,12 @@ type FeatureFlag struct {
 	Enabled       bool         `json:"enabled" db:"enabled"`
 	DefaultValue  string       `json:"default_value" db:"default_value"`
 	Archived      bool         `json:"archived" db:"archived"`
+	ArchivedAt    *time.Time   `json:"archived_at,omitempty" db:"archived_at"`
 	Tags          []string     `json:"tags,omitempty" db:"-"`
 	CreatedBy     uuid.UUID    `json:"created_by" db:"created_by"`
 	CreatedAt     time.Time    `json:"created_at" db:"created_at"`
 	UpdatedAt     time.Time    `json:"updated_at" db:"updated_at"`
 	DeleteAfter   *time.Time   `json:"delete_after,omitempty" db:"delete_after"`
-	DeletedAt     *time.Time   `json:"deleted_at,omitempty"   db:"deleted_at"`
 
 	// Lifecycle layer — used by the CrowdSoft feature-agent to drive validated
 	// rollouts end-to-end. All fields are optional; a flag with no lifecycle

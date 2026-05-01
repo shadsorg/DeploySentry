@@ -149,13 +149,13 @@ type FlagService interface {
 	// when delete_after elapses.
 	QueueDeletion(ctx context.Context, id uuid.UUID, retention time.Duration) error
 
-	// HardDeleteFlag tombstones the flag (sets deleted_at = now()) provided
-	// retention has elapsed. Returns an error if the flag is missing,
-	// not archived, or retention has not yet elapsed.
+	// HardDeleteFlag permanently removes the flag row provided retention
+	// has elapsed. Returns an error if the flag is missing, not archived,
+	// or retention has not yet elapsed.
 	HardDeleteFlag(ctx context.Context, id uuid.UUID, retention time.Duration) error
 
-	// RestoreFlag clears archived_at, delete_after, and deleted_at on a
-	// flag, returning it to active state. Idempotent on already-active flags.
+	// RestoreFlag clears archived_at and delete_after, returning the flag
+	// to active state. Idempotent on already-active flags.
 	RestoreFlag(ctx context.Context, id uuid.UUID) error
 
 	// ClearDeleteAfter sets delete_after = NULL. Idempotent. Used when
@@ -734,13 +734,13 @@ func (s *flagService) QueueDeletion(ctx context.Context, id uuid.UUID, retention
 }
 
 // HardDeleteFlag delegates to repo.HardDeleteFlag, invalidates the
-// flag's cache entry, and publishes a "hard_deleted" event.
+// flag's cache entry, and publishes a "hard_deleted" event. After this
+// returns successfully the row is gone — GetFlag will return ErrNotFound.
 func (s *flagService) HardDeleteFlag(ctx context.Context, id uuid.UUID, retention time.Duration) error {
 	if err := s.repo.HardDeleteFlag(ctx, id, retention); err != nil {
 		return fmt.Errorf("hard delete: %w", err)
 	}
 	_ = s.cache.Invalidate(ctx, id)
-	// Tombstoned: GetFlag will still return the row but with deleted_at set.
 	s.publishEvent(ctx, "hard_deleted", &models.FeatureFlag{ID: id})
 	return nil
 }

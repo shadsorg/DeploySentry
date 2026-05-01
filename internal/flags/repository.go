@@ -84,27 +84,29 @@ type FlagRepository interface {
 	UnarchiveFlag(ctx context.Context, id uuid.UUID) error
 
 	// QueueDeletion sets delete_after = archived_at + retention. Returns
-	// ErrNotFound if the flag is not archived (delete_after only makes sense
-	// for archived flags) or already tombstoned.
+	// ErrNotFound if the flag is not archived (delete_after only makes
+	// sense for archived flags).
 	QueueDeletion(ctx context.Context, id uuid.UUID, retention time.Duration) error
 
-	// ClearDeleteAfter sets delete_after = NULL. Idempotent. Used when reverting
-	// flag.queued_for_deletion without otherwise unarchiving the flag.
+	// ClearDeleteAfter sets delete_after = NULL. Idempotent. Used when
+	// reverting flag.queued_for_deletion without otherwise unarchiving the
+	// flag.
 	ClearDeleteAfter(ctx context.Context, id uuid.UUID) error
 
-	// HardDeleteFlag tombstones the flag (sets deleted_at = now()) provided
-	// retention has elapsed (archived_at + retention < now()). Returns
-	// ErrNotFound when the SQL guard rejects the call (not archived,
-	// retention not elapsed, or already tombstoned).
+	// HardDeleteFlag permanently removes the flag row provided retention
+	// has elapsed (archived_at + retention < now()). Cascades fire on
+	// flag_targeting_rules, flag_ratings, etc. Returns ErrNotFound when
+	// the SQL guard rejects the call (not archived or retention not
+	// elapsed).
 	HardDeleteFlag(ctx context.Context, id uuid.UUID, retention time.Duration) error
 
-	// RestoreFlag clears archived_at, delete_after, and deleted_at. Returns
+	// RestoreFlag clears archived_at and delete_after. Returns
 	// ErrNotFound when no row matches the given id.
 	RestoreFlag(ctx context.Context, id uuid.UUID) error
 
 	// ListFlagsToHardDelete returns ids of flags whose delete_after has
-	// elapsed and which have not yet been tombstoned. Used by the retention
-	// sweep. Returns at most `limit` ids ordered by delete_after ASC.
+	// elapsed. Used by the retention sweep. Returns at most `limit` ids
+	// ordered by delete_after ASC.
 	ListFlagsToHardDelete(ctx context.Context, limit int) ([]uuid.UUID, error)
 
 	// CreateRule persists a new targeting rule.

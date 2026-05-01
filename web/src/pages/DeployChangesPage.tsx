@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { stagingApi, type StagedChange, type StagedCommitResult } from '@/api';
 import StagedChangeRow from '@/components/staging/StagedChangeRow';
+import StagingModeToggle from '@/components/staging/StagingModeToggle';
 import { resourceTypeLabel } from '@/components/staging/labels';
 import { computeConflicts, type ConflictMap } from '@/components/staging/conflicts';
 
@@ -142,6 +143,7 @@ export default function DeployChangesPage() {
 
   return (
     <div className="deploy-changes-page" data-testid="deploy-changes-page">
+      {orgSlug && <StagingModeToggle orgSlug={orgSlug} />}
       <header className="deploy-changes-header">
         <div>
           <h1>Review &amp; Deploy</h1>

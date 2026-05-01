@@ -396,7 +396,7 @@ export default function FlagDetailPage() {
   if (!flag) return <div className="page-error">Flag not found.</div>;
 
   const handleRuleEnvToggle = async (ruleId: string, envId: string, currentEnabled: boolean) => {
-    if (!id) return;
+    if (!id || !orgSlug) return;
     const nextEnabled = !currentEnabled;
     setRuleEnvStates((prev) => {
       const existing = prev.find((s) => s.rule_id === ruleId && s.environment_id === envId);
@@ -418,7 +418,22 @@ export default function FlagDetailPage() {
       ];
     });
     try {
-      await flagsApi.setRuleEnvState(id, ruleId, envId, { enabled: nextEnabled });
+      await stageOrCall({
+        staged: stagingEnabled,
+        orgSlug,
+        // Per-rule per-env activation. resource_id is the RULE id (the
+        // commit handler dispatches SetRuleEnvironmentState(ruleId, envId,
+        // enabled)). environment_id rides in the payload alongside the
+        // new enabled state.
+        stage: {
+          resource_type: 'flag_rule_env_state',
+          resource_id: ruleId,
+          action: 'update',
+          old_value: { environment_id: envId, enabled: currentEnabled },
+          new_value: { environment_id: envId, enabled: nextEnabled },
+        },
+        direct: () => flagsApi.setRuleEnvState(id, ruleId, envId, { enabled: nextEnabled }),
+      });
     } catch (err) {
       setRuleEnvStates((prev) =>
         prev.map((s) =>

@@ -956,3 +956,70 @@ export const orgStatusApi = {
       `/orgs/${orgSlug}/deployments${buildQueryString(filters as Record<string, string | number | undefined>)}`,
     ),
 };
+
+// ---------------------------------------------------------------------------
+// Staging — per-user pending dashboard mutations.
+//
+// Backend lives in `internal/staging/`; spec at
+// docs/superpowers/specs/2026-04-30-staged-changes-and-deploy-workflow-design.md
+// ---------------------------------------------------------------------------
+
+export interface StagedChange {
+  id: string;
+  user_id: string;
+  org_id: string;
+  resource_type: string;
+  resource_id?: string;
+  provisional_id?: string;
+  action: string;
+  field_path?: string;
+  /** Stored as raw JSON on the wire; pretty-printed by the diff component. */
+  old_value?: unknown;
+  new_value?: unknown;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StagedChangesListResponse {
+  changes: StagedChange[];
+  count: number;
+}
+
+export interface StagedCommitResult {
+  committed_ids: string[];
+  failed_id?: string;
+  failed_reason?: string;
+}
+
+export interface StageRequest {
+  resource_type: string;
+  resource_id?: string;
+  provisional_id?: string;
+  action: string;
+  field_path?: string;
+  old_value?: unknown;
+  new_value?: unknown;
+}
+
+export const stagingApi = {
+  list: (orgSlug: string) =>
+    request<StagedChangesListResponse>(`/orgs/${orgSlug}/deploy-changes`),
+  stage: (orgSlug: string, body: StageRequest) =>
+    request<StagedChange>(`/orgs/${orgSlug}/deploy-changes/stage`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  commit: (orgSlug: string, ids: string[]) =>
+    request<StagedCommitResult>(`/orgs/${orgSlug}/deploy-changes/commit`, {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
+    }),
+  discardOne: (orgSlug: string, id: string) =>
+    request<{ discarded: string }>(`/orgs/${orgSlug}/deploy-changes/${id}`, {
+      method: 'DELETE',
+    }),
+  discardAll: (orgSlug: string) =>
+    request<{ discarded: number }>(`/orgs/${orgSlug}/deploy-changes`, {
+      method: 'DELETE',
+    }),
+};

@@ -33,6 +33,7 @@ import CreateProjectPage from './pages/CreateProjectPage';
 import OrgStatusPage from './pages/OrgStatusPage';
 import OrgDeploymentsPage from './pages/OrgDeploymentsPage';
 import OrgAuditPage from './pages/OrgAuditPage';
+import DeployChangesPage from './pages/DeployChangesPage';
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const DocsPage = lazy(() => import('./pages/DocsPage'));
 
@@ -68,6 +69,7 @@ export default function App() {
               <Route path="members" element={<MembersPage />} />
               <Route path="api-keys" element={<APIKeysPage />} />
               <Route path="audit" element={<OrgAuditPage />} />
+              <Route path="deploy-changes" element={<DeployChangesPage />} />
               <Route path="strategies" element={<StrategiesPage />} />
               <Route path="rollouts" element={<RolloutsPage />} />
               <Route path="rollouts/:id" element={<RolloutDetailPage />} />

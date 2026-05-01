@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -15,7 +16,7 @@ var listFlagsTool = mcp.NewTool("ds_list_flags",
 	mcp.WithDescription("List feature flags in a project."),
 	mcp.WithReadOnlyHintAnnotation(true),
 	mcp.WithDestructiveHintAnnotation(false),
-	mcp.WithString("org", mcp.Description("Organization slug (uses default from config if omitted)")),
+	mcp.WithString("org", mcp.Description("Organization slug (uses default from config if omitted; org context comes from auth, included for parity)")),
 	mcp.WithString("project", mcp.Description("Project slug (uses default from config if omitted)")),
 )
 
@@ -24,15 +25,14 @@ func handleListFlags(_ context.Context, req mcp.CallToolRequest) (*mcp.CallToolR
 	if err != nil {
 		return errResult(err), nil
 	}
-	org, err := resolveOrg(req.GetString("org", ""))
-	if err != nil {
+	if _, err := resolveOrg(req.GetString("org", "")); err != nil {
 		return errResult(err), nil
 	}
 	project, err := resolveProject(req.GetString("project", ""))
 	if err != nil {
 		return errResult(err), nil
 	}
-	data, err := c.get(fmt.Sprintf("/api/v1/orgs/%s/projects/%s/flags", org, project))
+	data, err := c.get(fmt.Sprintf("/api/v1/flags?project_id=%s", url.QueryEscape(project)))
 	if err != nil {
 		return errResult(err), nil
 	}
@@ -90,8 +90,7 @@ func handleCreateFlag(_ context.Context, req mcp.CallToolRequest) (*mcp.CallTool
 	if err != nil {
 		return errResult(err), nil
 	}
-	org, err := resolveOrg(req.GetString("org", ""))
-	if err != nil {
+	if _, err := resolveOrg(req.GetString("org", "")); err != nil {
 		return errResult(err), nil
 	}
 	project, err := resolveProject(req.GetString("project", ""))
@@ -117,10 +116,11 @@ func handleCreateFlag(_ context.Context, req mcp.CallToolRequest) (*mcp.CallTool
 	}
 
 	body := map[string]interface{}{
-		"key":       key,
-		"name":      name,
-		"flag_type": flagType,
-		"category":  category,
+		"project_id": project,
+		"key":        key,
+		"name":       name,
+		"flag_type":  flagType,
+		"category":   category,
 	}
 	if v := req.GetString("default_value", ""); v != "" {
 		body["default_value"] = v
@@ -129,7 +129,7 @@ func handleCreateFlag(_ context.Context, req mcp.CallToolRequest) (*mcp.CallTool
 		body["description"] = v
 	}
 
-	data, err := c.post(fmt.Sprintf("/api/v1/orgs/%s/projects/%s/flags", org, project), body)
+	data, err := c.post("/api/v1/flags", body)
 	if err != nil {
 		return errResult(err), nil
 	}

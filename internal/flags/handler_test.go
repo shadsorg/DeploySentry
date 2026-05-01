@@ -333,6 +333,76 @@ func TestCreateFlag_Valid(t *testing.T) {
 	assert.Equal(t, "new-feature", resp.Key)
 }
 
+// mockEntityResolver implements EntityResolver for slug-based tests.
+type mockEntityResolver struct {
+	projectsBySlug map[string]*models.Project
+}
+
+func (m *mockEntityResolver) GetAppBySlug(_ context.Context, _ uuid.UUID, _ string) (*models.Application, error) {
+	return nil, nil
+}
+
+func (m *mockEntityResolver) GetProjectBySlug(_ context.Context, _ uuid.UUID, slug string) (*models.Project, error) {
+	if p, ok := m.projectsBySlug[slug]; ok {
+		return p, nil
+	}
+	return nil, nil
+}
+
+func (m *mockEntityResolver) GetUserName(_ context.Context, _ uuid.UUID) (string, error) {
+	return "", nil
+}
+
+func setupFlagRouterWithEntities(svc FlagService, entityRepo EntityResolver, orgID uuid.UUID) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set("role", auth.RoleOwner)
+		c.Set("org_id", orgID.String())
+		c.Next()
+	})
+	rbac := auth.NewRBACChecker()
+	handler := NewHandler(svc, rbac, nil, nil, entityRepo, nil, nil)
+	handler.RegisterRoutes(router.Group("/api"))
+	return router
+}
+
+func TestCreateFlag_ProjectSlug(t *testing.T) {
+	orgID := uuid.New()
+	projectID := uuid.New()
+	svc := &mockFlagService{
+		createFlagFn: func(_ context.Context, f *models.FeatureFlag) error {
+			f.ID = uuid.New()
+			assert.Equal(t, projectID, f.ProjectID)
+			return nil
+		},
+	}
+	entities := &mockEntityResolver{
+		projectsBySlug: map[string]*models.Project{
+			"my-project": {ID: projectID, Slug: "my-project"},
+		},
+	}
+	router := setupFlagRouterWithEntities(svc, entities, orgID)
+
+	body := map[string]interface{}{
+		"project_id": "my-project",
+		"key":        "slug-feature",
+		"name":       "Slug Feature",
+		"flag_type":  "boolean",
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/flags", toJSON(t, body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	var resp models.FeatureFlag
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, "slug-feature", resp.Key)
+	assert.Equal(t, projectID, resp.ProjectID)
+}
+
 func TestCreateFlag_InvalidJSON(t *testing.T) {
 	router := setupFlagRouter(&mockFlagService{})
 

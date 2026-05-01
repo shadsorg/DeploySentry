@@ -413,12 +413,14 @@ export default function FlagDetailPage() {
   };
 
   const saveEnvState = async (envId: string, updates: { enabled?: boolean; value?: unknown }) => {
-    if (!flag) return;
+    if (!flag || !orgSlug) return;
     const prev = envStates.find((s) => s.environment_id === envId);
     const current = { enabled: prev?.enabled ?? false, value: prev?.value ?? null };
     const next = { ...current, ...updates };
 
-    // Optimistic update
+    // Optimistic update — kept on both staged and direct paths so the
+    // dashboard reflects the user's intent immediately. With staging on,
+    // the header banner becomes the source of truth for "what I see".
     setEnvStates((states) => {
       const existing = states.find((s) => s.environment_id === envId);
       if (existing) {
@@ -438,9 +440,25 @@ export default function FlagDetailPage() {
       ];
     });
     try {
-      await flagEnvStateApi.set(flag.id, envId, next);
+      await stageOrCall({
+        staged: stagingEnabled,
+        orgSlug,
+        // The staging commit handler (Phase C-2) keys per-env state by
+        // (flag_id=resource_id, environment_id, enabled, value). The
+        // resource_id is the FLAG id, not the env-state row id, so the
+        // upsert collapses repeat edits to the same (flag, env) target.
+        stage: {
+          resource_type: 'flag_env_state',
+          resource_id: flag.id,
+          action: 'update',
+          old_value: { environment_id: envId, ...current },
+          new_value: { environment_id: envId, ...next },
+        },
+        direct: () => flagEnvStateApi.set(flag.id, envId, next),
+      });
     } catch (err) {
-      // Revert on failure
+      // Revert on failure (works for both modes — a staging upsert that
+      // 4xx'd should also leave the dashboard at the production state).
       setEnvStates((states) =>
         states.map((s) => (s.environment_id === envId ? { ...s, ...current } : s)),
       );

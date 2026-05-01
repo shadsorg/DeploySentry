@@ -66,6 +66,7 @@ export async function createBooleanFlag(
     },
     body: JSON.stringify({
       project_id: seeded.projectId,
+      application_id: seeded.appId,
       environment_id: seeded.environmentId,
       key: flagKey,
       name: flagKey,
@@ -126,6 +127,41 @@ export async function addTargetingRule(
   }
   const body = (await res.json()) as { id: string };
   return body.id;
+}
+
+/**
+ * Enable (or disable) a targeting rule for a specific environment via the API.
+ * Without this, the evaluator skips the rule — `addTargetingRule` only
+ * creates the rule itself; the per-env activation state is a separate row.
+ */
+export async function setRuleEnvState(
+  page: Page,
+  seeded: SeededContext,
+  flagId: string,
+  ruleId: string,
+  envId: string,
+  enabled: boolean,
+): Promise<void> {
+  await ensureLoggedIn(page, seeded);
+  const token = await page.evaluate(() => window.localStorage.getItem('ds_token'));
+  if (!token) throw new Error('flag-ui: no JWT in localStorage after login');
+
+  const res = await fetch(
+    `${seeded.apiUrl}/api/v1/flags/${flagId}/rules/${ruleId}/environments/${envId}`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ enabled }),
+    },
+  );
+  if (!res.ok) {
+    throw new Error(
+      `flag-ui: PUT rule env-state failed (${res.status}): ${await res.text()}`,
+    );
+  }
 }
 
 /**
@@ -222,6 +258,7 @@ export async function createStringFlag(
     },
     body: JSON.stringify({
       project_id: seeded.projectId,
+      application_id: seeded.appId,
       environment_id: seeded.environmentId,
       key: flagKey,
       name: flagKey,
@@ -288,17 +325,18 @@ export async function toggleFlag(
   await page.goto(`/orgs/${seeded.orgSlug}/projects/${seeded.projectSlug}/flags`);
   // Wait for the flag list to render before clicking. The FlagListPage
   // renders flag.name as the link text — and createBooleanFlag sets
-  // name = flagKey — so we look up by the flag key.
-  await expect(page.locator('.font-mono', { hasText: flagKey })).toBeVisible({
-    timeout: 10_000,
-  });
-  await page.getByRole('link', { name: flagKey }).first().click();
+  // name = flagKey — so we wait for the link itself by accessible name.
+  const flagLink = page.getByRole('link', { name: flagKey }).first();
+  await expect(flagLink).toBeVisible({ timeout: 10_000 });
+  await flagLink.click();
   await expect(page).toHaveURL(/\/flags\/[0-9a-f-]{36}/i);
 
-  // The native <input> inside .toggle is visually hidden, so we target the
-  // wrapping <label> for clicks (browsers forward label clicks to the
-  // associated input) and only read `checked` off the input itself.
-  const toggleLabel = page.locator('label.toggle').first();
+  // The native <input> inside .toggle-switch is visually hidden, so we
+  // target the wrapping <label> for clicks (browsers forward label clicks
+  // to the associated input) and only read `checked` off the input itself.
+  // The first toggle-switch on the FlagDetailPage's default Environments
+  // tab is the per-env enable toggle for the (only) seeded environment.
+  const toggleLabel = page.locator('label.toggle-switch').first();
   const toggleCheckbox = toggleLabel.locator('input[type="checkbox"]');
   await toggleLabel.waitFor({ state: 'visible', timeout: 10_000 });
 

@@ -20,6 +20,7 @@ export interface ProbeContext {
   apiUrl: string;
   apiKey: string;
   project: string;
+  application: string;
   environment: string;
   flagKeys: string[];
   /**
@@ -57,6 +58,7 @@ export async function startNodeProbe(ctx: ProbeContext): Promise<Probe> {
       DS_API_URL: ctx.apiUrl,
       DS_API_KEY: ctx.apiKey,
       DS_PROJECT: ctx.project,
+      DS_APPLICATION: ctx.application,
       DS_ENVIRONMENT: ctx.environment,
       DS_FLAG_KEYS: ctx.flagKeys.join(','),
       // Node SDK's EvaluationContext shape: { userId, attributes }.
@@ -111,6 +113,7 @@ export async function startReactProbe(
     apiUrl: ctx.apiUrl,
     apiKey: ctx.apiKey,
     project: ctx.project,
+    application: ctx.application,
     environment: ctx.environment,
     flagKeys: ctx.flagKeys.join(','),
     context: JSON.stringify(ctx.user),

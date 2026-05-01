@@ -71,6 +71,27 @@ describe('DeploySentryClient', () => {
       const client = makeClient();
       expect(client.getAllFlags()).toEqual([]);
     });
+
+    it('returns a stable reference between store mutations', () => {
+      // useSyncExternalStore requires getSnapshot to return the same
+      // reference until the store changes — otherwise React infinite-
+      // re-renders and the consumer trips React error #185.
+      const client = makeClient();
+      (client as any).flags.set('a', {
+        key: 'a', name: 'a', category: 'feature', purpose: '',
+        owners: [], isPermanent: false, enabled: true, value: true, tags: [],
+      });
+      (client as any).emit();
+      const first = client.getAllFlags();
+      expect(client.getAllFlags()).toBe(first);
+
+      (client as any).flags.set('b', {
+        key: 'b', name: 'b', category: 'feature', purpose: '',
+        owners: [], isPermanent: false, enabled: false, value: false, tags: [],
+      });
+      (client as any).emit();
+      expect(client.getAllFlags()).not.toBe(first);
+    });
   });
 });
 

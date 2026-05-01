@@ -1,10 +1,11 @@
 import fs from 'node:fs';
-import { DeploySentryClient } from '@deploysentry/sdk';
+import { DeploySentryClient } from '@dr-sentry/sdk';
 
 const {
   DS_API_URL,
   DS_API_KEY,
   DS_PROJECT,
+  DS_APPLICATION,
   DS_ENVIRONMENT,
   DS_CONTEXT_JSON,
   DS_FLAG_KEYS,
@@ -19,9 +20,9 @@ if (!DS_API_URL || !DS_API_KEY || !DS_FLAG_KEYS || !OBSERVATIONS_FILE) {
   process.exit(2);
 }
 
-if (!DS_PROJECT || !DS_ENVIRONMENT) {
+if (!DS_PROJECT || !DS_APPLICATION || !DS_ENVIRONMENT) {
   console.error(
-    'node-probe: missing required env vars (DS_PROJECT, DS_ENVIRONMENT)',
+    'node-probe: missing required env vars (DS_PROJECT, DS_APPLICATION, DS_ENVIRONMENT)',
   );
   process.exit(2);
 }
@@ -35,6 +36,7 @@ const client = new DeploySentryClient({
   apiKey: DS_API_KEY,
   baseURL: DS_API_URL,
   project: DS_PROJECT,
+  application: DS_APPLICATION,
   environment: DS_ENVIRONMENT,
 });
 

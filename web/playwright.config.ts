@@ -42,7 +42,7 @@ export default defineConfig({
       dependencies: ['sdk-setup'],
       timeout: 90_000,
       use: {
-        baseURL: 'http://localhost:3002',
+        baseURL: 'http://localhost:13002',
         browserName: 'chromium',
         trace: 'retain-on-failure',
         screenshot: 'only-on-failure',
@@ -67,8 +67,10 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      command: 'VITE_API_PROXY_TARGET=http://localhost:18080 VITE_DEV_PORT=3002 npm run dev',
-      port: 3002,
+      // Hermetic SDK suite. Uses a port in the e2e 1xxxx range to avoid
+      // colliding with developer-machine services (e.g. VNC) on 3xxx.
+      command: 'VITE_API_PROXY_TARGET=http://localhost:18080 VITE_DEV_PORT=13002 npm run dev',
+      port: 13002,
       reuseExistingServer: true,
       timeout: 60_000,
     },

@@ -4,6 +4,8 @@ import type { Member } from '@/types';
 import { membersApi, groupsApi } from '@/api';
 import type { Group } from '@/api';
 import { useGroups, useGroupMembers } from '@/hooks/useGroups';
+import { useStagingEnabled } from '@/hooks/useStagingEnabled';
+import { stageOrCall } from '@/hooks/stageOrCall';
 import RecentMemberActivity from '@/components/members/RecentMemberActivity';
 
 function formatDate(iso: string): string {
@@ -16,6 +18,7 @@ function formatDate(iso: string): string {
 
 export default function MembersPage() {
   const { orgSlug } = useParams<{ orgSlug: string }>();
+  const stagingEnabled = useStagingEnabled(orgSlug);
   const [activeTab, setActiveTab] = useState<'members' | 'groups'>('members');
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,8 +95,24 @@ export default function MembersPage() {
   async function handleChangeRole(userId: string, role: string) {
     if (!orgSlug) return;
     setActionError(null);
+    const prior = members.find((m) => m.user_id === userId);
     try {
-      await membersApi.updateOrgRole(orgSlug, userId, role);
+      await stageOrCall({
+        staged: stagingEnabled,
+        orgSlug,
+        // Phase C-3 backend handler: SetRoleChanged dispatches
+        // UpdateOrgMemberRole(orgID=row.OrgID, userID=row.ResourceID,
+        // role=payload.role). resource_id is the user id; org_id is
+        // already on every staged row.
+        stage: {
+          resource_type: 'member',
+          resource_id: userId,
+          action: 'role_changed',
+          old_value: prior ? { role: prior.role } : undefined,
+          new_value: { role },
+        },
+        direct: () => membersApi.updateOrgRole(orgSlug, userId, role),
+      });
       setMembers((prev) =>
         prev.map((m) => (m.user_id === userId ? { ...m, role: role as Member['role'] } : m)),
       );

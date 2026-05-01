@@ -16,6 +16,8 @@ import { StrategyPicker } from '@/components/rollout/StrategyPicker';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { GroupPicker } from '@/components/rollout/GroupPicker';
 import { resolvePolicy } from '@/lib/policyResolver';
+import { useStagingEnabled } from '@/hooks/useStagingEnabled';
+import { stageOrCall } from '@/hooks/stageOrCall';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -140,6 +142,7 @@ function generateFlagYaml(
 export default function FlagDetailPage() {
   const { id, orgSlug, projectSlug, appSlug } = useParams();
   const navigate = useNavigate();
+  const stagingEnabled = useStagingEnabled(orgSlug);
   const backPath = appSlug
     ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags`
     : `/orgs/${orgSlug}/projects/${projectSlug}/flags`;
@@ -454,12 +457,31 @@ export default function FlagDetailPage() {
   };
 
   const handleArchive = async () => {
-    if (!id) return;
+    if (!id || !orgSlug) return;
     setArchiving(true);
     setError(null);
     try {
-      await flagsApi.archive(id);
-      setFlag((prev) => (prev ? { ...prev, archived: true } : prev));
+      const outcome = await stageOrCall({
+        staged: stagingEnabled,
+        orgSlug,
+        stage: {
+          resource_type: 'flag',
+          resource_id: id,
+          action: 'archive',
+          old_value: flag ? { archived: flag.archived } : undefined,
+          new_value: { archived: true },
+        },
+        direct: () => flagsApi.archive(id),
+      });
+      // Reflect the user's intent in the local view either way: with
+      // staging on, the banner overlay is the source of truth for "what
+      // I see" until Deploy commits — leave the optimistic update in
+      // place so the user doesn't see two clashing states.
+      if (outcome.mode === 'direct') {
+        setFlag((prev) => (prev ? { ...prev, archived: true } : prev));
+      } else {
+        setFlag((prev) => (prev ? { ...prev, archived: true } : prev));
+      }
       setConfirmArchiveOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to archive flag');
@@ -469,12 +491,29 @@ export default function FlagDetailPage() {
   };
 
   const handleRestore = async () => {
-    if (!id) return;
+    if (!id || !orgSlug) return;
     setRestoring(true);
     setError(null);
     try {
-      const updated = await flagsApi.restore(id);
-      setFlag(updated);
+      const outcome = await stageOrCall({
+        staged: stagingEnabled,
+        orgSlug,
+        stage: {
+          resource_type: 'flag',
+          resource_id: id,
+          action: 'restore',
+          old_value: flag ? { archived: flag.archived } : undefined,
+          new_value: { archived: false },
+        },
+        direct: () => flagsApi.restore(id),
+      });
+      if (outcome.mode === 'direct') {
+        // Direct path returns the canonical Flag — replace local state.
+        setFlag(outcome.result);
+      } else {
+        // Staged path: optimistic local flip; Deploy will materialise it.
+        setFlag((prev) => (prev ? { ...prev, archived: false } : prev));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to restore flag');
     } finally {

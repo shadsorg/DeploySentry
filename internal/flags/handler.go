@@ -197,10 +197,16 @@ func (h *Handler) createFlag(c *gin.Context) {
 		return // response already written
 	}
 
-	userID, _ := c.Get("user_id")
-	createdBy, ok := userID.(uuid.UUID)
-	if !ok {
-		createdBy = uuid.Nil
+	// feature_flags.created_by has a FK on users(id), so a zero UUID
+	// rejects with SQLSTATE 23503. ActorUserID falls back to the API
+	// key's "created_by" (the user who minted the key) when auth is via
+	// API key, since API-key requests don't carry a user_id of their own.
+	createdBy := auth.ActorUserID(c)
+	if createdBy == uuid.Nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"error": "no actor identity available; if authenticating with an API key, the key has no created_by — re-mint the key from a user session",
+		})
+		return
 	}
 
 	category := models.FlagCategory(req.Category)

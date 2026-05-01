@@ -12,6 +12,7 @@ import {
   createStringFlag,
   toggleFlag,
   addTargetingRule,
+  setRuleEnvState,
   updateTargetingRule,
   enableFlagViaApi,
   updateFlagDefaultValue,
@@ -60,6 +61,7 @@ test('Scenario A: baseline propagation — Node + React SDKs observe UI-driven t
     apiKey: seeded.apiKey,
     // SSE stream needs the UUIDs, not slugs (Task 4 finding).
     project: seeded.projectId,
+    application: seeded.appSlug,
     environment: seeded.environmentId,
     flagKeys: [flagKey],
     user: { id: 'u1' },
@@ -125,6 +127,11 @@ test('Scenario B: targeting correctness — two Node probes see different values
     value: 'pro',
   });
 
+  // The evaluator skips a rule unless the per-env activation row says
+  // enabled=true (see internal/flags/evaluator.go:182). The dashboard's
+  // Targeting Rules tab toggles this; we set it directly via the API.
+  await setRuleEnvState(page, seeded, flagId, ruleId, seeded.environmentId, true);
+
   // Enable the flag so the evaluator processes targeting rules.
   await enableFlagViaApi(page, seeded, flagId, true);
 
@@ -134,6 +141,7 @@ test('Scenario B: targeting correctness — two Node probes see different values
     apiUrl: seeded.apiUrl,
     apiKey: seeded.apiKey,
     project: seeded.projectId,
+    application: seeded.appSlug,
     environment: seeded.environmentId,
     flagKeys: [targetingKey],
   };
@@ -199,6 +207,7 @@ test('Scenario C: variant delivery — Node probe observes string value change',
     apiUrl: seeded.apiUrl,
     apiKey: seeded.apiKey,
     project: seeded.projectId,
+    application: seeded.appSlug,
     environment: seeded.environmentId,
     flagKeys: [variantKey],
     user: { id: 'u1' },

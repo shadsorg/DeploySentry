@@ -268,8 +268,12 @@ func run() error {
 		revertRegistry.Register(t.EntityType, t.Action, t.Handler)
 	}
 
-	// Staging layer: per-user pending dashboard mutations. Phase A only
-	// registers `flag.toggle`; remaining resources land in Phase C.
+	// Staging layer: per-user pending dashboard mutations. Phase A shipped
+	// `flag.toggle`; Phase C-1/C-2 added the rest of the flag family;
+	// Phase C-3 adds settings + member role changes. The registry is
+	// populated below — note that `settingService` and `memberService`
+	// are constructed later in this function, so their handler tuples
+	// register after the service constructors complete.
 	stagingRegistry := staging.NewCommitRegistry()
 	for _, t := range flags.FlagCommitHandlers(flagService) {
 		stagingRegistry.Register(t.ResourceType, t.Action, t.Handler)
@@ -286,6 +290,15 @@ func run() error {
 	entityService := entities.NewEntityService(entityRepo, envRepo, flagRepo)
 	settingService := settings.NewSettingService(settingRepo)
 	memberService := members.NewService(memberRepo)
+
+	// Register Phase C-3 staging commit handlers now that their services exist.
+	for _, t := range settings.SettingCommitHandlers(settingService) {
+		stagingRegistry.Register(t.ResourceType, t.Action, t.Handler)
+	}
+	for _, t := range members.MemberCommitHandlers(memberService) {
+		stagingRegistry.Register(t.ResourceType, t.Action, t.Handler)
+	}
+
 	groupService := groups.NewService(groupRepo)
 	grantService := grants.NewService(grantRepo)
 	agentService := registry.NewService(agentRepo)

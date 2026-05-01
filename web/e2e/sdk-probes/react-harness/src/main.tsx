@@ -14,6 +14,7 @@ interface HarnessConfig {
   apiUrl: string;
   apiKey: string;
   project: string;
+  application: string;
   environment: string;
   flagKeys: string[];
   user: UserContext | undefined;
@@ -40,6 +41,7 @@ function parseQuery(): HarnessConfig {
     apiUrl: q.get('apiUrl') ?? '',
     apiKey: q.get('apiKey') ?? '',
     project: q.get('project') ?? '',
+    application: q.get('application') ?? '',
     environment: q.get('environment') ?? '',
     flagKeys: (q.get('flagKeys') ?? '').split(',').filter(Boolean),
     user,
@@ -73,6 +75,7 @@ function App(): React.ReactElement {
       apiKey={cfg.apiKey}
       baseURL={cfg.apiUrl}
       project={cfg.project}
+      application={cfg.application}
       environment={cfg.environment}
       user={cfg.user}
     >

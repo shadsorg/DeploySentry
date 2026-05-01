@@ -60,6 +60,7 @@ test('Scenario A: baseline propagation — Node + React SDKs observe UI-driven t
     apiKey: seeded.apiKey,
     // SSE stream needs the UUIDs, not slugs (Task 4 finding).
     project: seeded.projectId,
+    application: seeded.appId,
     environment: seeded.environmentId,
     flagKeys: [flagKey],
     user: { id: 'u1' },
@@ -134,6 +135,7 @@ test('Scenario B: targeting correctness — two Node probes see different values
     apiUrl: seeded.apiUrl,
     apiKey: seeded.apiKey,
     project: seeded.projectId,
+    application: seeded.appId,
     environment: seeded.environmentId,
     flagKeys: [targetingKey],
   };
@@ -199,6 +201,7 @@ test('Scenario C: variant delivery — Node probe observes string value change',
     apiUrl: seeded.apiUrl,
     apiKey: seeded.apiKey,
     project: seeded.projectId,
+    application: seeded.appId,
     environment: seeded.environmentId,
     flagKeys: [variantKey],
     user: { id: 'u1' },

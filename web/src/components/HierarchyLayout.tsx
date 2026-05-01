@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Outlet, useParams } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import SiteHeader from './SiteHeader';
+import StagingHeaderBanner from './staging/StagingHeaderBanner';
 import RealtimeManager from '@/services/realtime';
 
 export default function HierarchyLayout() {
@@ -37,6 +38,7 @@ export default function HierarchyLayout() {
   return (
     <div className="app-shell">
       <SiteHeader variant="app" />
+      <StagingHeaderBanner />
       <div className="app-layout">
         <Sidebar />
         <main className="main-content">

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/shadsorg/deploysentry/internal/staging"
@@ -19,11 +20,14 @@ type CommitTuple struct {
 }
 
 // FlagCommitHandlers returns the commit handlers the staging registry should
-// register for the flag family. Phase A shipped `toggle`; Phase C-1 adds
-// `update`, `archive`, and `restore`. `create` is intentionally absent
-// until provisional-id resolution lands (a staged create has no
+// register for the flag family. Phase A shipped `toggle`; Phase C-1 added
+// `update`, `archive`, and `restore`; Phase C-2 adds the targeting-rule
+// (update / delete) and per-environment-state (rule + flag) actions.
+//
+// `create` actions (`flag.create`, `flag_rule.create`) are intentionally
+// absent until provisional-id resolution lands — a staged create has no
 // resource_id, only a provisional_id, and other staged rows in the same
-// batch may reference that placeholder).
+// batch may reference that placeholder.
 //
 // Wire up in cmd/api/main.go: for each tuple, call registry.Register(...).
 func FlagCommitHandlers(svc FlagService) []CommitTuple {
@@ -32,6 +36,10 @@ func FlagCommitHandlers(svc FlagService) []CommitTuple {
 		{ResourceType: "flag", Action: "update", Handler: commitFlagUpdate(svc)},
 		{ResourceType: "flag", Action: "archive", Handler: commitFlagArchive(svc)},
 		{ResourceType: "flag", Action: "restore", Handler: commitFlagRestore(svc)},
+		{ResourceType: "flag_rule", Action: "update", Handler: commitFlagRuleUpdate(svc)},
+		{ResourceType: "flag_rule", Action: "delete", Handler: commitFlagRuleDelete(svc)},
+		{ResourceType: "flag_rule_env_state", Action: "update", Handler: commitFlagRuleEnvStateUpdate(svc)},
+		{ResourceType: "flag_env_state", Action: "update", Handler: commitFlagEnvStateUpdate(svc)},
 	}
 }
 
@@ -90,6 +98,101 @@ func commitFlagRestore(svc FlagService) staging.CommitHandler {
 			return "", fmt.Errorf("flag.restore commit: %w", err)
 		}
 		return "flag.restored", nil
+	}
+}
+
+// commitFlagRuleUpdate applies a staged whole-row update to a targeting
+// rule. The staged new_value is the full TargetingRule JSON. Like
+// commitFlagUpdate, the row's resource_id overrides any id in the body.
+func commitFlagRuleUpdate(svc FlagService) staging.CommitHandler {
+	return func(ctx context.Context, _ pgx.Tx, row *models.StagedChange) (string, error) {
+		if row.ResourceID == nil {
+			return "", fmt.Errorf("flag_rule.update commit: resource_id required")
+		}
+		if len(row.NewValue) == 0 {
+			return "", fmt.Errorf("flag_rule.update commit: new_value required")
+		}
+		var rule models.TargetingRule
+		if err := json.Unmarshal(row.NewValue, &rule); err != nil {
+			return "", fmt.Errorf("flag_rule.update commit: parse new_value: %w", err)
+		}
+		rule.ID = *row.ResourceID
+		if err := svc.UpdateRule(ctx, &rule); err != nil {
+			return "", fmt.Errorf("flag_rule.update commit: %w", err)
+		}
+		return "flag.rule.updated", nil
+	}
+}
+
+// commitFlagRuleDelete removes a targeting rule by id.
+func commitFlagRuleDelete(svc FlagService) staging.CommitHandler {
+	return func(ctx context.Context, _ pgx.Tx, row *models.StagedChange) (string, error) {
+		if row.ResourceID == nil {
+			return "", fmt.Errorf("flag_rule.delete commit: resource_id required")
+		}
+		if err := svc.DeleteRule(ctx, *row.ResourceID); err != nil {
+			return "", fmt.Errorf("flag_rule.delete commit: %w", err)
+		}
+		return "flag.rule.deleted", nil
+	}
+}
+
+// ruleEnvStatePayload is the JSON shape stored in NewValue for a staged
+// per-rule per-env state update. The staged row's resource_id is the rule
+// id; environment_id and enabled live in the payload.
+type ruleEnvStatePayload struct {
+	EnvironmentID uuid.UUID `json:"environment_id"`
+	Enabled       bool      `json:"enabled"`
+}
+
+// commitFlagRuleEnvStateUpdate flips per-environment activation for a
+// targeting rule. The staged row's resource_id is the rule id.
+func commitFlagRuleEnvStateUpdate(svc FlagService) staging.CommitHandler {
+	return func(ctx context.Context, _ pgx.Tx, row *models.StagedChange) (string, error) {
+		if row.ResourceID == nil {
+			return "", fmt.Errorf("flag_rule_env_state.update commit: resource_id (rule id) required")
+		}
+		if len(row.NewValue) == 0 {
+			return "", fmt.Errorf("flag_rule_env_state.update commit: new_value required")
+		}
+		var payload ruleEnvStatePayload
+		if err := json.Unmarshal(row.NewValue, &payload); err != nil {
+			return "", fmt.Errorf("flag_rule_env_state.update commit: parse new_value: %w", err)
+		}
+		if payload.EnvironmentID == uuid.Nil {
+			return "", fmt.Errorf("flag_rule_env_state.update commit: environment_id required")
+		}
+		if _, err := svc.SetRuleEnvironmentState(ctx, *row.ResourceID, payload.EnvironmentID, payload.Enabled); err != nil {
+			return "", fmt.Errorf("flag_rule_env_state.update commit: %w", err)
+		}
+		return "flag.rule.env_state.updated", nil
+	}
+}
+
+// commitFlagEnvStateUpdate persists a per-environment flag state — the
+// flag's enabled/value for a single environment. The staged row's
+// resource_id is the flag id; environment_id and the new state live in
+// the payload (the FlagEnvironmentState shape).
+func commitFlagEnvStateUpdate(svc FlagService) staging.CommitHandler {
+	return func(ctx context.Context, _ pgx.Tx, row *models.StagedChange) (string, error) {
+		if row.ResourceID == nil {
+			return "", fmt.Errorf("flag_env_state.update commit: resource_id (flag id) required")
+		}
+		if len(row.NewValue) == 0 {
+			return "", fmt.Errorf("flag_env_state.update commit: new_value required")
+		}
+		var state models.FlagEnvironmentState
+		if err := json.Unmarshal(row.NewValue, &state); err != nil {
+			return "", fmt.Errorf("flag_env_state.update commit: parse new_value: %w", err)
+		}
+		state.FlagID = *row.ResourceID
+		if state.EnvironmentID == uuid.Nil {
+			return "", fmt.Errorf("flag_env_state.update commit: environment_id required")
+		}
+		if err := svc.SetFlagEnvState(ctx, &state); err != nil {
+			return "", fmt.Errorf("flag_env_state.update commit: %w", err)
+		}
+		return "flag.env_state.updated", nil
 	}
 }
 

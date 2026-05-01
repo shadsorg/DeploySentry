@@ -2,8 +2,11 @@ import { test, expect } from '@playwright/test';
 import { seedOrgProjectAppViaUI, type SeededContext } from '../helpers/seed-via-ui';
 import {
   startNodeProbe,
+  startReactProbe,
   waitForValue,
 } from '../helpers/sdk-driver';
+
+const REACT_HARNESS_URL = process.env.DS_E2E_REACT_HARNESS_URL ?? 'http://localhost:4310';
 import {
   createBooleanFlag,
   createStringFlag,
@@ -40,22 +43,16 @@ test('seeded environment has all required IDs and an API key', () => {
   expect(seeded.apiKey).toMatch(/^ds_/);
 });
 
-// The React probe is blocked by a CJS/ESM bundling issue in the React SDK
-// (error #185: component type is undefined after Vite's CJS transform).
-// The Node probe exercises the full UI → API → SSE → SDK chain; the React
-// probe is deferred until the SDK's packaging is fixed.
-// TODO: re-enable React probe after fixing sdk/react ESM build.
-
-test('Scenario A: baseline propagation — Node SDK observes UI-driven toggle within 2s', async ({
+test('Scenario A: baseline propagation — Node + React SDKs observe UI-driven toggle within 2s', async ({
+  browser,
   page,
 }) => {
   const flagKey = `e2e-baseline-${Date.now().toString(36)}`;
 
   // Flag starts disabled (the API's createFlag handler hardcodes
-  // `enabled: false`). The Node probe records the evaluator's `enabled`
-  // field via client.detail() — boolean toggles only flip `enabled`,
-  // not the `default_value` the evaluator returns — so the test asserts
-  // `false` baseline, then `true` after the UI toggle.
+  // `enabled: false`). Both probes record the evaluator's `enabled` state —
+  // boolean toggles flip `enabled`, not the stored default_value — so the
+  // test asserts `false` baseline, then `true` after the UI toggle.
   await createBooleanFlag(page, seeded, flagKey, false);
 
   const probeCtx = {
@@ -69,26 +66,37 @@ test('Scenario A: baseline propagation — Node SDK observes UI-driven toggle wi
   };
 
   const nodeProbe = await startNodeProbe(probeCtx);
+  const reactProbe = await startReactProbe(browser, REACT_HARNESS_URL, probeCtx);
 
   try {
-    // Baseline observation proves SDK connect + initial sync.
+    // Baseline observation proves SDK connect + initial sync on both probes.
     await waitForValue(nodeProbe, flagKey, false, { timeoutMs: 5_000 });
+    await waitForValue(reactProbe, flagKey, false, {
+      timeoutMs: 5_000,
+      getObservations: () => reactProbe.observationsAsync(),
+    });
 
-    // Drive the UI toggle and time the propagation to the Node probe.
+    // Drive the UI toggle and time the propagation to each probe.
     const clickAt = await toggleFlag(page, seeded, flagKey, true);
 
     const nodeLatency = await waitForValue(nodeProbe, flagKey, true, {
       timeoutMs: 5_000,
     });
+    const reactLatency = await waitForValue(reactProbe, flagKey, true, {
+      timeoutMs: 5_000,
+      getObservations: () => reactProbe.observationsAsync(),
+    });
 
     console.log(
-      `[scenario-A] latency: node=${nodeLatency}ms ` +
+      `[scenario-A] latency: node=${nodeLatency}ms react=${reactLatency}ms ` +
         `(click at perfNow=${clickAt.toFixed(0)})`,
     );
 
     expect(nodeLatency).toBeLessThan(2_000);
+    expect(reactLatency).toBeLessThan(2_000);
   } finally {
     await nodeProbe.stop();
+    await reactProbe.stop();
   }
 });
 

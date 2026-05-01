@@ -73,10 +73,15 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      command: 'npm run --prefix e2e/sdk-probes/react-harness preview',
+      // Build the React harness before previewing — vite preview serves
+      // dist/ which doesn't exist on a fresh checkout.
+      command:
+        'npm install --silent --prefix e2e/sdk-probes/react-harness && ' +
+        'npm run --prefix e2e/sdk-probes/react-harness build && ' +
+        'npm run --prefix e2e/sdk-probes/react-harness preview',
       port: 4310,
       reuseExistingServer: true,
-      timeout: 60_000,
+      timeout: 90_000,
     },
   ],
 });

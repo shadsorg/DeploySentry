@@ -17,10 +17,14 @@ import (
 type stubCommitSvc struct {
 	FlagService
 
-	toggleCalled  func(uuid.UUID, bool) error
-	updateCalled  func(*models.FeatureFlag) error
-	archiveCalled func(uuid.UUID) error
-	restoreCalled func(uuid.UUID) error
+	toggleCalled            func(uuid.UUID, bool) error
+	updateCalled            func(*models.FeatureFlag) error
+	archiveCalled           func(uuid.UUID) error
+	restoreCalled           func(uuid.UUID) error
+	updateRuleCalled        func(*models.TargetingRule) error
+	deleteRuleCalled        func(uuid.UUID) error
+	setRuleEnvStateCalled   func(uuid.UUID, uuid.UUID, bool) error
+	setFlagEnvStateCalled   func(*models.FlagEnvironmentState) error
 }
 
 func (s *stubCommitSvc) ToggleFlag(_ context.Context, id uuid.UUID, enabled bool) error {
@@ -51,6 +55,36 @@ func (s *stubCommitSvc) RestoreFlag(_ context.Context, id uuid.UUID) error {
 	return s.restoreCalled(id)
 }
 
+func (s *stubCommitSvc) UpdateRule(_ context.Context, rule *models.TargetingRule) error {
+	if s.updateRuleCalled == nil {
+		return nil
+	}
+	return s.updateRuleCalled(rule)
+}
+
+func (s *stubCommitSvc) DeleteRule(_ context.Context, ruleID uuid.UUID) error {
+	if s.deleteRuleCalled == nil {
+		return nil
+	}
+	return s.deleteRuleCalled(ruleID)
+}
+
+func (s *stubCommitSvc) SetRuleEnvironmentState(_ context.Context, ruleID, envID uuid.UUID, enabled bool) (*models.RuleEnvironmentState, error) {
+	if s.setRuleEnvStateCalled != nil {
+		if err := s.setRuleEnvStateCalled(ruleID, envID, enabled); err != nil {
+			return nil, err
+		}
+	}
+	return &models.RuleEnvironmentState{RuleID: ruleID, EnvironmentID: envID, Enabled: enabled}, nil
+}
+
+func (s *stubCommitSvc) SetFlagEnvState(_ context.Context, state *models.FlagEnvironmentState) error {
+	if s.setFlagEnvStateCalled == nil {
+		return nil
+	}
+	return s.setFlagEnvStateCalled(state)
+}
+
 func ridPtr(id uuid.UUID) *uuid.UUID { return &id }
 
 // ---- Registration shape ----
@@ -58,24 +92,26 @@ func ridPtr(id uuid.UUID) *uuid.UUID { return &id }
 func TestFlagCommitHandlers_RegistersExpectedTuples(t *testing.T) {
 	svc := &stubCommitSvc{}
 	tuples := FlagCommitHandlers(svc)
-	wantActions := map[string]bool{
-		"toggle":  true,
-		"update":  true,
-		"archive": true,
-		"restore": true,
+	type key struct{ rt, action string }
+	want := map[key]bool{
+		{"flag", "toggle"}:                          true,
+		{"flag", "update"}:                          true,
+		{"flag", "archive"}:                         true,
+		{"flag", "restore"}:                         true,
+		{"flag_rule", "update"}:                     true,
+		{"flag_rule", "delete"}:                     true,
+		{"flag_rule_env_state", "update"}:           true,
+		{"flag_env_state", "update"}:                true,
 	}
-	if len(tuples) != len(wantActions) {
-		t.Fatalf("expected %d tuples, got %d", len(wantActions), len(tuples))
+	if len(tuples) != len(want) {
+		t.Fatalf("expected %d tuples, got %d", len(want), len(tuples))
 	}
 	for _, tup := range tuples {
-		if tup.ResourceType != "flag" {
-			t.Fatalf("tuple has wrong resource_type: %+v", tup)
-		}
-		if !wantActions[tup.Action] {
-			t.Fatalf("unexpected action %q", tup.Action)
+		if !want[key{tup.ResourceType, tup.Action}] {
+			t.Fatalf("unexpected tuple %s.%s", tup.ResourceType, tup.Action)
 		}
 		if tup.Handler == nil {
-			t.Fatalf("handler for action %q is nil", tup.Action)
+			t.Fatalf("handler for %s.%s is nil", tup.ResourceType, tup.Action)
 		}
 	}
 }
@@ -238,5 +274,181 @@ func TestCommitFlagRestore_RequiresResourceID(t *testing.T) {
 	_, err := commitFlagRestore(&stubCommitSvc{})(context.Background(), nil, &models.StagedChange{Action: "restore"})
 	if err == nil || !strings.Contains(err.Error(), "resource_id required") {
 		t.Fatalf("expected resource_id error, got %v", err)
+	}
+}
+
+// ---- flag_rule.update ----
+
+func TestCommitFlagRuleUpdate_OverridesIDFromResourceID(t *testing.T) {
+	intended := uuid.New()
+	bodyHadDifferent := uuid.New()
+	var got *models.TargetingRule
+	svc := &stubCommitSvc{
+		updateRuleCalled: func(r *models.TargetingRule) error {
+			got = r
+			return nil
+		},
+	}
+	body, _ := json.Marshal(&models.TargetingRule{ID: bodyHadDifferent, Value: "x"})
+	row := &models.StagedChange{ResourceType: "flag_rule", Action: "update", ResourceID: ridPtr(intended), NewValue: body}
+	action, err := commitFlagRuleUpdate(svc)(context.Background(), nil, row)
+	if err != nil {
+		t.Fatalf("commit returned error: %v", err)
+	}
+	if action != "flag.rule.updated" {
+		t.Fatalf("expected flag.rule.updated, got %s", action)
+	}
+	if got == nil || got.ID != intended {
+		t.Fatalf("update should have used row.ResourceID, got %+v", got)
+	}
+}
+
+func TestCommitFlagRuleUpdate_RequiresResourceIDAndNewValue(t *testing.T) {
+	cases := []struct {
+		name string
+		row  *models.StagedChange
+		want string
+	}{
+		{"no resource_id", &models.StagedChange{Action: "update", NewValue: json.RawMessage(`{}`)}, "resource_id required"},
+		{"no new_value", &models.StagedChange{Action: "update", ResourceID: ridPtr(uuid.New())}, "new_value required"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := commitFlagRuleUpdate(&stubCommitSvc{})(context.Background(), nil, c.row)
+			if err == nil || !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("expected %q error, got %v", c.want, err)
+			}
+		})
+	}
+}
+
+// ---- flag_rule.delete ----
+
+func TestCommitFlagRuleDelete_CallsService(t *testing.T) {
+	ruleID := uuid.New()
+	called := false
+	svc := &stubCommitSvc{
+		deleteRuleCalled: func(id uuid.UUID) error {
+			called = true
+			if id != ruleID {
+				t.Fatalf("expected id=%s, got %s", ruleID, id)
+			}
+			return nil
+		},
+	}
+	row := &models.StagedChange{ResourceType: "flag_rule", Action: "delete", ResourceID: ridPtr(ruleID)}
+	action, err := commitFlagRuleDelete(svc)(context.Background(), nil, row)
+	if err != nil {
+		t.Fatalf("commit returned error: %v", err)
+	}
+	if action != "flag.rule.deleted" {
+		t.Fatalf("expected flag.rule.deleted, got %s", action)
+	}
+	if !called {
+		t.Fatal("DeleteRule was not invoked")
+	}
+}
+
+func TestCommitFlagRuleDelete_RequiresResourceID(t *testing.T) {
+	_, err := commitFlagRuleDelete(&stubCommitSvc{})(context.Background(), nil, &models.StagedChange{Action: "delete"})
+	if err == nil || !strings.Contains(err.Error(), "resource_id required") {
+		t.Fatalf("expected resource_id error, got %v", err)
+	}
+}
+
+// ---- flag_rule_env_state.update ----
+
+func TestCommitFlagRuleEnvStateUpdate_DispatchesPayloadFields(t *testing.T) {
+	ruleID := uuid.New()
+	envID := uuid.New()
+	var gotRule, gotEnv uuid.UUID
+	var gotEnabled bool
+	svc := &stubCommitSvc{
+		setRuleEnvStateCalled: func(rid, eid uuid.UUID, enabled bool) error {
+			gotRule, gotEnv, gotEnabled = rid, eid, enabled
+			return nil
+		},
+	}
+	body, _ := json.Marshal(ruleEnvStatePayload{EnvironmentID: envID, Enabled: true})
+	row := &models.StagedChange{
+		ResourceType: "flag_rule_env_state",
+		Action:       "update",
+		ResourceID:   ridPtr(ruleID),
+		NewValue:     body,
+	}
+	action, err := commitFlagRuleEnvStateUpdate(svc)(context.Background(), nil, row)
+	if err != nil {
+		t.Fatalf("commit returned error: %v", err)
+	}
+	if action != "flag.rule.env_state.updated" {
+		t.Fatalf("expected flag.rule.env_state.updated, got %s", action)
+	}
+	if gotRule != ruleID || gotEnv != envID || !gotEnabled {
+		t.Fatalf("dispatch passed wrong args: rule=%s env=%s enabled=%v", gotRule, gotEnv, gotEnabled)
+	}
+}
+
+func TestCommitFlagRuleEnvStateUpdate_RequiresEnvironmentID(t *testing.T) {
+	body, _ := json.Marshal(ruleEnvStatePayload{Enabled: true}) // EnvironmentID = uuid.Nil
+	row := &models.StagedChange{
+		ResourceType: "flag_rule_env_state",
+		Action:       "update",
+		ResourceID:   ridPtr(uuid.New()),
+		NewValue:     body,
+	}
+	_, err := commitFlagRuleEnvStateUpdate(&stubCommitSvc{})(context.Background(), nil, row)
+	if err == nil || !strings.Contains(err.Error(), "environment_id required") {
+		t.Fatalf("expected environment_id error, got %v", err)
+	}
+}
+
+// ---- flag_env_state.update ----
+
+func TestCommitFlagEnvStateUpdate_OverridesFlagIDFromResourceID(t *testing.T) {
+	intendedFlagID := uuid.New()
+	bodyHadDifferent := uuid.New()
+	envID := uuid.New()
+	var got *models.FlagEnvironmentState
+	svc := &stubCommitSvc{
+		setFlagEnvStateCalled: func(s *models.FlagEnvironmentState) error {
+			got = s
+			return nil
+		},
+	}
+	body, _ := json.Marshal(&models.FlagEnvironmentState{
+		FlagID: bodyHadDifferent, EnvironmentID: envID, Enabled: true,
+	})
+	row := &models.StagedChange{
+		ResourceType: "flag_env_state",
+		Action:       "update",
+		ResourceID:   ridPtr(intendedFlagID),
+		NewValue:     body,
+	}
+	action, err := commitFlagEnvStateUpdate(svc)(context.Background(), nil, row)
+	if err != nil {
+		t.Fatalf("commit returned error: %v", err)
+	}
+	if action != "flag.env_state.updated" {
+		t.Fatalf("expected flag.env_state.updated, got %s", action)
+	}
+	if got == nil || got.FlagID != intendedFlagID {
+		t.Fatalf("FlagID should come from ResourceID, got %+v", got)
+	}
+	if got.EnvironmentID != envID || !got.Enabled {
+		t.Fatalf("payload fields not propagated: %+v", got)
+	}
+}
+
+func TestCommitFlagEnvStateUpdate_RequiresEnvironmentID(t *testing.T) {
+	body, _ := json.Marshal(&models.FlagEnvironmentState{Enabled: true}) // no env id
+	row := &models.StagedChange{
+		ResourceType: "flag_env_state",
+		Action:       "update",
+		ResourceID:   ridPtr(uuid.New()),
+		NewValue:     body,
+	}
+	_, err := commitFlagEnvStateUpdate(&stubCommitSvc{})(context.Background(), nil, row)
+	if err == nil || !strings.Contains(err.Error(), "environment_id required") {
+		t.Fatalf("expected environment_id error, got %v", err)
 	}
 }

@@ -62,12 +62,7 @@ export default function StagingHeaderBanner() {
 
   return (
     <>
-      <div
-        className="staging-banner"
-        role="status"
-        aria-live="polite"
-        data-testid="staging-banner"
-      >
+      <div className="staging-banner" role="status" aria-live="polite" data-testid="staging-banner">
         <span className="staging-banner-icon" aria-hidden="true">
           ●
         </span>
@@ -76,10 +71,7 @@ export default function StagingHeaderBanner() {
         </span>
         {error && <span className="staging-banner-error">({error})</span>}
         <div className="staging-banner-actions">
-          <Link
-            className="staging-banner-deploy"
-            to={`/orgs/${orgSlug}/deploy-changes`}
-          >
+          <Link className="staging-banner-deploy" to={`/orgs/${orgSlug}/deploy-changes`}>
             Review &amp; Deploy →
           </Link>
           <button

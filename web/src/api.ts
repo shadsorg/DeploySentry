@@ -1002,8 +1002,7 @@ export interface StageRequest {
 }
 
 export const stagingApi = {
-  list: (orgSlug: string) =>
-    request<StagedChangesListResponse>(`/orgs/${orgSlug}/deploy-changes`),
+  list: (orgSlug: string) => request<StagedChangesListResponse>(`/orgs/${orgSlug}/deploy-changes`),
   stage: (orgSlug: string, body: StageRequest) =>
     request<StagedChange>(`/orgs/${orgSlug}/deploy-changes/stage`, {
       method: 'POST',

@@ -40,12 +40,8 @@ describe('StagingHeaderBanner', () => {
     mockList.mockResolvedValue({ changes: [{}], count: 1 });
     renderBanner();
     expect(await screen.findByTestId('staging-banner')).toBeInTheDocument();
-    expect(screen.getByTestId('staging-banner')).toHaveTextContent(
-      'You have 1 pending change',
-    );
-    expect(screen.getByTestId('staging-banner')).not.toHaveTextContent(
-      'pending changes',
-    );
+    expect(screen.getByTestId('staging-banner')).toHaveTextContent('You have 1 pending change');
+    expect(screen.getByTestId('staging-banner')).not.toHaveTextContent('pending changes');
   });
 
   it('renders plural phrasing for multiple rows and the deploy link', async () => {

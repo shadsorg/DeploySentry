@@ -8,7 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // The @dr-sentry/react package.json advertises a `module` field pointing at
 // dist/index.mjs, but the SDK is built as CommonJS (dist/index.js). Point Vite
 // directly at the real entry so resolution succeeds.
-const reactSdkEntry = path.resolve(__dirname, '../../../../sdk/react/dist/cjs/index.js');
+const reactSdkEntry = path.resolve(__dirname, '../../../../sdk/react/dist/index.js');
 
 export default defineConfig({
   plugins: [react()],

@@ -15,7 +15,6 @@
 | First-Class Deploy Gates per Environment | Design | [Spec](./superpowers/specs/2026-04-22-deploy-gate-environments-design.md) | External feature request from jobmgr (CrowdSoftApps): let operators control "is this env open for deploys?" from the DS UI and make DS — not GitHub Actions — the authoritative trigger for gated environment deploys. Not yet scheduled. |
 | Org Status — Phase 4 polish | Design | [Spec](./superpowers/specs/2026-04-23-org-status-and-deploy-history-design.md) / [Phase 4 Plan](./superpowers/plans/2026-04-29-org-status-phase4-polish.md) | Phases 1–3 shipped on main. Phase 4 deferred items split out: ETag client caching on `/orgs/:slug/status`, CSV export on `OrgDeploymentsPage`, org-default monitoring-link templates. |
 | Build Status — deferred follow-ups | Design | [Plan](./superpowers/plans/2026-04-29-build-status-deferred-followups.md) | Parent initiative complete; non-blocking follow-ups: handler unit tests, Combobox Vitest, Playwright smoke, MCP `deploy_create` tool update, stale-build sweep. |
-| Mobile PWA Production Serve | Implementation | [Plan](./superpowers/plans/2026-04-29-mobile-pwa-prod-serve.md) | PR #65 open on `feature/mobile-pwa-prod-serve` — embeds built PWA into API binary at `/m/*`. CI failing on Lint, Lint UI, E2E SDK Tests; needs diagnosis before merge. |
 | UI Audit Disparities | Implementation (Batch A) | [Spec](./superpowers/specs/2026-04-29-ui-audit-disparities-design.md) / [Batch A Plan](./superpowers/plans/2026-04-29-ui-audit-batch-a-polish.md) / [Batch B Plan](./superpowers/plans/2026-04-29-ui-audit-batch-b-layout.md) / [Audit doc](./ui-audit/MOCKUP_DISPARITIES.md) | Addresses 2026-04-24 audit (4 high / 10 medium / 4 low). A merged (#67), B merged (#68), B+ open (#72). Batch C answers received 2026-04-30 — see audit doc for per-item disposition. Remaining build: §20 docs index ([plan](./superpowers/plans/2026-04-30-docs-index-toc.md)), §13 once org-audit ships. §10 dropped. §8 → staged-changes spec instead. |
 | Staged Changes + Deploy Review | Design | [Spec](./superpowers/specs/2026-04-30-staged-changes-and-deploy-workflow-design.md) | UI mutations go to a per-user `staged_changes` table; header shows "N pending → Deploy"; review page lets the user select/discard before commit. Replaces today's immediate-write semantics for dashboard edits. SDK/CLI/webhook writes unchanged. |
 | Two-Person Approval (org option) | Design (future) | [Spec](./superpowers/specs/2026-04-30-two-person-approval-design.md) | Configurable per-org gate that converts certain Deploy actions into approval requests. Builds on staged-changes; same-spec interaction at the commit boundary. |
@@ -25,7 +24,8 @@
 
 All initiatives previously listed as "Implementation — pending merge" have shipped. Plans and specs moved to `docs/archives/` on 2026-04-29:
 
-- **Org Audit Page + Revert (Deliverable 3)** — PR #77 merged 2026-04-30. Backend revert registry + `OrgAuditPage` shipped. Sidebar role-gate follow-up on `chore/org-audit-cleanup`.
+- **Org Audit Page + Revert (Deliverable 3)** — PR #77 merged 2026-04-30. Backend revert registry + `OrgAuditPage` shipped. Sidebar role-gate follow-up merged via PR #79.
+- **Mobile PWA Production Serve** — PR #65 merged 2026-04-30. PWA served from API binary at `/m/*`.
 
 - **Canary Rollout E2E** — PR #36 merged 2026-04-13.
 - **API Security Hardening** — PR #37 merged 2026-04-13.

@@ -24,6 +24,7 @@ var (
 type Service interface {
 	// Org members
 	ListOrgMembers(ctx context.Context, orgID uuid.UUID) ([]OrgMemberRow, error)
+	GetOrgMember(ctx context.Context, orgID, userID uuid.UUID) (*models.OrgMember, error)
 	AddOrgMember(ctx context.Context, orgID uuid.UUID, email string, role models.OrgRole, addedBy uuid.UUID) (*OrgMemberRow, error)
 	UpdateOrgMemberRole(ctx context.Context, orgID, userID uuid.UUID, role models.OrgRole) error
 	RemoveOrgMember(ctx context.Context, orgID, userID uuid.UUID) error
@@ -48,6 +49,14 @@ func (s *memberService) ListOrgMembers(ctx context.Context, orgID uuid.UUID) ([]
 		return nil, fmt.Errorf("listing org members: %w", err)
 	}
 	return rows, nil
+}
+
+func (s *memberService) GetOrgMember(ctx context.Context, orgID, userID uuid.UUID) (*models.OrgMember, error) {
+	m, err := s.repo.GetOrgMember(ctx, orgID, userID)
+	if err != nil {
+		return nil, ErrNotFound
+	}
+	return m, nil
 }
 
 func (s *memberService) AddOrgMember(ctx context.Context, orgID uuid.UUID, email string, role models.OrgRole, addedBy uuid.UUID) (*OrgMemberRow, error) {

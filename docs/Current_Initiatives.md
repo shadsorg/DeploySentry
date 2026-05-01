@@ -1,13 +1,12 @@
 # Current Initiatives
 
-> Last updated: 2026-04-30 (Deliverable 3 shipped; Deliverable 2 plan filed)
+> Last updated: 2026-05-01 (Deliverable 2 shipped via PR #80; UI audit §20 docs index shipped; §13 MembersPage security events in flight)
 
 ## Active (not yet complete)
 
 | Initiative | Phase | Plan/Spec File | Notes |
 |---|---|---|---|
-| Flag Hard Delete + Retention (Deliverable 2) | Design | [Spec](./superpowers/specs/2026-04-30-flag-lifecycle-and-org-audit-design.md) / [Plan](./superpowers/plans/2026-04-30-flag-hard-delete.md) | Deliverable 2 of the flag-lifecycle/org-audit spec. Migration 060 adds `delete_after`/`deleted_at`; new endpoints `POST /flags/:id/queue-deletion`, `DELETE /flags/:id?force=true`, `POST /flags/:id/restore`; retention sweep job tombstones expired flags; Settings tab Lifecycle panel for active/within-retention/elapsed states. **Phase 0 fixes the latent bug where `service.ArchiveFlag` never persists `archived_at`** — precondition without which hard-delete cannot work. Branch: `feature/flag-hard-delete`. |
-| Org Audit Page + Revert (Deliverable 3) | Complete | [Spec](./superpowers/specs/2026-04-30-flag-lifecycle-and-org-audit-design.md) / [Plan](./superpowers/plans/2026-04-30-org-audit-and-revert.md) | Shipped via PR #77 on 2026-04-30 (merge `04b5915`). Org audit page at `/orgs/:orgSlug/audit` with old/new diff + one-click revert; backend revert registry maps `(entity_type, action) → existing service-layer method`. Reverts are themselves audit-logged. Follow-ups: sidebar role-gating, `flags.ErrNotFound` sentinel to replace `strings.Contains` not-found checks, MembersPage security events feed. To be archived after a soak. |
+| MembersPage Security Events (UI audit §13) | Implementation | [Plan](./superpowers/plans/2026-05-01-members-security-events.md) | Compact `<RecentSecurityEvents>` panel on MembersPage powered by `auditApi.query`. Requires wiring audit writes in `internal/auth/login_handler.go` and `internal/members/handler.go` first (login, logout, member.added, member.removed, member.role_changed). Branch: `feature/members-security-events`. |
 | E2E SDK Flag Delivery — remaining | Implementation | [Spec](./superpowers/specs/2026-04-12-e2e-sdk-flag-delivery-design.md) | Main suite merged in PR #34 (2026-04-12). Still pending: React probe (sdk/react ESM fix), fault injection, required-gate test. |
 | Identity & Provenance | Design | [Plan](./superpowers/plans/2026-04-16-identity-and-provenance.md) | External work: acquire deploysentry.com, create CrowdSoftApps GitHub org, npm publisher identity, close provenance loop. |
 | Sidecar Traffic Management | Design | [Spec](./superpowers/specs/2026-04-17-sidecar-traffic-management-design.md) / [Plan](./superpowers/plans/2026-04-17-sidecar-traffic-management.md) | Envoy-based sidecar for canary traffic splitting, header routing, and observability. |
@@ -15,8 +14,7 @@
 | First-Class Deploy Gates per Environment | Design | [Spec](./superpowers/specs/2026-04-22-deploy-gate-environments-design.md) | External feature request from jobmgr (CrowdSoftApps): let operators control "is this env open for deploys?" from the DS UI and make DS — not GitHub Actions — the authoritative trigger for gated environment deploys. Not yet scheduled. |
 | Org Status — Phase 4 polish | Design | [Spec](./superpowers/specs/2026-04-23-org-status-and-deploy-history-design.md) / [Phase 4 Plan](./superpowers/plans/2026-04-29-org-status-phase4-polish.md) | Phases 1–3 shipped on main. Phase 4 deferred items split out: ETag client caching on `/orgs/:slug/status`, CSV export on `OrgDeploymentsPage`, org-default monitoring-link templates. |
 | Build Status — deferred follow-ups | Design | [Plan](./superpowers/plans/2026-04-29-build-status-deferred-followups.md) | Parent initiative complete; non-blocking follow-ups: handler unit tests, Combobox Vitest, Playwright smoke, MCP `deploy_create` tool update, stale-build sweep. |
-| Mobile PWA Production Serve | Implementation | [Plan](./superpowers/plans/2026-04-29-mobile-pwa-prod-serve.md) | PR #65 open on `feature/mobile-pwa-prod-serve` — embeds built PWA into API binary at `/m/*`. CI failing on Lint, Lint UI, E2E SDK Tests; needs diagnosis before merge. |
-| UI Audit Disparities | Implementation (Batch A) | [Spec](./superpowers/specs/2026-04-29-ui-audit-disparities-design.md) / [Batch A Plan](./superpowers/plans/2026-04-29-ui-audit-batch-a-polish.md) / [Batch B Plan](./superpowers/plans/2026-04-29-ui-audit-batch-b-layout.md) / [Audit doc](./ui-audit/MOCKUP_DISPARITIES.md) | Addresses 2026-04-24 audit (4 high / 10 medium / 4 low). A merged (#67), B merged (#68), B+ open (#72). Batch C answers received 2026-04-30 — see audit doc for per-item disposition. Remaining build: §20 docs index ([plan](./superpowers/plans/2026-04-30-docs-index-toc.md)), §13 once org-audit ships. §10 dropped. §8 → staged-changes spec instead. |
+| UI Audit Disparities | Implementation (Batch C) | [Spec](./superpowers/specs/2026-04-29-ui-audit-disparities-design.md) / [Audit doc](./ui-audit/MOCKUP_DISPARITIES.md) | Addresses 2026-04-24 audit (4 high / 10 medium / 4 low). A merged (#67), B merged (#68), B+ merged (#72). Batch C: §20 docs index merged (#75); §13 MembersPage security events in flight on `feature/members-security-events` (split out as its own row above). §10 dropped. §8 → staged-changes spec instead. |
 | Staged Changes + Deploy Review | Design | [Spec](./superpowers/specs/2026-04-30-staged-changes-and-deploy-workflow-design.md) | UI mutations go to a per-user `staged_changes` table; header shows "N pending → Deploy"; review page lets the user select/discard before commit. Replaces today's immediate-write semantics for dashboard edits. SDK/CLI/webhook writes unchanged. |
 | Two-Person Approval (org option) | Design (future) | [Spec](./superpowers/specs/2026-04-30-two-person-approval-design.md) | Configurable per-org gate that converts certain Deploy actions into approval requests. Builds on staged-changes; same-spec interaction at the commit boundary. |
 | Deploy Metrics Chips | Design (future) | [Spec](./superpowers/specs/2026-04-30-deploy-metrics-chips-design.md) | Per-deploy latency/error-rate chips on list rows. Pulls from rollout health gates when present, else snapshots from the configured health source at T+1h/4h/24h vs a 24h pre-deploy baseline. |
@@ -25,7 +23,9 @@
 
 All initiatives previously listed as "Implementation — pending merge" have shipped. Plans and specs moved to `docs/archives/` on 2026-04-29:
 
-- **Org Audit Page + Revert (Deliverable 3)** — PR #77 merged 2026-04-30. Backend revert registry + `OrgAuditPage` shipped. Sidebar role-gate follow-up on `chore/org-audit-cleanup`.
+- **Org Audit Page + Revert (Deliverable 3)** — PR #77 merged 2026-04-30. Backend revert registry + `OrgAuditPage` shipped. Sidebar role-gate follow-up merged via PR #79.
+- **Flag Hard Delete + Retention (Deliverable 2)** — PR #80 merged 2026-05-01. Migration 060, `POST /flags/:id/queue-deletion` (+ `DELETE` cancel) + `POST /flags/:id/restore` + `DELETE /flags/:id?force=true` with `X-Confirm-Slug`, retention sweep with system audit writes, Settings-tab Lifecycle panel.
+- **Mobile PWA Production Serve** — PR #65 merged 2026-04-30. PWA served from API binary at `/m/*`.
 
 - **Canary Rollout E2E** — PR #36 merged 2026-04-13.
 - **API Security Hardening** — PR #37 merged 2026-04-13.

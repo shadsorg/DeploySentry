@@ -443,7 +443,7 @@ func run() error {
 	auth.NewRevertHandler(revertRegistry, auditRepo).RegisterRoutes(api)
 	entities.NewHandler(entityService, rbacChecker, grantService).RegisterRoutes(api)
 	settings.NewHandler(settingService, rbacChecker).RegisterRoutes(api)
-	members.NewHandler(memberService, entityService, rbacChecker).RegisterRoutes(api)
+	members.NewHandler(memberService, entityService, rbacChecker, auditRepo).RegisterRoutes(api)
 	groups.NewHandler(groupService, entityService, rbacChecker).RegisterRoutes(api)
 	grants.NewHandler(grantService, entityService, rbacChecker).RegisterRoutes(api)
 	notifications.NewPreferencesHandler(prefStore, notificationService, rbacChecker).RegisterRoutes(api)

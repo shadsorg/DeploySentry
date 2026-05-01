@@ -488,6 +488,12 @@ func run() error {
 		rolloutScopeResolver,
 	).RegisterRoutes(api)
 
+	// Register Phase C-4 staging commit handlers now that the rollout
+	// services exist.
+	for _, t := range rollout.RolloutCommitHandlers(strategySvc, strategyDefaultSvc, rolloutPolicySvc) {
+		stagingRegistry.Register(t.ResourceType, t.Action, t.Handler)
+	}
+
 	// ---- Plan 2: Rollout execution (engine + service + handler) ----
 	rolloutRepo := postgres.NewRolloutRepo(db.Pool)
 	rolloutPhaseRepo := postgres.NewRolloutPhaseRepo(db.Pool)

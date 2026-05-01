@@ -1,12 +1,11 @@
 # Current Initiatives
 
-> Last updated: 2026-04-30 (org-audit + revert plan filed)
+> Last updated: 2026-04-30 (org-audit + revert shipped — PR #77 merged; sidebar role-gate cleanup branch open)
 
 ## Active (not yet complete)
 
 | Initiative | Phase | Plan/Spec File | Notes |
 |---|---|---|---|
-| Org Audit Page + Revert (Deliverable 3) | Design | [Spec](./superpowers/specs/2026-04-30-flag-lifecycle-and-org-audit-design.md) / [Plan](./superpowers/plans/2026-04-30-org-audit-and-revert.md) | Deliverable 3 of the flag-lifecycle/org-audit spec. New `/orgs/:orgSlug/audit` page with old/new diff + one-click revert; backend revert registry maps `(entity_type, action) → existing service-layer method`. Reverts are themselves audit-logged. Branch: `feature/org-audit-revert`. Unblocks UI audit §13 as a small follow-up. |
 | Flag Hard Delete + Retention (Deliverable 2) | Design | [Spec](./superpowers/specs/2026-04-30-flag-lifecycle-and-org-audit-design.md) | Deliverable 2 of the flag-lifecycle/org-audit spec — unscheduled. Migration 060 adds `delete_after`/`deleted_at`; new endpoints `POST /flags/:id/queue-deletion`, `DELETE /flags/:id?force=true`, `POST /flags/:id/restore`; nightly retention sweep; Settings tab UI for active/within-retention/elapsed states. |
 | E2E SDK Flag Delivery — remaining | Implementation | [Spec](./superpowers/specs/2026-04-12-e2e-sdk-flag-delivery-design.md) | Main suite merged in PR #34 (2026-04-12). Still pending: React probe (sdk/react ESM fix), fault injection, required-gate test. |
 | Identity & Provenance | Design | [Plan](./superpowers/plans/2026-04-16-identity-and-provenance.md) | External work: acquire deploysentry.com, create CrowdSoftApps GitHub org, npm publisher identity, close provenance loop. |
@@ -24,6 +23,8 @@
 ## Archived (recently)
 
 All initiatives previously listed as "Implementation — pending merge" have shipped. Plans and specs moved to `docs/archives/` on 2026-04-29:
+
+- **Org Audit Page + Revert (Deliverable 3)** — PR #77 merged 2026-04-30. Backend revert registry + `OrgAuditPage` shipped. Sidebar role-gate follow-up on `chore/org-audit-cleanup`.
 
 - **Canary Rollout E2E** — PR #36 merged 2026-04-13.
 - **API Security Hardening** — PR #37 merged 2026-04-13.

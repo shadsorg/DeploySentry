@@ -2,11 +2,21 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Status**: Design
+**Status**: Complete
 **Date**: 2026-04-30
 **Spec**: [`../specs/2026-04-30-flag-lifecycle-and-org-audit-design.md`](../specs/2026-04-30-flag-lifecycle-and-org-audit-design.md) — Deliverable 3
 **Branch**: `feature/org-audit-revert` (off `origin/main`)
 **Estimated total**: ~10–14h split across 3 phases + 1 small follow-up
+
+## Completion Record
+
+- **Branch**: `feature/org-audit-revert`
+- **Committed**: Yes
+- **Pushed**: Yes
+- **PR**: [#77](https://github.com/shadsorg/DeploySentry/pull/77) — merged 2026-04-30
+- **CI Checks**: Pass
+- **Sidebar role-gating follow-up** (smoke checklist bullet 2): shipped on `chore/org-audit-cleanup` — `useOrgRole` hook + Audit nav hidden for org `viewer` role.
+- **MembersPage security-events panel** (UI audit §13): not in scope; tracked separately in Current Initiatives.
 
 **Goal:** Surface the existing `audit_log` as a first-class org-level page at `/orgs/:orgSlug/audit` with old/new diff per row and a one-click Revert button for revertible actions. Reverts dispatch through a small registry mapping `(entity_type, action) → existing service-layer method`, write their own audit row so the trail stays append-only, and detect races before applying.
 

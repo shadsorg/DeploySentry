@@ -1,13 +1,16 @@
 import { NavLink, useParams } from 'react-router-dom';
 import OrgSwitcher from './OrgSwitcher';
+import { useOrgRole } from '@/hooks/useOrgRole';
 
-const NAV_ITEMS = [
+type NavItem = { to: string; icon: string; label: string; hideForViewer?: boolean };
+
+const NAV_ITEMS: NavItem[] = [
   { to: 'status', icon: 'dashboard', label: 'Status' },
   { to: 'deployments', icon: 'history', label: 'Deploy History' },
   { to: 'projects', icon: 'account_tree', label: 'Projects' },
   { to: 'members', icon: 'group', label: 'Members' },
   { to: 'api-keys', icon: 'vpn_key', label: 'API Keys' },
-  { to: 'audit', icon: 'history_edu', label: 'Audit' },
+  { to: 'audit', icon: 'history_edu', label: 'Audit', hideForViewer: true },
   { to: 'strategies', icon: 'architecture', label: 'Strategies' },
   { to: 'rollouts', icon: 'dynamic_feed', label: 'Rollouts' },
   { to: 'rollout-groups', icon: 'layers', label: 'Rollout Groups' },
@@ -16,6 +19,8 @@ const NAV_ITEMS = [
 
 export default function Sidebar() {
   const { orgSlug } = useParams();
+  const { role } = useOrgRole(orgSlug);
+  const items = NAV_ITEMS.filter((item) => !(item.hideForViewer && role === 'viewer'));
 
   return (
     <aside className="sidebar">
@@ -25,7 +30,7 @@ export default function Sidebar() {
 
       <nav className="sidebar-nav">
         {orgSlug &&
-          NAV_ITEMS.map(({ to, icon, label }) => (
+          items.map(({ to, icon, label }) => (
             <NavLink
               key={to}
               to={`/orgs/${orgSlug}/${to}`}

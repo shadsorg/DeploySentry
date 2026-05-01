@@ -1,6 +1,3 @@
 ## 2024-04-05 - Optimize Expensive Array Sorting and Filtering in React Renders
 **Learning:** Found an opportunity to prevent `O(N log N)` sorting and extensive string matching functions from being called sequentially on every React render hook (even due to unrelated state changes). Memoization with `useMemo` avoids redundant re-computation of array sorting and filtering.
 **Action:** When working in React rendering logic with array mutations like sorting, filtering, and `.toLowerCase().includes()`, proactively extract these heavy operations to `useMemo` hooks so they only re-run when their explicit dependent values update.
-## 2024-05-18 - Hoisted `search.toLowerCase()` outside array filter in DeploymentsPage.tsx
-**Learning:** Found a common React anti-pattern where an expensive string manipulation (`.toLowerCase()`) was placed inside a `.filter` loop during a `useMemo` computation. This meant `toLowerCase` executed repeatedly (O(N) times) per render cycle when typing in the search bar.
-**Action:** When filtering lists in React components based on a search string, hoist operations like `toLowerCase()` outside the loop and compute it once to avoid O(N) penalties per render. Combine with optional chaining/nullish coalescing (`?.toLowerCase() ?? ""`) to prevent runtime crashes.

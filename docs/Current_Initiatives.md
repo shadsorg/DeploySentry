@@ -1,6 +1,6 @@
 # Current Initiatives
 
-> Last updated: 2026-05-01 (Deliverable 2 shipped via PR #80; UI audit §20 docs index shipped; §13 MembersPage security events in flight)
+> Last updated: 2026-05-01 (Staged Changes + Deploy Review Phase A in flight; Deliverable 2 shipped via PR #80; UI audit §20 docs index shipped; §13 MembersPage security events in flight)
 
 ## Active (not yet complete)
 
@@ -15,7 +15,7 @@
 | Org Status — Phase 4 polish | Design | [Spec](./superpowers/specs/2026-04-23-org-status-and-deploy-history-design.md) / [Phase 4 Plan](./superpowers/plans/2026-04-29-org-status-phase4-polish.md) | Phases 1–3 shipped on main. Phase 4 deferred items split out: ETag client caching on `/orgs/:slug/status`, CSV export on `OrgDeploymentsPage`, org-default monitoring-link templates. |
 | Build Status — deferred follow-ups | Design | [Plan](./superpowers/plans/2026-04-29-build-status-deferred-followups.md) | Parent initiative complete; non-blocking follow-ups: handler unit tests, Combobox Vitest, Playwright smoke, MCP `deploy_create` tool update, stale-build sweep. |
 | UI Audit Disparities | Implementation (Batch C) | [Spec](./superpowers/specs/2026-04-29-ui-audit-disparities-design.md) / [Audit doc](./ui-audit/MOCKUP_DISPARITIES.md) | Addresses 2026-04-24 audit (4 high / 10 medium / 4 low). A merged (#67), B merged (#68), B+ merged (#72). Batch C: §20 docs index merged (#75); §13 MembersPage security events in flight on `feature/members-security-events` (split out as its own row above). §10 dropped. §8 → staged-changes spec instead. |
-| Staged Changes + Deploy Review | Design | [Spec](./superpowers/specs/2026-04-30-staged-changes-and-deploy-workflow-design.md) | UI mutations go to a per-user `staged_changes` table; header shows "N pending → Deploy"; review page lets the user select/discard before commit. Replaces today's immediate-write semantics for dashboard edits. SDK/CLI/webhook writes unchanged. |
+| Staged Changes + Deploy Review | Implementation (Phase A) | [Spec](./superpowers/specs/2026-04-30-staged-changes-and-deploy-workflow-design.md) / [Plan](./superpowers/plans/2026-05-01-staged-changes-and-deploy-workflow.md) | UI mutations go to a per-user `staged_changes` table; header shows "N pending → Deploy"; review page lets the user select/discard before commit. Replaces today's immediate-write semantics for dashboard edits. SDK/CLI/webhook writes unchanged. Phase A backend foundation (gated by `staged-changes-enabled` flag) in flight. Three-PR delivery: backend foundation → header chrome + review page → per-resource integration. |
 | Two-Person Approval (org option) | Design (future) | [Spec](./superpowers/specs/2026-04-30-two-person-approval-design.md) | Configurable per-org gate that converts certain Deploy actions into approval requests. Builds on staged-changes; same-spec interaction at the commit boundary. |
 | Deploy Metrics Chips | Design (future) | [Spec](./superpowers/specs/2026-04-30-deploy-metrics-chips-design.md) | Per-deploy latency/error-rate chips on list rows. Pulls from rollout health gates when present, else snapshots from the configured health source at T+1h/4h/24h vs a 24h pre-deploy baseline. |
 

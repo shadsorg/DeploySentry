@@ -76,11 +76,38 @@ type FlagRepository interface {
 	// UpdateFlag persists changes to an existing feature flag.
 	UpdateFlag(ctx context.Context, flag *models.FeatureFlag) error
 
-	// DeleteFlag removes a feature flag. Typically flags are archived, not deleted.
-	DeleteFlag(ctx context.Context, id uuid.UUID) error
+	// ArchiveFlag soft-archives a feature flag by setting archived_at = now().
+	// Returns ErrNotFound if the flag is already archived (archived_at IS NOT NULL).
+	ArchiveFlag(ctx context.Context, id uuid.UUID) error
 
 	// UnarchiveFlag clears archived_at on a feature flag, restoring it to active.
 	UnarchiveFlag(ctx context.Context, id uuid.UUID) error
+
+	// QueueDeletion sets delete_after = archived_at + retention. Returns
+	// ErrNotFound if the flag is not archived (delete_after only makes
+	// sense for archived flags).
+	QueueDeletion(ctx context.Context, id uuid.UUID, retention time.Duration) error
+
+	// ClearDeleteAfter sets delete_after = NULL. Idempotent. Used when
+	// reverting flag.queued_for_deletion without otherwise unarchiving the
+	// flag.
+	ClearDeleteAfter(ctx context.Context, id uuid.UUID) error
+
+	// HardDeleteFlag permanently removes the flag row provided retention
+	// has elapsed (archived_at + retention < now()). Cascades fire on
+	// flag_targeting_rules, flag_ratings, etc. Returns ErrNotFound when
+	// the SQL guard rejects the call (not archived or retention not
+	// elapsed).
+	HardDeleteFlag(ctx context.Context, id uuid.UUID, retention time.Duration) error
+
+	// RestoreFlag clears archived_at and delete_after. Returns
+	// ErrNotFound when no row matches the given id.
+	RestoreFlag(ctx context.Context, id uuid.UUID) error
+
+	// ListFlagsToHardDelete returns ids of flags whose delete_after has
+	// elapsed. Used by the retention sweep. Returns at most `limit` ids
+	// ordered by delete_after ASC.
+	ListFlagsToHardDelete(ctx context.Context, limit int) ([]uuid.UUID, error)
 
 	// CreateRule persists a new targeting rule.
 	CreateRule(ctx context.Context, rule *models.TargetingRule) error

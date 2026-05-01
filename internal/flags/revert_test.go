@@ -19,6 +19,7 @@ import (
 type fakeFlagService struct {
 	FlagService // embed interface; unimplemented methods panic
 
+	flags         map[uuid.UUID]*models.FeatureFlag
 	flag          *models.FeatureFlag
 	flagErr       error
 	archiveErr    error
@@ -36,6 +37,10 @@ type fakeFlagService struct {
 	setEnvErr     error
 	setRuleEnvErr error
 
+	// optional fn hooks for the new handlers
+	archiveFlagFn      func(ctx context.Context, id uuid.UUID) error
+	clearDeleteAfterFn func(ctx context.Context, id uuid.UUID) error
+
 	// capture calls
 	archivedID    uuid.UUID
 	unarchivedID  uuid.UUID
@@ -47,12 +52,28 @@ type fakeFlagService struct {
 }
 
 func (f *fakeFlagService) GetFlag(_ context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
+	if f.flags != nil {
+		if flag, ok := f.flags[id]; ok {
+			return flag, f.flagErr
+		}
+		return nil, errors.New("flag not found")
+	}
 	return f.flag, f.flagErr
 }
 
 func (f *fakeFlagService) ArchiveFlag(_ context.Context, id uuid.UUID) error {
+	if f.archiveFlagFn != nil {
+		return f.archiveFlagFn(context.Background(), id)
+	}
 	f.archivedID = id
 	return f.archiveErr
+}
+
+func (f *fakeFlagService) ClearDeleteAfter(_ context.Context, id uuid.UUID) error {
+	if f.clearDeleteAfterFn != nil {
+		return f.clearDeleteAfterFn(context.Background(), id)
+	}
+	return nil
 }
 
 func (f *fakeFlagService) UnarchiveFlag(_ context.Context, id uuid.UUID) error {
@@ -680,8 +701,8 @@ func TestRevertFlagEnvStateUpdated(t *testing.T) {
 func TestFlagRevertHandlersConstructor(t *testing.T) {
 	svc := &fakeFlagService{}
 	tuples := FlagRevertHandlers(svc)
-	if len(tuples) != 8 {
-		t.Fatalf("expected 8 tuples, got %d", len(tuples))
+	if len(tuples) != 10 {
+		t.Fatalf("expected 10 tuples, got %d", len(tuples))
 	}
 
 	expectedActions := []string{
@@ -693,6 +714,8 @@ func TestFlagRevertHandlersConstructor(t *testing.T) {
 		"flag.rule.deleted",
 		"flag.rule.env_state.updated",
 		"flag.env_state.updated",
+		"flag.queued_for_deletion",
+		"flag.restored",
 	}
 	for i, want := range expectedActions {
 		if tuples[i].Action != want {
@@ -705,4 +728,130 @@ func TestFlagRevertHandlersConstructor(t *testing.T) {
 			t.Errorf("tuple[%d]: handler is nil", i)
 		}
 	}
+}
+
+func TestRevertFlagQueuedForDeletion(t *testing.T) {
+	t.Run("success: clears delete_after", func(t *testing.T) {
+		deleteAfter := time.Now().Add(20 * 24 * time.Hour)
+		flagID := uuid.New()
+		svc := &fakeFlagService{flags: map[uuid.UUID]*models.FeatureFlag{
+			flagID: {ID: flagID, Archived: true, DeleteAfter: &deleteAfter},
+		}}
+		var clearCalled bool
+		svc.clearDeleteAfterFn = func(_ context.Context, id uuid.UUID) error {
+			clearCalled = true
+			return nil
+		}
+
+		handler := revertFlagQueuedForDeletion(svc)
+		action, err := handler(context.Background(), &models.AuditLogEntry{EntityID: flagID, Action: "flag.queued_for_deletion"}, false)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if action != "flag.queued_for_deletion.reverted" {
+			t.Errorf("action = %q", action)
+		}
+		if !clearCalled {
+			t.Error("ClearDeleteAfter not called")
+		}
+	})
+
+	t.Run("race: delete_after already nil", func(t *testing.T) {
+		flagID := uuid.New()
+		svc := &fakeFlagService{flags: map[uuid.UUID]*models.FeatureFlag{
+			flagID: {ID: flagID, Archived: true, DeleteAfter: nil},
+		}}
+		handler := revertFlagQueuedForDeletion(svc)
+		_, err := handler(context.Background(), &models.AuditLogEntry{EntityID: flagID}, false)
+		if !errors.Is(err, auth.ErrRevertRace) {
+			t.Errorf("expected ErrRevertRace, got %v", err)
+		}
+	})
+
+	t.Run("force overrides race", func(t *testing.T) {
+		flagID := uuid.New()
+		svc := &fakeFlagService{flags: map[uuid.UUID]*models.FeatureFlag{
+			flagID: {ID: flagID, Archived: true, DeleteAfter: nil},
+		}}
+		var clearCalled bool
+		svc.clearDeleteAfterFn = func(_ context.Context, id uuid.UUID) error {
+			clearCalled = true
+			return nil
+		}
+
+		handler := revertFlagQueuedForDeletion(svc)
+		action, err := handler(context.Background(), &models.AuditLogEntry{EntityID: flagID, Action: "flag.queued_for_deletion"}, true)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if action != "flag.queued_for_deletion.reverted" {
+			t.Errorf("action = %q", action)
+		}
+		if !clearCalled {
+			t.Error("ClearDeleteAfter not called with force=true")
+		}
+	})
+}
+
+func TestRevertFlagRestored(t *testing.T) {
+	t.Run("success: re-archives flag", func(t *testing.T) {
+		flagID := uuid.New()
+		svc := &fakeFlagService{flags: map[uuid.UUID]*models.FeatureFlag{
+			flagID: {ID: flagID, Archived: false},
+		}}
+		var archiveCalled bool
+		svc.archiveFlagFn = func(_ context.Context, id uuid.UUID) error {
+			archiveCalled = true
+			svc.flags[id].Archived = true
+			return nil
+		}
+
+		handler := revertFlagRestored(svc)
+		action, err := handler(context.Background(), &models.AuditLogEntry{EntityID: flagID, Action: "flag.restored"}, false)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if action != "flag.restored.reverted" {
+			t.Errorf("action = %q", action)
+		}
+		if !archiveCalled {
+			t.Error("ArchiveFlag not called")
+		}
+	})
+
+	t.Run("race: flag already archived", func(t *testing.T) {
+		flagID := uuid.New()
+		svc := &fakeFlagService{flags: map[uuid.UUID]*models.FeatureFlag{
+			flagID: {ID: flagID, Archived: true},
+		}}
+		handler := revertFlagRestored(svc)
+		_, err := handler(context.Background(), &models.AuditLogEntry{EntityID: flagID}, false)
+		if !errors.Is(err, auth.ErrRevertRace) {
+			t.Errorf("expected ErrRevertRace, got %v", err)
+		}
+	})
+
+	t.Run("force overrides race", func(t *testing.T) {
+		flagID := uuid.New()
+		svc := &fakeFlagService{flags: map[uuid.UUID]*models.FeatureFlag{
+			flagID: {ID: flagID, Archived: true},
+		}}
+		var archiveCalled bool
+		svc.archiveFlagFn = func(_ context.Context, id uuid.UUID) error {
+			archiveCalled = true
+			return nil
+		}
+
+		handler := revertFlagRestored(svc)
+		action, err := handler(context.Background(), &models.AuditLogEntry{EntityID: flagID, Action: "flag.restored"}, true)
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if action != "flag.restored.reverted" {
+			t.Errorf("action = %q", action)
+		}
+		if !archiveCalled {
+			t.Error("ArchiveFlag not called with force=true")
+		}
+	})
 }

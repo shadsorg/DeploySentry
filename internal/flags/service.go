@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/shadsorg/deploysentry/internal/models"
@@ -142,6 +143,24 @@ type FlagService interface {
 	// ListFlagsDueForRemoval / MarkFlagRemovalFired are used by the scheduler.
 	ListFlagsDueForRemoval(ctx context.Context, now time.Time) ([]*models.FeatureFlag, error)
 	MarkFlagRemovalFired(ctx context.Context, flagID uuid.UUID, firedAt time.Time) error
+
+	// QueueDeletion marks an archived flag for permanent removal at
+	// archived_at + retention. The retention sweep job tombstones the flag
+	// when delete_after elapses.
+	QueueDeletion(ctx context.Context, id uuid.UUID, retention time.Duration) error
+
+	// HardDeleteFlag permanently removes the flag row provided retention
+	// has elapsed. Returns an error if the flag is missing, not archived,
+	// or retention has not yet elapsed.
+	HardDeleteFlag(ctx context.Context, id uuid.UUID, retention time.Duration) error
+
+	// RestoreFlag clears archived_at and delete_after, returning the flag
+	// to active state. Idempotent on already-active flags.
+	RestoreFlag(ctx context.Context, id uuid.UUID) error
+
+	// ClearDeleteAfter sets delete_after = NULL. Idempotent. Used when
+	// reverting flag.queued_for_deletion without otherwise unarchiving the flag.
+	ClearDeleteAfter(ctx context.Context, id uuid.UUID) error
 }
 
 // flagService is the concrete implementation of FlagService.
@@ -249,24 +268,31 @@ func (s *flagService) UpdateFlag(ctx context.Context, flag *models.FeatureFlag) 
 	return nil
 }
 
-// ArchiveFlag marks a flag as archived and disabled.
+// ArchiveFlag marks a flag as archived (sets archived_at = now() in the DB).
+// Idempotent: already-archived flags return nil instead of an error.
 func (s *flagService) ArchiveFlag(ctx context.Context, id uuid.UUID) error {
-	flag, err := s.repo.GetFlag(ctx, id)
-	if err != nil {
-		return fmt.Errorf("getting flag for archive: %w", err)
-	}
-
-	flag.Archived = true
-	flag.Enabled = false
-	flag.UpdatedAt = time.Now().UTC()
-
-	if err := s.repo.UpdateFlag(ctx, flag); err != nil {
+	if err := s.repo.ArchiveFlag(ctx, id); err != nil {
+		// The repo returns a "not found" error when the flag is missing OR already
+		// archived (the WHERE clause includes `archived_at IS NULL`). We can't
+		// distinguish them at the repo layer without an extra query.
+		// For idempotency, treat "not found" as success — the post-condition
+		// (flag is archived) holds. If callers need a 404 for "missing",
+		// they should GetFlag first.
+		// Note: we use strings.Contains rather than importing the postgres package
+		// directly because postgres/flags.go imports internal/flags (cycle).
+		if strings.Contains(err.Error(), "not found") {
+			return nil
+		}
 		return fmt.Errorf("archiving flag: %w", err)
 	}
 
-	// Invalidate cached flag data after archival.
+	// Reload for event payload + cache invalidation. Failures here are non-fatal.
+	flag, err := s.repo.GetFlag(ctx, id)
+	if err != nil {
+		_ = s.cache.Invalidate(ctx, id)
+		return nil
+	}
 	_ = s.cache.Invalidate(ctx, flag.ID)
-
 	s.publishEvent(ctx, "archived", flag)
 	return nil
 }
@@ -691,6 +717,57 @@ func (s *flagService) ListFlagsDueForRemoval(ctx context.Context, now time.Time)
 // MarkFlagRemovalFired is a thin pass-through used by the scheduler.
 func (s *flagService) MarkFlagRemovalFired(ctx context.Context, flagID uuid.UUID, firedAt time.Time) error {
 	return s.repo.MarkFlagRemovalFired(ctx, flagID, firedAt)
+}
+
+// QueueDeletion delegates to repo.QueueDeletion, invalidates the flag's
+// cache entry, and publishes a "queued_for_deletion" event.
+func (s *flagService) QueueDeletion(ctx context.Context, id uuid.UUID, retention time.Duration) error {
+	if err := s.repo.QueueDeletion(ctx, id, retention); err != nil {
+		return fmt.Errorf("queue deletion: %w", err)
+	}
+	_ = s.cache.Invalidate(ctx, id)
+	flag, err := s.repo.GetFlag(ctx, id)
+	if err == nil {
+		s.publishEvent(ctx, "queued_for_deletion", flag)
+	}
+	return nil
+}
+
+// HardDeleteFlag delegates to repo.HardDeleteFlag, invalidates the
+// flag's cache entry, and publishes a "hard_deleted" event. After this
+// returns successfully the row is gone — GetFlag will return ErrNotFound.
+func (s *flagService) HardDeleteFlag(ctx context.Context, id uuid.UUID, retention time.Duration) error {
+	if err := s.repo.HardDeleteFlag(ctx, id, retention); err != nil {
+		return fmt.Errorf("hard delete: %w", err)
+	}
+	_ = s.cache.Invalidate(ctx, id)
+	s.publishEvent(ctx, "hard_deleted", &models.FeatureFlag{ID: id})
+	return nil
+}
+
+// RestoreFlag delegates to repo.RestoreFlag, invalidates the flag's
+// cache entry, and publishes a "restored" event. The repo's
+// RestoreFlag returns ErrNotFound when no row matches; we treat
+// missing flags as a real error (not idempotent).
+func (s *flagService) RestoreFlag(ctx context.Context, id uuid.UUID) error {
+	if err := s.repo.RestoreFlag(ctx, id); err != nil {
+		return fmt.Errorf("restore: %w", err)
+	}
+	_ = s.cache.Invalidate(ctx, id)
+	flag, err := s.repo.GetFlag(ctx, id)
+	if err == nil {
+		s.publishEvent(ctx, "restored", flag)
+	}
+	return nil
+}
+
+// ClearDeleteAfter sets delete_after = NULL, invalidates the cache entry.
+func (s *flagService) ClearDeleteAfter(ctx context.Context, id uuid.UUID) error {
+	if err := s.repo.ClearDeleteAfter(ctx, id); err != nil {
+		return fmt.Errorf("clear delete_after: %w", err)
+	}
+	_ = s.cache.Invalidate(ctx, id)
+	return nil
 }
 
 func validateLifecycleStatus(s models.LifecycleTestStatus) error {

@@ -640,6 +640,13 @@ func run() error {
 	lifecycleScheduler := flags.NewLifecycleScheduler(flagService, webhookService, time.Minute)
 	go lifecycleScheduler.Run(ctx)
 
+	// Retention sweep: hard-deletes archived flags whose delete_after has
+	// elapsed. Default: scan every 6h with a 30-day archive→delete window.
+	// Operators opt flags into this via POST /flags/:id/queue-deletion. Each
+	// successful deletion writes a system audit row (actor_id = uuid.Nil).
+	retentionSweeper := flags.NewRetentionSweeper(flagService, flagRepo, auditRepo, 6*time.Hour, 30*24*time.Hour)
+	go retentionSweeper.Run(ctx)
+
 	// Rollback handler: manual rollback triggers and rollback history.
 	rollbackExecutor := &deployServiceRollbackExecutor{service: deployService}
 	rollbackController := rollback.NewRollbackController(

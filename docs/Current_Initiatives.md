@@ -1,12 +1,13 @@
 # Current Initiatives
 
-> Last updated: 2026-04-30 (org-audit + revert shipped — PR #77 merged; sidebar role-gate cleanup branch open)
+> Last updated: 2026-04-30 (Deliverable 3 shipped; Deliverable 2 plan filed)
 
 ## Active (not yet complete)
 
 | Initiative | Phase | Plan/Spec File | Notes |
 |---|---|---|---|
-| Flag Hard Delete + Retention (Deliverable 2) | Design | [Spec](./superpowers/specs/2026-04-30-flag-lifecycle-and-org-audit-design.md) | Deliverable 2 of the flag-lifecycle/org-audit spec — unscheduled. Migration 060 adds `delete_after`/`deleted_at`; new endpoints `POST /flags/:id/queue-deletion`, `DELETE /flags/:id?force=true`, `POST /flags/:id/restore`; nightly retention sweep; Settings tab UI for active/within-retention/elapsed states. |
+| Flag Hard Delete + Retention (Deliverable 2) | Design | [Spec](./superpowers/specs/2026-04-30-flag-lifecycle-and-org-audit-design.md) / [Plan](./superpowers/plans/2026-04-30-flag-hard-delete.md) | Deliverable 2 of the flag-lifecycle/org-audit spec. Migration 060 adds `delete_after`/`deleted_at`; new endpoints `POST /flags/:id/queue-deletion`, `DELETE /flags/:id?force=true`, `POST /flags/:id/restore`; retention sweep job tombstones expired flags; Settings tab Lifecycle panel for active/within-retention/elapsed states. **Phase 0 fixes the latent bug where `service.ArchiveFlag` never persists `archived_at`** — precondition without which hard-delete cannot work. Branch: `feature/flag-hard-delete`. |
+| Org Audit Page + Revert (Deliverable 3) | Complete | [Spec](./superpowers/specs/2026-04-30-flag-lifecycle-and-org-audit-design.md) / [Plan](./superpowers/plans/2026-04-30-org-audit-and-revert.md) | Shipped via PR #77 on 2026-04-30 (merge `04b5915`). Org audit page at `/orgs/:orgSlug/audit` with old/new diff + one-click revert; backend revert registry maps `(entity_type, action) → existing service-layer method`. Reverts are themselves audit-logged. Follow-ups: sidebar role-gating, `flags.ErrNotFound` sentinel to replace `strings.Contains` not-found checks, MembersPage security events feed. To be archived after a soak. |
 | E2E SDK Flag Delivery — remaining | Implementation | [Spec](./superpowers/specs/2026-04-12-e2e-sdk-flag-delivery-design.md) | Main suite merged in PR #34 (2026-04-12). Still pending: React probe (sdk/react ESM fix), fault injection, required-gate test. |
 | Identity & Provenance | Design | [Plan](./superpowers/plans/2026-04-16-identity-and-provenance.md) | External work: acquire deploysentry.com, create CrowdSoftApps GitHub org, npm publisher identity, close provenance loop. |
 | Sidecar Traffic Management | Design | [Spec](./superpowers/specs/2026-04-17-sidecar-traffic-management-design.md) / [Plan](./superpowers/plans/2026-04-17-sidecar-traffic-management.md) | Envoy-based sidecar for canary traffic splitting, header routing, and observability. |

@@ -41,6 +41,8 @@ export interface Flag {
   enabled: boolean;
   default_value: string;
   archived: boolean;
+  archived_at?: string | null;
+  delete_after?: string | null;
   tags: string[];
   created_by: string;
   created_by_name?: string;

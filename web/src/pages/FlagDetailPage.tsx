@@ -303,10 +303,23 @@ export default function FlagDetailPage() {
   };
 
   const handleDeleteRule = async (ruleId: string) => {
-    if (!id) return;
+    if (!id || !orgSlug) return;
     if (!window.confirm('Delete this targeting rule?')) return;
+    const prior = rules.find((r) => r.id === ruleId);
     try {
-      await flagsApi.deleteRule(id, ruleId);
+      await stageOrCall({
+        staged: stagingEnabled,
+        orgSlug,
+        // resource_id = the rule id itself; the staging delete commit
+        // handler dispatches FlagService.DeleteRule(ruleId).
+        stage: {
+          resource_type: 'flag_rule',
+          resource_id: ruleId,
+          action: 'delete',
+          old_value: prior ?? undefined,
+        },
+        direct: () => flagsApi.deleteRule(id, ruleId),
+      });
       setRules((prev) => prev.filter((r) => r.id !== ruleId));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete rule');
@@ -314,7 +327,7 @@ export default function FlagDetailPage() {
   };
 
   const handleUpdateRule = async (ruleId: string) => {
-    if (!id) return;
+    if (!id || !orgSlug) return;
     try {
       const body: Partial<TargetingRule> & {
         rollout?: { strategy_name?: string; apply_immediately?: boolean };
@@ -327,7 +340,22 @@ export default function FlagDetailPage() {
       } else if (ruleImmediate) {
         body.rollout = { apply_immediately: true };
       }
-      await flagsApi.updateRule(id, ruleId, body as Partial<TargetingRule>);
+      const prior = rules.find((r) => r.id === ruleId);
+      await stageOrCall({
+        staged: stagingEnabled,
+        orgSlug,
+        // The staging commit handler (Phase C-2) overrides the body's id
+        // with row.ResourceID, so we pass ruleId there. The staged
+        // new_value is the partial update body.
+        stage: {
+          resource_type: 'flag_rule',
+          resource_id: ruleId,
+          action: 'update',
+          old_value: prior ?? undefined,
+          new_value: body,
+        },
+        direct: () => flagsApi.updateRule(id, ruleId, body as Partial<TargetingRule>),
+      });
       const isRollout = ruleStrategyName && !ruleImmediate;
       setRuleSaveMsg(isRollout ? 'Rollout started' : 'Rule saved');
       setEditingRuleId(null);

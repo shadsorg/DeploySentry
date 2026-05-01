@@ -53,6 +53,16 @@ export class DeploySentryClient {
   /** In-memory flag store keyed by flag key. */
   private readonly flags = new Map<string, Flag>();
 
+  /**
+   * Cached array snapshot of {@link flags} for {@link getAllFlags}.
+   *
+   * `useSyncExternalStore` requires `getSnapshot` to return a stable
+   * reference until the underlying store changes; rebuilding the array per
+   * call would re-fire on every render and trip React's "Maximum update
+   * depth exceeded" guard. Rebuilt only inside {@link emit}.
+   */
+  private flagsSnapshot: Flag[] = [];
+
   /** Registry of operation handlers for the register/dispatch pattern. */
   private registry: Map<string, Registration[]> = new Map();
 
@@ -167,7 +177,7 @@ export class DeploySentryClient {
 
   /** Return all stored flags. */
   getAllFlags(): Flag[] {
-    return Array.from(this.flags.values());
+    return this.flagsSnapshot;
   }
 
   /** Build a {@link FlagMetadata} object for a stored flag. */
@@ -430,10 +440,16 @@ export class DeploySentryClient {
       );
     }
 
-    const data: ApiFlagResponse[] = await response.json();
+    // The /api/v1/flags handler wraps results as `{flags: [...]}` and may
+    // also include rating metadata. Older self-hosted backends returned a
+    // raw array, so accept both shapes.
+    const raw = (await response.json()) as
+      | ApiFlagResponse[]
+      | { flags: ApiFlagResponse[] };
+    const list: ApiFlagResponse[] = Array.isArray(raw) ? raw : (raw?.flags ?? []);
     this.flags.clear();
-    for (const raw of data) {
-      this.flags.set(raw.key, toFlag(raw));
+    for (const apiFlag of list) {
+      this.flags.set(apiFlag.key, toFlag(apiFlag));
     }
 
     this.initialised = true;
@@ -556,6 +572,7 @@ export class DeploySentryClient {
   // ---------------------------------------------------------------------------
 
   private emit(): void {
+    this.flagsSnapshot = Array.from(this.flags.values());
     for (const listener of this.listeners) {
       try {
         listener();

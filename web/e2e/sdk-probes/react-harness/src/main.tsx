@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { DeploySentryProvider, useFlag } from '@dr-sentry/react';
+import { DeploySentryProvider, useFlag, useFlagDetail } from '@dr-sentry/react';
 import type { UserContext } from '@dr-sentry/react';
 
 declare global {
@@ -53,13 +53,13 @@ function Observer({ flagKey }: { flagKey: string }): null {
   const isVariant = flagKey.startsWith('variant:');
   const realKey = isVariant ? flagKey.slice('variant:'.length) : flagKey;
 
-  // For boolean flags, useFlag returns `flag.enabled ? flag.value : default`.
-  // We use a sentinel default ("__ds_disabled__") so that when the flag is
-  // disabled we observe the sentinel, and when enabled we observe the actual
-  // value — making toggles visible regardless of the stored default_value.
-  const sentinel = isVariant ? 'control' : '__ds_disabled__';
-  const raw = useFlag<string | boolean>(realKey, sentinel);
-  const value = raw === '__ds_disabled__' ? false : (raw === 'false' ? false : raw === 'true' ? true : raw);
+  // For variant (string) flags, observe the resolved value via useFlag.
+  // For boolean flags, observe the `enabled` state via useFlagDetail —
+  // boolean toggles only flip `enabled`, not the stored default_value, so
+  // the Node probe reads `detail.enabled` and we must mirror that.
+  const detail = useFlagDetail<string>(realKey);
+  const variant = useFlag<string>(realKey, 'control');
+  const value: string | boolean = isVariant ? variant : detail.enabled;
 
   useEffect(() => {
     window.__ds_observations.push({ flagKey, value, ts: Date.now() });

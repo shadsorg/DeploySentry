@@ -406,6 +406,7 @@ func (s *flagService) AddRule(ctx context.Context, rule *models.TargetingRule) e
 	if err := s.repo.CreateRule(ctx, rule); err != nil {
 		return fmt.Errorf("creating rule: %w", err)
 	}
+	_ = s.cache.Invalidate(ctx, rule.FlagID)
 	return nil
 }
 
@@ -420,6 +421,7 @@ func (s *flagService) UpdateRule(ctx context.Context, rule *models.TargetingRule
 	if err := s.repo.UpdateRule(ctx, rule); err != nil {
 		return fmt.Errorf("updating rule: %w", err)
 	}
+	_ = s.cache.Invalidate(ctx, rule.FlagID)
 	return nil
 }
 
@@ -434,8 +436,17 @@ func (s *flagService) GetRule(ctx context.Context, ruleID uuid.UUID) (*models.Ta
 }
 
 func (s *flagService) DeleteRule(ctx context.Context, ruleID uuid.UUID) error {
+	// Resolve the flag id BEFORE deletion so we can invalidate the right
+	// cache entry — once the rule is gone, GetRule fails.
+	var flagID uuid.UUID
+	if rule, err := s.repo.GetRule(ctx, ruleID); err == nil && rule != nil {
+		flagID = rule.FlagID
+	}
 	if err := s.repo.DeleteRule(ctx, ruleID); err != nil {
 		return fmt.Errorf("deleting rule: %w", err)
+	}
+	if flagID != uuid.Nil {
+		_ = s.cache.Invalidate(ctx, flagID)
 	}
 	return nil
 }
@@ -459,6 +470,9 @@ func (s *flagService) ListFlagEnvStates(ctx context.Context, flagID uuid.UUID) (
 }
 
 // SetFlagEnvState validates and persists a per-environment flag state.
+// Invalidates the evaluator cache so subsequent evaluations pick up the
+// new env-scoped state — without this, toggles from the dashboard's
+// Environments tab silently no-op until the cache TTL expires.
 func (s *flagService) SetFlagEnvState(ctx context.Context, state *models.FlagEnvironmentState) error {
 	if err := state.Validate(); err != nil {
 		return fmt.Errorf("validation failed: %w", err)
@@ -466,14 +480,21 @@ func (s *flagService) SetFlagEnvState(ctx context.Context, state *models.FlagEnv
 	if err := s.repo.UpsertFlagEnvState(ctx, state); err != nil {
 		return fmt.Errorf("setting flag env state: %w", err)
 	}
+	_ = s.cache.Invalidate(ctx, state.FlagID)
 	return nil
 }
 
 // SetRuleEnvironmentState creates or updates a per-environment rule state.
+// Invalidates the evaluator cache so the new state is picked up on the
+// next evaluation rather than after the cache TTL.
 func (s *flagService) SetRuleEnvironmentState(ctx context.Context, ruleID, environmentID uuid.UUID, enabled bool) (*models.RuleEnvironmentState, error) {
 	state, err := s.repo.SetRuleEnvironmentState(ctx, ruleID, environmentID, enabled)
 	if err != nil {
 		return nil, fmt.Errorf("setting rule environment state: %w", err)
+	}
+	// Resolve the rule's flag id so we can invalidate the right cache entry.
+	if rule, err := s.repo.GetRule(ctx, ruleID); err == nil && rule != nil {
+		_ = s.cache.Invalidate(ctx, rule.FlagID)
 	}
 	return state, nil
 }

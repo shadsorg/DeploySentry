@@ -430,10 +430,16 @@ export class DeploySentryClient {
       );
     }
 
-    const data: ApiFlagResponse[] = await response.json();
+    // The /api/v1/flags handler wraps results as `{flags: [...]}` and may
+    // also include rating metadata. Older self-hosted backends returned a
+    // raw array, so accept both shapes.
+    const raw = (await response.json()) as
+      | ApiFlagResponse[]
+      | { flags: ApiFlagResponse[] };
+    const list: ApiFlagResponse[] = Array.isArray(raw) ? raw : (raw?.flags ?? []);
     this.flags.clear();
-    for (const raw of data) {
-      this.flags.set(raw.key, toFlag(raw));
+    for (const apiFlag of list) {
+      this.flags.set(apiFlag.key, toFlag(apiFlag));
     }
 
     this.initialised = true;

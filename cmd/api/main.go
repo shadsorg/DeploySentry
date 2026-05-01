@@ -27,6 +27,7 @@ import (
 	"github.com/shadsorg/deploysentry/internal/deploy/engine"
 	"github.com/shadsorg/deploysentry/internal/entities"
 	"github.com/shadsorg/deploysentry/internal/flags"
+	"github.com/shadsorg/deploysentry/internal/staging"
 	"github.com/shadsorg/deploysentry/internal/grants"
 	"github.com/shadsorg/deploysentry/internal/groups"
 	"github.com/shadsorg/deploysentry/internal/health"
@@ -238,6 +239,7 @@ func run() error {
 	apiKeyRepo := postgres.NewAPIKeyRepository(db.Pool)
 	auditRepo := postgres.NewAuditLogRepository(db.Pool)
 	flagRepo := postgres.NewFlagRepository(db.Pool)
+	stagedChangesRepo := postgres.NewStagedChangesRepository(db.Pool)
 	deployRepo := postgres.NewDeployRepository(db.Pool)
 	releaseRepo := postgres.NewReleaseRepository(db.Pool)
 	webhookRepo := postgres.NewWebhookRepository(db.Pool)
@@ -265,6 +267,14 @@ func run() error {
 	for _, t := range flags.FlagRevertHandlers(flagService) {
 		revertRegistry.Register(t.EntityType, t.Action, t.Handler)
 	}
+
+	// Staging layer: per-user pending dashboard mutations. Phase A only
+	// registers `flag.toggle`; remaining resources land in Phase C.
+	stagingRegistry := staging.NewCommitRegistry()
+	for _, t := range flags.FlagCommitHandlers(flagService) {
+		stagingRegistry.Register(t.ResourceType, t.Action, t.Handler)
+	}
+	stagingService := staging.NewService(stagedChangesRepo, stagingRegistry, db.Pool, auditRepo)
 
 	deployService := deploy.NewDeployService(deployRepo, nc)
 	releaseService := releases.NewReleaseServiceWithPublisher(releaseRepo, nc)
@@ -441,6 +451,7 @@ func run() error {
 	auth.NewAPIKeyHandler(apiKeyService).RegisterRoutes(api)
 	auth.NewAuditHandler(auditRepo, revertRegistry).RegisterRoutes(api)
 	auth.NewRevertHandler(revertRegistry, auditRepo).RegisterRoutes(api)
+	staging.NewHandler(stagingService).RegisterRoutes(api.Group("/orgs/:orgSlug"))
 	entities.NewHandler(entityService, rbacChecker, grantService).RegisterRoutes(api)
 	settings.NewHandler(settingService, rbacChecker).RegisterRoutes(api)
 	members.NewHandler(memberService, entityService, rbacChecker, auditRepo).RegisterRoutes(api)
@@ -646,6 +657,11 @@ func run() error {
 	// successful deletion writes a system audit row (actor_id = uuid.Nil).
 	retentionSweeper := flags.NewRetentionSweeper(flagService, flagRepo, auditRepo, 6*time.Hour, 30*24*time.Hour)
 	go retentionSweeper.Run(ctx)
+
+	// Staging sweeper: drops staged_changes rows older than the 30-day
+	// retention window. Wakes hourly so the working set stays bounded.
+	stagingSweeper := staging.NewSweeper(stagedChangesRepo, time.Hour, 30*24*time.Hour)
+	go stagingSweeper.Run(ctx)
 
 	// Rollback handler: manual rollback triggers and rollback history.
 	rollbackExecutor := &deployServiceRollbackExecutor{service: deployService}

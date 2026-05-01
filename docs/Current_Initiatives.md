@@ -18,6 +18,7 @@
 | Two-Person Approval (org option) | Design (future) | [Spec](./superpowers/specs/2026-04-30-two-person-approval-design.md) | Configurable per-org gate that converts certain Deploy actions into approval requests. Builds on staged-changes; same-spec interaction at the commit boundary. |
 | Deploy Metrics Chips | Design (future) | [Spec](./superpowers/specs/2026-04-30-deploy-metrics-chips-design.md) | Per-deploy latency/error-rate chips on list rows. Pulls from rollout health gates when present, else snapshots from the configured health source at T+1h/4h/24h vs a 24h pre-deploy baseline. |
 | MCP Flag Routing Fix | Implementation | [Plan](./superpowers/plans/2026-05-01-mcp-flag-routing-fix.md) | `ds_list_flags` / `ds_create_flag` 404 — MCP tools targeted a non-existent nested URL. Realigning to the flat `/api/v1/flags` route and relaxing `createFlagRequest.ProjectID` to slug-or-UUID for parity with `evaluateRequest`. |
+| Migration Drift Gate | Design | [Plan](./superpowers/plans/2026-05-01-migration-drift-gate.md) | Boot-time check + CI gate so the running binary refuses to serve (or loudly warns) when its bundled migrations are ahead of `schema_migrations.version`. Surfaced during PR #88 smoke-test: post-#80 binary against pre-060 DB silently broke every flag read with a generic "failed to list flags" 500. |
 
 ## Archived (recently)
 

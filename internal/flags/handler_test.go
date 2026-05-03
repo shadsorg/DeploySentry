@@ -293,6 +293,8 @@ func (m *mockFlagService) AddRuleTx(ctx context.Context, _ pgx.Tx, rule *models.
 
 func (m *mockFlagService) PublishCreated(_ context.Context, _ *models.FeatureFlag) {}
 
+func (m *mockFlagService) InvalidateFlagCache(_ context.Context, _ uuid.UUID) error { return nil }
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

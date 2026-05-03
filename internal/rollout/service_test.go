@@ -15,7 +15,8 @@ import (
 // --- in-memory fake repos ---
 
 type fakeStratRepo struct {
-	rows map[uuid.UUID]*models.Strategy
+	rows       map[uuid.UUID]*models.Strategy
+	createTxFn func(s *models.Strategy) error
 }
 
 func newFakeStratRepo() *fakeStratRepo { return &fakeStratRepo{rows: map[uuid.UUID]*models.Strategy{}} }
@@ -88,6 +89,9 @@ func (f *fakeStratRepo) IsReferenced(_ context.Context, id uuid.UUID) (bool, err
 	return false, nil
 }
 func (f *fakeStratRepo) CreateTx(ctx context.Context, _ pgx.Tx, s *models.Strategy) error {
+	if f.createTxFn != nil {
+		return f.createTxFn(s)
+	}
 	return f.Create(ctx, s)
 }
 

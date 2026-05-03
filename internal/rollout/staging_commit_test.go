@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/staging"
 )
 
 // ---- Repo fakes (implement just enough of the interfaces) ----
@@ -217,5 +218,78 @@ func TestCommitRolloutPolicyDelete_CallsRepo(t *testing.T) {
 	}
 	if repo.deleted == nil || *repo.deleted != id {
 		t.Fatalf("delete should have called repo with id=%s, got %v", id, repo.deleted)
+	}
+}
+
+// ---- StrategyCreateHandlers + commitStrategyCreate ----
+
+func TestStrategyCreateHandlers_RegistersExpectedTuples(t *testing.T) {
+	svc := newStrategyService(&mockTxBeginner{}, &fakeStratRepo{}, nil)
+	tuples := StrategyCreateHandlers(svc)
+	if len(tuples) != 1 {
+		t.Fatalf("expected 1 tuple, got %d", len(tuples))
+	}
+	if tuples[0].ResourceType != "strategy" || tuples[0].Action != "create" {
+		t.Errorf("unexpected tuple: %s.%s", tuples[0].ResourceType, tuples[0].Action)
+	}
+	if tuples[0].Handler == nil {
+		t.Fatal("handler is nil")
+	}
+}
+
+func TestCommitStrategyCreate_MintsRealID(t *testing.T) {
+	wantReal := uuid.New()
+	repo := &fakeStratRepo{
+		createTxFn: func(s *models.Strategy) error {
+			s.ID = wantReal
+			return nil
+		},
+	}
+	svc := newStrategyService(&mockTxBeginner{}, repo, nil)
+
+	prov := staging.NewProvisional()
+	payload, _ := json.Marshal(&models.Strategy{
+		ScopeType:  models.ScopeOrg,
+		ScopeID:    uuid.New(),
+		Name:       "canary",
+		TargetType: models.TargetTypeDeploy,
+		Steps:      []models.Step{{Percent: 100}},
+	})
+	row := &models.StagedChange{
+		ResourceType:  "strategy",
+		Action:        "create",
+		ProvisionalID: &prov,
+		NewValue:      payload,
+	}
+
+	realID, action, hook, err := commitStrategyCreate(svc)(context.Background(), nil, row)
+	if err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if realID != wantReal {
+		t.Errorf("realID: got %v want %v", realID, wantReal)
+	}
+	if staging.IsProvisional(realID) {
+		t.Fatal("realID is provisional")
+	}
+	if action != "strategy.created" {
+		t.Errorf("action: %v", action)
+	}
+	if hook != nil {
+		t.Error("expected nil post-commit hook for strategy.create")
+	}
+}
+
+func TestCommitStrategyCreate_RequiresNewValue(t *testing.T) {
+	svc := newStrategyService(&mockTxBeginner{}, &fakeStratRepo{}, nil)
+	prov := staging.NewProvisional()
+	row := &models.StagedChange{
+		ResourceType:  "strategy",
+		Action:        "create",
+		ProvisionalID: &prov,
+	}
+	_, _, _, err := commitStrategyCreate(svc)(context.Background(), nil, row)
+	if err == nil {
+		t.Fatal("expected error for missing new_value")
 	}
 }

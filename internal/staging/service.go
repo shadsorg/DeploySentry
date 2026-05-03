@@ -82,6 +82,13 @@ func (s *Service) ListForResource(ctx context.Context, userID, orgID uuid.UUID, 
 	return s.repo.ListForResource(ctx, userID, orgID, resourceType)
 }
 
+// GetProvisionalCreate returns the user's staged CREATE row matching the
+// provisional id (or nil if not found). Used by detail-by-provisional-id
+// handlers to render staged creates before they're committed.
+func (s *Service) GetProvisionalCreate(ctx context.Context, userID, orgID uuid.UUID, resourceType string, provisionalID uuid.UUID) (*models.StagedChange, error) {
+	return s.repo.GetProvisionalCreate(ctx, userID, orgID, resourceType, provisionalID)
+}
+
 // CommitResult reports per-row outcomes from Deploy. Successful rows include
 // the audit-log action recorded; failed rows include the error message and
 // abort the transaction.

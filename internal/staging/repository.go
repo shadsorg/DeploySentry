@@ -48,4 +48,9 @@ type Repository interface {
 	// CountForUser returns the total staged-row count for the (user, org)
 	// pair. Used by the header banner to render "N pending".
 	CountForUser(ctx context.Context, userID, orgID uuid.UUID) (int, error)
+
+	// GetProvisionalCreate returns the user's staged CREATE row for the given
+	// resource type whose provisional_id matches. Returns (nil, nil) when no
+	// such row exists. Used by handlers that resolve detail-by-provisional-id.
+	GetProvisionalCreate(ctx context.Context, userID, orgID uuid.UUID, resourceType string, provisionalID uuid.UUID) (*models.StagedChange, error)
 }

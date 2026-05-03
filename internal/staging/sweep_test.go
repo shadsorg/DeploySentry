@@ -26,6 +26,9 @@ func (f *fakeRepo) GetByIDs(context.Context, uuid.UUID, uuid.UUID, []uuid.UUID) 
 func (f *fakeRepo) DeleteByIDsTx(context.Context, pgx.Tx, uuid.UUID, uuid.UUID, []uuid.UUID) error { return nil }
 func (f *fakeRepo) DeleteAllForUser(context.Context, uuid.UUID, uuid.UUID) (int64, error) { return 0, nil }
 func (f *fakeRepo) CountForUser(context.Context, uuid.UUID, uuid.UUID) (int, error) { return 0, nil }
+func (f *fakeRepo) GetProvisionalCreate(context.Context, uuid.UUID, uuid.UUID, string, uuid.UUID) (*models.StagedChange, error) {
+	return nil, nil
+}
 
 func (f *fakeRepo) DeleteOlderThan(_ context.Context, cutoff time.Time) (int64, error) {
 	f.receivedCutoff = cutoff

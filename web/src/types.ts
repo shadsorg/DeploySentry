@@ -1,3 +1,5 @@
+import type { StagedMarker } from '@/components/staging/StagedBadge';
+
 export type FlagCategory = 'release' | 'feature' | 'experiment' | 'ops' | 'permission';
 export type FlagType = 'boolean' | 'string' | 'integer' | 'json';
 export type DeployStrategy = 'canary' | 'blue-green' | 'rolling';
@@ -56,6 +58,9 @@ export interface Flag {
   iteration_exhausted?: boolean;
   last_smoke_test_notes?: string | null;
   last_user_test_notes?: string | null;
+  // Staging overlay — present only when fetched with include_my_staged=true and
+  // the row has a pending staged mutation for the current user.
+  _staged?: StagedMarker;
 }
 
 export interface TargetingRule {

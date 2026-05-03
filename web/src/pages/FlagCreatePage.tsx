@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import type { FlagType, FlagCategory } from '@/types';
 import { flagsApi, entitiesApi } from '@/api';
+import { useStagingEnabled } from '@/hooks/useStagingEnabled';
+import { stageOrCall } from '@/hooks/stageOrCall';
+import { newProvisionalId } from '@/lib/provisional';
 
 interface FormState {
   key: string;
@@ -37,6 +40,8 @@ export default function FlagCreatePage() {
   const backPath = appSlug
     ? `/orgs/${orgSlug}/projects/${projectSlug}/apps/${appSlug}/flags`
     : `/orgs/${orgSlug}/projects/${projectSlug}/flags`;
+
+  const stagingEnabled = useStagingEnabled(orgSlug);
 
   const [form, setForm] = useState<FormState>({
     ...INITIAL,
@@ -83,7 +88,7 @@ export default function FlagCreatePage() {
     setError(null);
     setSubmitting(true);
     try {
-      await flagsApi.create({
+      const payload = {
         project_id: projectId,
         application_id: appId || undefined,
         key: form.key,
@@ -107,8 +112,26 @@ export default function FlagCreatePage() {
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean),
+      };
+
+      const provisionalId = newProvisionalId();
+      const result = await stageOrCall({
+        staged: stagingEnabled,
+        orgSlug: orgSlug!,
+        stage: {
+          resource_type: 'flag',
+          action: 'create',
+          provisional_id: provisionalId,
+          new_value: payload,
+        },
+        direct: () => flagsApi.create(payload),
       });
-      navigate(backPath);
+
+      if (result.mode === 'staged') {
+        navigate(backPath); // list page; banner / overlay surfaces the new pending row
+      } else {
+        navigate(backPath);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create flag');
     } finally {

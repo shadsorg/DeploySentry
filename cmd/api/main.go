@@ -278,7 +278,8 @@ func run() error {
 	for _, t := range flags.FlagCommitHandlers(flagService) {
 		stagingRegistry.Register(t.ResourceType, t.Action, t.Handler)
 	}
-	stagingService := staging.NewService(stagedChangesRepo, stagingRegistry, db.Pool, auditRepo)
+	stagingCreateRegistry := staging.NewCreateRegistry()
+	stagingService := staging.NewService(stagedChangesRepo, stagingRegistry, stagingCreateRegistry, db.Pool, auditRepo)
 
 	deployService := deploy.NewDeployService(deployRepo, nc)
 	releaseService := releases.NewReleaseServiceWithPublisher(releaseRepo, nc)

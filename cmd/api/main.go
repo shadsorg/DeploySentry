@@ -279,6 +279,9 @@ func run() error {
 		stagingRegistry.Register(t.ResourceType, t.Action, t.Handler)
 	}
 	stagingCreateRegistry := staging.NewCreateRegistry()
+	for _, t := range flags.FlagCreateHandlers(flagService) {
+		stagingCreateRegistry.Register(t.ResourceType, t.Action, t.Handler)
+	}
 	stagingService := staging.NewService(stagedChangesRepo, stagingRegistry, stagingCreateRegistry, db.Pool, auditRepo)
 
 	deployService := deploy.NewDeployService(deployRepo, nc)
@@ -493,6 +496,9 @@ func run() error {
 	// services exist.
 	for _, t := range rollout.RolloutCommitHandlers(strategySvc, strategyDefaultSvc, rolloutPolicySvc) {
 		stagingRegistry.Register(t.ResourceType, t.Action, t.Handler)
+	}
+	for _, t := range rollout.StrategyCreateHandlers(strategySvc) {
+		stagingCreateRegistry.Register(t.ResourceType, t.Action, t.Handler)
 	}
 
 	// ---- Plan 2: Rollout execution (engine + service + handler) ----

@@ -182,6 +182,10 @@ type FlagService interface {
 	// Used by the staging commit pipeline as a post-commit hook so the event only
 	// fires after the staging tx commits successfully.
 	PublishCreated(ctx context.Context, flag *models.FeatureFlag)
+
+	// InvalidateFlagCache evicts the cache entry for a flag's targeting rules.
+	// Used as a post-commit hook in the staging pipeline.
+	InvalidateFlagCache(ctx context.Context, flagID uuid.UUID) error
 }
 
 // flagService is the concrete implementation of FlagService.
@@ -236,6 +240,11 @@ func (s *flagService) publishEvent(ctx context.Context, eventType string, flag *
 // PublishCreated emits the "flag.created" event via the configured publisher.
 func (s *flagService) PublishCreated(ctx context.Context, flag *models.FeatureFlag) {
 	s.publishEvent(ctx, "created", flag)
+}
+
+// InvalidateFlagCache evicts the cache entry for a flag's targeting rules.
+func (s *flagService) InvalidateFlagCache(ctx context.Context, flagID uuid.UUID) error {
+	return s.cache.Invalidate(ctx, flagID)
 }
 
 // CreateFlag validates and persists a new feature flag.

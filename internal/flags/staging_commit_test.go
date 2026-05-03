@@ -19,16 +19,18 @@ import (
 type stubCommitSvc struct {
 	FlagService
 
-	toggleCalled            func(uuid.UUID, bool) error
-	updateCalled            func(*models.FeatureFlag) error
-	archiveCalled           func(uuid.UUID) error
-	restoreCalled           func(uuid.UUID) error
-	updateRuleCalled        func(*models.TargetingRule) error
-	deleteRuleCalled        func(uuid.UUID) error
-	setRuleEnvStateCalled   func(uuid.UUID, uuid.UUID, bool) error
-	setFlagEnvStateCalled   func(*models.FlagEnvironmentState) error
-	createFlagTxCalled      func(*models.FeatureFlag) (uuid.UUID, error)
-	publishCreatedCalled    func(*models.FeatureFlag)
+	toggleCalled              func(uuid.UUID, bool) error
+	updateCalled              func(*models.FeatureFlag) error
+	archiveCalled             func(uuid.UUID) error
+	restoreCalled             func(uuid.UUID) error
+	updateRuleCalled          func(*models.TargetingRule) error
+	deleteRuleCalled          func(uuid.UUID) error
+	setRuleEnvStateCalled     func(uuid.UUID, uuid.UUID, bool) error
+	setFlagEnvStateCalled     func(*models.FlagEnvironmentState) error
+	createFlagTxCalled        func(*models.FeatureFlag) (uuid.UUID, error)
+	publishCreatedCalled      func(*models.FeatureFlag)
+	addRuleTxCalled           func(*models.TargetingRule) (uuid.UUID, error)
+	invalidateFlagCacheCalled func(uuid.UUID) error
 }
 
 func (s *stubCommitSvc) ToggleFlag(_ context.Context, id uuid.UUID, enabled bool) error {
@@ -470,6 +472,20 @@ func (s *stubCommitSvc) PublishCreated(_ context.Context, flag *models.FeatureFl
 	}
 }
 
+func (s *stubCommitSvc) AddRuleTx(_ context.Context, _ pgx.Tx, rule *models.TargetingRule) (uuid.UUID, error) {
+	if s.addRuleTxCalled == nil {
+		return rule.ID, nil
+	}
+	return s.addRuleTxCalled(rule)
+}
+
+func (s *stubCommitSvc) InvalidateFlagCache(_ context.Context, flagID uuid.UUID) error {
+	if s.invalidateFlagCacheCalled == nil {
+		return nil
+	}
+	return s.invalidateFlagCacheCalled(flagID)
+}
+
 // ---- create ----
 
 func TestFlagCreateHandlers_RegistersExpectedTuples(t *testing.T) {
@@ -548,5 +564,101 @@ func TestCommitFlagCreate_RequiresNewValue(t *testing.T) {
 	_, _, _, err := commitFlagCreate(&stubCommitSvc{})(context.Background(), nil, row)
 	if err == nil {
 		t.Fatal("expected error for missing new_value")
+	}
+}
+
+// ---- flag_rule.create ----
+
+func TestCommitFlagRuleCreate_MintsRealIDAndInvalidates(t *testing.T) {
+	var calls []string
+	wantReal := uuid.New()
+	flagID := uuid.New()
+	svc := &stubCommitSvc{
+		addRuleTxCalled: func(rule *models.TargetingRule) (uuid.UUID, error) {
+			calls = append(calls, "addRuleTx")
+			rule.ID = wantReal
+			return wantReal, nil
+		},
+		invalidateFlagCacheCalled: func(fID uuid.UUID) error {
+			calls = append(calls, "invalidate")
+			if fID != flagID {
+				t.Errorf("invalidate target mismatch: got %v want %v", fID, flagID)
+			}
+			return nil
+		},
+	}
+	prov := staging.NewProvisional()
+	payload := `{"flag_id":"` + flagID.String() + `","priority":1}`
+	row := &models.StagedChange{
+		ResourceType:  "flag_rule",
+		Action:        "create",
+		ProvisionalID: &prov,
+		NewValue:      json.RawMessage(payload),
+	}
+	realID, action, hook, err := commitFlagRuleCreate(svc)(context.Background(), nil, row)
+	if err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if realID != wantReal {
+		t.Errorf("realID: got %v want %v", realID, wantReal)
+	}
+	if action != "flag.rule.created" {
+		t.Errorf("action: %v", action)
+	}
+	if hook == nil {
+		t.Fatal("hook should be non-nil")
+	}
+	if got := strings.Join(calls, ","); got != "addRuleTx" {
+		t.Errorf("hook fired inside handler: %v", got)
+	}
+	hook(context.Background())
+	if got := strings.Join(calls, ","); got != "addRuleTx,invalidate" {
+		t.Errorf("hook did not invalidate post-commit: %v", got)
+	}
+}
+
+func TestCommitFlagRuleCreate_RejectsProvisionalFlagID(t *testing.T) {
+	// The resolver should have rewritten flag_id before this handler runs.
+	// If a provisional UUID survives to here, MustNotBeProvisional must panic.
+	prov := staging.NewProvisional()
+	payload := `{"flag_id":"` + prov.String() + `","priority":1}`
+	row := &models.StagedChange{
+		ResourceType:  "flag_rule",
+		Action:        "create",
+		ProvisionalID: &prov,
+		NewValue:      json.RawMessage(payload),
+	}
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic from MustNotBeProvisional")
+		}
+	}()
+	_, _, _, _ = commitFlagRuleCreate(&stubCommitSvc{})(context.Background(), nil, row)
+}
+
+func TestCommitFlagRuleCreate_RequiresNewValue(t *testing.T) {
+	prov := staging.NewProvisional()
+	row := &models.StagedChange{
+		ResourceType:  "flag_rule",
+		Action:        "create",
+		ProvisionalID: &prov,
+	}
+	_, _, _, err := commitFlagRuleCreate(&stubCommitSvc{})(context.Background(), nil, row)
+	if err == nil {
+		t.Fatal("expected error for missing new_value")
+	}
+}
+
+func TestCommitFlagRuleCreate_RequiresFlagID(t *testing.T) {
+	prov := staging.NewProvisional()
+	row := &models.StagedChange{
+		ResourceType:  "flag_rule",
+		Action:        "create",
+		ProvisionalID: &prov,
+		NewValue:      json.RawMessage(`{"priority":1}`),
+	}
+	_, _, _, err := commitFlagRuleCreate(&stubCommitSvc{})(context.Background(), nil, row)
+	if err == nil {
+		t.Fatal("expected error for missing flag_id")
 	}
 }

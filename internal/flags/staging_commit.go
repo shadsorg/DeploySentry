@@ -243,13 +243,32 @@ func commitFlagCreate(svc FlagService) staging.CreateHandler {
 	}
 }
 
-// commitFlagRuleCreate is filled in by Task 8 — leave a stub so
-// FlagCreateHandlers compiles without forward-referencing it.
-// Do not remove: the stub keeps both tuples registrable now without making
-// Task 8 a forced prerequisite.
 func commitFlagRuleCreate(svc FlagService) staging.CreateHandler {
 	return func(ctx context.Context, tx pgx.Tx, row *models.StagedChange) (uuid.UUID, string, func(context.Context), error) {
-		return uuid.Nil, "", nil, fmt.Errorf("flag_rule.create commit: not implemented (Task 8)")
+		if len(row.NewValue) == 0 {
+			return uuid.Nil, "", nil, fmt.Errorf("flag_rule.create commit: new_value required")
+		}
+		var rule models.TargetingRule
+		if err := json.Unmarshal(row.NewValue, &rule); err != nil {
+			return uuid.Nil, "", nil, fmt.Errorf("flag_rule.create commit: parse new_value: %w", err)
+		}
+		if rule.FlagID == uuid.Nil {
+			return uuid.Nil, "", nil, fmt.Errorf("flag_rule.create commit: flag_id required in new_value")
+		}
+		// Service.Commit always runs RewriteRow on this row before dispatching
+		// — at this point flag_id should already be the real id. Guard against
+		// a regression that lets a provisional slip through.
+		staging.MustNotBeProvisional(rule.FlagID, "flag_rule.create.flag_id")
+		rule.ID = uuid.Nil
+		realID, err := svc.AddRuleTx(ctx, tx, &rule)
+		if err != nil {
+			return uuid.Nil, "", nil, fmt.Errorf("flag_rule.create commit: %w", err)
+		}
+		flagID := rule.FlagID
+		hook := func(hookCtx context.Context) {
+			_ = svc.InvalidateFlagCache(hookCtx, flagID)
+		}
+		return realID, "flag.rule.created", hook, nil
 	}
 }
 

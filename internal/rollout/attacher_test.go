@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 func TestAttacher_AttachDeploy_ExplicitStrategyName(t *testing.T) {
@@ -15,8 +15,8 @@ func TestAttacher_AttachDeploy_ExplicitStrategyName(t *testing.T) {
 	orgID := uuid.New()
 	tmpl := &models.Strategy{
 		ScopeType: models.ScopeOrg, ScopeID: orgID, Name: "std",
-		TargetType: models.TargetTypeDeploy,
-		Steps: []models.Step{{Percent: 100}},
+		TargetType:             models.TargetTypeDeploy,
+		Steps:                  []models.Step{{Percent: 100}},
 		DefaultHealthThreshold: 0.95, DefaultRollbackOnFailure: true,
 	}
 	_ = stratRepo.Create(context.Background(), tmpl)
@@ -64,7 +64,7 @@ func TestAttacher_AttachDeploy_ResolvesDefault(t *testing.T) {
 	orgID := uuid.New()
 	tmpl := &models.Strategy{ScopeType: models.ScopeOrg, ScopeID: orgID, Name: "default-canary",
 		TargetType: models.TargetTypeDeploy,
-		Steps: []models.Step{{Percent: 100}}, DefaultHealthThreshold: 0.95}
+		Steps:      []models.Step{{Percent: 100}}, DefaultHealthThreshold: 0.95}
 	_ = stratRepo.Create(context.Background(), tmpl)
 	tt := models.TargetTypeDeploy
 	_ = defRepo.Upsert(context.Background(), &models.StrategyDefault{
@@ -128,7 +128,7 @@ func TestAttacher_MissingOverrides_Snapshot(t *testing.T) {
 	tmpl := &models.Strategy{
 		ScopeType: models.ScopeOrg, ScopeID: orgID, Name: "std",
 		TargetType: models.TargetTypeDeploy,
-		Steps: []models.Step{{Percent: 100}}, DefaultHealthThreshold: 0.95,
+		Steps:      []models.Step{{Percent: 100}}, DefaultHealthThreshold: 0.95,
 	}
 	_ = stratRepo.Create(context.Background(), tmpl)
 	raw, _ := json.Marshal(struct{}{})
@@ -141,8 +141,8 @@ func TestAttacher_AttachConfig_ExplicitStrategyName(t *testing.T) {
 	orgID := uuid.New()
 	tmpl := &models.Strategy{
 		ScopeType: models.ScopeOrg, ScopeID: orgID, Name: "slow-roll",
-		TargetType: models.TargetTypeConfig,
-		Steps:      []models.Step{{Percent: 100}},
+		TargetType:             models.TargetTypeConfig,
+		Steps:                  []models.Step{{Percent: 100}},
 		DefaultHealthThreshold: 0.95, DefaultRollbackOnFailure: true,
 	}
 	_ = stratRepo.Create(context.Background(), tmpl)

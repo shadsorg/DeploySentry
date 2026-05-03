@@ -3,9 +3,9 @@ package rollout
 import (
 	"context"
 
-	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 // StrategyRepository persists strategy templates.

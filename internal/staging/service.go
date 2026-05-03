@@ -12,6 +12,11 @@ import (
 	"github.com/shadsorg/deploysentry/internal/models"
 )
 
+// txBeginner abstracts pgxpool.Pool for unit tests that don't have a real DB.
+type txBeginner interface {
+	BeginTx(ctx context.Context, opts pgx.TxOptions) (pgx.Tx, error)
+}
+
 // AuditWriter is satisfied by the existing Postgres audit repository so the
 // staging package doesn't need to import internal/auth.
 type AuditWriter interface {
@@ -21,20 +26,22 @@ type AuditWriter interface {
 // Service orchestrates staging-layer operations: stage a row, list a user's
 // pending changes, deploy (commit) selected rows in one transaction, discard.
 type Service struct {
-	repo  Repository
-	reg   *CommitRegistry
-	pool  *pgxpool.Pool
-	audit AuditWriter
+	repo    Repository
+	reg     *CommitRegistry
+	creates *CreateRegistry
+	pool    txBeginner
+	audit   AuditWriter
 }
 
 // NewService wires the staging service. pool is the same pool used by the
-// rest of the app — Service.Commit opens a transaction on it so the Postgres
-// commit handler and the staged_changes DELETE ride the same boundary.
+// rest of the app — Service.Commit opens a transaction on it so the create
+// + mutation handlers and the staged_changes DELETE all ride the same
+// boundary.
 //
 // audit may be nil for unit tests; production should wire it so committed
 // rows leave an audit trail.
-func NewService(repo Repository, reg *CommitRegistry, pool *pgxpool.Pool, audit AuditWriter) *Service {
-	return &Service{repo: repo, reg: reg, pool: pool, audit: audit}
+func NewService(repo Repository, reg *CommitRegistry, creates *CreateRegistry, pool *pgxpool.Pool, audit AuditWriter) *Service {
+	return &Service{repo: repo, reg: reg, creates: creates, pool: pool, audit: audit}
 }
 
 // Stage upserts a single staged change. Caller is responsible for setting
@@ -46,6 +53,12 @@ func (s *Service) Stage(ctx context.Context, row *models.StagedChange) error {
 	}
 	if row.ResourceType == "" || row.Action == "" {
 		return errors.New("staging.Stage: resource_type and action are required")
+	}
+	if row.ProvisionalID != nil && !IsProvisional(*row.ProvisionalID) {
+		return errors.New("staging.Stage: provisional_id must use the provisional UUID variant byte")
+	}
+	if row.ResourceID != nil && IsProvisional(*row.ResourceID) {
+		return errors.New("staging.Stage: resource_id must not be provisional")
 	}
 	return s.repo.Upsert(ctx, row)
 }
@@ -69,9 +82,9 @@ type CommitResult struct {
 	FailedReason string      `json:"failed_reason,omitempty"`
 }
 
-// Commit deploys the requested staged rows in one transaction. If any row's
-// CommitHandler errors, the whole batch rolls back and the staged rows stay
-// in place — that's the spec's "all or nothing" semantic.
+// Commit deploys the requested staged rows in one transaction using a
+// four-phase pipeline: load → preflight → tx + topo-ordered dispatch →
+// tx.Commit → post-commit hooks.
 //
 // actorID is the user committing (for the audit row). It may differ from the
 // staged row's user_id in a future delegated-deploy scenario; in Phase A the
@@ -89,43 +102,64 @@ func (s *Service) Commit(ctx context.Context, userID, orgID, actorID uuid.UUID, 
 		return nil, fmt.Errorf("staging.Commit: %d of %d rows not found or not owned by user", len(ids)-len(rows), len(ids))
 	}
 
+	plan, err := planBatch(rows)
+	if err != nil {
+		var unresolved *ErrUnresolvedProvisional
+		if errors.As(err, &unresolved) {
+			rid := unresolved.RowID
+			return &CommitResult{FailedID: &rid, FailedReason: unresolved.Error()}, nil
+		}
+		return nil, fmt.Errorf("staging.Commit: preflight: %w", err)
+	}
+
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("staging.Commit: begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }() // no-op once Commit succeeds
 
-	committed := make([]uuid.UUID, 0, len(rows))
-	auditEntries := make([]*models.AuditLogEntry, 0, len(rows))
+	resolver := NewResolver()
+	committed := make([]uuid.UUID, 0, len(plan.ordered))
+	auditEntries := make([]*models.AuditLogEntry, 0, len(plan.ordered))
+	postCommitHooks := make([]func(context.Context), 0)
 
-	for _, r := range rows {
-		// Refuse to commit a provisional id into production without
-		// resolution. Phase A doesn't yet implement provisional-create
-		// handlers; if one slips in, fail loud.
-		if r.ResourceID == nil && r.ProvisionalID != nil {
-			return &CommitResult{
-				CommittedIDs: committed,
-				FailedID:     &r.ID,
-				FailedReason: fmt.Sprintf("provisional create for %s.%s has no commit handler in Phase A", r.ResourceType, r.Action),
-			}, nil
+	for _, r := range plan.ordered {
+		// Create branch: a row that minted a provisional id and has a
+		// create-handler registered. Resolves provisional → real and binds
+		// it for downstream rows. Audit row uses the resolved real id.
+		if r.ProvisionalID != nil && s.creates != nil && s.creates.IsCreatable(r.ResourceType, r.Action) {
+			realID, auditAction, hook, err := s.creates.Dispatch(ctx, tx, r)
+			if err != nil {
+				rid := r.ID
+				return &CommitResult{CommittedIDs: committed, FailedID: &rid, FailedReason: err.Error()}, nil
+			}
+			resolver.Bind(*r.ProvisionalID, realID)
+			if hook != nil {
+				postCommitHooks = append(postCommitHooks, hook)
+			}
+			entry := buildAuditEntry(r, actorID, auditAction)
+			entry.EntityID = realID
+			MustNotBeProvisional(entry.EntityID, "audit_log.entity_id (create)")
+			auditEntries = append(auditEntries, entry)
+			committed = append(committed, r.ID)
+			continue
 		}
 
+		// Mutation branch: rewrite any provisional references using the
+		// resolver state built from earlier creates in this batch, then
+		// dispatch through the existing CommitRegistry.
+		if err := resolver.RewriteRow(r); err != nil {
+			rid := r.ID
+			return &CommitResult{CommittedIDs: committed, FailedID: &rid, FailedReason: err.Error()}, nil
+		}
 		auditAction, err := s.reg.Dispatch(ctx, tx, r)
 		if err != nil {
-			return &CommitResult{
-				CommittedIDs: committed,
-				FailedID:     &r.ID,
-				FailedReason: err.Error(),
-			}, nil
+			rid := r.ID
+			return &CommitResult{CommittedIDs: committed, FailedID: &rid, FailedReason: err.Error()}, nil
 		}
-
-		// Build the audit entry now; we write them after tx.Commit succeeds
-		// so a failed audit insert can't mask a successful production write.
 		entry := buildAuditEntry(r, actorID, auditAction)
-		// Provisional ids must never reach the audit log.
 		MustNotBeProvisional(entry.EntityID, "audit_log.entity_id")
 		auditEntries = append(auditEntries, entry)
-
 		committed = append(committed, r.ID)
 	}
 
@@ -137,12 +171,15 @@ func (s *Service) Commit(ctx context.Context, userID, orgID, actorID uuid.UUID, 
 		return nil, fmt.Errorf("staging.Commit: tx commit: %w", err)
 	}
 
+	// Post-commit hooks fire only after tx.Commit succeeds — we never publish
+	// events or invalidate caches for production rows that got rolled back.
+	for _, hook := range postCommitHooks {
+		hook(ctx)
+	}
+
 	if s.audit != nil {
 		for _, e := range auditEntries {
 			if writeErr := s.audit.WriteAuditLog(ctx, e); writeErr != nil {
-				// Audit failure post-commit is logged but doesn't unwind
-				// the production change — by spec, Deploy is the audit
-				// boundary. We surface it to the caller via err.
 				err = errors.Join(err, fmt.Errorf("audit row for %s: %w", e.EntityID, writeErr))
 			}
 		}

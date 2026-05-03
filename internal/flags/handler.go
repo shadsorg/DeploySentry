@@ -59,6 +59,7 @@ type RolloutAttachRequest struct {
 // constructions free of churn.
 type StagingOverlayer interface {
 	ListForResource(ctx context.Context, userID, orgID uuid.UUID, resourceType string) ([]*models.StagedChange, error)
+	GetProvisionalCreate(ctx context.Context, userID, orgID uuid.UUID, resourceType string, provisionalID uuid.UUID) (*models.StagedChange, error)
 }
 
 // ErrRolloutInProgress is returned by the attacher when the target rule already
@@ -303,6 +304,44 @@ func (h *Handler) getFlag(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid flag id"})
+		return
+	}
+
+	// Provisional-id branch: return a synthesised flag from the staged CREATE
+	// row. Only reachable when the dashboard explicitly opts in via
+	// ?include_my_staged=true; SDK callers get a 404.
+	if staging.IsProvisional(id) {
+		if h.Staging == nil || c.Query("include_my_staged") != "true" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "flag not found"})
+			return
+		}
+		userID := auth.ActorUserID(c)
+		orgIDStr := c.GetString("org_id")
+		orgID, orgErr := uuid.Parse(orgIDStr)
+		if userID == uuid.Nil || orgErr != nil || orgID == uuid.Nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "flag not found"})
+			return
+		}
+		row, rowErr := h.Staging.GetProvisionalCreate(c.Request.Context(), userID, orgID, "flag", id)
+		if rowErr != nil || row == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "flag not found"})
+			return
+		}
+		var synth models.FeatureFlag
+		if err := json.Unmarshal(row.NewValue, &synth); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "malformed staged flag"})
+			return
+		}
+		synth.ID = id
+		resp := flagWithStaged{
+			FeatureFlag: &synth,
+			Staged: &staging.Marker{
+				ProvisionalID: row.ProvisionalID,
+				Action:        "create",
+				StagedAt:      row.CreatedAt,
+			},
+		}
+		c.JSON(http.StatusOK, resp)
 		return
 	}
 

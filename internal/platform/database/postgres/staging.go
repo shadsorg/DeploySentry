@@ -219,4 +219,42 @@ func notFound(err error) error {
 	return err
 }
 
+// GetProvisionalCreate returns the user's staged CREATE row whose
+// provisional_id matches, or (nil, nil) when not found.
+func (r *StagedChangesRepository) GetProvisionalCreate(ctx context.Context, userID, orgID uuid.UUID, resourceType string, provisionalID uuid.UUID) (*models.StagedChange, error) {
+	const q = `
+		SELECT id, user_id, org_id, resource_type, resource_id, provisional_id,
+		       action, COALESCE(field_path, ''),
+		       COALESCE(old_value::text, ''), COALESCE(new_value::text, ''),
+		       created_at, updated_at
+		  FROM staged_changes
+		 WHERE user_id = $1 AND org_id = $2 AND resource_type = $3
+		   AND provisional_id = $4 AND action = 'create'
+		 LIMIT 1`
+	var row models.StagedChange
+	var oldText, newText string
+	var resourceID, provID *uuid.UUID
+	err := r.pool.QueryRow(ctx, q, userID, orgID, resourceType, provisionalID).Scan(
+		&row.ID, &row.UserID, &row.OrgID, &row.ResourceType,
+		&resourceID, &provID,
+		&row.Action, &row.FieldPath, &oldText, &newText,
+		&row.CreatedAt, &row.UpdatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("postgres.GetProvisionalCreate: %w", err)
+	}
+	row.ResourceID = resourceID
+	row.ProvisionalID = provID
+	if oldText != "" {
+		row.OldValue = json.RawMessage(oldText)
+	}
+	if newText != "" {
+		row.NewValue = json.RawMessage(newText)
+	}
+	return &row, nil
+}
+
 var _ = notFound // reserved for future Get-single helpers

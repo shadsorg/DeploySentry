@@ -110,6 +110,18 @@ func (f *memRepo) CountForUser(_ context.Context, userID, orgID uuid.UUID) (int,
 	return n, nil
 }
 
+func (f *memRepo) GetProvisionalCreate(_ context.Context, userID, orgID uuid.UUID, resourceType string, provisionalID uuid.UUID) (*models.StagedChange, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, r := range f.rows {
+		if r.UserID == userID && r.OrgID == orgID && r.ResourceType == resourceType &&
+			r.Action == "create" && r.ProvisionalID != nil && *r.ProvisionalID == provisionalID {
+			return r, nil
+		}
+	}
+	return nil, nil
+}
+
 // --- mock tx / pool ---
 
 // mockTx implements pgx.Tx. Only Commit and Rollback are needed by Service.

@@ -12,6 +12,7 @@ import (
 
 	"github.com/shadsorg/deploysentry/internal/auth"
 	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/staging"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -589,6 +590,142 @@ func TestHandler_GetFlag_NotFound(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/flags/"+uuid.New().String(), nil)
 	w := httptest.NewRecorder()
 
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+// ---------------------------------------------------------------------------
+// mockStagingOverlayer
+// ---------------------------------------------------------------------------
+
+type mockStagingOverlayer struct {
+	listForResourceFn      func(ctx context.Context, userID, orgID uuid.UUID, resourceType string) ([]*models.StagedChange, error)
+	getProvisionalCreateFn func(ctx context.Context, userID, orgID uuid.UUID, resourceType string, provisionalID uuid.UUID) (*models.StagedChange, error)
+}
+
+func (m *mockStagingOverlayer) ListForResource(ctx context.Context, userID, orgID uuid.UUID, resourceType string) ([]*models.StagedChange, error) {
+	if m.listForResourceFn != nil {
+		return m.listForResourceFn(ctx, userID, orgID, resourceType)
+	}
+	return nil, nil
+}
+
+func (m *mockStagingOverlayer) GetProvisionalCreate(ctx context.Context, userID, orgID uuid.UUID, resourceType string, provisionalID uuid.UUID) (*models.StagedChange, error) {
+	if m.getProvisionalCreateFn != nil {
+		return m.getProvisionalCreateFn(ctx, userID, orgID, resourceType, provisionalID)
+	}
+	return nil, nil
+}
+
+// setupFlagRouterWithStaging builds a test router with a StagingOverlayer wired
+// and an explicit org_id + user_id in context so the provisional branch can
+// resolve both.
+func setupFlagRouterWithStaging(svc FlagService, stg StagingOverlayer, orgID, userID uuid.UUID) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set("role", auth.RoleOwner)
+		c.Set("org_id", orgID.String())
+		c.Set("user_id", userID)
+		c.Next()
+	})
+	rbac := auth.NewRBACChecker()
+	handler := NewHandler(svc, rbac, nil, nil, nil, nil, nil)
+	handler.Staging = stg
+	handler.RegisterRoutes(router.Group("/api"))
+	return router
+}
+
+// ---------------------------------------------------------------------------
+// GET /flags/:provisional-id  (getFlag — provisional branch)
+// ---------------------------------------------------------------------------
+
+func TestGetFlag_ByProvisional_ReturnsSynthesised(t *testing.T) {
+	orgID := uuid.New()
+	userID := uuid.New()
+	provID := staging.NewProvisional()
+
+	createRow := &models.StagedChange{
+		ID:            uuid.New(),
+		UserID:        userID,
+		OrgID:         orgID,
+		ResourceType:  "flag",
+		ProvisionalID: &provID,
+		Action:        "create",
+		NewValue:      []byte(`{"key":"my-staged-flag","name":"My Staged Flag","flag_type":"boolean"}`),
+		CreatedAt:     time.Now().UTC(),
+	}
+
+	stg := &mockStagingOverlayer{
+		getProvisionalCreateFn: func(_ context.Context, _, _ uuid.UUID, _ string, pid uuid.UUID) (*models.StagedChange, error) {
+			if pid == provID {
+				return createRow, nil
+			}
+			return nil, nil
+		},
+	}
+	router := setupFlagRouterWithStaging(&mockFlagService{}, stg, orgID, userID)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/flags/"+provID.String()+"?include_my_staged=true", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var resp flagWithStaged
+	assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Equal(t, provID, resp.ID)
+	assert.NotNil(t, resp.Staged)
+	assert.Equal(t, "create", resp.Staged.Action)
+	assert.NotNil(t, resp.Staged.ProvisionalID)
+	assert.Equal(t, provID, *resp.Staged.ProvisionalID)
+}
+
+func TestGetFlag_ByProvisional_404WithoutQueryParam(t *testing.T) {
+	orgID := uuid.New()
+	userID := uuid.New()
+	provID := staging.NewProvisional()
+
+	stg := &mockStagingOverlayer{
+		getProvisionalCreateFn: func(_ context.Context, _, _ uuid.UUID, _ string, _ uuid.UUID) (*models.StagedChange, error) {
+			t.Fatal("staging should not be called when include_my_staged is absent")
+			return nil, nil
+		},
+	}
+	router := setupFlagRouterWithStaging(&mockFlagService{}, stg, orgID, userID)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/flags/"+provID.String(), nil) // no query param
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestGetFlag_ByProvisional_404WhenNoStagedRow(t *testing.T) {
+	orgID := uuid.New()
+	userID := uuid.New()
+	provID := staging.NewProvisional()
+
+	stg := &mockStagingOverlayer{
+		getProvisionalCreateFn: func(_ context.Context, _, _ uuid.UUID, _ string, _ uuid.UUID) (*models.StagedChange, error) {
+			return nil, nil // not found
+		},
+	}
+	router := setupFlagRouterWithStaging(&mockFlagService{}, stg, orgID, userID)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/flags/"+provID.String()+"?include_my_staged=true", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestGetFlag_ByProvisional_404WhenStagingNil(t *testing.T) {
+	provID := staging.NewProvisional()
+	router := setupFlagRouter(&mockFlagService{}) // no Staging wired
+
+	req := httptest.NewRequest(http.MethodGet, "/api/flags/"+provID.String()+"?include_my_staged=true", nil)
+	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)

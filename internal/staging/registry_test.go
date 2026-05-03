@@ -68,3 +68,52 @@ func TestCommitRegistry_RegisterOverwrites(t *testing.T) {
 		t.Fatalf("expected second handler to win, got %s", action)
 	}
 }
+
+func TestCreateRegistryDispatchReturnsRealID(t *testing.T) {
+	r := NewCreateRegistry()
+	wantReal := uuid.New()
+	called := false
+	r.Register("flag", "create", func(ctx context.Context, tx pgx.Tx, row *models.StagedChange) (uuid.UUID, string, func(context.Context), error) {
+		called = true
+		return wantReal, "flag.created", nil, nil
+	})
+	row := &models.StagedChange{ResourceType: "flag", Action: "create"}
+	gotReal, audit, hook, err := r.Dispatch(context.Background(), nil, row)
+	if err != nil {
+		t.Fatalf("Dispatch: %v", err)
+	}
+	if !called {
+		t.Fatal("handler not invoked")
+	}
+	if gotReal != wantReal {
+		t.Errorf("realID mismatch: got %v want %v", gotReal, wantReal)
+	}
+	if audit != "flag.created" {
+		t.Errorf("audit mismatch: %v", audit)
+	}
+	if hook != nil {
+		t.Errorf("expected nil postCommit hook")
+	}
+}
+
+func TestCreateRegistryIsCreatable(t *testing.T) {
+	r := NewCreateRegistry()
+	if r.IsCreatable("flag", "create") {
+		t.Fatal("empty registry should not report flag.create creatable")
+	}
+	r.Register("flag", "create", func(context.Context, pgx.Tx, *models.StagedChange) (uuid.UUID, string, func(context.Context), error) {
+		return uuid.Nil, "", nil, nil
+	})
+	if !r.IsCreatable("flag", "create") {
+		t.Fatal("registered key should be creatable")
+	}
+}
+
+func TestCreateRegistryDispatchUnknownErrors(t *testing.T) {
+	r := NewCreateRegistry()
+	row := &models.StagedChange{ResourceType: "flag", Action: "create"}
+	_, _, _, err := r.Dispatch(context.Background(), nil, row)
+	if !errors.Is(err, ErrNoCreateHandler) {
+		t.Errorf("expected ErrNoCreateHandler, got %v", err)
+	}
+}

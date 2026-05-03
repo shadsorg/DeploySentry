@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/shadsorg/deploysentry/internal/models"
 )
@@ -55,3 +56,45 @@ func (r *CommitRegistry) Dispatch(ctx context.Context, tx pgx.Tx, row *models.St
 }
 
 func commitKey(resourceType, action string) string { return resourceType + ":" + action }
+
+// CreateHandler applies a staged CREATE row to its production table inside
+// an open pgx transaction. It returns the real UUID minted for the new
+// resource (so the staging service can bind provisional → real in the
+// resolver), the audit-log action string, an optional post-commit hook for
+// cache invalidation / event publish (run only after tx.Commit succeeds),
+// and an error.
+type CreateHandler func(ctx context.Context, tx pgx.Tx, row *models.StagedChange) (realID uuid.UUID, auditAction string, postCommit func(context.Context), err error)
+
+// ErrNoCreateHandler is returned by CreateRegistry.Dispatch when no create
+// handler is registered for the (resource_type, action) pair.
+var ErrNoCreateHandler = errors.New("staging: no create handler registered")
+
+// CreateRegistry maps (resource_type, action) → CreateHandler. Sits beside
+// the existing CommitRegistry; Service.Commit dispatches to whichever fits
+// based on row.ProvisionalID being non-nil.
+type CreateRegistry struct {
+	handlers map[string]CreateHandler
+}
+
+// NewCreateRegistry builds an empty registry.
+func NewCreateRegistry() *CreateRegistry { return &CreateRegistry{handlers: map[string]CreateHandler{}} }
+
+// Register installs h for the given (resource_type, action) pair.
+func (r *CreateRegistry) Register(resourceType, action string, h CreateHandler) {
+	r.handlers[commitKey(resourceType, action)] = h
+}
+
+// IsCreatable reports whether a create handler is registered for the pair.
+func (r *CreateRegistry) IsCreatable(resourceType, action string) bool {
+	_, ok := r.handlers[commitKey(resourceType, action)]
+	return ok
+}
+
+// Dispatch runs the create handler for row.
+func (r *CreateRegistry) Dispatch(ctx context.Context, tx pgx.Tx, row *models.StagedChange) (uuid.UUID, string, func(context.Context), error) {
+	h, ok := r.handlers[commitKey(row.ResourceType, row.Action)]
+	if !ok {
+		return uuid.Nil, "", nil, fmt.Errorf("%w for %s.%s", ErrNoCreateHandler, row.ResourceType, row.Action)
+	}
+	return h(ctx, tx, row)
+}

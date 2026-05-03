@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import type { Flag, FlagCategory } from '@/types';
 import { entitiesApi, flagsApi } from '@/api';
+import { useStagingEnabled } from '@/hooks/useStagingEnabled';
+import { StagedBadge } from '@/components/staging/StagedBadge';
 
 type StatusFilter = 'all' | 'enabled' | 'disabled' | 'archived';
 
@@ -45,6 +47,7 @@ function categoryBadgeStyle(cat: string): React.CSSProperties {
 
 export default function FlagListPage() {
   const { orgSlug, projectSlug, appSlug } = useParams();
+  const stagingEnabled = useStagingEnabled(orgSlug);
   const contextName = appSlug ?? projectSlug ?? '';
   const heading = appSlug
     ? `${contextName} — Flags`
@@ -75,11 +78,16 @@ export default function FlagListPage() {
 
     entitiesApi
       .getProject(orgSlug, projectSlug)
-      .then((project) => flagsApi.list(project.id, appSlug ? { application: appSlug } : undefined))
+      .then((project) =>
+        flagsApi.list(project.id, {
+          ...(appSlug ? { application: appSlug } : {}),
+          include_my_staged: stagingEnabled,
+        }),
+      )
       .then((result) => setFlags(result.flags))
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [orgSlug, projectSlug, appSlug]);
+  }, [orgSlug, projectSlug, appSlug, stagingEnabled]);
 
   const filtered = useMemo(() => {
     // ⚡ Bolt: Hoist search.toLowerCase() outside the filter loop to prevent O(N) redundant string operations
@@ -338,17 +346,20 @@ export default function FlagListPage() {
                 {filtered.map((flag) => (
                   <tr key={flag.id}>
                     <td>
-                      <Link
-                        to={flagDetailPath(flag.id)}
-                        style={{
-                          fontWeight: 600,
-                          fontFamily: 'var(--font-display)',
-                          color: 'var(--color-text)',
-                          textDecoration: 'none',
-                        }}
-                      >
-                        {flag.name}
-                      </Link>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Link
+                          to={flagDetailPath(flag.id)}
+                          style={{
+                            fontWeight: 600,
+                            fontFamily: 'var(--font-display)',
+                            color: 'var(--color-text)',
+                            textDecoration: 'none',
+                          }}
+                        >
+                          {flag.name}
+                        </Link>
+                        <StagedBadge marker={flag._staged ?? null} />
+                      </div>
                       <div
                         style={{
                           fontSize: 11,

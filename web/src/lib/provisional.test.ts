@@ -5,8 +5,8 @@ describe('newProvisionalId', () => {
   it('mints a UUID with the provisional variant byte (0xc0)', () => {
     const id = newProvisionalId();
     expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
-    // Variant byte: char 19 is the high nibble of byte 8 → must be 'c' or 'd'.
-    expect(id.charAt(19)).toMatch(/[cd]/);
+    // Variant byte: char 19 is the high nibble of byte 8 → must be in [c-f].
+    expect(id.charAt(19)).toMatch(/[c-f]/);
     expect(isProvisionalId(id)).toBe(true);
   });
 

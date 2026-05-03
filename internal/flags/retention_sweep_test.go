@@ -40,7 +40,7 @@ func TestRetentionSweeper_SweepsExpiredFlags(t *testing.T) {
 		hardDeleted = append(hardDeleted, id)
 		return nil
 	}
-	svc := NewFlagService(svcRepo, newMockCache(), nil)
+	svc := NewFlagService(nil, svcRepo, newMockCache(), nil)
 	audit := &stubAuditWriter{}
 
 	sweeper := NewRetentionSweeper(svc, repo, audit, 1*time.Hour, 30*24*time.Hour)
@@ -73,7 +73,7 @@ func TestRetentionSweeper_NoOpWhenEmpty(t *testing.T) {
 	repo.listFlagsToHardDeleteFn = func(_ context.Context, _ int) ([]uuid.UUID, error) {
 		return nil, nil
 	}
-	svc := NewFlagService(newMockFlagRepo(), newMockCache(), nil)
+	svc := NewFlagService(nil, newMockFlagRepo(), newMockCache(), nil)
 	audit := &stubAuditWriter{}
 	sweeper := NewRetentionSweeper(svc, repo, audit, 1*time.Hour, 30*24*time.Hour)
 	sweeper.sweepOnce(context.Background())
@@ -104,7 +104,7 @@ func TestRetentionSweeper_LogsButContinuesOnSingleFailure(t *testing.T) {
 		}
 		return nil
 	}
-	svc := NewFlagService(svcRepo, newMockCache(), nil)
+	svc := NewFlagService(nil, svcRepo, newMockCache(), nil)
 	audit := &stubAuditWriter{}
 
 	sweeper := NewRetentionSweeper(svc, repo, audit, 1*time.Hour, 30*24*time.Hour)

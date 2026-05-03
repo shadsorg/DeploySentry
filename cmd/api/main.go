@@ -259,7 +259,7 @@ func run() error {
 	// Services
 	// -------------------------------------------------------------------------
 	flagCache := flagcache.NewFlagCache(rdb)
-	flagService := flags.NewFlagService(flagRepo, flagCache, nc)
+	flagService := flags.NewFlagService(db.Pool, flagRepo, flagCache, nc)
 
 	// Revert registry: maps (entity_type, action) -> handler. Future entity
 	// domains (members, env, apikey) can register their handlers the same way.

@@ -527,6 +527,9 @@ export interface Strategy {
   updated_by?: string;
   created_at: string;
   updated_at: string;
+  // Staging overlay — present only when fetched with include_my_staged=true and
+  // the row has a pending staged mutation for the current user.
+  _staged?: StagedMarker;
 }
 
 export interface EffectiveStrategy {

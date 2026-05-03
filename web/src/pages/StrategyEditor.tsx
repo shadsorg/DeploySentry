@@ -3,6 +3,7 @@ import type { Step, TargetType } from '@/types';
 import { strategiesApi } from '@/api';
 import { useStagingEnabled } from '@/hooks/useStagingEnabled';
 import { stageOrCall } from '@/hooks/stageOrCall';
+import { newProvisionalId } from '@/lib/provisional';
 
 interface Props {
   orgSlug: string;
@@ -146,14 +147,25 @@ export function StrategyEditor({ orgSlug, strategyName, onClose }: Props) {
           direct: () => strategiesApi.update(orgSlug, strategyName, updateBody),
         });
       } else {
-        // Create stays direct — provisional-id resolution is its own PR.
-        await strategiesApi.create(orgSlug, {
+        const createBody = {
           name,
           description,
           target_type: targetType,
           steps,
           default_health_threshold: healthThreshold,
           default_rollback_on_failure: rollbackOnFailure,
+        };
+        const provisionalId = newProvisionalId();
+        await stageOrCall({
+          staged: stagingEnabled,
+          orgSlug,
+          stage: {
+            resource_type: 'strategy',
+            action: 'create',
+            provisional_id: provisionalId,
+            new_value: createBody,
+          },
+          direct: () => strategiesApi.create(orgSlug, createBody),
         });
       }
       onClose();

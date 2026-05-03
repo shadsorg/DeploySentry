@@ -97,7 +97,10 @@ export default function FlagCreatePage() {
         flag_type: form.flag_type,
         category: form.category,
         purpose: form.purpose,
-        owners: form.owners.split(',').map((s) => s.trim()).filter(Boolean),
+        owners: form.owners
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
         is_permanent: form.is_permanent,
         expires_at: form.is_permanent
           ? undefined
@@ -105,7 +108,10 @@ export default function FlagCreatePage() {
             ? form.expires_at + ':00Z'
             : undefined,
         default_value: form.default_value,
-        tags: form.tags.split(',').map((s) => s.trim()).filter(Boolean),
+        tags: form.tags
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
       };
 
       const provisionalId = newProvisionalId();

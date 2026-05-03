@@ -79,7 +79,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const flagsApi = {
   list: (
     projectId: string,
-    params?: { category?: string; archived?: boolean; application?: string; include_my_staged?: boolean },
+    params?: {
+      category?: string;
+      archived?: boolean;
+      application?: string;
+      include_my_staged?: boolean;
+    },
   ) => {
     const qs = new URLSearchParams({ project_id: projectId });
     if (params?.category) qs.set('category', params.category);

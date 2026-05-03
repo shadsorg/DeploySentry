@@ -4,6 +4,7 @@ import type { EffectiveStrategy } from '@/types';
 import { strategiesApi } from '@/api';
 import { useStagingEnabled } from '@/hooks/useStagingEnabled';
 import { stageOrCall } from '@/hooks/stageOrCall';
+import { StagedBadge } from '@/components/staging/StagedBadge';
 import { StrategyEditor } from './StrategyEditor';
 
 export default function StrategiesPage() {
@@ -18,7 +19,7 @@ export default function StrategiesPage() {
     setLoading(true);
     setError(null);
     try {
-      const r = await strategiesApi.list(orgSlug);
+      const r = await strategiesApi.list(orgSlug, { include_my_staged: stagingEnabled });
       setItems(r.items);
     } catch (e) {
       setError(String(e));
@@ -29,7 +30,7 @@ export default function StrategiesPage() {
 
   useEffect(() => {
     load();
-  }, [orgSlug]);
+  }, [orgSlug, stagingEnabled]);
 
   async function handleDelete(name: string) {
     if (!confirm(`Delete strategy "${name}"?`)) return;
@@ -222,6 +223,7 @@ export default function StrategiesPage() {
                         >
                           {eff.strategy.name}
                         </button>
+                        <StagedBadge marker={eff.strategy._staged ?? null} />
                       </div>
                     </td>
                     <td>

@@ -9,6 +9,7 @@ import type {
   FlagCategory,
   AuditLogEntry,
   RolloutPolicy,
+  RuleType,
 } from '@/types';
 import { flagsApi, entitiesApi, flagEnvStateApi, auditApi, rolloutPolicyApi } from '@/api';
 import type { Application } from '@/types';
@@ -18,6 +19,7 @@ import { GroupPicker } from '@/components/rollout/GroupPicker';
 import { resolvePolicy } from '@/lib/policyResolver';
 import { useStagingEnabled } from '@/hooks/useStagingEnabled';
 import { stageOrCall } from '@/hooks/stageOrCall';
+import { newProvisionalId } from '@/lib/provisional';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -279,14 +281,30 @@ export default function FlagDetailPage() {
             .map((s) => s.trim())
             .filter(Boolean)
         : [newRule.target_values.trim()];
-      await flagsApi.addRule(id, {
-        rule_type: 'attribute',
+
+      const rulePayload = {
+        flag_id: id,
+        rule_type: 'attribute' as RuleType,
         attribute: newRule.attribute,
         operator: newRule.operator,
         target_values: targetValues,
         value: newRule.value,
         priority: newRule.priority,
+      };
+
+      const provisionalId = newProvisionalId();
+      await stageOrCall({
+        staged: stagingEnabled,
+        orgSlug: orgSlug!,
+        stage: {
+          resource_type: 'flag_rule',
+          action: 'create',
+          provisional_id: provisionalId,
+          new_value: rulePayload,
+        },
+        direct: () => flagsApi.addRule(id, rulePayload),
       });
+
       const res = await flagsApi.listRules(id);
       setRules(res.rules ?? []);
       setShowAddRule(false);

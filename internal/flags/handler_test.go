@@ -291,6 +291,8 @@ func (m *mockFlagService) AddRuleTx(ctx context.Context, _ pgx.Tx, rule *models.
 	return rule.ID, nil
 }
 
+func (m *mockFlagService) PublishCreated(_ context.Context, _ *models.FeatureFlag) {}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

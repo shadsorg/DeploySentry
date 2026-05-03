@@ -8,7 +8,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/staging"
 )
 
 // stubCommitSvc embeds FlagService so unused methods panic — keeps the test
@@ -25,6 +27,8 @@ type stubCommitSvc struct {
 	deleteRuleCalled        func(uuid.UUID) error
 	setRuleEnvStateCalled   func(uuid.UUID, uuid.UUID, bool) error
 	setFlagEnvStateCalled   func(*models.FlagEnvironmentState) error
+	createFlagTxCalled      func(*models.FeatureFlag) (uuid.UUID, error)
+	publishCreatedCalled    func(*models.FeatureFlag)
 }
 
 func (s *stubCommitSvc) ToggleFlag(_ context.Context, id uuid.UUID, enabled bool) error {
@@ -450,5 +454,99 @@ func TestCommitFlagEnvStateUpdate_RequiresEnvironmentID(t *testing.T) {
 	_, err := commitFlagEnvStateUpdate(&stubCommitSvc{})(context.Background(), nil, row)
 	if err == nil || !strings.Contains(err.Error(), "environment_id required") {
 		t.Fatalf("expected environment_id error, got %v", err)
+	}
+}
+
+func (s *stubCommitSvc) CreateFlagTx(_ context.Context, _ pgx.Tx, flag *models.FeatureFlag) (uuid.UUID, error) {
+	if s.createFlagTxCalled == nil {
+		return flag.ID, nil
+	}
+	return s.createFlagTxCalled(flag)
+}
+
+func (s *stubCommitSvc) PublishCreated(_ context.Context, flag *models.FeatureFlag) {
+	if s.publishCreatedCalled != nil {
+		s.publishCreatedCalled(flag)
+	}
+}
+
+// ---- create ----
+
+func TestFlagCreateHandlers_RegistersExpectedTuples(t *testing.T) {
+	svc := &stubCommitSvc{}
+	tuples := FlagCreateHandlers(svc)
+	type key struct{ rt, action string }
+	want := map[key]bool{
+		{"flag", "create"}:      true,
+		{"flag_rule", "create"}: true,
+	}
+	if len(tuples) != len(want) {
+		t.Fatalf("expected %d tuples, got %d", len(want), len(tuples))
+	}
+	for _, tup := range tuples {
+		if !want[key{tup.ResourceType, tup.Action}] {
+			t.Fatalf("unexpected tuple %s.%s", tup.ResourceType, tup.Action)
+		}
+		if tup.Handler == nil {
+			t.Fatalf("handler for %s.%s is nil", tup.ResourceType, tup.Action)
+		}
+	}
+}
+
+func TestCommitFlagCreate_MintsRealIDAndDefersHook(t *testing.T) {
+	var calls []string
+	wantReal := uuid.New()
+	svc := &stubCommitSvc{
+		createFlagTxCalled: func(flag *models.FeatureFlag) (uuid.UUID, error) {
+			calls = append(calls, "createFlagTx")
+			flag.ID = wantReal
+			return wantReal, nil
+		},
+		publishCreatedCalled: func(flag *models.FeatureFlag) {
+			calls = append(calls, "publishCreated")
+		},
+	}
+	prov := staging.NewProvisional()
+	row := &models.StagedChange{
+		ResourceType:  "flag",
+		Action:        "create",
+		ProvisionalID: &prov,
+		NewValue:      json.RawMessage(`{"key":"new","name":"New"}`),
+	}
+	realID, action, hook, err := commitFlagCreate(svc)(context.Background(), nil, row)
+	if err != nil {
+		t.Fatalf("handler: %v", err)
+	}
+	if realID != wantReal {
+		t.Fatalf("realID: got %v want %v", realID, wantReal)
+	}
+	if staging.IsProvisional(realID) {
+		t.Fatalf("realID is provisional")
+	}
+	if action != "flag.created" {
+		t.Errorf("action: %v", action)
+	}
+	if hook == nil {
+		t.Fatal("hook should be non-nil")
+	}
+	if got := strings.Join(calls, ","); got != "createFlagTx" {
+		t.Errorf("hook fired inside handler: %v", got)
+	}
+	hook(context.Background())
+	if got := strings.Join(calls, ","); got != "createFlagTx,publishCreated" {
+		t.Errorf("hook did not publish post-commit: %v", got)
+	}
+}
+
+func TestCommitFlagCreate_RequiresNewValue(t *testing.T) {
+	prov := staging.NewProvisional()
+	row := &models.StagedChange{
+		ResourceType:  "flag",
+		Action:        "create",
+		ProvisionalID: &prov,
+	}
+	_, _, _, err := commitFlagCreate(&stubCommitSvc{})(context.Background(), nil, row)
+	if err == nil {
+		t.Fatal("expected error for missing new_value")
 	}
 }

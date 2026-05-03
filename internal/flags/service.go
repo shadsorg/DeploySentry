@@ -177,6 +177,11 @@ type FlagService interface {
 	// ClearDeleteAfter sets delete_after = NULL. Idempotent. Used when
 	// reverting flag.queued_for_deletion without otherwise unarchiving the flag.
 	ClearDeleteAfter(ctx context.Context, id uuid.UUID) error
+
+	// PublishCreated emits the "flag.created" event via the configured publisher.
+	// Used by the staging commit pipeline as a post-commit hook so the event only
+	// fires after the staging tx commits successfully.
+	PublishCreated(ctx context.Context, flag *models.FeatureFlag)
 }
 
 // flagService is the concrete implementation of FlagService.
@@ -226,6 +231,11 @@ func (s *flagService) publishEvent(ctx context.Context, eventType string, flag *
 	}
 	// Best-effort publish; do not block the caller on failures.
 	_ = s.publisher.Publish(ctx, "flags."+eventType, data)
+}
+
+// PublishCreated emits the "flag.created" event via the configured publisher.
+func (s *flagService) PublishCreated(ctx context.Context, flag *models.FeatureFlag) {
+	s.publishEvent(ctx, "created", flag)
 }
 
 // CreateFlag validates and persists a new feature flag.

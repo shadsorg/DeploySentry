@@ -14,6 +14,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// txBeginner is the minimal interface the flagService requires from the
+// connection pool. *pgxpool.Pool satisfies it; unit tests may inject a mock.
+type txBeginner interface {
+	BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error)
+}
+
 // EventPublisher defines the interface for publishing flag change events.
 // Implementations may use NATS JetStream, Kafka, or any message broker.
 type EventPublisher interface {
@@ -175,7 +181,7 @@ type FlagService interface {
 
 // flagService is the concrete implementation of FlagService.
 type flagService struct {
-	pool      *pgxpool.Pool
+	pool      txBeginner
 	repo      FlagRepository
 	evaluator *Evaluator
 	publisher EventPublisher
@@ -185,6 +191,12 @@ type flagService struct {
 // NewFlagService creates a new FlagService backed by the given repository and cache.
 // The publisher parameter is optional; pass nil to disable event emission.
 func NewFlagService(pool *pgxpool.Pool, repo FlagRepository, cache Cache, publisher EventPublisher) FlagService {
+	return newFlagService(pool, repo, cache, publisher)
+}
+
+// newFlagService is the internal constructor that accepts the txBeginner interface.
+// Tests inject a lightweight mock; production code passes a *pgxpool.Pool.
+func newFlagService(pool txBeginner, repo FlagRepository, cache Cache, publisher EventPublisher) FlagService {
 	return &flagService{
 		pool:      pool,
 		repo:      repo,
@@ -218,24 +230,6 @@ func (s *flagService) publishEvent(ctx context.Context, eventType string, flag *
 
 // CreateFlag validates and persists a new feature flag.
 func (s *flagService) CreateFlag(ctx context.Context, flag *models.FeatureFlag) error {
-	if s.pool == nil {
-		// No pool wired (e.g. unit-test environment): write directly via repo.
-		if flag.ID == uuid.Nil {
-			flag.ID = uuid.New()
-		}
-		now := time.Now().UTC()
-		flag.CreatedAt = now
-		flag.UpdatedAt = now
-		if err := flag.Validate(); err != nil {
-			return fmt.Errorf("validation failed: %w", err)
-		}
-		if err := s.repo.CreateFlag(ctx, flag); err != nil {
-			return fmt.Errorf("creating flag: %w", err)
-		}
-		s.publishEvent(ctx, "created", flag)
-		return nil
-	}
-
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("CreateFlag begin tx: %w", err)
@@ -436,24 +430,6 @@ func (s *flagService) BatchEvaluate(ctx context.Context, projectID, environmentI
 
 // AddRule validates and persists a new targeting rule.
 func (s *flagService) AddRule(ctx context.Context, rule *models.TargetingRule) error {
-	if s.pool == nil {
-		// No pool wired (e.g. unit-test environment): write directly via repo.
-		if rule.ID == uuid.Nil {
-			rule.ID = uuid.New()
-		}
-		now := time.Now().UTC()
-		rule.CreatedAt = now
-		rule.UpdatedAt = now
-		if err := rule.Validate(); err != nil {
-			return fmt.Errorf("validation failed: %w", err)
-		}
-		if err := s.repo.CreateRule(ctx, rule); err != nil {
-			return fmt.Errorf("creating rule: %w", err)
-		}
-		_ = s.cache.Invalidate(ctx, rule.FlagID)
-		return nil
-	}
-
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return fmt.Errorf("AddRule begin tx: %w", err)
@@ -470,6 +446,9 @@ func (s *flagService) AddRule(ctx context.Context, rule *models.TargetingRule) e
 	return nil
 }
 
+// AddRuleTx is the tx-aware twin of AddRule. Same deferral semantics:
+// cache invalidation and any event publishing are the caller's responsibility
+// post-tx.Commit.
 func (s *flagService) AddRuleTx(ctx context.Context, tx pgx.Tx, rule *models.TargetingRule) (uuid.UUID, error) {
 	if rule.ID == uuid.Nil {
 		rule.ID = uuid.New()

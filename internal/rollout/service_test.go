@@ -8,6 +8,8 @@ import (
 
 	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // --- in-memory fake repos ---
@@ -85,11 +87,49 @@ func (f *fakeStratRepo) SoftDelete(_ context.Context, id uuid.UUID) error {
 func (f *fakeStratRepo) IsReferenced(_ context.Context, id uuid.UUID) (bool, error) {
 	return false, nil
 }
+func (f *fakeStratRepo) CreateTx(ctx context.Context, _ pgx.Tx, s *models.Strategy) error {
+	return f.Create(ctx, s)
+}
+
+// --- mock tx / pool ---
+
+// mockTx implements pgx.Tx. Only Commit and Rollback are needed by StrategyService.
+type mockTx struct{}
+
+func (t *mockTx) Begin(ctx context.Context) (pgx.Tx, error)           { return &mockTx{}, nil }
+func (t *mockTx) Commit(ctx context.Context) error                    { return nil }
+func (t *mockTx) Rollback(ctx context.Context) error                  { return nil }
+func (t *mockTx) Exec(_ context.Context, _ string, _ ...any) (pgconn.CommandTag, error) {
+	panic("mockTx.Exec not implemented")
+}
+func (t *mockTx) CopyFrom(_ context.Context, _ pgx.Identifier, _ []string, _ pgx.CopyFromSource) (int64, error) {
+	panic("mockTx.CopyFrom not implemented")
+}
+func (t *mockTx) SendBatch(_ context.Context, _ *pgx.Batch) pgx.BatchResults {
+	panic("mockTx.SendBatch not implemented")
+}
+func (t *mockTx) LargeObjects() pgx.LargeObjects { panic("mockTx.LargeObjects not implemented") }
+func (t *mockTx) Prepare(_ context.Context, _, _ string) (*pgconn.StatementDescription, error) {
+	panic("mockTx.Prepare not implemented")
+}
+func (t *mockTx) Query(_ context.Context, _ string, _ ...any) (pgx.Rows, error) {
+	panic("mockTx.Query not implemented")
+}
+func (t *mockTx) QueryRow(_ context.Context, _ string, _ ...any) pgx.Row {
+	panic("mockTx.QueryRow not implemented")
+}
+func (t *mockTx) Conn() *pgx.Conn { return nil }
+
+type mockTxBeginner struct{}
+
+func (m *mockTxBeginner) BeginTx(_ context.Context, _ pgx.TxOptions) (pgx.Tx, error) {
+	return &mockTx{}, nil
+}
 
 // --- tests ---
 
 func TestStrategyService_CreateValidates(t *testing.T) {
-	svc := NewStrategyService(newFakeStratRepo(), nil)
+	svc := newStrategyService(&mockTxBeginner{}, newFakeStratRepo(), nil)
 	bad := &models.Strategy{Name: "bad", TargetType: models.TargetTypeDeploy} // no steps
 	if err := svc.Create(context.Background(), bad); err == nil {
 		t.Fatalf("expected validation error")
@@ -113,7 +153,7 @@ func TestStrategyService_EffectiveList_Inheritance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	svc := NewStrategyService(repo, nil)
+	svc := newStrategyService(nil,repo, nil)
 	eff, err := svc.EffectiveList(context.Background(), ScopeRef{models.ScopeProject, projID}, &projID, &orgID)
 	if err != nil {
 		t.Fatal(err)
@@ -130,7 +170,7 @@ func TestStrategyService_Delete_BlockedIfReferenced(t *testing.T) {
 	r := newFakeStratRepo()
 	// Force IsReferenced to return true.
 	rw := &refsTrue{fakeStratRepo: r}
-	svc := NewStrategyService(rw, nil)
+	svc := newStrategyService(nil,rw, nil)
 	orgID := uuid.New()
 	s := &models.Strategy{ScopeType: models.ScopeOrg, ScopeID: orgID, Name: "x", TargetType: models.TargetTypeDeploy,
 		Steps: []models.Step{{Percent: 100}}, DefaultHealthThreshold: 0.95}
@@ -144,7 +184,7 @@ func TestStrategyService_Delete_BlockedIfReferenced(t *testing.T) {
 
 func TestStrategyService_Delete_BlockedIfSystem(t *testing.T) {
 	r := newFakeStratRepo()
-	svc := NewStrategyService(r, nil)
+	svc := newStrategyService(nil,r, nil)
 	orgID := uuid.New()
 	s := &models.Strategy{ScopeType: models.ScopeOrg, ScopeID: orgID, Name: "x", TargetType: models.TargetTypeDeploy,
 		Steps: []models.Step{{Percent: 100}}, DefaultHealthThreshold: 0.95, IsSystem: true}

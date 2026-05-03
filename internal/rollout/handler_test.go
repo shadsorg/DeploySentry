@@ -26,7 +26,7 @@ func newTestHandler(t *testing.T) (*Handler, *fakeStratRepo, uuid.UUID) {
 	policyRepo := newFakePolicyRepo()
 	resolver := &fakeOrgResolver{orgID: uuid.New()}
 	h := NewHandler(
-		NewStrategyService(stratRepo, nil),
+		newStrategyService(&mockTxBeginner{}, stratRepo, nil),
 		NewStrategyDefaultService(defaultsRepo),
 		NewRolloutPolicyService(policyRepo),
 		resolver,

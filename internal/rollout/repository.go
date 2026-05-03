@@ -5,11 +5,16 @@ import (
 
 	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 // StrategyRepository persists strategy templates.
 type StrategyRepository interface {
 	Create(ctx context.Context, s *models.Strategy) error
+	// CreateTx persists a new strategy through an open transaction. Used by
+	// the staging service so the create rides the same tx as the rest of the
+	// deploy batch.
+	CreateTx(ctx context.Context, tx pgx.Tx, s *models.Strategy) error
 	Get(ctx context.Context, id uuid.UUID) (*models.Strategy, error)
 	GetByName(ctx context.Context, scopeType models.ScopeType, scopeID uuid.UUID, name string) (*models.Strategy, error)
 	ListByScope(ctx context.Context, scopeType models.ScopeType, scopeID uuid.UUID) ([]*models.Strategy, error)

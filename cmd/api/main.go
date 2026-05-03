@@ -478,7 +478,7 @@ func run() error {
 	strategyDefRepo := postgres.NewStrategyDefaultsRepo(db.Pool)
 	rolloutPolicyRepo := postgres.NewRolloutPolicyRepo(db.Pool)
 	rolloutScopeResolver := &rolloutScopeAdapter{entities: entityRepo}
-	strategySvc := rollout.NewStrategyService(strategyRepo, nil)
+	strategySvc := rollout.NewStrategyService(db.Pool, strategyRepo, nil)
 	strategyDefaultSvc := rollout.NewStrategyDefaultService(strategyDefRepo)
 	rolloutPolicySvc := rollout.NewRolloutPolicyService(rolloutPolicyRepo)
 	rollout.NewHandler(

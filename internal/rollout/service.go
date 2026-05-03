@@ -7,7 +7,15 @@ import (
 
 	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// txBeginner is the minimal interface StrategyService requires from the
+// connection pool. *pgxpool.Pool satisfies it; unit tests may inject a mock.
+type txBeginner interface {
+	BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error)
+}
 
 // EffectiveStrategy is a strategy + metadata about where it came from.
 type EffectiveStrategy struct {
@@ -24,13 +32,20 @@ type AuditLogger interface {
 
 // StrategyService provides template CRUD + inheritance.
 type StrategyService struct {
+	pool  txBeginner
 	repo  StrategyRepository
 	audit AuditLogger
 }
 
 // NewStrategyService builds a StrategyService.
-func NewStrategyService(repo StrategyRepository, audit AuditLogger) *StrategyService {
-	return &StrategyService{repo: repo, audit: audit}
+func NewStrategyService(pool *pgxpool.Pool, repo StrategyRepository, audit AuditLogger) *StrategyService {
+	return newStrategyService(pool, repo, audit)
+}
+
+// newStrategyService is the internal constructor that accepts the txBeginner
+// interface. Tests inject a lightweight mock; production code passes a *pgxpool.Pool.
+func newStrategyService(pool txBeginner, repo StrategyRepository, audit AuditLogger) *StrategyService {
+	return &StrategyService{pool: pool, repo: repo, audit: audit}
 }
 
 // ErrSystemStrategyImmutable is returned when a system template's delete/update is attempted.
@@ -41,13 +56,31 @@ var ErrStrategyInUse = errors.New("strategy is referenced by a default assignmen
 
 // Create validates and persists a new strategy.
 func (s *StrategyService) Create(ctx context.Context, st *models.Strategy) error {
-	if err := ValidateStrategy(st); err != nil {
-		return fmt.Errorf("validate: %w", err)
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("Create begin tx: %w", err)
 	}
-	if err := s.repo.Create(ctx, st); err != nil {
-		return fmt.Errorf("create: %w", err)
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := s.CreateTx(ctx, tx, st); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("Create commit tx: %w", err)
 	}
 	return nil
+}
+
+// CreateTx is the tx-aware twin of Create. Used by the staging service so
+// the create rides the same tx as the rest of the deploy batch.
+func (s *StrategyService) CreateTx(ctx context.Context, tx pgx.Tx, st *models.Strategy) (uuid.UUID, error) {
+	if err := ValidateStrategy(st); err != nil {
+		return uuid.Nil, fmt.Errorf("validate: %w", err)
+	}
+	if err := s.repo.CreateTx(ctx, tx, st); err != nil {
+		return uuid.Nil, fmt.Errorf("create: %w", err)
+	}
+	return st.ID, nil
 }
 
 // Update applies changes if the expected version matches the DB row.

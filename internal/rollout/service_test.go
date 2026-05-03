@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 // --- in-memory fake repos ---
@@ -96,9 +96,9 @@ func (f *fakeStratRepo) CreateTx(ctx context.Context, _ pgx.Tx, s *models.Strate
 // mockTx implements pgx.Tx. Only Commit and Rollback are needed by StrategyService.
 type mockTx struct{}
 
-func (t *mockTx) Begin(ctx context.Context) (pgx.Tx, error)           { return &mockTx{}, nil }
-func (t *mockTx) Commit(ctx context.Context) error                    { return nil }
-func (t *mockTx) Rollback(ctx context.Context) error                  { return nil }
+func (t *mockTx) Begin(ctx context.Context) (pgx.Tx, error) { return &mockTx{}, nil }
+func (t *mockTx) Commit(ctx context.Context) error          { return nil }
+func (t *mockTx) Rollback(ctx context.Context) error        { return nil }
 func (t *mockTx) Exec(_ context.Context, _ string, _ ...any) (pgconn.CommandTag, error) {
 	panic("mockTx.Exec not implemented")
 }
@@ -153,7 +153,7 @@ func TestStrategyService_EffectiveList_Inheritance(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	svc := newStrategyService(nil,repo, nil)
+	svc := newStrategyService(nil, repo, nil)
 	eff, err := svc.EffectiveList(context.Background(), ScopeRef{models.ScopeProject, projID}, &projID, &orgID)
 	if err != nil {
 		t.Fatal(err)
@@ -170,7 +170,7 @@ func TestStrategyService_Delete_BlockedIfReferenced(t *testing.T) {
 	r := newFakeStratRepo()
 	// Force IsReferenced to return true.
 	rw := &refsTrue{fakeStratRepo: r}
-	svc := newStrategyService(nil,rw, nil)
+	svc := newStrategyService(nil, rw, nil)
 	orgID := uuid.New()
 	s := &models.Strategy{ScopeType: models.ScopeOrg, ScopeID: orgID, Name: "x", TargetType: models.TargetTypeDeploy,
 		Steps: []models.Step{{Percent: 100}}, DefaultHealthThreshold: 0.95}
@@ -184,7 +184,7 @@ func TestStrategyService_Delete_BlockedIfReferenced(t *testing.T) {
 
 func TestStrategyService_Delete_BlockedIfSystem(t *testing.T) {
 	r := newFakeStratRepo()
-	svc := newStrategyService(nil,r, nil)
+	svc := newStrategyService(nil, r, nil)
 	orgID := uuid.New()
 	s := &models.Strategy{ScopeType: models.ScopeOrg, ScopeID: orgID, Name: "x", TargetType: models.TargetTypeDeploy,
 		Steps: []models.Step{{Percent: 100}}, DefaultHealthThreshold: 0.95, IsSystem: true}

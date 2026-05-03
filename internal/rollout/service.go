@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/shadsorg/deploysentry/internal/models"
 )
 
 // txBeginner is the minimal interface StrategyService requires from the

@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/shadsorg/deploysentry/internal/models"
-	"github.com/shadsorg/deploysentry/internal/rollout"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/rollout"
 )
 
 // StrategyRepo is a Postgres-backed rollout.StrategyRepository.

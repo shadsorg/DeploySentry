@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/shadsorg/deploysentry/internal/staging"
@@ -144,5 +145,48 @@ func commitRolloutPolicyDelete(svc *RolloutPolicyService) staging.CommitHandler 
 			return "", fmt.Errorf("rollout_policy.delete commit: %w", err)
 		}
 		return "rollout_policy.deleted", nil
+	}
+}
+
+// CreateTuple is the registry payload for staged-create handlers in the
+// rollout family. Mirrors flags.CreateTuple. Used by the staging Service.Commit
+// pipeline when row.ProvisionalID != nil.
+type CreateTuple struct {
+	ResourceType string
+	Action       string
+	Handler      staging.CreateHandler
+}
+
+// StrategyCreateHandlers returns the staging create handlers for the rollout
+// family. Wired in cmd/api/main.go alongside RolloutCommitHandlers.
+//
+// Only `strategy.create` is staged today. Strategy defaults and rollout
+// policies use upsert/delete semantics and don't mint provisional ids.
+func StrategyCreateHandlers(svc *StrategyService) []CreateTuple {
+	return []CreateTuple{
+		{ResourceType: "strategy", Action: "create", Handler: commitStrategyCreate(svc)},
+	}
+}
+
+// commitStrategyCreate persists a staged strategy.create through the supplied
+// tx. The provisional id stays out of production; the real id is returned to
+// Service.Commit via the staging.CreateHandler contract for cross-row
+// resolution. Strategy creates have no cache or event side effects today,
+// so the post-commit hook is nil.
+func commitStrategyCreate(svc *StrategyService) staging.CreateHandler {
+	return func(ctx context.Context, tx pgx.Tx, row *models.StagedChange) (uuid.UUID, string, func(context.Context), error) {
+		if len(row.NewValue) == 0 {
+			return uuid.Nil, "", nil, fmt.Errorf("strategy.create commit: new_value required")
+		}
+		var st models.Strategy
+		if err := json.Unmarshal(row.NewValue, &st); err != nil {
+			return uuid.Nil, "", nil, fmt.Errorf("strategy.create commit: parse new_value: %w", err)
+		}
+		st.ID = uuid.Nil // force fresh real id; staging owns provisional, never real
+		realID, err := svc.CreateTx(ctx, tx, &st)
+		if err != nil {
+			return uuid.Nil, "", nil, fmt.Errorf("strategy.create commit: %w", err)
+		}
+		return realID, "strategy.created", nil, nil
 	}
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/shadsorg/deploysentry/internal/analytics"
 	"github.com/shadsorg/deploysentry/internal/auth"
 	"github.com/shadsorg/deploysentry/internal/models"
+	"github.com/shadsorg/deploysentry/internal/staging"
 	"github.com/shadsorg/deploysentry/internal/webhooks"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -53,6 +54,13 @@ type RolloutAttachRequest struct {
 	ApplyImmediately bool            `json:"apply_immediately,omitempty"`
 }
 
+// StagingOverlayer is the slice of the staging service that the flag handler
+// needs for read-path overlay. NewHandler tolerates nil to keep existing
+// constructions free of churn.
+type StagingOverlayer interface {
+	ListForResource(ctx context.Context, userID, orgID uuid.UUID, resourceType string) ([]*models.StagedChange, error)
+}
+
 // ErrRolloutInProgress is returned by the attacher when the target rule already
 // has an active rollout (client should abort/wait/amend).
 var ErrRolloutInProgress = errors.New("rollout in progress on this rule")
@@ -78,6 +86,19 @@ type flagWithRatings struct {
 	ErrorRate     *models.ErrorSummary  `json:"error_rate,omitempty"`
 }
 
+// flagWithStaged wraps a FeatureFlag with an optional staging marker.
+// Used when the ?include_my_staged=true overlay is requested.
+type flagWithStaged struct {
+	*models.FeatureFlag
+	Staged *staging.Marker `json:"_staged,omitempty"`
+}
+
+// ruleWithStaged wraps a TargetingRule with an optional staging marker.
+type ruleWithStaged struct {
+	*models.TargetingRule
+	Staged *staging.Marker `json:"_staged,omitempty"`
+}
+
 // Handler provides HTTP endpoints for managing feature flags.
 type Handler struct {
 	service      FlagService
@@ -90,6 +111,7 @@ type Handler struct {
 	envResolver  EnvironmentSlugResolver
 	auditWriter  AuditWriter
 	rollouts     RolloutAttacher
+	Staging      StagingOverlayer
 }
 
 // NewHandler creates a new feature flag HTTP handler.
@@ -435,6 +457,34 @@ func (h *Handler) listFlags(c *gin.Context) {
 		}
 		c.JSON(http.StatusOK, gin.H{"flags": enriched})
 		return
+	}
+
+	// Staging overlay — only when explicitly requested and service is wired.
+	if c.Query("include_my_staged") == "true" && h.Staging != nil {
+		orgIDStr := c.GetString("org_id")
+		orgID, orgErr := uuid.Parse(orgIDStr)
+		userID := auth.ActorUserID(c)
+		if orgErr == nil && orgID != uuid.Nil && userID != uuid.Nil {
+			stagedRows, sErr := h.Staging.ListForResource(c.Request.Context(), userID, orgID, "flag")
+			if sErr != nil {
+				log.Printf("listFlags: staging overlay error: %v", sErr)
+			} else {
+				wrapped := make([]flagWithStaged, len(flags))
+				for i, f := range flags {
+					wrapped[i] = flagWithStaged{FeatureFlag: f}
+				}
+				merged := staging.OverlayListMarked(
+					wrapped,
+					stagedRows,
+					func(f flagWithStaged) uuid.UUID { return f.ID },
+					flagApplyFunc(projectID),
+					flagSynthFunc(projectID),
+					func(f *flagWithStaged, m staging.Marker) { f.Staged = &m },
+				)
+				c.JSON(http.StatusOK, gin.H{"flags": merged})
+				return
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"flags": flags})
@@ -1266,6 +1316,34 @@ func (h *Handler) listRules(c *gin.Context) {
 		return
 	}
 
+	// Staging overlay — only when explicitly requested and service is wired.
+	if c.Query("include_my_staged") == "true" && h.Staging != nil {
+		orgIDStr := c.GetString("org_id")
+		orgID, orgErr := uuid.Parse(orgIDStr)
+		userID := auth.ActorUserID(c)
+		if orgErr == nil && orgID != uuid.Nil && userID != uuid.Nil {
+			stagedRows, sErr := h.Staging.ListForResource(c.Request.Context(), userID, orgID, "flag_rule")
+			if sErr != nil {
+				log.Printf("listRules: staging overlay error: %v", sErr)
+			} else {
+				wrapped := make([]ruleWithStaged, len(rules))
+				for i, r := range rules {
+					wrapped[i] = ruleWithStaged{TargetingRule: r}
+				}
+				merged := staging.OverlayListMarked(
+					wrapped,
+					stagedRows,
+					func(r ruleWithStaged) uuid.UUID { return r.ID },
+					ruleApplyFunc(flagID),
+					ruleSynthFunc(flagID),
+					func(r *ruleWithStaged, m staging.Marker) { r.Staged = &m },
+				)
+				c.JSON(http.StatusOK, gin.H{"rules": merged})
+				return
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{"rules": rules})
 }
 
@@ -1637,4 +1715,96 @@ func actorFromFlagContext(c *gin.Context) uuid.UUID {
 		}
 	}
 	return uuid.Nil
+}
+
+// ---------------------------------------------------------------------------
+// Staging overlay helpers
+// ---------------------------------------------------------------------------
+
+// flagApplyFunc patches a production flag with a staged update / archive /
+// restore / toggle. Returns drop=true for delete actions.
+func flagApplyFunc(scopeProjectID uuid.UUID) staging.ApplyFunc[flagWithStaged] {
+	return func(prod flagWithStaged, s *models.StagedChange) (flagWithStaged, bool) {
+		switch s.Action {
+		case "delete":
+			return prod, true
+		case "update":
+			var patch models.FeatureFlag
+			if err := json.Unmarshal(s.NewValue, &patch); err == nil {
+				patch.ID = prod.ID
+				patch.ProjectID = prod.ProjectID
+				patch.CreatedAt = prod.CreatedAt
+				prod.FeatureFlag = &patch
+			}
+		case "archive":
+			now := time.Now().UTC()
+			prod.ArchivedAt = &now
+		case "restore":
+			prod.ArchivedAt = nil
+			prod.DeleteAfter = nil
+		case "toggle":
+			var p struct {
+				Enabled bool `json:"enabled"`
+			}
+			if err := json.Unmarshal(s.NewValue, &p); err == nil {
+				prod.Enabled = p.Enabled
+			}
+		}
+		return prod, false
+	}
+}
+
+// flagSynthFunc materialises a staged flag.create row as a synthetic
+// flagWithStaged. Filters rows whose new_value.project_id doesn't match.
+func flagSynthFunc(scopeProjectID uuid.UUID) staging.SyntheticFunc[flagWithStaged] {
+	return func(s *models.StagedChange) (flagWithStaged, bool) {
+		var f models.FeatureFlag
+		if err := json.Unmarshal(s.NewValue, &f); err != nil {
+			return flagWithStaged{}, false
+		}
+		if f.ProjectID != scopeProjectID {
+			return flagWithStaged{}, false
+		}
+		if s.ProvisionalID != nil {
+			f.ID = *s.ProvisionalID
+		}
+		return flagWithStaged{FeatureFlag: &f}, true
+	}
+}
+
+// ruleApplyFunc patches a production rule with a staged update or delete.
+func ruleApplyFunc(scopeFlagID uuid.UUID) staging.ApplyFunc[ruleWithStaged] {
+	return func(prod ruleWithStaged, s *models.StagedChange) (ruleWithStaged, bool) {
+		switch s.Action {
+		case "delete":
+			return prod, true
+		case "update":
+			var patch models.TargetingRule
+			if err := json.Unmarshal(s.NewValue, &patch); err == nil {
+				patch.ID = prod.ID
+				patch.FlagID = prod.FlagID
+				patch.CreatedAt = prod.CreatedAt
+				prod.TargetingRule = &patch
+			}
+		}
+		return prod, false
+	}
+}
+
+// ruleSynthFunc materialises a staged flag_rule.create row as a synthetic
+// ruleWithStaged. Filters rows whose new_value.flag_id doesn't match.
+func ruleSynthFunc(scopeFlagID uuid.UUID) staging.SyntheticFunc[ruleWithStaged] {
+	return func(s *models.StagedChange) (ruleWithStaged, bool) {
+		var r models.TargetingRule
+		if err := json.Unmarshal(s.NewValue, &r); err != nil {
+			return ruleWithStaged{}, false
+		}
+		if r.FlagID != scopeFlagID {
+			return ruleWithStaged{}, false
+		}
+		if s.ProvisionalID != nil {
+			r.ID = *s.ProvisionalID
+		}
+		return ruleWithStaged{TargetingRule: &r}, true
+	}
 }

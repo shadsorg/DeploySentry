@@ -76,6 +76,12 @@ func (s *Service) CountForUser(ctx context.Context, userID, orgID uuid.UUID) (in
 	return s.repo.CountForUser(ctx, userID, orgID)
 }
 
+// ListForResource proxies to the repository — used by read-overlay helpers on
+// list endpoints. Returns the caller's staged rows for a single resource type.
+func (s *Service) ListForResource(ctx context.Context, userID, orgID uuid.UUID, resourceType string) ([]*models.StagedChange, error) {
+	return s.repo.ListForResource(ctx, userID, orgID, resourceType)
+}
+
 // CommitResult reports per-row outcomes from Deploy. Successful rows include
 // the audit-log action recorded; failed rows include the error message and
 // abort the transaction.

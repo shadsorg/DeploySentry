@@ -196,6 +196,63 @@ func commitFlagEnvStateUpdate(svc FlagService) staging.CommitHandler {
 	}
 }
 
+// CreateTuple is the registry payload for staged-create commit handlers in
+// the flag domain. Mirrors CommitTuple. Mid-batch errors during commit roll
+// back the whole tx (provisional resolution requires real atomicity).
+type CreateTuple struct {
+	ResourceType string
+	Action       string
+	Handler      staging.CreateHandler
+}
+
+// FlagCreateHandlers returns the staging create handlers for the flag
+// family. Wired in cmd/api/main.go alongside FlagCommitHandlers.
+func FlagCreateHandlers(svc FlagService) []CreateTuple {
+	return []CreateTuple{
+		{ResourceType: "flag", Action: "create", Handler: commitFlagCreate(svc)},
+		{ResourceType: "flag_rule", Action: "create", Handler: commitFlagRuleCreate(svc)},
+	}
+}
+
+// commitFlagCreate persists a staged flag.create through the supplied tx.
+// The provisional id stays out of production; the real id is returned to
+// Service.Commit via the staging.CreateHandler contract for cross-row
+// resolution. Cache invalidation + event publish are deferred to the
+// post-commit hook so they only fire if tx.Commit succeeds.
+func commitFlagCreate(svc FlagService) staging.CreateHandler {
+	return func(ctx context.Context, tx pgx.Tx, row *models.StagedChange) (uuid.UUID, string, func(context.Context), error) {
+		if len(row.NewValue) == 0 {
+			return uuid.Nil, "", nil, fmt.Errorf("flag.create commit: new_value required")
+		}
+		var flag models.FeatureFlag
+		if err := json.Unmarshal(row.NewValue, &flag); err != nil {
+			return uuid.Nil, "", nil, fmt.Errorf("flag.create commit: parse new_value: %w", err)
+		}
+		flag.ID = uuid.Nil // force fresh id; staging owns provisional, never the real
+		realID, err := svc.CreateFlagTx(ctx, tx, &flag)
+		if err != nil {
+			return uuid.Nil, "", nil, fmt.Errorf("flag.create commit: %w", err)
+		}
+		// Snapshot for the hook so the closure doesn't reference any state
+		// that could be rewritten by a later resolver pass on this row.
+		snapshot := flag
+		hook := func(hookCtx context.Context) {
+			svc.PublishCreated(hookCtx, &snapshot)
+		}
+		return realID, "flag.created", hook, nil
+	}
+}
+
+// commitFlagRuleCreate is filled in by Task 8 — leave a stub so
+// FlagCreateHandlers compiles without forward-referencing it.
+// Do not remove: the stub keeps both tuples registrable now without making
+// Task 8 a forced prerequisite.
+func commitFlagRuleCreate(svc FlagService) staging.CreateHandler {
+	return func(ctx context.Context, tx pgx.Tx, row *models.StagedChange) (uuid.UUID, string, func(context.Context), error) {
+		return uuid.Nil, "", nil, fmt.Errorf("flag_rule.create commit: not implemented (Task 8)")
+	}
+}
+
 func commitFlagToggle(svc FlagService) staging.CommitHandler {
 	return func(ctx context.Context, _ pgx.Tx, row *models.StagedChange) (string, error) {
 		// Phase A note: flag.toggle commit dispatches through the existing

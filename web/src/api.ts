@@ -741,7 +741,10 @@ export const auditApi = {
 
 // ---- Strategies ----
 export const strategiesApi = {
-  list: (orgSlug: string) => request<{ items: EffectiveStrategy[] }>(`/orgs/${orgSlug}/strategies`),
+  list: (orgSlug: string, opts?: { include_my_staged?: boolean }) => {
+    const qs = opts?.include_my_staged ? '?include_my_staged=true' : '';
+    return request<{ items: EffectiveStrategy[] }>(`/orgs/${orgSlug}/strategies${qs}`);
+  },
   get: (orgSlug: string, name: string) => request<Strategy>(`/orgs/${orgSlug}/strategies/${name}`),
   create: (
     orgSlug: string,

@@ -1,9 +1,24 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useStagingEnabled, setStagingEnabled } from './useStagingEnabled';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { useStagingEnabled } from './useStagingEnabled';
+
+// Mock the API module so no real fetches happen.
+vi.mock('@/api', () => ({
+  stagingApi: {
+    getEnabled: vi.fn(),
+  },
+  settingsApi: {
+    set: vi.fn(),
+  },
+  entitiesApi: {
+    getOrg: vi.fn(),
+  },
+}));
+
+import { stagingApi } from '@/api';
 
 beforeEach(() => {
-  localStorage.clear();
+  vi.clearAllMocks();
 });
 
 describe('useStagingEnabled', () => {
@@ -12,39 +27,63 @@ describe('useStagingEnabled', () => {
     expect(result.current).toBe(false);
   });
 
-  it('reads the per-org localStorage key on mount', () => {
-    localStorage.setItem('ds_staging_enabled:acme', 'true');
+  it('returns false initially, then true after fetch resolves with enabled=true', async () => {
+    (stagingApi.getEnabled as ReturnType<typeof vi.fn>).mockResolvedValue({ enabled: true });
+
     const { result } = renderHook(() => useStagingEnabled('acme'));
-    expect(result.current).toBe(true);
+
+    // Before fetch resolves: false.
+    expect(result.current).toBe(false);
+
+    await waitFor(() => expect(result.current).toBe(true));
+    expect(stagingApi.getEnabled).toHaveBeenCalledWith('acme');
   });
 
-  it('does not bleed across orgs', () => {
-    localStorage.setItem('ds_staging_enabled:acme', 'true');
-    const { result } = renderHook(() => useStagingEnabled('beta'));
+  it('returns false when fetch resolves with enabled=false', async () => {
+    (stagingApi.getEnabled as ReturnType<typeof vi.fn>).mockResolvedValue({ enabled: false });
+
+    const { result } = renderHook(() => useStagingEnabled('acme'));
+
+    await waitFor(() => expect(stagingApi.getEnabled).toHaveBeenCalledTimes(1));
     expect(result.current).toBe(false);
   });
 
-  it('updates when the imperative setter fires the custom event', () => {
+  it('returns false when fetch rejects', async () => {
+    (stagingApi.getEnabled as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network'));
+
     const { result } = renderHook(() => useStagingEnabled('acme'));
-    expect(result.current).toBe(false);
-    act(() => setStagingEnabled('acme', true));
-    expect(result.current).toBe(true);
-    act(() => setStagingEnabled('acme', false));
+
+    await waitFor(() => expect(stagingApi.getEnabled).toHaveBeenCalledTimes(1));
     expect(result.current).toBe(false);
   });
 
-  it('responds to a storage event from another tab', () => {
+  it('does not bleed across orgs', async () => {
+    (stagingApi.getEnabled as ReturnType<typeof vi.fn>).mockImplementation((slug: string) =>
+      Promise.resolve({ enabled: slug === 'acme' }),
+    );
+
+    const { result: acme } = renderHook(() => useStagingEnabled('acme'));
+    const { result: beta } = renderHook(() => useStagingEnabled('beta'));
+
+    await waitFor(() => expect(acme.current).toBe(true));
+    expect(beta.current).toBe(false);
+  });
+
+  it('refetches when the ds:staging-enabled custom event fires', async () => {
+    (stagingApi.getEnabled as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ enabled: false })
+      .mockResolvedValueOnce({ enabled: true });
+
     const { result } = renderHook(() => useStagingEnabled('acme'));
+
+    await waitFor(() => expect(stagingApi.getEnabled).toHaveBeenCalledTimes(1));
     expect(result.current).toBe(false);
+
     act(() => {
-      localStorage.setItem('ds_staging_enabled:acme', 'true');
-      window.dispatchEvent(
-        new StorageEvent('storage', {
-          key: 'ds_staging_enabled:acme',
-          newValue: 'true',
-        }),
-      );
+      window.dispatchEvent(new CustomEvent('ds:staging-enabled'));
     });
-    expect(result.current).toBe(true);
+
+    await waitFor(() => expect(result.current).toBe(true));
+    expect(stagingApi.getEnabled).toHaveBeenCalledTimes(2);
   });
 });

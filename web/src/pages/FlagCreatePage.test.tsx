@@ -4,8 +4,14 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import FlagCreatePage from './FlagCreatePage';
 import { flagsApi, stagingApi, entitiesApi } from '@/api';
-import { setStagingEnabled } from '@/hooks/useStagingEnabled';
 import { isProvisionalId } from '@/lib/provisional';
+
+// Control staging state by mocking the hook directly.
+let mockStagingEnabled = false;
+vi.mock('@/hooks/useStagingEnabled', () => ({
+  useStagingEnabled: () => mockStagingEnabled,
+  setStagingEnabled: vi.fn(),
+}));
 
 vi.mock('@/api', () => ({
   flagsApi: { create: vi.fn() },
@@ -33,14 +39,14 @@ function renderPage() {
 describe('FlagCreatePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    setStagingEnabled(ORG_SLUG, false);
+    mockStagingEnabled = false;
     // Reset mocks to their default resolved values after clearAllMocks
     (entitiesApi.getProject as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'proj-uuid' });
     (entitiesApi.getApp as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'app-uuid' });
   });
 
   it('routes through flagsApi.create when staging is disabled', async () => {
-    setStagingEnabled(ORG_SLUG, false);
+    mockStagingEnabled = false;
     (flagsApi.create as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'real-uuid' });
 
     renderPage();
@@ -56,7 +62,7 @@ describe('FlagCreatePage', () => {
   });
 
   it('routes through stagingApi.stage when staging is enabled', async () => {
-    setStagingEnabled(ORG_SLUG, true);
+    mockStagingEnabled = true;
     (stagingApi.stage as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 'staged-row' });
 
     renderPage();

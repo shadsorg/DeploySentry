@@ -11,6 +11,7 @@ import (
 	"github.com/shadsorg/deploysentry/internal/rollout"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -33,7 +34,20 @@ var ErrVersionConflict = errors.New("version conflict")
 // ErrStrategyNotFound is returned when a strategy lookup fails.
 var ErrStrategyNotFound = errors.New("strategy not found")
 
+// strategyExecer is satisfied by *pgxpool.Pool and pgx.Tx.
+type strategyExecer interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
+
 func (r *StrategyRepo) Create(ctx context.Context, s *models.Strategy) error {
+	return r.createOn(ctx, r.db, s)
+}
+
+func (r *StrategyRepo) CreateTx(ctx context.Context, tx pgx.Tx, s *models.Strategy) error {
+	return r.createOn(ctx, tx, s)
+}
+
+func (r *StrategyRepo) createOn(ctx context.Context, ex strategyExecer, s *models.Strategy) error {
 	if s.ID == uuid.Nil {
 		s.ID = uuid.New()
 	}
@@ -44,7 +58,7 @@ func (r *StrategyRepo) Create(ctx context.Context, s *models.Strategy) error {
 	if err != nil {
 		return fmt.Errorf("marshal steps: %w", err)
 	}
-	_, err = r.db.Exec(ctx, `
+	_, err = ex.Exec(ctx, `
         INSERT INTO strategies (
             id, scope_type, scope_id, name, description, target_type, steps,
             default_health_threshold, default_rollback_on_failure,

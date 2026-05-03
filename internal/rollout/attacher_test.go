@@ -27,7 +27,7 @@ func TestAttacher_AttachDeploy_ExplicitStrategyName(t *testing.T) {
 	svc := NewRolloutService(rolloutRepo, &fakePhaseRepo{}, &fakeEventRepo{}, &fakePublisher{})
 
 	attacher := NewAttacher(
-		NewStrategyService(stratRepo, nil),
+		newStrategyService(nil, stratRepo, nil),
 		NewStrategyDefaultService(defRepo),
 		NewRolloutPolicyService(polRepo),
 		svc,
@@ -72,7 +72,7 @@ func TestAttacher_AttachDeploy_ResolvesDefault(t *testing.T) {
 	})
 
 	attacher := NewAttacher(
-		NewStrategyService(stratRepo, nil),
+		newStrategyService(nil, stratRepo, nil),
 		NewStrategyDefaultService(defRepo),
 		NewRolloutPolicyService(polRepo),
 		svc,
@@ -105,7 +105,7 @@ func TestAttacher_AttachDeploy_MandateWithoutStrategy_Errors(t *testing.T) {
 	})
 
 	attacher := NewAttacher(
-		NewStrategyService(stratRepo, nil),
+		newStrategyService(nil, stratRepo, nil),
 		NewStrategyDefaultService(defRepo),
 		NewRolloutPolicyService(polRepo),
 		svc,
@@ -153,7 +153,7 @@ func TestAttacher_AttachConfig_ExplicitStrategyName(t *testing.T) {
 	svc := NewRolloutService(rolloutRepo, &fakePhaseRepo{}, &fakeEventRepo{}, &fakePublisher{})
 
 	attacher := NewAttacher(
-		NewStrategyService(stratRepo, nil),
+		newStrategyService(nil, stratRepo, nil),
 		NewStrategyDefaultService(defRepo),
 		NewRolloutPolicyService(polRepo),
 		svc,
@@ -197,7 +197,7 @@ func TestAttacher_AttachConfig_MandateWithoutStrategy_Errors(t *testing.T) {
 	})
 
 	attacher := NewAttacher(
-		NewStrategyService(stratRepo, nil),
+		newStrategyService(nil, stratRepo, nil),
 		NewStrategyDefaultService(defRepo),
 		NewRolloutPolicyService(polRepo),
 		svc,

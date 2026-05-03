@@ -52,7 +52,7 @@ func ridPtr(id uuid.UUID) *uuid.UUID { return &id }
 // ---- Tuples ----
 
 func TestRolloutCommitHandlers_Tuples(t *testing.T) {
-	strategies := NewStrategyService(&fakeStrategyRepo{}, nil)
+	strategies := newStrategyService(nil, &fakeStrategyRepo{}, nil)
 	defaults := NewStrategyDefaultService(&fakeStrategyDefaultRepo{})
 	policies := NewRolloutPolicyService(&fakeRolloutPolicyRepo{})
 	tuples := RolloutCommitHandlers(strategies, defaults, policies)
@@ -83,7 +83,7 @@ func TestRolloutCommitHandlers_Tuples(t *testing.T) {
 //      by the rollout package's own tests). ----
 
 func TestCommitStrategyUpdate_RequiresResourceID(t *testing.T) {
-	svc := NewStrategyService(&fakeStrategyRepo{}, nil)
+	svc := newStrategyService(nil, &fakeStrategyRepo{}, nil)
 	row := &models.StagedChange{Action: "update", NewValue: json.RawMessage(`{}`)}
 	_, err := commitStrategyUpdate(svc)(context.Background(), nil, row)
 	if err == nil || !strings.Contains(err.Error(), "resource_id required") {
@@ -92,7 +92,7 @@ func TestCommitStrategyUpdate_RequiresResourceID(t *testing.T) {
 }
 
 func TestCommitStrategyUpdate_RequiresNewValue(t *testing.T) {
-	svc := NewStrategyService(&fakeStrategyRepo{}, nil)
+	svc := newStrategyService(nil, &fakeStrategyRepo{}, nil)
 	row := &models.StagedChange{Action: "update", ResourceID: ridPtr(uuid.New())}
 	_, err := commitStrategyUpdate(svc)(context.Background(), nil, row)
 	if err == nil || !strings.Contains(err.Error(), "new_value required") {
@@ -103,7 +103,7 @@ func TestCommitStrategyUpdate_RequiresNewValue(t *testing.T) {
 // ---- strategy.delete — request-shape only ----
 
 func TestCommitStrategyDelete_RequiresResourceID(t *testing.T) {
-	svc := NewStrategyService(&fakeStrategyRepo{}, nil)
+	svc := newStrategyService(nil, &fakeStrategyRepo{}, nil)
 	row := &models.StagedChange{Action: "delete"}
 	_, err := commitStrategyDelete(svc)(context.Background(), nil, row)
 	if err == nil || !strings.Contains(err.Error(), "resource_id required") {

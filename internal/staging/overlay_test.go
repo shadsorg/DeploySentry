@@ -147,3 +147,78 @@ func TestOverlayDetail_DeleteSignalsDropped(t *testing.T) {
 		t.Fatal("expected dropped=true")
 	}
 }
+
+func TestOverlayListMarkedAttachesEnvelopeForCreatesAndUpdates(t *testing.T) {
+	type flagDTO struct {
+		ID     uuid.UUID `json:"id"`
+		Staged *Marker   `json:"_staged,omitempty"`
+		Key    string    `json:"key"`
+	}
+
+	prov := NewProvisional()
+	realID := uuid.New()
+	staged := []*models.StagedChange{
+		{ID: uuid.New(), Action: "create", ProvisionalID: &prov, NewValue: []byte(`{"key":"new"}`)},
+		{ID: uuid.New(), Action: "update", ResourceID: &realID, NewValue: []byte(`{"key":"updated"}`)},
+	}
+	production := []flagDTO{{ID: realID, Key: "original"}}
+
+	got := OverlayListMarked(
+		production,
+		staged,
+		func(f flagDTO) uuid.UUID { return f.ID },
+		func(f flagDTO, s *models.StagedChange) (flagDTO, bool) {
+			// Naive update: replace key from new_value
+			var p struct{ Key string `json:"key"` }
+			_ = json.Unmarshal(s.NewValue, &p)
+			f.Key = p.Key
+			return f, false
+		},
+		func(s *models.StagedChange) (flagDTO, bool) {
+			var p struct{ Key string `json:"key"` }
+			_ = json.Unmarshal(s.NewValue, &p)
+			return flagDTO{ID: *s.ProvisionalID, Key: p.Key}, true
+		},
+		func(f *flagDTO, m Marker) { f.Staged = &m },
+	)
+
+	if len(got) != 2 {
+		t.Fatalf("len: %d, want 2", len(got))
+	}
+	// First row: prod row with update applied + marker
+	if got[0].ID != realID || got[0].Key != "updated" {
+		t.Errorf("updated row: %+v", got[0])
+	}
+	if got[0].Staged == nil || got[0].Staged.Action != "update" {
+		t.Errorf("update row missing _staged marker: %+v", got[0].Staged)
+	}
+	// Second row: synthetic create + marker with provisional id
+	if got[1].ID != prov || got[1].Key != "new" {
+		t.Errorf("synthetic row: %+v", got[1])
+	}
+	if got[1].Staged == nil || got[1].Staged.Action != "create" {
+		t.Errorf("create row missing _staged marker: %+v", got[1].Staged)
+	}
+	if got[1].Staged.ProvisionalID == nil || *got[1].Staged.ProvisionalID != prov {
+		t.Errorf("create marker should carry provisional id, got %+v", got[1].Staged)
+	}
+}
+
+func TestOverlayListMarkedNoStagedReturnsProductionUnchanged(t *testing.T) {
+	type flagDTO struct {
+		ID     uuid.UUID `json:"id"`
+		Staged *Marker   `json:"_staged,omitempty"`
+	}
+	production := []flagDTO{{ID: uuid.New()}, {ID: uuid.New()}}
+	got := OverlayListMarked(
+		production, nil,
+		func(f flagDTO) uuid.UUID { return f.ID },
+		nil, nil, nil,
+	)
+	if len(got) != 2 {
+		t.Errorf("expected production unchanged, got len=%d", len(got))
+	}
+	if got[0].Staged != nil || got[1].Staged != nil {
+		t.Error("no marker should be set when staged is empty")
+	}
+}

@@ -49,13 +49,16 @@ func TestPlanBatchRejectsUnresolvedProvisional(t *testing.T) {
 		ResourceID:   ptrUUID(uuid.New()),
 		NewValue:     []byte(`{"flag_id":"` + dangling.String() + `"}`),
 	}
-	_, err := planBatch([]*models.StagedChange{row})
+	plan, err := planBatch([]*models.StagedChange{row})
 	var unresolved *ErrUnresolvedProvisional
 	if !errors.As(err, &unresolved) {
 		t.Fatalf("expected *ErrUnresolvedProvisional, got %v", err)
 	}
 	if unresolved.ProvUUID != dangling {
 		t.Errorf("ProvUUID mismatch: got %v want %v", unresolved.ProvUUID, dangling)
+	}
+	if plan != nil {
+		t.Errorf("expected nil plan on error, got %+v", plan)
 	}
 }
 

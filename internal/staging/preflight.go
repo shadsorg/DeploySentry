@@ -85,13 +85,15 @@ func collectProvisionals(row *models.StagedChange) (map[uuid.UUID]struct{}, erro
 		}
 		var v any
 		if err := json.Unmarshal(raw, &v); err != nil {
-			return nil, fmt.Errorf("parse JSON: %w", err)
+			return nil, fmt.Errorf("staging.collectProvisionals: parse JSON: %w", err)
 		}
 		walkProvisionals(v, out)
 	}
 	return out, nil
 }
 
+// walkProvisionals recursively visits string leaves of a JSON value and
+// records any that parse as provisional UUIDs into out.
 func walkProvisionals(v any, out map[uuid.UUID]struct{}) {
 	switch t := v.(type) {
 	case string:

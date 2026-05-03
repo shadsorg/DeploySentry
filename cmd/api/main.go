@@ -588,6 +588,7 @@ func run() error {
 	}
 	flagHandler := flags.NewHandlerWithRollouts(flagService, rbacChecker, webhookService, analyticsService, entityRepo, envRepo, auditRepo, flagRolloutAttacher)
 	flagHandler.SetRatingService(ratingService)
+	flagHandler.Staging = stagingService
 	flagHandler.RegisterRoutes(api)
 	flagHandler.RegisterSegmentRoutes(api)
 

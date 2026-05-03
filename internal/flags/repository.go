@@ -7,6 +7,7 @@ import (
 
 	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 // EvaluationLog represents a single recorded flag evaluation event, written
@@ -45,6 +46,11 @@ type LifecyclePatch struct {
 type FlagRepository interface {
 	// CreateFlag persists a new feature flag.
 	CreateFlag(ctx context.Context, flag *models.FeatureFlag) error
+
+	// CreateFlagTx persists a new feature flag through an open transaction.
+	// Used by the staging service so the create rides the same tx as the
+	// rest of the deploy batch — a later handler error rolls the create back.
+	CreateFlagTx(ctx context.Context, tx pgx.Tx, flag *models.FeatureFlag) error
 
 	// GetFlag retrieves a feature flag by its unique identifier.
 	GetFlag(ctx context.Context, id uuid.UUID) (*models.FeatureFlag, error)
@@ -111,6 +117,10 @@ type FlagRepository interface {
 
 	// CreateRule persists a new targeting rule.
 	CreateRule(ctx context.Context, rule *models.TargetingRule) error
+
+	// CreateRuleTx persists a new targeting rule through an open transaction.
+	// Same staging-tx rationale as CreateFlagTx.
+	CreateRuleTx(ctx context.Context, tx pgx.Tx, rule *models.TargetingRule) error
 
 	// GetRule retrieves a targeting rule by ID.
 	GetRule(ctx context.Context, id uuid.UUID) (*models.TargetingRule, error)

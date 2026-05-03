@@ -11,6 +11,7 @@ import (
 	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -179,8 +180,24 @@ const ruleSelectCols = `
 // FeatureFlag methods
 // ---------------------------------------------------------------------------
 
+// flagExecer is satisfied by both *pgxpool.Pool and pgx.Tx. createFlagOn
+// uses it so the same SQL can run from the pool (direct callers) or from
+// an open tx (the staging service's commit pipeline).
+type flagExecer interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
+
 // CreateFlag inserts a new feature flag into the database.
 func (r *FlagRepository) CreateFlag(ctx context.Context, flag *models.FeatureFlag) error {
+	return r.createFlagOn(ctx, r.pool, flag)
+}
+
+// CreateFlagTx persists a new feature flag through an open transaction.
+func (r *FlagRepository) CreateFlagTx(ctx context.Context, tx pgx.Tx, flag *models.FeatureFlag) error {
+	return r.createFlagOn(ctx, tx, flag)
+}
+
+func (r *FlagRepository) createFlagOn(ctx context.Context, ex flagExecer, flag *models.FeatureFlag) error {
 	if flag.ID == uuid.Nil {
 		flag.ID = uuid.New()
 	}
@@ -203,7 +220,7 @@ func (r *FlagRepository) CreateFlag(ctx context.Context, flag *models.FeatureFla
 			 $8, $9, $10, $11, $12, $13,
 			 $14, $15, $16, $17, $18)`
 
-	_, err := r.pool.Exec(ctx, q,
+	_, err := ex.Exec(ctx, q,
 		flag.ID,
 		flag.ProjectID,
 		flag.EnvironmentID,
@@ -617,6 +634,15 @@ func (r *FlagRepository) ListFlagsToHardDelete(ctx context.Context, limit int) (
 
 // CreateRule inserts a new targeting rule into the database.
 func (r *FlagRepository) CreateRule(ctx context.Context, rule *models.TargetingRule) error {
+	return r.createRuleOn(ctx, r.pool, rule)
+}
+
+// CreateRuleTx persists a new targeting rule through an open transaction.
+func (r *FlagRepository) CreateRuleTx(ctx context.Context, tx pgx.Tx, rule *models.TargetingRule) error {
+	return r.createRuleOn(ctx, tx, rule)
+}
+
+func (r *FlagRepository) createRuleOn(ctx context.Context, ex flagExecer, rule *models.TargetingRule) error {
 	if rule.ID == uuid.Nil {
 		rule.ID = uuid.New()
 	}
@@ -645,7 +671,7 @@ func (r *FlagRepository) CreateRule(ctx context.Context, rule *models.TargetingR
 			 $7, $8, $9, $10, $11, $12,
 			 $13, $14, $15, '{}', $16, $17)`
 
-	_, err := r.pool.Exec(ctx, q,
+	_, err := ex.Exec(ctx, q,
 		rule.ID,
 		rule.FlagID,
 		rule.RuleType,

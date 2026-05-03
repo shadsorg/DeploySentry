@@ -9,6 +9,7 @@ import (
 
 	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -51,6 +52,10 @@ func (m *mockFlagRepo) CreateFlag(ctx context.Context, flag *models.FeatureFlag)
 	}
 	m.flags[flag.ID] = flag
 	return nil
+}
+
+func (m *mockFlagRepo) CreateFlagTx(ctx context.Context, _ pgx.Tx, flag *models.FeatureFlag) error {
+	return m.CreateFlag(ctx, flag)
 }
 
 func (m *mockFlagRepo) GetFlag(ctx context.Context, id uuid.UUID) (*models.FeatureFlag, error) {
@@ -172,6 +177,10 @@ func (m *mockFlagRepo) CreateRule(ctx context.Context, rule *models.TargetingRul
 	}
 	m.rules[rule.FlagID] = append(m.rules[rule.FlagID], rule)
 	return nil
+}
+
+func (m *mockFlagRepo) CreateRuleTx(ctx context.Context, _ pgx.Tx, rule *models.TargetingRule) error {
+	return m.CreateRule(ctx, rule)
 }
 
 func (m *mockFlagRepo) GetRule(ctx context.Context, id uuid.UUID) (*models.TargetingRule, error) {

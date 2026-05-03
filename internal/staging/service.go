@@ -12,7 +12,10 @@ import (
 	"github.com/shadsorg/deploysentry/internal/models"
 )
 
-// txBeginner abstracts pgxpool.Pool for unit tests that don't have a real DB.
+// txBeginner is the slice of *pgxpool.Pool that Service.Commit needs. It is
+// kept unexported because it exists solely to let unit tests substitute a
+// mock pool — production callers always pass the concrete *pgxpool.Pool
+// through NewService and the implicit interface satisfaction does the rest.
 type txBeginner interface {
 	BeginTx(ctx context.Context, opts pgx.TxOptions) (pgx.Tx, error)
 }
@@ -158,7 +161,7 @@ func (s *Service) Commit(ctx context.Context, userID, orgID, actorID uuid.UUID, 
 			return &CommitResult{CommittedIDs: committed, FailedID: &rid, FailedReason: err.Error()}, nil
 		}
 		entry := buildAuditEntry(r, actorID, auditAction)
-		MustNotBeProvisional(entry.EntityID, "audit_log.entity_id")
+		MustNotBeProvisional(entry.EntityID, "audit_log.entity_id (mutation)")
 		auditEntries = append(auditEntries, entry)
 		committed = append(committed, r.ID)
 	}
@@ -177,6 +180,10 @@ func (s *Service) Commit(ctx context.Context, userID, orgID, actorID uuid.UUID, 
 		hook(ctx)
 	}
 
+	// Audit failures post-commit are surfaced via err but do NOT unwind the
+	// production change — by spec, Deploy is the audit boundary, not the
+	// production-write boundary. The caller can decide how to handle a
+	// committed-but-unaudited row (typically: log + page, since this is rare).
 	if s.audit != nil {
 		for _, e := range auditEntries {
 			if writeErr := s.audit.WriteAuditLog(ctx, e); writeErr != nil {

@@ -3,6 +3,7 @@ package staging
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -303,5 +304,85 @@ func TestStage_RejectsProvisionalResourceID(t *testing.T) {
 	}
 	if err := svc.Stage(context.Background(), row); err == nil {
 		t.Fatal("expected Stage to reject provisional resource_id")
+	}
+}
+
+// TestCommit_FallsThroughToMutationWhenNoCreateHandler verifies that when a
+// row has a provisional id but no create handler is registered, Commit falls
+// through to the CommitRegistry path and surfaces the resulting
+// ErrNoCommitHandler as a per-row failure. This is the safety net for
+// misconfiguration of the create registry.
+func TestCommit_FallsThroughToMutationWhenNoCreateHandler(t *testing.T) {
+	repo := newFakeRepo()
+	reg := NewCommitRegistry()       // empty — no flag handler either
+	createReg := NewCreateRegistry() // empty — no create handler
+
+	svc := &Service{repo: repo, reg: reg, creates: createReg, pool: &mockTxBeginner{}}
+	user, org := uuid.New(), uuid.New()
+	prov := NewProvisional()
+	row := &models.StagedChange{
+		ID: uuid.New(), UserID: user, OrgID: org,
+		ResourceType: "flag", Action: "create",
+		ProvisionalID: &prov,
+		NewValue:      []byte(`{}`),
+	}
+	if err := repo.Upsert(context.Background(), row); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := svc.Commit(context.Background(), user, org, user, []uuid.UUID{row.ID})
+	if err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	if res.FailedID == nil || *res.FailedID != row.ID {
+		t.Fatalf("expected FailedID = %v, got %v", row.ID, res.FailedID)
+	}
+	if res.FailedReason == "" {
+		t.Error("expected non-empty FailedReason")
+	}
+}
+
+// TestCommit_PartialOnMidBatchFailure verifies that when a mutation handler
+// errors mid-batch, the rows that completed before the failure are reported
+// in CommittedIDs (and the tx rolls back, so they're not durably committed
+// — the IDs are reported for caller-side bookkeeping only).
+func TestCommit_PartialOnMidBatchFailure(t *testing.T) {
+	repo := newFakeRepo()
+	reg := NewCommitRegistry()
+	createReg := NewCreateRegistry()
+
+	wantRealFlag := uuid.New()
+	createReg.Register("flag", "create", func(ctx context.Context, tx pgx.Tx, row *models.StagedChange) (uuid.UUID, string, func(context.Context), error) {
+		return wantRealFlag, "flag.created", nil, nil
+	})
+	reg.Register("flag_rule", "update", func(ctx context.Context, tx pgx.Tx, row *models.StagedChange) (string, error) {
+		return "", fmt.Errorf("simulated rule failure")
+	})
+
+	svc := &Service{repo: repo, reg: reg, creates: createReg, pool: &mockTxBeginner{}}
+	user, org := uuid.New(), uuid.New()
+	prov := NewProvisional()
+	realRule := uuid.New()
+	createRow := &models.StagedChange{ID: uuid.New(), UserID: user, OrgID: org, ResourceType: "flag", Action: "create", ProvisionalID: &prov, NewValue: []byte(`{}`)}
+	mutateRow := &models.StagedChange{ID: uuid.New(), UserID: user, OrgID: org, ResourceType: "flag_rule", Action: "update", ResourceID: &realRule, NewValue: []byte(`{}`)}
+	if err := repo.Upsert(context.Background(), createRow); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Upsert(context.Background(), mutateRow); err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := svc.Commit(context.Background(), user, org, user, []uuid.UUID{createRow.ID, mutateRow.ID})
+	if err != nil {
+		t.Fatalf("Commit: %v", err)
+	}
+	if len(res.CommittedIDs) != 1 || res.CommittedIDs[0] != createRow.ID {
+		t.Errorf("CommittedIDs: got %v, want [%v]", res.CommittedIDs, createRow.ID)
+	}
+	if res.FailedID == nil || *res.FailedID != mutateRow.ID {
+		t.Errorf("FailedID: got %v, want %v", res.FailedID, mutateRow.ID)
+	}
+	if !strings.Contains(res.FailedReason, "simulated rule failure") {
+		t.Errorf("FailedReason: %q", res.FailedReason)
 	}
 }

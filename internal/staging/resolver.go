@@ -9,8 +9,9 @@ import (
 )
 
 // Resolver maps provisional UUIDs minted during staging to the real UUIDs
-// produced by the create handlers at commit time. Used inside Service.Commit
-// to rewrite ResourceID + new_value/old_value JSON references on every
+// produced by create handlers at commit time. Intended for use inside
+// Service.Commit's transactional dispatch loop (wired in a later task) to
+// rewrite ResourceID + new_value/old_value JSON references on every
 // dependent row before its handler runs.
 type Resolver struct {
 	m map[uuid.UUID]uuid.UUID
@@ -46,16 +47,17 @@ func (r *Resolver) RewriteUUIDsInJSON(raw []byte) ([]byte, error) {
 	}
 	var v any
 	if err := json.Unmarshal(raw, &v); err != nil {
-		return nil, fmt.Errorf("RewriteUUIDsInJSON: parse: %w", err)
+		return nil, fmt.Errorf("staging.Resolver.RewriteUUIDsInJSON: parse: %w", err)
 	}
 	walked := r.walk(v)
 	out, err := json.Marshal(walked)
 	if err != nil {
-		return nil, fmt.Errorf("RewriteUUIDsInJSON: marshal: %w", err)
+		return nil, fmt.Errorf("staging.Resolver.RewriteUUIDsInJSON: marshal: %w", err)
 	}
 	return out, nil
 }
 
+// walk recursively substitutes provisional UUIDs in any JSON value type.
 func (r *Resolver) walk(v any) any {
 	switch t := v.(type) {
 	case string:
@@ -85,6 +87,11 @@ func (r *Resolver) walk(v any) any {
 // RewriteRow rewrites every resolvable provisional reference on a staged row:
 // its ResourceID column (when provisional + bound) and its NewValue + OldValue
 // JSON. Mutates row in place; returns error if JSON parse fails.
+//
+// ProvisionalID is intentionally not rewritten. Only create rows carry it,
+// and create rows take the CreateRegistry branch in Service.Commit which
+// resolves the provisional id by binding it into the resolver — RewriteRow
+// is called only on mutation rows that follow a create.
 func (r *Resolver) RewriteRow(row *models.StagedChange) error {
 	if row.ResourceID != nil && IsProvisional(*row.ResourceID) {
 		if real, ok := r.m[*row.ResourceID]; ok {
@@ -94,14 +101,14 @@ func (r *Resolver) RewriteRow(row *models.StagedChange) error {
 	if len(row.NewValue) > 0 {
 		out, err := r.RewriteUUIDsInJSON(row.NewValue)
 		if err != nil {
-			return fmt.Errorf("RewriteRow new_value: %w", err)
+			return fmt.Errorf("staging.Resolver.RewriteRow: new_value: %w", err)
 		}
 		row.NewValue = out
 	}
 	if len(row.OldValue) > 0 {
 		out, err := r.RewriteUUIDsInJSON(row.OldValue)
 		if err != nil {
-			return fmt.Errorf("RewriteRow old_value: %w", err)
+			return fmt.Errorf("staging.Resolver.RewriteRow: old_value: %w", err)
 		}
 		row.OldValue = out
 	}

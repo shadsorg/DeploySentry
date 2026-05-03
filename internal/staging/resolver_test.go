@@ -80,7 +80,9 @@ func TestRewriteUUIDsInJSONLeavesUnknownUUIDsAlone(t *testing.T) {
 		t.Fatalf("RewriteUUIDsInJSON: %v", err)
 	}
 	var got map[string]any
-	_ = json.Unmarshal(out, &got)
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("output not valid JSON: %v", err)
+	}
 	if got["flag_id"] != other.String() {
 		t.Errorf("unknown UUID was rewritten: %v", got["flag_id"])
 	}
@@ -103,7 +105,9 @@ func TestRewriteRowResolvesResourceIDAndJSON(t *testing.T) {
 		t.Errorf("ResourceID not rewritten: %v", row.ResourceID)
 	}
 	var got map[string]any
-	_ = json.Unmarshal(row.NewValue, &got)
+	if err := json.Unmarshal(row.NewValue, &got); err != nil {
+		t.Fatalf("output not valid JSON: %v", err)
+	}
 	if got["flag_id"] != real.String() {
 		t.Errorf("NewValue not rewritten: %v", got)
 	}

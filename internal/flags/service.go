@@ -9,6 +9,8 @@ import (
 
 	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -32,6 +34,11 @@ type FlagChangeEvent struct {
 type FlagService interface {
 	// CreateFlag creates a new feature flag.
 	CreateFlag(ctx context.Context, flag *models.FeatureFlag) error
+
+	// CreateFlagTx mints a fresh real id, runs validation, and writes through
+	// the supplied tx. Cache invalidation + event publish are deferred — the
+	// caller (staging service) runs them post-tx.Commit via the post-commit hook.
+	CreateFlagTx(ctx context.Context, tx pgx.Tx, flag *models.FeatureFlag) (uuid.UUID, error)
 
 	// GetFlag retrieves a feature flag by ID.
 	GetFlag(ctx context.Context, id uuid.UUID) (*models.FeatureFlag, error)
@@ -63,6 +70,9 @@ type FlagService interface {
 
 	// AddRule adds a targeting rule to a flag.
 	AddRule(ctx context.Context, rule *models.TargetingRule) error
+
+	// AddRuleTx is the tx-aware twin of AddRule. Same caching/event deferral.
+	AddRuleTx(ctx context.Context, tx pgx.Tx, rule *models.TargetingRule) (uuid.UUID, error)
 
 	// UpdateRule updates an existing targeting rule.
 	UpdateRule(ctx context.Context, rule *models.TargetingRule) error
@@ -165,6 +175,7 @@ type FlagService interface {
 
 // flagService is the concrete implementation of FlagService.
 type flagService struct {
+	pool      *pgxpool.Pool
 	repo      FlagRepository
 	evaluator *Evaluator
 	publisher EventPublisher
@@ -173,8 +184,9 @@ type flagService struct {
 
 // NewFlagService creates a new FlagService backed by the given repository and cache.
 // The publisher parameter is optional; pass nil to disable event emission.
-func NewFlagService(repo FlagRepository, cache Cache, publisher EventPublisher) FlagService {
+func NewFlagService(pool *pgxpool.Pool, repo FlagRepository, cache Cache, publisher EventPublisher) FlagService {
 	return &flagService{
+		pool:      pool,
 		repo:      repo,
 		evaluator: NewEvaluator(repo, cache),
 		publisher: publisher,
@@ -206,6 +218,41 @@ func (s *flagService) publishEvent(ctx context.Context, eventType string, flag *
 
 // CreateFlag validates and persists a new feature flag.
 func (s *flagService) CreateFlag(ctx context.Context, flag *models.FeatureFlag) error {
+	if s.pool == nil {
+		// No pool wired (e.g. unit-test environment): write directly via repo.
+		if flag.ID == uuid.Nil {
+			flag.ID = uuid.New()
+		}
+		now := time.Now().UTC()
+		flag.CreatedAt = now
+		flag.UpdatedAt = now
+		if err := flag.Validate(); err != nil {
+			return fmt.Errorf("validation failed: %w", err)
+		}
+		if err := s.repo.CreateFlag(ctx, flag); err != nil {
+			return fmt.Errorf("creating flag: %w", err)
+		}
+		s.publishEvent(ctx, "created", flag)
+		return nil
+	}
+
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("CreateFlag begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := s.CreateFlagTx(ctx, tx, flag); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("CreateFlag commit tx: %w", err)
+	}
+	s.publishEvent(ctx, "created", flag)
+	return nil
+}
+
+func (s *flagService) CreateFlagTx(ctx context.Context, tx pgx.Tx, flag *models.FeatureFlag) (uuid.UUID, error) {
 	if flag.ID == uuid.Nil {
 		flag.ID = uuid.New()
 	}
@@ -214,15 +261,12 @@ func (s *flagService) CreateFlag(ctx context.Context, flag *models.FeatureFlag) 
 	flag.UpdatedAt = now
 
 	if err := flag.Validate(); err != nil {
-		return fmt.Errorf("validation failed: %w", err)
+		return uuid.Nil, fmt.Errorf("validation failed: %w", err)
 	}
-
-	if err := s.repo.CreateFlag(ctx, flag); err != nil {
-		return fmt.Errorf("creating flag: %w", err)
+	if err := s.repo.CreateFlagTx(ctx, tx, flag); err != nil {
+		return uuid.Nil, fmt.Errorf("creating flag: %w", err)
 	}
-
-	s.publishEvent(ctx, "created", flag)
-	return nil
+	return flag.ID, nil
 }
 
 // GetFlag retrieves a feature flag by its unique identifier.
@@ -392,6 +436,41 @@ func (s *flagService) BatchEvaluate(ctx context.Context, projectID, environmentI
 
 // AddRule validates and persists a new targeting rule.
 func (s *flagService) AddRule(ctx context.Context, rule *models.TargetingRule) error {
+	if s.pool == nil {
+		// No pool wired (e.g. unit-test environment): write directly via repo.
+		if rule.ID == uuid.Nil {
+			rule.ID = uuid.New()
+		}
+		now := time.Now().UTC()
+		rule.CreatedAt = now
+		rule.UpdatedAt = now
+		if err := rule.Validate(); err != nil {
+			return fmt.Errorf("validation failed: %w", err)
+		}
+		if err := s.repo.CreateRule(ctx, rule); err != nil {
+			return fmt.Errorf("creating rule: %w", err)
+		}
+		_ = s.cache.Invalidate(ctx, rule.FlagID)
+		return nil
+	}
+
+	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("AddRule begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := s.AddRuleTx(ctx, tx, rule); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("AddRule commit tx: %w", err)
+	}
+	_ = s.cache.Invalidate(ctx, rule.FlagID)
+	return nil
+}
+
+func (s *flagService) AddRuleTx(ctx context.Context, tx pgx.Tx, rule *models.TargetingRule) (uuid.UUID, error) {
 	if rule.ID == uuid.Nil {
 		rule.ID = uuid.New()
 	}
@@ -400,14 +479,12 @@ func (s *flagService) AddRule(ctx context.Context, rule *models.TargetingRule) e
 	rule.UpdatedAt = now
 
 	if err := rule.Validate(); err != nil {
-		return fmt.Errorf("validation failed: %w", err)
+		return uuid.Nil, fmt.Errorf("validation failed: %w", err)
 	}
-
-	if err := s.repo.CreateRule(ctx, rule); err != nil {
-		return fmt.Errorf("creating rule: %w", err)
+	if err := s.repo.CreateRuleTx(ctx, tx, rule); err != nil {
+		return uuid.Nil, fmt.Errorf("creating rule: %w", err)
 	}
-	_ = s.cache.Invalidate(ctx, rule.FlagID)
-	return nil
+	return rule.ID, nil
 }
 
 // UpdateRule validates and persists changes to an existing targeting rule.

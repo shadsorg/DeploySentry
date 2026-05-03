@@ -32,7 +32,7 @@ func TestLifecycleScheduler_Tick_MarksFiredOnce(t *testing.T) {
 	var markCalls int
 	originalRepo := repo
 	wrappedRepo := &markCountingRepo{mockFlagRepo: originalRepo, markCount: &markCalls}
-	svc := NewFlagService(wrappedRepo, cache, nil)
+	svc := NewFlagService(nil, wrappedRepo, cache, nil)
 	sched := NewLifecycleScheduler(svc, nil, time.Minute)
 
 	require.NoError(t, sched.Tick(context.Background()))

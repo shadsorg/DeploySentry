@@ -14,6 +14,7 @@ import (
 	"github.com/shadsorg/deploysentry/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -274,6 +275,20 @@ func (m *mockFlagService) ClearDeleteAfter(ctx context.Context, id uuid.UUID) er
 		return m.clearDeleteAfterFn(ctx, id)
 	}
 	return nil
+}
+
+func (m *mockFlagService) CreateFlagTx(ctx context.Context, _ pgx.Tx, flag *models.FeatureFlag) (uuid.UUID, error) {
+	if err := m.CreateFlag(ctx, flag); err != nil {
+		return uuid.Nil, err
+	}
+	return flag.ID, nil
+}
+
+func (m *mockFlagService) AddRuleTx(ctx context.Context, _ pgx.Tx, rule *models.TargetingRule) (uuid.UUID, error) {
+	if err := m.AddRule(ctx, rule); err != nil {
+		return uuid.Nil, err
+	}
+	return rule.ID, nil
 }
 
 // ---------------------------------------------------------------------------

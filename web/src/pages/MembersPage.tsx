@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import type { Member } from '@/types';
 import { membersApi, groupsApi } from '@/api';
@@ -33,8 +33,20 @@ export default function MembersPage() {
   const [roleFilter, setRoleFilter] = useState<'all' | 'owner' | 'admin' | 'member' | 'viewer'>(
     'all',
   );
-  const visibleMembers =
-    roleFilter === 'all' ? members : members.filter((m) => m.role === roleFilter);
+
+  // Memoized to prevent re-filtering the list on every render
+  const visibleMembers = useMemo(() => {
+    return roleFilter === 'all' ? members : members.filter((m) => m.role === roleFilter);
+  }, [members, roleFilter]);
+
+  // Pre-compute role counts to avoid O(N*M) calculation during the map loop
+  const roleCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: members.length };
+    for (const m of members) {
+      counts[m.role] = (counts[m.role] || 0) + 1;
+    }
+    return counts;
+  }, [members]);
 
   // Delete confirm
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -209,8 +221,7 @@ export default function MembersPage() {
               style={{ marginBottom: 12 }}
             >
               {(['all', 'owner', 'admin', 'member', 'viewer'] as const).map((role) => {
-                const count =
-                  role === 'all' ? members.length : members.filter((m) => m.role === role).length;
+                const count = roleCounts[role] || 0;
                 return (
                   <button
                     key={role}

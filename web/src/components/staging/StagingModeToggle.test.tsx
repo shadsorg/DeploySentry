@@ -1,39 +1,49 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import StagingModeToggle from './StagingModeToggle';
 
+const mockUseStagingEnabled = vi.fn();
+const mockSetStagingEnabled = vi.fn();
+
+vi.mock('@/hooks/useStagingEnabled', () => ({
+  useStagingEnabled: (orgSlug?: string) => mockUseStagingEnabled(orgSlug),
+  setStagingEnabled: (...args: unknown[]) => mockSetStagingEnabled(...args),
+}));
+
 beforeEach(() => {
-  localStorage.clear();
+  mockUseStagingEnabled.mockReset();
+  mockSetStagingEnabled.mockReset().mockResolvedValue(undefined);
 });
 
 describe('StagingModeToggle', () => {
-  it('renders the off state by default and offers to enable', () => {
+  it('renders off when the hook returns false', () => {
+    mockUseStagingEnabled.mockReturnValue(false);
     render(<StagingModeToggle orgSlug="acme" />);
     expect(screen.getByText(/Staging mode is off/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Enable staging/ })).toBeInTheDocument();
   });
 
-  it('clicking Enable flips the on/off label and the button intent', async () => {
-    const user = userEvent.setup();
+  it('renders on when the hook returns true', () => {
+    mockUseStagingEnabled.mockReturnValue(true);
     render(<StagingModeToggle orgSlug="acme" />);
-    await user.click(screen.getByRole('button', { name: /Enable staging/ }));
     expect(screen.getByText(/Staging mode is on/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Disable staging/ })).toBeInTheDocument();
   });
 
-  it('reads the per-org localStorage key on mount', () => {
-    localStorage.setItem('ds_staging_enabled:acme', 'true');
-    render(<StagingModeToggle orgSlug="acme" />);
-    expect(screen.getByText(/Staging mode is on/)).toBeInTheDocument();
-  });
-
-  it('persists the new state in the per-org localStorage key', async () => {
+  it('clicking Enable calls setStagingEnabled(orgSlug, true)', async () => {
+    mockUseStagingEnabled.mockReturnValue(false);
     const user = userEvent.setup();
     render(<StagingModeToggle orgSlug="acme" />);
     await user.click(screen.getByRole('button', { name: /Enable staging/ }));
-    expect(localStorage.getItem('ds_staging_enabled:acme')).toBe('true');
+    expect(mockSetStagingEnabled).toHaveBeenCalledWith('acme', true);
+  });
+
+  it('clicking Disable calls setStagingEnabled(orgSlug, false)', async () => {
+    mockUseStagingEnabled.mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<StagingModeToggle orgSlug="acme" />);
     await user.click(screen.getByRole('button', { name: /Disable staging/ }));
-    expect(localStorage.getItem('ds_staging_enabled:acme')).toBeNull();
+    expect(mockSetStagingEnabled).toHaveBeenCalledWith('acme', false);
   });
 });

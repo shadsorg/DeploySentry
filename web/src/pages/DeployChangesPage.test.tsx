@@ -15,7 +15,16 @@ vi.mock('@/api', () => ({
     list: (...args: unknown[]) => mockList(...args),
     commit: (...args: unknown[]) => mockCommit(...args),
     discardOne: (...args: unknown[]) => mockDiscardOne(...args),
+    getEnabled: vi.fn().mockResolvedValue({ enabled: false }),
   },
+  entitiesApi: { getOrg: vi.fn().mockResolvedValue({ id: 'org-uuid' }) },
+  settingsApi: { set: vi.fn().mockResolvedValue({}) },
+}));
+
+vi.mock('@/hooks/useStagingEnabled', () => ({
+  useStagingEnabled: () => false,
+  setStagingEnabled: vi.fn().mockResolvedValue(undefined),
+  __resetStagingEnabledCacheForTests: () => {},
 }));
 
 function row(overrides: Partial<StagedChange>): StagedChange {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useStagingEnabled } from './useStagingEnabled';
+import { useStagingEnabled, __resetStagingEnabledCacheForTests } from './useStagingEnabled';
 
 // Mock the API module so no real fetches happen.
 vi.mock('@/api', () => ({
@@ -19,6 +19,7 @@ import { stagingApi } from '@/api';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  __resetStagingEnabledCacheForTests();
 });
 
 describe('useStagingEnabled', () => {
@@ -85,5 +86,51 @@ describe('useStagingEnabled', () => {
 
     await waitFor(() => expect(result.current).toBe(true));
     expect(stagingApi.getEnabled).toHaveBeenCalledTimes(2);
+  });
+
+  it('dedupes concurrent calls to the same org', async () => {
+    const fetchSpy = vi.spyOn(stagingApi, 'getEnabled').mockResolvedValue({ enabled: true });
+    __resetStagingEnabledCacheForTests();
+
+    const { result: a } = renderHook(() => useStagingEnabled('acme'));
+    const { result: b } = renderHook(() => useStagingEnabled('acme'));
+    const { result: c } = renderHook(() => useStagingEnabled('acme'));
+
+    await waitFor(() => {
+      expect(a.current).toBe(true);
+      expect(b.current).toBe(true);
+      expect(c.current).toBe(true);
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('serves subsequent mounts from cache without refetching', async () => {
+    const fetchSpy = vi.spyOn(stagingApi, 'getEnabled').mockResolvedValue({ enabled: true });
+    __resetStagingEnabledCacheForTests();
+
+    const first = renderHook(() => useStagingEnabled('acme'));
+    await waitFor(() => expect(first.result.current).toBe(true));
+    first.unmount();
+
+    const second = renderHook(() => useStagingEnabled('acme'));
+    // Should resolve synchronously from cache.
+    expect(second.result.current).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('recovers after a failed fetch (does not cache failures)', async () => {
+    const fetchSpy = vi
+      .spyOn(stagingApi, 'getEnabled')
+      .mockRejectedValueOnce(new Error('429'))
+      .mockResolvedValueOnce({ enabled: true });
+    __resetStagingEnabledCacheForTests();
+
+    const first = renderHook(() => useStagingEnabled('acme'));
+    await waitFor(() => expect(first.result.current).toBe(false));
+    first.unmount();
+
+    const second = renderHook(() => useStagingEnabled('acme'));
+    await waitFor(() => expect(second.result.current).toBe(true));
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 });

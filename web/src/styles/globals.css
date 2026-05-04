@@ -4563,3 +4563,32 @@ tbody tr:last-child td {
   border-radius: 4px;
   font-size: 13px;
 }
+
+/* Staging mode operator toggle (DeployChangesPage). */
+.staging-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  background: var(--color-surface, #ffffff);
+  margin-bottom: 18px;
+}
+.staging-mode-toggle.on {
+  border-color: var(--color-warning-border, #f59e0b);
+  background: var(--color-warning-bg, #fffbeb);
+}
+.staging-mode-toggle-text {
+  flex: 1;
+}
+.staging-mode-toggle-text strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.staging-mode-toggle-text p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-muted, #6b7280);
+}

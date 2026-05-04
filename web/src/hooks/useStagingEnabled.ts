@@ -1,63 +1,62 @@
 import { useEffect, useState } from 'react';
+import { stagingApi, settingsApi, entitiesApi } from '@/api';
 
 /**
- * Per-org opt-in for routing dashboard mutations through the staging layer
- * instead of writing to production directly. Persisted in localStorage so
- * an operator can toggle it without server-side flag wiring; the proper
- * `staged-changes-enabled` feature flag will replace this later (Phase C
- * tail / Phase D), but the hook signature stays the same.
+ * Per-org opt-in for routing dashboard mutations through the staging layer.
+ * Reads from GET /api/v1/orgs/:orgSlug/staging (server-side org setting).
  *
- * Storage key: `ds_staging_enabled:<orgSlug>`. Value: "true" | absent.
- *
- * Listens to the `storage` event so toggling the key in another tab
- * propagates without a refresh, and to a custom `ds:staging-enabled`
- * event so a setter in this tab can broadcast within the same window.
+ * Defaults to false until the fetch resolves, and on any error.
+ * Refetches when the custom `ds:staging-enabled` event fires (same-tab toggle).
  */
 export function useStagingEnabled(orgSlug?: string): boolean {
-  const key = orgSlug ? `ds_staging_enabled:${orgSlug}` : null;
-  const [enabled, setEnabled] = useState<boolean>(() => readKey(key));
+  const [enabled, setEnabled] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!key) {
+    if (!orgSlug) {
       setEnabled(false);
       return;
     }
-    setEnabled(readKey(key));
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === key) setEnabled(readKey(key));
-    };
-    const onCustom = () => setEnabled(readKey(key));
-    window.addEventListener('storage', onStorage);
+
+    let cancelled = false;
+
+    function fetchEnabled() {
+      stagingApi.getEnabled(orgSlug!).then(
+        (res) => {
+          if (!cancelled) setEnabled(res.enabled);
+        },
+        () => {
+          if (!cancelled) setEnabled(false);
+        },
+      );
+    }
+
+    fetchEnabled();
+
+    const onCustom = () => fetchEnabled();
     window.addEventListener('ds:staging-enabled', onCustom);
     return () => {
-      window.removeEventListener('storage', onStorage);
+      cancelled = true;
       window.removeEventListener('ds:staging-enabled', onCustom);
     };
-  }, [key]);
+  }, [orgSlug]);
 
   return enabled;
 }
 
 /**
- * Imperative setter for the same per-org flag. Useful for a Settings-page
- * toggle. Fires a `ds:staging-enabled` event so any same-tab listeners
- * (including useStagingEnabled) refresh immediately.
+ * Imperative setter — writes the staged-changes-enabled org-level setting via
+ * the settings PUT endpoint, then dispatches `ds:staging-enabled` so the
+ * same-tab hook refreshes.
+ *
+ * Resolves orgSlug → orgID first so the settings API gets the UUID it needs.
  */
-export function setStagingEnabled(orgSlug: string, enabled: boolean): void {
-  const key = `ds_staging_enabled:${orgSlug}`;
-  if (enabled) {
-    localStorage.setItem(key, 'true');
-  } else {
-    localStorage.removeItem(key);
-  }
+export async function setStagingEnabled(orgSlug: string, enabled: boolean): Promise<void> {
+  const org = await entitiesApi.getOrg(orgSlug);
+  await settingsApi.set({
+    scope: 'org',
+    target_id: org.id,
+    key: 'staged-changes-enabled',
+    value: enabled,
+  });
   window.dispatchEvent(new CustomEvent('ds:staging-enabled'));
-}
-
-function readKey(key: string | null): boolean {
-  if (!key) return false;
-  try {
-    return localStorage.getItem(key) === 'true';
-  } catch {
-    return false;
-  }
 }

@@ -468,7 +468,7 @@ func run() error {
 	auth.NewAPIKeyHandler(apiKeyService).RegisterRoutes(api)
 	auth.NewAuditHandler(auditRepo, revertRegistry).RegisterRoutes(api)
 	auth.NewRevertHandler(revertRegistry, auditRepo).RegisterRoutes(api)
-	staging.NewHandler(stagingService).RegisterRoutes(api.Group("/orgs/:orgSlug"))
+	staging.NewHandlerWithSettings(stagingService, settingService).RegisterRoutes(api.Group("/orgs/:orgSlug"))
 	entities.NewHandler(entityService, rbacChecker, grantService).RegisterRoutes(api)
 	settings.NewHandler(settingService, rbacChecker).RegisterRoutes(api)
 	members.NewHandler(memberService, entityService, rbacChecker, auditRepo).RegisterRoutes(api)

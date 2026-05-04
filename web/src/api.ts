@@ -1011,6 +1011,8 @@ export interface StageRequest {
 }
 
 export const stagingApi = {
+  /** Server-side enablement check: reads the staged-changes-enabled org setting. */
+  getEnabled: (orgSlug: string) => request<{ enabled: boolean }>(`/orgs/${orgSlug}/staging`),
   list: (orgSlug: string) => request<StagedChangesListResponse>(`/orgs/${orgSlug}/deploy-changes`),
   stage: (orgSlug: string, body: StageRequest) =>
     request<StagedChange>(`/orgs/${orgSlug}/deploy-changes/stage`, {

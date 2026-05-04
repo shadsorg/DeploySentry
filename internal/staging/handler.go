@@ -1,6 +1,7 @@
 package staging
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -10,9 +11,20 @@ import (
 	"github.com/shadsorg/deploysentry/internal/models"
 )
 
+// StagingEnabledSettingKey is the settings key that controls whether the
+// staging layer is active for an org.
+const StagingEnabledSettingKey = "staged-changes-enabled"
+
+// settingResolver is the minimal interface the Handler needs from the settings
+// package to check the staged-changes-enabled org-level setting.
+type settingResolver interface {
+	Resolve(ctx context.Context, key string, orgID, projectID, appID, envID *uuid.UUID) (*models.Setting, error)
+}
+
 // Handler exposes the /deploy-changes HTTP endpoints.
 type Handler struct {
-	svc *Service
+	svc      *Service
+	settings settingResolver
 }
 
 // NewHandler constructs the HTTP handler.
@@ -20,22 +32,57 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
-// RegisterRoutes mounts the four /deploy-changes routes under the org-scoped
-// router group. Caller is responsible for installing the standard auth
-// middleware ahead of this registration.
+// NewHandlerWithSettings constructs the HTTP handler with settings support for
+// the GET /staging endpoint.
+func NewHandlerWithSettings(svc *Service, settings settingResolver) *Handler {
+	return &Handler{svc: svc, settings: settings}
+}
+
+// RegisterRoutes mounts the staging routes under the org-scoped router group.
+// Caller is responsible for installing the standard auth middleware ahead of
+// this registration.
 //
 // Routes:
+//   GET    /api/v1/orgs/:orgSlug/staging                      — server-side enablement check
 //   GET    /api/v1/orgs/:orgSlug/deploy-changes               — list user's pending
 //   POST   /api/v1/orgs/:orgSlug/deploy-changes/stage         — upsert one staged row (Phase A test seam)
 //   POST   /api/v1/orgs/:orgSlug/deploy-changes/commit        — deploy selected rows
 //   DELETE /api/v1/orgs/:orgSlug/deploy-changes/:id           — discard one
 //   DELETE /api/v1/orgs/:orgSlug/deploy-changes               — discard all
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	rg.GET("/staging", h.getEnabled)
 	rg.GET("/deploy-changes", h.list)
 	rg.POST("/deploy-changes/stage", h.stage)
 	rg.POST("/deploy-changes/commit", h.commit)
 	rg.DELETE("/deploy-changes/:id", h.discardOne)
 	rg.DELETE("/deploy-changes", h.discardAll)
+}
+
+// getEnabled returns {"enabled": bool} for the org — reads the
+// staged-changes-enabled org-level setting. Gracefully defaults to false on
+// any error so the UI never breaks if settings are absent.
+func (h *Handler) getEnabled(c *gin.Context) {
+	if h.settings == nil {
+		c.JSON(http.StatusOK, gin.H{"enabled": false})
+		return
+	}
+	orgID, ok := orgIDFromContext(c)
+	if !ok {
+		c.JSON(http.StatusOK, gin.H{"enabled": false})
+		return
+	}
+	setting, err := h.settings.Resolve(c.Request.Context(), StagingEnabledSettingKey, &orgID, nil, nil, nil)
+	if err != nil || setting == nil {
+		c.JSON(http.StatusOK, gin.H{"enabled": false})
+		return
+	}
+	// Value is JSONB; expect "true" or "false".
+	var enabled bool
+	if jsonErr := json.Unmarshal(setting.Value, &enabled); jsonErr != nil {
+		c.JSON(http.StatusOK, gin.H{"enabled": false})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"enabled": enabled})
 }
 
 func (h *Handler) list(c *gin.Context) {
@@ -153,6 +200,26 @@ func (h *Handler) discardAll(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"discarded": n})
+}
+
+// orgIDFromContext extracts only the org_id set by the ResolveOrgRole middleware.
+func orgIDFromContext(c *gin.Context) (uuid.UUID, bool) {
+	orgIDVal, ok := c.Get("org_id")
+	if !ok {
+		return uuid.Nil, false
+	}
+	switch v := orgIDVal.(type) {
+	case uuid.UUID:
+		return v, true
+	case string:
+		parsed, err := uuid.Parse(v)
+		if err != nil {
+			return uuid.Nil, false
+		}
+		return parsed, true
+	default:
+		return uuid.Nil, false
+	}
 }
 
 // identity extracts the (user_id, org_id) pair the auth + org-resolver
